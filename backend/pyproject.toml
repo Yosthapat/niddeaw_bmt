@@ -1,0 +1,42 @@
+[project]
+name = "niddeaw-bmt-backend"
+version = "0.1.0"
+description = "นิดเดียว Badminton Club — FastAPI backend"
+authors = [
+    {name = "K Yosthapat", email = "yosthapatk.mbai@gmail.com"},
+]
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "supabase>=2.9",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "python-jose[cryptography]>=3.3",
+    "bcrypt>=4.1",
+    "qrcode[pil]>=8.0",
+    "python-multipart>=0.0.12",
+]
+requires-python = "==3.13.*"
+readme = "README.md"
+license = {text = "MIT"}
+
+[dependency-groups]
+dev = [
+    "mypy>=1.13",
+    "pytest>=8.3",
+    "ruff>=0.7",
+    "types-qrcode>=8.2.0.20260518",
+    "types-python-jose>=3.5.0.20260408",
+]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+disallow_untyped_defs = true
+
+[tool.ruff]
+line-length = 100
+
+[tool.pdm]
+distribution = false
+

@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+/*
+ * Dark-only design — the whole app is styled directly against the black
+ * background. No light/dark toggle, so Tailwind's `dark:` variant machinery
+ * is intentionally unused here.
+ *
+ * Tailwind v4 is CSS-first: custom design tokens are declared with @theme
+ * instead of a tailwind.config.js/ts `theme.extend.colors` block. Each
+ * --color-* variable below generates the matching utility classes
+ * (e.g. --color-brand-pink -> bg-brand-pink, text-brand-pink, border-brand-pink).
+ */
+@theme {
+  --color-brand-black: #0a0a0a;
+  --color-brand-pink: #ec4899;
+  --color-brand-pink-dark: #be185d;
+  --color-brand-pink-light: #f9a8d4;
+
+  --color-tier-milk: #f5f5f4;
+  --color-tier-soju: #a3e635;
+  --color-tier-beer: #fbbf24;
+  --color-tier-highball: #fb923c;
+  --color-tier-vodka: #a855f7;
+}
+
+html {
+  background-color: var(--color-brand-black);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--color-brand-black);
+  color: white;
+}

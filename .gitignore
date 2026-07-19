@@ -1,0 +1,26 @@
+# Python / backend
+backend/__pycache__/
+backend/**/__pycache__/
+backend/.venv/
+backend/.pdm-python
+backend/.mypy_cache/
+backend/.pytest_cache/
+*.pyc
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Env files (never commit real secrets)
+.env
+backend/.env
+frontend/.env
+!*.env.example
+
+# OS
+.DS_Store
+
+# Editors
+.vscode/
+.idea/

@@ -1,0 +1,49 @@
+from datetime import datetime
+from typing import Literal
+from uuid import UUID
+
+from pydantic import BaseModel
+
+EloTier = Literal["milk", "soju", "beer", "highball", "vodka"]
+
+
+class PlayerBase(BaseModel):
+    name: str
+    nickname: str | None = None
+    phone: str | None = None
+    line_id: str | None = None
+
+
+class PlayerCreate(PlayerBase):
+    pass
+
+
+class PlayerUpdate(BaseModel):
+    name: str | None = None
+    nickname: str | None = None
+    phone: str | None = None
+    line_id: str | None = None
+    avatar_url: str | None = None
+    is_active: bool | None = None
+
+
+class Player(PlayerBase):
+    id: UUID
+    avatar_url: str | None = None
+    elo_score: int
+    elo_level: EloTier
+    is_active: bool
+    created_at: datetime
+
+
+class PlayerStats(BaseModel):
+    """Aggregated per-player stats for the Member List / Ranking views."""
+
+    player: Player
+    games: int
+    wins: int
+    draws: int
+    losses: int
+    points: int
+    avg_points: float
+    score_percent: float
