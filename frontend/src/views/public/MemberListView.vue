@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { getPlayers } from '@/api/public'
 import type { PlayerStats } from '@/types'
 import EloBadge from '@/components/players/EloBadge.vue'
@@ -8,6 +8,15 @@ import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 const stats = ref<PlayerStats[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
+const search = ref('')
+
+const filteredStats = computed(() => {
+  const query = search.value.trim().toLowerCase()
+  if (!query) return stats.value
+  return stats.value.filter((s) =>
+    [s.player.name, s.player.nickname ?? ''].some((field) => field.toLowerCase().includes(query)),
+  )
+})
 
 onMounted(async () => {
   try {
@@ -22,11 +31,20 @@ onMounted(async () => {
 
 <template>
   <main class="mx-auto max-w-4xl px-4 py-8">
-    <h1 class="text-2xl font-bold text-brand-pink">สมาชิก</h1>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <h1 class="text-2xl font-bold text-brand-pink">สมาชิก</h1>
+      <input
+        v-model="search"
+        type="search"
+        placeholder="ค้นหาสมาชิก..."
+        class="w-full max-w-xs rounded-full border border-brand-pink-dark/40 bg-white/5 px-4 py-1.5 text-sm outline-none focus:border-brand-pink"
+      />
+    </div>
 
     <p v-if="loading" class="mt-6 text-white/60">กำลังโหลด...</p>
     <p v-else-if="error" class="mt-6 text-red-400">{{ error }}</p>
     <p v-else-if="stats.length === 0" class="mt-6 text-white/60">ยังไม่มีสมาชิก</p>
+    <p v-else-if="filteredStats.length === 0" class="mt-6 text-white/60">ไม่พบสมาชิกที่ค้นหา</p>
 
     <div v-else class="mt-6 overflow-x-auto rounded-xl border border-brand-pink-dark/40">
       <table class="w-full min-w-[640px] text-left text-sm">
@@ -44,7 +62,7 @@ onMounted(async () => {
           </tr>
         </thead>
         <tbody class="divide-y divide-white/10">
-          <tr v-for="s in stats" :key="s.player.id">
+          <tr v-for="s in filteredStats" :key="s.player.id">
             <td class="px-3 py-2 font-medium">
               <RouterLink :to="`/members/${s.player.id}`" class="flex items-center gap-2 hover:text-brand-pink">
                 <PlayerAvatar :name="s.player.name" :avatar-url="s.player.avatar_url" size="sm" />
