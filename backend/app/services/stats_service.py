@@ -72,3 +72,47 @@ def build_player_records(
                 records[pid].draws += 1
 
     return records
+
+
+@dataclass
+class NemesisRecord:
+    encounters: int = 0
+    wins: int = 0
+    losses: int = 0
+    draws: int = 0
+
+
+def find_nemesis(
+    player_id: UUID, matches: list[CompletedMatchRow]
+) -> tuple[UUID, NemesisRecord] | None:
+    """Finds the opponent `player_id` has faced most often ("เทกันจัง"),
+    with the head-to-head record from `player_id`'s perspective."""
+    records: dict[UUID, NemesisRecord] = {}
+
+    for match in matches:
+        team1_ids = {UUID(pid) for pid in match["team1_player_ids"]}
+        team2_ids = {UUID(pid) for pid in match["team2_player_ids"]}
+        winner = match["winner"]
+
+        if player_id in team1_ids:
+            opponent_ids, player_won = team2_ids, winner == "team1"
+        elif player_id in team2_ids:
+            opponent_ids, player_won = team1_ids, winner == "team2"
+        else:
+            continue
+
+        is_draw = winner == "draw"
+        for opponent_id in opponent_ids:
+            record = records.setdefault(opponent_id, NemesisRecord())
+            record.encounters += 1
+            if is_draw:
+                record.draws += 1
+            elif player_won:
+                record.wins += 1
+            else:
+                record.losses += 1
+
+    if not records:
+        return None
+    nemesis_id = max(records, key=lambda pid: records[pid].encounters)
+    return nemesis_id, records[nemesis_id]

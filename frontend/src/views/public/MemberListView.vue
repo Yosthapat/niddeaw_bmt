@@ -45,9 +45,11 @@ onMounted(async () => {
         </thead>
         <tbody class="divide-y divide-white/10">
           <tr v-for="s in stats" :key="s.player.id">
-            <td class="flex items-center gap-2 px-3 py-2 font-medium">
-              <PlayerAvatar :name="s.player.name" :avatar-url="s.player.avatar_url" size="sm" />
-              {{ s.player.nickname || s.player.name }}
+            <td class="px-3 py-2 font-medium">
+              <RouterLink :to="`/members/${s.player.id}`" class="flex items-center gap-2 hover:text-brand-pink">
+                <PlayerAvatar :name="s.player.name" :avatar-url="s.player.avatar_url" size="sm" />
+                {{ s.player.nickname || s.player.name }}
+              </RouterLink>
             </td>
             <td class="px-3 py-2"><EloBadge :elo-score="s.player.elo_score" /></td>
             <td class="px-3 py-2 text-right">{{ s.games }}</td>

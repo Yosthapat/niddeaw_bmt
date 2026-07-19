@@ -1,5 +1,5 @@
 import { request } from './client'
-import type { Match, Player, PlayerStats } from '@/types'
+import type { Match, Player, PlayerProfile, PlayerStats } from '@/types'
 
 // Mirrors backend/app/routers/public/{players,ranking,hall_of_fame,matches}.py.
 
@@ -9,6 +9,10 @@ export async function getPlayers(): Promise<PlayerStats[]> {
 
 export async function getPlayer(playerId: string): Promise<Player> {
   return request(`/api/players/${playerId}`)
+}
+
+export async function getPlayerProfile(playerId: string): Promise<PlayerProfile> {
+  return request(`/api/players/${playerId}/profile`)
 }
 
 export async function getRanking(period: 'year' | 'all' = 'all'): Promise<PlayerStats[]> {

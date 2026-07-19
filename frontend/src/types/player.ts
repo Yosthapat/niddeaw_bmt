@@ -24,3 +24,25 @@ export interface PlayerStats {
   avg_points: number
   score_percent: number
 }
+
+/** The opponent this player has faced most often ("เทกันจัง"). */
+export interface NemesisInfo {
+  player: Player
+  encounters: number
+  wins: number
+  losses: number
+  draws: number
+}
+
+/** Mirrors backend app/models/player.py PlayerProfile. */
+export interface PlayerProfile {
+  player: Player
+  games: number
+  wins: number
+  draws: number
+  losses: number
+  points: number
+  avg_points: number
+  score_percent: number
+  nemesis: NemesisInfo | null
+}

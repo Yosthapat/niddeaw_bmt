@@ -62,11 +62,13 @@ const medalByRank = ['🥇', '🥈', '🥉']
         <span class="w-8 text-center text-lg font-bold text-brand-pink-light">
           {{ medalByRank[i] ?? i + 1 }}
         </span>
-        <PlayerAvatar :name="s.player.name" :avatar-url="s.player.avatar_url" size="sm" />
-        <div class="flex-1">
-          <p class="font-medium">{{ s.player.nickname || s.player.name }}</p>
-          <p class="text-xs text-white/50">{{ s.games }} เกม · ชนะ {{ s.wins }}</p>
-        </div>
+        <RouterLink :to="`/members/${s.player.id}`" class="flex flex-1 items-center gap-3 hover:text-brand-pink">
+          <PlayerAvatar :name="s.player.name" :avatar-url="s.player.avatar_url" size="sm" />
+          <div>
+            <p class="font-medium">{{ s.player.nickname || s.player.name }}</p>
+            <p class="text-xs text-white/50">{{ s.games }} เกม · ชนะ {{ s.wins }}</p>
+          </div>
+        </RouterLink>
         <EloBadge :elo-score="s.player.elo_score" show-score />
         <span class="w-12 text-right text-lg font-bold text-brand-pink">{{ s.points }}</span>
       </li>

@@ -47,3 +47,27 @@ class PlayerStats(BaseModel):
     points: int
     avg_points: float
     score_percent: float
+
+
+class NemesisInfo(BaseModel):
+    """The opponent this player has faced most often ("เทกันจัง")."""
+
+    player: Player
+    encounters: int
+    wins: int
+    losses: int
+    draws: int
+
+
+class PlayerProfile(BaseModel):
+    """Single-player detail page — Member List stats plus their nemesis."""
+
+    player: Player
+    games: int
+    wins: int
+    draws: int
+    losses: int
+    points: int
+    avg_points: float
+    score_percent: float
+    nemesis: NemesisInfo | None = None

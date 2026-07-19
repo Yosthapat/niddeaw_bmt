@@ -22,6 +22,11 @@ const router = createRouter({
       component: () => import('../views/public/MemberListView.vue'),
     },
     {
+      path: '/members/:id',
+      name: 'member-profile',
+      component: () => import('../views/public/PlayerProfileView.vue'),
+    },
+    {
       path: '/ranking',
       name: 'ranking',
       component: () => import('../views/public/RankingView.vue'),

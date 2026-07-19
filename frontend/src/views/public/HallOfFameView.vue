@@ -42,16 +42,18 @@ onMounted(async () => {
             : 'border-brand-pink-dark/40 bg-white/5'
         "
       >
-        <PlayerAvatar :name="s.player.name" :avatar-url="s.player.avatar_url" size="lg" />
-        <div class="flex-1">
-          <p class="font-bold">
-            {{ i === 0 ? '👑 ' : '' }}{{ s.player.nickname || s.player.name }}
-          </p>
-          <p class="text-xs text-white/50">
-            {{ s.games }} เกม · {{ s.points }} pts · Sc {{ s.score_percent.toFixed(0) }}%
-          </p>
-          <EloBadge :elo-score="s.player.elo_score" show-score class="mt-1" />
-        </div>
+        <RouterLink :to="`/members/${s.player.id}`" class="flex flex-1 items-center gap-3 hover:opacity-80">
+          <PlayerAvatar :name="s.player.name" :avatar-url="s.player.avatar_url" size="lg" />
+          <div class="flex-1">
+            <p class="font-bold">
+              {{ i === 0 ? '👑 ' : '' }}{{ s.player.nickname || s.player.name }}
+            </p>
+            <p class="text-xs text-white/50">
+              {{ s.games }} เกม · {{ s.points }} pts · Sc {{ s.score_percent.toFixed(0) }}%
+            </p>
+            <EloBadge :elo-score="s.player.elo_score" show-score class="mt-1" />
+          </div>
+        </RouterLink>
       </div>
     </div>
   </main>
