@@ -100,7 +100,7 @@ onMounted(async () => {
       </div>
 
       <p v-if="billings.length === 0" class="mt-6 text-sm text-white/40">
-        ยังไม่มีบิล — ปิด session เพื่อคำนวณค่าใช้จ่ายจากเวลาเช็คอิน
+        ยังไม่มีบิล — ปิด session เพื่อคำนวณค่าสนาม + ค่าลูกตามจำนวนเกมที่เล่น
       </p>
 
       <ul v-else class="mt-6 space-y-3">
@@ -112,7 +112,7 @@ onMounted(async () => {
           <div class="flex items-center gap-3">
             <PlayerAvatar :name="nameOf(b.player_id)" size="sm" />
             <span class="flex-1 font-medium">{{ nameOf(b.player_id) }}</span>
-            <span class="text-xs text-white/40">{{ b.hours_played }} ชม.</span>
+            <span class="text-xs text-white/40">{{ b.game_count }} เกม</span>
             <span class="font-bold text-brand-pink">฿{{ effectiveAmount(b).toFixed(2) }}</span>
             <button
               class="rounded-full px-3 py-1 text-xs font-semibold"

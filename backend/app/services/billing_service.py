@@ -1,29 +1,17 @@
-"""Billing math: hours-played derivation and effective-amount resolution.
+"""Billing math: per-game cost derivation and effective-amount resolution.
 
-Pure functions — no Supabase I/O — so the rounding/grace-period rule can be
-unit-tested directly.
+Pure functions — no Supabase I/O — so the formula can be unit-tested
+directly. Each player who attends a session pays a flat court fee once,
+plus a flat shuttlecock cost per game they actually played (not split
+between teammates/opponents). Check-in/checkout times are still recorded
+for attendance and the matchmaking queue, but no longer feed into billing.
 """
 
-import math
-from datetime import datetime
 
-GRACE_MINUTES = 5
-BILLING_BLOCK_MINUTES = 30
-
-
-def compute_billed_minutes(checkin_time: datetime, checkout_time: datetime) -> int:
-    raw_minutes = (checkout_time - checkin_time).total_seconds() / 60
-    grace_adjusted = max(raw_minutes - GRACE_MINUTES, 0)
-    blocks = math.ceil(grace_adjusted / BILLING_BLOCK_MINUTES)
-    return blocks * BILLING_BLOCK_MINUTES
-
-
-def compute_hours_played(checkin_time: datetime, checkout_time: datetime) -> float:
-    return compute_billed_minutes(checkin_time, checkout_time) / 60
-
-
-def compute_amount_calc(hours_played: float, rate_per_hour: float) -> float:
-    return round(hours_played * rate_per_hour, 2)
+def compute_amount_calc(
+    game_count: int, court_fee_per_person: float, shuttlecock_price_per_game: float
+) -> float:
+    return round(court_fee_per_person + game_count * shuttlecock_price_per_game, 2)
 
 
 def effective_amount(amount_calc: float, amount_adjusted: float | None) -> float:

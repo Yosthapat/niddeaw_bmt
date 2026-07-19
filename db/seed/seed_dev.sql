@@ -16,8 +16,8 @@ insert into players (id, name, nickname, elo_score, elo_level, phone) values
     ('00000000-0000-0000-0000-000000000103', 'Anan Wongsa', 'Nan', 1350, 'highball', '0810000003'),
     ('00000000-0000-0000-0000-000000000104', 'Pim Sukjai', 'Pim', 1550, 'vodka', '0810000004');
 
-insert into sessions (id, date, location, rate_per_hour, status, created_by) values
-    ('00000000-0000-0000-0000-000000000201', current_date, 'สนามแบดหลังบ้าน', 60.00, 'open',
+insert into sessions (id, date, location, court_fee_per_person, shuttlecock_price_per_game, status, created_by) values
+    ('00000000-0000-0000-0000-000000000201', current_date, 'สนามแบดหลังบ้าน', 80.00, 29.00, 'open',
      '00000000-0000-0000-0000-000000000001');
 
 insert into checkins (session_id, player_id, checkin_time) values

@@ -4,7 +4,7 @@ export interface Billing {
   id: string
   session_id: string
   player_id: string
-  hours_played: number
+  game_count: number
   amount_calc: number
   amount_adjusted: number | null
   paid_status: PaidStatus
@@ -22,5 +22,6 @@ export type PromptPayType = 'phone' | 'national_id' | 'ewallet'
 export interface ClubSettings {
   promptpay_id: string
   promptpay_type: PromptPayType
-  default_rate_per_hour: number
+  default_court_fee_per_person: number
+  default_shuttlecock_price_per_game: number
 }

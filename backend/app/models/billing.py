@@ -19,7 +19,7 @@ class Billing(BaseModel):
     id: UUID
     session_id: UUID
     player_id: UUID
-    hours_played: float
+    game_count: int
     amount_calc: float
     amount_adjusted: float | None = None
     paid_status: PaidStatus

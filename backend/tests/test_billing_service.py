@@ -1,30 +1,12 @@
-from datetime import datetime, timedelta
-
 from app.services import billing_service
 
 
-def _times(minutes: int) -> tuple[datetime, datetime]:
-    start = datetime(2026, 1, 1, 18, 0, 0)
-    return start, start + timedelta(minutes=minutes)
+def test_court_fee_only_when_no_games_played() -> None:
+    assert billing_service.compute_amount_calc(0, 80.0, 29.0) == 80.0
 
 
-def test_exact_hour_bills_one_hour() -> None:
-    checkin, checkout = _times(60)
-    assert billing_service.compute_hours_played(checkin, checkout) == 1.0
-
-
-def test_grace_period_does_not_bump_next_block() -> None:
-    checkin, checkout = _times(64)  # 4 min over, within 5-min grace
-    assert billing_service.compute_hours_played(checkin, checkout) == 1.0
-
-
-def test_beyond_grace_period_rounds_up_to_next_block() -> None:
-    checkin, checkout = _times(66)  # 6 min over grace -> bump to next 30-min block
-    assert billing_service.compute_hours_played(checkin, checkout) == 1.5
-
-
-def test_amount_calc_uses_rate_per_hour() -> None:
-    assert billing_service.compute_amount_calc(1.5, 50.0) == 75.0
+def test_adds_flat_shuttlecock_cost_per_game_not_split() -> None:
+    assert billing_service.compute_amount_calc(3, 80.0, 29.0) == 80.0 + 3 * 29.0
 
 
 def test_effective_amount_prefers_adjustment() -> None:

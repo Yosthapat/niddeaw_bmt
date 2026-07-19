@@ -59,9 +59,19 @@ const promptPayTypeOptions: { value: PromptPayType; label: string }[] = [
       </label>
 
       <label class="flex flex-col gap-1 text-sm">
-        อัตราค่าหัวเริ่มต้น (บาท/ชั่วโมง)
+        ค่าสนามเริ่มต้น (บาท/คน/session)
         <input
-          v-model.number="settings.default_rate_per_hour"
+          v-model.number="settings.default_court_fee_per_person"
+          type="number"
+          min="0"
+          class="rounded-lg border border-brand-pink-dark/40 bg-white/5 px-3 py-2 outline-none focus:border-brand-pink"
+        />
+      </label>
+
+      <label class="flex flex-col gap-1 text-sm">
+        ค่าลูกแบดเริ่มต้น (บาท/เกม/คน)
+        <input
+          v-model.number="settings.default_shuttlecock_price_per_game"
           type="number"
           min="0"
           class="rounded-lg border border-brand-pink-dark/40 bg-white/5 px-3 py-2 outline-none focus:border-brand-pink"

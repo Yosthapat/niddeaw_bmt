@@ -1,14 +1,23 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useSessionsStore } from '@/stores/sessions'
+import { getClubSettings } from '@/api/admin'
 
 const sessionsStore = useSessionsStore()
 const creating = ref(false)
 const newLocation = ref('')
-const newRate = ref(60)
+const newCourtFee = ref(80)
+const newShuttlecockPrice = ref(29)
 
-onMounted(() => {
+onMounted(async () => {
   sessionsStore.refresh()
+  try {
+    const settings = await getClubSettings()
+    newCourtFee.value = settings.default_court_fee_per_person
+    newShuttlecockPrice.value = settings.default_shuttlecock_price_per_game
+  } catch {
+    // Club settings not seeded yet — keep the hardcoded defaults above.
+  }
 })
 
 async function createToday(): Promise<void> {
@@ -16,7 +25,8 @@ async function createToday(): Promise<void> {
   await sessionsStore.createSession({
     date: new Date().toISOString().slice(0, 10),
     location: newLocation.value.trim(),
-    rate_per_hour: newRate.value,
+    court_fee_per_person: newCourtFee.value,
+    shuttlecock_price_per_game: newShuttlecockPrice.value,
   })
   creating.value = false
   newLocation.value = ''
@@ -52,10 +62,19 @@ async function createToday(): Promise<void> {
         class="w-32 rounded-lg border border-brand-pink-dark/40 bg-brand-black px-2 py-1 text-sm"
       />
       <input
-        v-model.number="newRate"
+        v-model.number="newCourtFee"
         type="number"
         min="0"
-        placeholder="บาท/ชม."
+        placeholder="ค่าสนาม/คน"
+        title="ค่าสนามต่อคน (บาท)"
+        class="w-24 rounded-lg border border-brand-pink-dark/40 bg-brand-black px-2 py-1 text-sm"
+      />
+      <input
+        v-model.number="newShuttlecockPrice"
+        type="number"
+        min="0"
+        placeholder="ค่าลูก/เกม"
+        title="ค่าลูกแบดต่อเกม (บาท)"
         class="w-24 rounded-lg border border-brand-pink-dark/40 bg-brand-black px-2 py-1 text-sm"
       />
       <button class="rounded-full bg-brand-pink px-3 py-1 text-sm font-semibold text-brand-black" @click="createToday">

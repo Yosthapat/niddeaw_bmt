@@ -30,7 +30,8 @@ export async function getSessions(): Promise<Session[]> {
 export async function createSession(session: {
   date: string
   location: string
-  rate_per_hour: number
+  court_fee_per_person: number
+  shuttlecock_price_per_game: number
 }): Promise<Session> {
   return request('/api/admin/sessions', {
     method: 'POST',
@@ -40,7 +41,9 @@ export async function createSession(session: {
 
 export async function updateSession(
   sessionId: string,
-  updates: Partial<Pick<Session, 'location' | 'rate_per_hour' | 'status'>>,
+  updates: Partial<
+    Pick<Session, 'location' | 'court_fee_per_person' | 'shuttlecock_price_per_game' | 'status'>
+  >,
 ): Promise<Session> {
   return request(`/api/admin/sessions/${sessionId}`, {
     method: 'PATCH',

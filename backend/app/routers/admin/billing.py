@@ -26,15 +26,18 @@ def list_billing(session_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> li
 def close_session_and_bill(
     session_id: UUID, supabase: SupabaseDep, admin: AdminDep
 ) -> list[Billing]:
-    """Force-closes any still-open checkins (checkout = now), then upserts a
-    billing row per player for this session based on actual checked-in time."""
+    """Force-closes any still-open checkins (checkout = now, kept for
+    attendance/matchmaking history only), then upserts a billing row per
+    attendee: a flat court fee plus a flat shuttlecock cost per completed
+    game they actually played in this session."""
     session_result = (
         supabase.table("sessions").select("*").eq("id", str(session_id)).limit(1).execute()
     )
     session_rows = rows(session_result)
     if not session_rows:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
-    rate_per_hour = session_rows[0]["rate_per_hour"]
+    court_fee_per_person = session_rows[0]["court_fee_per_person"]
+    shuttlecock_price_per_game = session_rows[0]["shuttlecock_price_per_game"]
 
     now_iso = datetime.now(timezone.utc).isoformat()
     supabase.table("checkins").update({"checkout_time": now_iso}).eq(
@@ -42,20 +45,34 @@ def close_session_and_bill(
     ).is_("checkout_time", "null").execute()
 
     checkins_result = (
-        supabase.table("checkins").select("*").eq("session_id", str(session_id)).execute()
+        supabase.table("checkins").select("player_id").eq("session_id", str(session_id)).execute()
     )
+    attendee_ids = {checkin["player_id"] for checkin in rows(checkins_result)}
+
+    matches_result = (
+        supabase.table("matches")
+        .select("team1_player_ids, team2_player_ids")
+        .eq("session_id", str(session_id))
+        .eq("status", "completed")
+        .execute()
+    )
+    game_counts: dict[str, int] = {pid: 0 for pid in attendee_ids}
+    for match in rows(matches_result):
+        for pid in [*match["team1_player_ids"], *match["team2_player_ids"]]:
+            if pid in game_counts:
+                game_counts[pid] += 1
 
     billing_rows_to_upsert = []
-    for checkin in rows(checkins_result):
-        checkin_time = datetime.fromisoformat(str(checkin["checkin_time"]))
-        checkout_time = datetime.fromisoformat(str(checkin["checkout_time"]))
-        hours_played = billing_service.compute_hours_played(checkin_time, checkout_time)
-        amount_calc = billing_service.compute_amount_calc(hours_played, rate_per_hour)
+    for player_id in attendee_ids:
+        game_count = game_counts[player_id]
+        amount_calc = billing_service.compute_amount_calc(
+            game_count, court_fee_per_person, shuttlecock_price_per_game
+        )
         billing_rows_to_upsert.append(
             {
                 "session_id": str(session_id),
-                "player_id": checkin["player_id"],
-                "hours_played": hours_played,
+                "player_id": player_id,
+                "game_count": game_count,
                 "amount_calc": amount_calc,
                 "paid_status": "unpaid",
                 "updated_at": now_iso,

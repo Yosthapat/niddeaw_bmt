@@ -43,7 +43,8 @@ export const useSessionsStore = defineStore('sessions', () => {
   async function createSession(input: {
     date: string
     location: string
-    rate_per_hour: number
+    court_fee_per_person: number
+    shuttlecock_price_per_game: number
   }): Promise<Session> {
     const session = await adminApi.createSession(input)
     sessions.value.unshift(session)
