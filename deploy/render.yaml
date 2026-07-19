@@ -4,10 +4,18 @@ services:
     runtime: python
     plan: free
     rootDir: backend
-    buildCommand: pip install pdm && pdm install --prod --no-editable
-    startCommand: pdm run uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    # PDM's own private-Python management doesn't reliably persist between
+    # Render's build and runtime steps, which can leave `pdm run` pointing at
+    # an empty venv (uvicorn "not found in PATH"). Exporting to a plain
+    # requirements.txt and installing with pip sidesteps that entirely —
+    # Render's native Python runtime (pinned via PYTHON_VERSION below) then
+    # has uvicorn installed directly, no PDM indirection needed at start time.
+    buildCommand: pip install pdm && pdm export -o requirements.txt --prod --without-hashes && pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.13.11"
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
