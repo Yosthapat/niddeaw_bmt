@@ -67,12 +67,32 @@ usePolling(refreshCheckins, 8000)
       <SessionPicker />
     </div>
 
+    <section class="mt-6">
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-semibold text-white/70">สมาชิกทั้งหมด</h2>
+        <button v-if="!addingPlayer" class="text-xs text-brand-pink underline" @click="addingPlayer = true">
+          + เพิ่มสมาชิกใหม่
+        </button>
+      </div>
+      <div v-if="addingPlayer" class="mt-2 flex gap-2">
+        <input
+          v-model="newPlayerName"
+          placeholder="ชื่อสมาชิกใหม่"
+          class="flex-1 rounded-lg border border-brand-pink-dark/40 bg-brand-black px-2 py-1 text-sm"
+        />
+        <button class="rounded-full bg-brand-pink px-3 py-1 text-sm font-semibold text-brand-black" @click="quickAddPlayer">
+          บันทึก
+        </button>
+        <button class="text-sm text-white/50" @click="addingPlayer = false">ยกเลิก</button>
+      </div>
+    </section>
+
     <p v-if="!sessionsStore.currentSessionId" class="mt-8 text-white/60">
       เลือกหรือสร้าง session ก่อนเช็คอิน
     </p>
 
     <template v-else>
-      <section class="mt-6">
+      <section class="mt-8">
         <h2 class="text-sm font-semibold text-white/70">
           กำลังเช็คอิน ({{ activeCheckins.length }})
         </h2>
@@ -106,22 +126,7 @@ usePolling(refreshCheckins, 8000)
       </section>
 
       <section class="mt-8">
-        <div class="flex items-center justify-between">
-          <h2 class="text-sm font-semibold text-white/70">สมาชิกที่ยังไม่เช็คอิน</h2>
-          <button v-if="!addingPlayer" class="text-xs text-brand-pink underline" @click="addingPlayer = true">
-            + เพิ่มสมาชิกใหม่
-          </button>
-        </div>
-        <div v-if="addingPlayer" class="mt-2 flex gap-2">
-          <input
-            v-model="newPlayerName"
-            placeholder="ชื่อสมาชิกใหม่"
-            class="flex-1 rounded-lg border border-brand-pink-dark/40 bg-brand-black px-2 py-1 text-sm"
-          />
-          <button class="rounded-full bg-brand-pink px-3 py-1 text-sm font-semibold text-brand-black" @click="quickAddPlayer">
-            บันทึก
-          </button>
-        </div>
+        <h2 class="text-sm font-semibold text-white/70">สมาชิกที่ยังไม่เช็คอิน</h2>
         <ul class="mt-2 grid gap-2 sm:grid-cols-2">
           <li
             v-for="p in availablePlayers"
