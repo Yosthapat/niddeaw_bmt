@@ -4,16 +4,20 @@
 - none
 
 ## Done Last Session
-- Added "**+ เพิ่มสมาชิกใหม่**" (Add New Member) button to Check-in page as a persistent UI element
-- Button placed at the top of the page and visible regardless of session selection state
-- Removed the requirement for users to create or select a session before adding new members
-- Implemented workflow allowing direct member addition from Check-in page on entry
-- Pushed changes to repository for auto-redeployment
+- Implemented admin players GET endpoint in backend for fetching members list
+- Built ManageMembersView.vue component with full member management UI (create/edit/avatar/activate-deactivate)
+- Added getAllPlayers API call to frontend service
+- Created new /admin/members route and added "จัดการสมาชิก" (Manage Members) link to Admin navigation
+- Verified all builds (mypy + pytest + vite)
+- Committed and pushed all changes to main branch
+- Verified backend redeployment completed successfully with new endpoint
+- Confirmed frontend /admin/members page responding with HTTP 200 and is live in production
 
 ## Next Steps
-- Verify new member addition flow works correctly in production
-- Test adding multiple members through the Check-in interface
-- Monitor for any edge cases with the new persistent button
+- Test the full member management UI in production at Admin → จัดการสมาชิก (/admin/members)
+- Test adding new members, editing member details, uploading avatars
+- Test activating/deactivating members
+- Monitor production for any issues with the new endpoint
 
 ## Blockers
 - none
@@ -22,5 +26,7 @@
 - Claude Code — 2026-07-20
 
 ## Checkpoint (auto)
-- 04:30 — edited players_admin.py
-- 04:25 — edited active.md
+- 04:43 — edited players_admin.py
+- 04:43 — edited players_admin.py
+- 04:43 — edited player.py
+- 04:35 — edited active.md

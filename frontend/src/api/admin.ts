@@ -138,6 +138,7 @@ export async function createPlayer(player: {
   nickname?: string | null
   phone?: string | null
   line_id?: string | null
+  elo_score?: number | null
 }): Promise<Player> {
   return request('/api/admin/players', {
     method: 'POST',

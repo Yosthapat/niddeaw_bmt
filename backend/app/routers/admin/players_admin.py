@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, status
 from app.db_utils import rows
 from app.deps import AdminDep, SupabaseDep
 from app.models.player import Player, PlayerCreate, PlayerUpdate
-from app.services.elo_service import STARTING_SCORE, get_tier
+from app.services.elo_service import SCORE_FLOOR, STARTING_SCORE, get_tier
 
 router = APIRouter(prefix="/api/admin/players", tags=["admin-players"])
 
@@ -23,10 +23,11 @@ def list_all_players(supabase: SupabaseDep, admin: AdminDep) -> list[Player]:
 
 @router.post("", response_model=Player, status_code=status.HTTP_201_CREATED)
 def create_player(payload: PlayerCreate, supabase: SupabaseDep, admin: AdminDep) -> Player:
+    elo_score = max(SCORE_FLOOR, payload.elo_score) if payload.elo_score is not None else STARTING_SCORE
     row = {
-        **payload.model_dump(mode="json"),
-        "elo_score": STARTING_SCORE,
-        "elo_level": get_tier(STARTING_SCORE),
+        **payload.model_dump(mode="json", exclude={"elo_score"}),
+        "elo_score": elo_score,
+        "elo_level": get_tier(elo_score),
         "is_active": True,
     }
     result = supabase.table("players").insert(row).execute()

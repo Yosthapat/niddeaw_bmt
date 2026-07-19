@@ -15,7 +15,9 @@ class PlayerBase(BaseModel):
 
 
 class PlayerCreate(PlayerBase):
-    pass
+    elo_score: int | None = None
+    """Starting rating for a player who isn't a true beginner — defaults to
+    elo_service.STARTING_SCORE (1000) when omitted."""
 
 
 class PlayerUpdate(BaseModel):

@@ -12,7 +12,13 @@ const error = ref<string | null>(null)
 
 const creating = ref(false)
 const savingCreate = ref(false)
-const newPlayer = reactive({ name: '', nickname: '', phone: '', line_id: '' })
+const newPlayer = reactive({ name: '', nickname: '', phone: '', line_id: '', elo_score: '' })
+const newAvatarFile = ref<File | null>(null)
+
+function onNewAvatarSelected(event: Event): void {
+  const input = event.target as HTMLInputElement
+  newAvatarFile.value = input.files?.[0] ?? null
+}
 
 const editingId = ref<string | null>(null)
 const savingEdit = ref(false)
@@ -35,17 +41,23 @@ async function createPlayer(): Promise<void> {
   if (!newPlayer.name.trim()) return
   savingCreate.value = true
   try {
-    const created = await adminApi.createPlayer({
+    let created = await adminApi.createPlayer({
       name: newPlayer.name.trim(),
       nickname: newPlayer.nickname.trim() || null,
       phone: newPlayer.phone.trim() || null,
       line_id: newPlayer.line_id.trim() || null,
+      elo_score: newPlayer.elo_score.trim() ? Number(newPlayer.elo_score) : null,
     })
+    if (newAvatarFile.value) {
+      created = await adminApi.uploadAvatar(created.id, newAvatarFile.value)
+    }
     players.value.unshift(created)
     newPlayer.name = ''
     newPlayer.nickname = ''
     newPlayer.phone = ''
     newPlayer.line_id = ''
+    newPlayer.elo_score = ''
+    newAvatarFile.value = null
     creating.value = false
   } finally {
     savingCreate.value = false
@@ -125,6 +137,17 @@ onMounted(loadPlayers)
       <input v-model="newPlayer.nickname" placeholder="ชื่อเล่น" class="rounded-lg border border-brand-pink-dark/40 bg-brand-black px-3 py-2 text-sm" />
       <input v-model="newPlayer.phone" placeholder="เบอร์โทร" class="rounded-lg border border-brand-pink-dark/40 bg-brand-black px-3 py-2 text-sm" />
       <input v-model="newPlayer.line_id" placeholder="LINE ID" class="rounded-lg border border-brand-pink-dark/40 bg-brand-black px-3 py-2 text-sm" />
+      <input
+        v-model="newPlayer.elo_score"
+        type="number"
+        placeholder="ELO เริ่มต้น (ค่าเริ่มต้น 1000)"
+        title="ปล่อยว่างไว้ถ้าให้เริ่มที่ 1000 ตามปกติ"
+        class="rounded-lg border border-brand-pink-dark/40 bg-brand-black px-3 py-2 text-sm"
+      />
+      <label class="flex items-center gap-2 rounded-lg border border-brand-pink-dark/40 bg-brand-black px-3 py-2 text-sm text-white/60">
+        รูปโปรไฟล์
+        <input type="file" accept="image/*" class="flex-1 text-xs" @change="onNewAvatarSelected" />
+      </label>
       <div class="flex gap-2 sm:col-span-2">
         <button type="submit" :disabled="savingCreate" class="rounded-full bg-brand-pink px-4 py-1.5 text-sm font-semibold text-brand-black disabled:opacity-50">
           {{ savingCreate ? 'กำลังบันทึก...' : 'บันทึกสมาชิกใหม่' }}
