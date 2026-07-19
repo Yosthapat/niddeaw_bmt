@@ -1,0 +1,14 @@
+{
+  // Repo-root wrangler config for Cloudflare's unified "Workers Builds" flow.
+  // Static SPA hosting via Workers static assets — no Worker script needed.
+  // Lives at repo root (not inside frontend/) because the dashboard's
+  // current onboarding screen has no root-directory field; the Build
+  // Command instead `cd`s into frontend/ itself, and this file's
+  // assets.directory path is relative to repo root.
+  "name": "niddeaw-bmt-frontend",
+  "compatibility_date": "2026-07-20",
+  "assets": {
+    "directory": "./frontend/dist",
+    "not_found_handling": "single-page-application"
+  }
+}
