@@ -1,26 +1,24 @@
 # Active Context
 
 ## Current Task
-- None — Phase 1 complete. Waiting on user to provision cloud credentials and deploy.
+Deploying Phase 1 scaffold to real infrastructure (guided walkthrough with user). Backend (Render) is live and verified. Frontend (Cloudflare Workers static assets) deploy is stuck on a dashboard quirk — troubleshooting in progress.
 
 ## Done Last Session
-- Reviewed ISSUE_beerminton_webapp.md and resolved 6 design risks before coding: player-auth decision (no player login in Phase 1), frontend-never-touches-Supabase-directly security, match score format (sets), realtime vs polling (polling), asset paths, and all documented in issue file's "Decisions Resolved" section.
-- **Backend** (FastAPI + PDM, 19 tests passing, mypy strict clean): full pydantic models, JWT admin auth with direct bcrypt lib (passlib's bcrypt backend is broken with bcrypt≥4.1), public read-only routers (players/ranking/hall-of-fame/matches), admin routers (sessions/checkins/players/settings/matchmaking/billing), ELO service (K=32, 5 tiers), matchmaking with ELO-balance + fairness penalty, billing (30-min rounding + 5-min grace), and self-implemented PromptPay QR (EMVCo TLV + CRC16, verified byte-for-byte against reference test vectors).
-- **Database** (5 SQL migrations): schema, indexes, club_settings seed, RLS deny-by-default security, avatars storage bucket, and dev seed data (db/seed/seed_dev.sql).
-- **Frontend** (Vue3 + TS + Vite + Tailwind v4 + PWA, vue-tsc and vite build clean): full router (5 public + 7 admin routes), Pinia auth/players/sessions stores, all 12 views wired to real backend, black/pink theme with ELO tier colors, PWA manifest/icons generated from club logo.
-- **Deploy configs** scaffolded (Render, Cloudflare Pages, ENV_SETUP.md checklist) but not yet run — no cloud accounts provisioned yet.
-- Verified end-to-end locally: backend boots, /health OK, all 24 routes in OpenAPI, frontend compiles and serves all views.
+- **Supabase**: project created (`qzwrrrgxjstdcnqelidr`), all 5 migrations run, `service_role` key captured.
+- **Render backend**: deployed at `https://niddeaw-bmt.onrender.com`. Hit a real bug — PDM's private-Python management doesn't persist between Render's build/runtime steps, causing `pdm run uvicorn` to fail with "not found in PATH". Fixed by switching `deploy/render.yaml` to `pdm export -o requirements.txt && pip install -r requirements.txt` for build, plain `uvicorn ...` for start, plus pinning `PYTHON_VERSION`. Verified locally (fresh venv + pip install + `which uvicorn`) before pushing. **`/health` and `/api/players` both confirmed working against real Supabase.**
+- **Cloudflare**: Cloudflare's dashboard has moved to a unified "Workers Builds" flow (no more classic Pages root-directory/output-directory fields) — added a repo-root `wrangler.jsonc` (assets.directory → `./frontend/dist`) to match. Project created (`niddeaw-bmt`), connected to GitHub, `VITE_API_BASE_URL` env var set.
+- **Current blocker**: first deploy served Cloudflare's default "Hello world" placeholder because the Build Command field didn't get saved from the onboarding wizard. Fixed via Settings → Build (build command now correctly shows `cd frontend && npm install && npm run build` there). But clicking **Retry build** on the old failed build entry replays *that build's original stale config snapshot* (still shows "Build command: None"), not the current Settings.
 
 ## Next Steps
-- User provisions Supabase/Render/Cloudflare Pages accounts, then follow `deploy/ENV_SETUP.md` to go live.
-- Review `git status`/`git diff` and commit when ready.
-- Consider running `/code-review` before first commit.
+- Trigger a genuinely fresh deployment (not a "Retry" of the old stale build) so it picks up the current, correct Settings — pushing a new commit is the reliable way since Retry appears to replay historical config.
+- Once deployed, verify `https://niddeaw-bmt.yosthapatk-mbai.workers.dev/` serves the real Vue app (not "Hello world"), then update Render's `CORS_ORIGINS` to match.
+- Remaining tutorial steps not yet done: cron-job.org keepalive ping, create real admin user (bcrypt hash + insert), log into `/admin/settings` to set real PromptPay ID + rate.
 
 ## Blockers
-- None — waiting on user-provided cloud credentials (by design).
+- Cloudflare "Retry build" not respecting updated Settings — working around by pushing a fresh commit instead.
 
 ## Last Updated
 - Claude Code — 2026-07-20
 
 ## Checkpoint (auto)
-- 01:17 — edited active.md
+- 03:19 — edited active.md
