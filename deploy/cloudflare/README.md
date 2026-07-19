@@ -23,6 +23,7 @@ fields. That config lives at the **repo root**: `/wrangler.jsonc`, pointing
    created if it's not visible upfront.
 
 `not_found_handling: "single-page-application"` in `wrangler.jsonc`
-replaces the old `_redirects` `/* /index.html 200` trick — it's still kept
-in `frontend/public/_redirects` for compatibility with the classic Pages
-build path, but isn't required with this config.
+replaces the old `_redirects` `/* /index.html 200` trick — **do not** add
+a `frontend/public/_redirects` file back. Having both active at once
+causes a "Line 1: Infinite loop detected in this rule" deploy failure,
+since the two SPA-fallback mechanisms fight each other.
