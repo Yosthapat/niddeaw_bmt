@@ -13,6 +13,14 @@ AVATAR_BUCKET = "avatars"
 MAX_AVATAR_BYTES = 2 * 1024 * 1024  # 2MB — client resizes before upload; this is a hard backstop
 
 
+@router.get("", response_model=list[Player])
+def list_all_players(supabase: SupabaseDep, admin: AdminDep) -> list[Player]:
+    """Full roster including inactive members — unlike the public
+    /api/players list, which only shows active players with stats."""
+    result = supabase.table("players").select("*").order("name").execute()
+    return [Player.model_validate(row) for row in rows(result)]
+
+
 @router.post("", response_model=Player, status_code=status.HTTP_201_CREATED)
 def create_player(payload: PlayerCreate, supabase: SupabaseDep, admin: AdminDep) -> Player:
     row = {

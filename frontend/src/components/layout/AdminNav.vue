@@ -9,6 +9,7 @@ const authStore = useAuthStore()
 const links = [
   { to: '/admin', label: 'Dashboard' },
   { to: '/admin/checkin', label: 'Check-in' },
+  { to: '/admin/members', label: 'จัดการสมาชิก' },
   { to: '/admin/matchmaking', label: 'จับคู่' },
   { to: '/admin/billing', label: 'คิดเงิน' },
   { to: '/admin/settings', label: 'ตั้งค่า' },

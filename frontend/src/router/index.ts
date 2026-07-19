@@ -61,6 +61,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/admin/members',
+      name: 'admin-members',
+      component: () => import('../views/admin/ManageMembersView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/admin/matchmaking',
       name: 'admin-matchmaking',
       component: () => import('../views/admin/MatchmakingView.vue'),

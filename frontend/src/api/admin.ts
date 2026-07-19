@@ -129,6 +129,10 @@ export async function getBillingQrCode(billingId: string): Promise<{ data_uri: s
 }
 
 // Players (admin CRUD)
+export async function getAllPlayers(): Promise<Player[]> {
+  return request('/api/admin/players')
+}
+
 export async function createPlayer(player: {
   name: string
   nickname?: string | null
