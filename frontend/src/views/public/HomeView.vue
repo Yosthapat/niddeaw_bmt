@@ -20,15 +20,16 @@ const quickLinks = [
   { to: '/matches', num: '04', label: 'ผลแมตช์', desc: 'เกมล่าสุดที่จบไป' },
 ]
 
-// bg: 'light' for logos with dark/colored ink (need a white backing to read
-// on our dark theme), 'dark' for logos drawn in white ink (match-mellow —
-// designed to sit on a dark/colored background, would vanish on white).
-const sponsors: { name: string; src: string; bg: 'light' | 'dark' }[] = [
-  { name: 'Wasteland', src: '/sponsors/wasteland.png', bg: 'light' },
-  { name: 'Match Mellow', src: '/sponsors/match-mellow.png', bg: 'dark' },
-  { name: 'Sawadee Natural Herbal Balm', src: '/sponsors/sawadee.png', bg: 'light' },
-  { name: 'Umore Made', src: '/sponsors/umore-made.png', bg: 'light' },
-  { name: 'The Players Club', src: '/sponsors/players-club.png', bg: 'light' },
+// -mono.png variants: original logos recolored to a white silhouette
+// (RGB -> white, original alpha kept as the mask) so every logo reads
+// cleanly straight against the dark background with no card/box needed —
+// same treatment bmbad.com uses for its sponsor strip.
+const sponsors = [
+  { name: 'Wasteland', src: '/sponsors/wasteland-mono.png' },
+  { name: 'Match Mellow', src: '/sponsors/match-mellow-mono.png' },
+  { name: 'Sawadee Natural Herbal Balm', src: '/sponsors/sawadee-mono.png' },
+  { name: 'Umore Made', src: '/sponsors/umore-made-mono.png' },
+  { name: 'The Players Club', src: '/sponsors/players-club-mono.png' },
 ]
 </script>
 
@@ -75,17 +76,16 @@ const sponsors: { name: string; src: string; bg: 'light' | 'dark' }[] = [
       </p>
     </section>
 
-    <section class="reveal sponsors mt-8 text-center sm:mt-10">
+    <section class="reveal sponsors mt-10 border-t border-b border-brand-pink/15 py-8 text-center sm:mt-12">
       <h2 class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">ผู้สนับสนุน</h2>
-      <div class="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
-        <div
+      <div class="mt-6 flex flex-wrap items-center justify-center gap-x-12 gap-y-8">
+        <img
           v-for="sponsor in sponsors"
           :key="sponsor.name"
-          class="flex h-32 items-center justify-center p-2"
-          :class="sponsor.bg === 'light' ? 'rounded-xl bg-white' : ''"
-        >
-          <img :src="sponsor.src" :alt="sponsor.name" class="h-full w-full object-contain" />
-        </div>
+          :src="sponsor.src"
+          :alt="sponsor.name"
+          class="h-14 w-auto object-contain opacity-80 transition-opacity hover:opacity-100 sm:h-16"
+        />
       </div>
     </section>
   </main>
