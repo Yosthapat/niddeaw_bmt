@@ -33,3 +33,13 @@ export interface MatchmakingQueueResponse {
   waiting: WaitingEntry[]
   avg_match_duration_minutes: number
 }
+
+export interface LiveQueueResponse {
+  session_id: string | null
+  session_date: string | null
+  location: string | null
+  in_progress: QueueEntry[]
+  suggestions: PairingSuggestion[]
+  waiting: WaitingEntry[]
+  avg_match_duration_minutes: number
+}

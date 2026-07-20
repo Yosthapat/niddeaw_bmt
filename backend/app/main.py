@@ -9,7 +9,7 @@ from app.routers.admin import matchmaking as admin_matchmaking
 from app.routers.admin import players_admin
 from app.routers.admin import sessions as admin_sessions
 from app.routers.admin import settings as admin_settings
-from app.routers.public import hall_of_fame, matches, players, ranking
+from app.routers.public import hall_of_fame, live, matches, players, ranking
 
 app = FastAPI(title="นิดเดียว Badminton Club API")
 
@@ -26,6 +26,7 @@ app.include_router(players.router)
 app.include_router(ranking.router)
 app.include_router(hall_of_fame.router)
 app.include_router(matches.router)
+app.include_router(live.router)
 
 app.include_router(admin_auth.router)
 app.include_router(admin_sessions.router)

@@ -14,6 +14,7 @@ const publicLinks = computed(() => [
   { to: '/members', label: t('nav.members') },
   { to: '/ranking', label: t('nav.ranking') },
   { to: '/hall-of-fame', label: t('nav.hallOfFame') },
+  { to: '/live', label: t('nav.live') },
   { to: '/matches', label: t('nav.matches') },
 ])
 </script>

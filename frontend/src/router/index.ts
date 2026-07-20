@@ -37,6 +37,11 @@ const router = createRouter({
       component: () => import('../views/public/HallOfFameView.vue'),
     },
     {
+      path: '/live',
+      name: 'live',
+      component: () => import('../views/public/LiveView.vue'),
+    },
+    {
       path: '/matches',
       name: 'matches',
       component: () => import('../views/public/MatchHistoryView.vue'),

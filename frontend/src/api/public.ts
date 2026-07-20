@@ -1,5 +1,5 @@
 import { request } from './client'
-import type { Match, MatchDetail, Player, PlayerProfile, PlayerStats } from '@/types'
+import type { LiveQueueResponse, Match, MatchDetail, Player, PlayerProfile, PlayerStats } from '@/types'
 
 // Mirrors backend/app/routers/public/{players,ranking,hall_of_fame,matches}.py.
 
@@ -36,4 +36,8 @@ export async function getMatches(
 
 export async function getMatchDetail(matchId: string): Promise<MatchDetail> {
   return request(`/api/matches/${matchId}/detail`)
+}
+
+export async function getLiveStatus(): Promise<LiveQueueResponse> {
+  return request('/api/live')
 }

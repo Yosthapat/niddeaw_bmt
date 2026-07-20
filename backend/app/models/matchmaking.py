@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Self
 from uuid import UUID
 
@@ -54,6 +55,20 @@ class WaitingEntry(BaseModel):
 
 
 class MatchmakingQueueResponse(BaseModel):
+    in_progress: list[QueueEntry]
+    suggestions: list[PairingSuggestion]
+    waiting: list[WaitingEntry]
+    avg_match_duration_minutes: float
+
+
+class LiveQueueResponse(BaseModel):
+    """Public, read-only view of the current session's queue — same shape as
+    MatchmakingQueueResponse but self-resolves the open session server-side
+    (no session_id from the caller) and reports whether one exists at all."""
+
+    session_id: UUID | None
+    session_date: date | None
+    location: str | None
     in_progress: list[QueueEntry]
     suggestions: list[PairingSuggestion]
     waiting: list[WaitingEntry]

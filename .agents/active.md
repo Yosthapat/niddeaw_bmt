@@ -1,19 +1,23 @@
 # Active Context
 
 ## Current Task
-- Home page blank-render bug: fixed, pushing deploy
+- Built a public "Live" queue page so players can see if their match is in progress / how many groups are ahead, and pushing this deploy
 
 ## Done Last Session
-- Diagnosed home page blank/broken bug via user's DevTools console screenshot: `SyntaxError: Invalid linked format` thrown from vue-i18n's message compiler (tokenizer/parser) while rendering HomeView
-- Root cause: `home.contactBody` in both `th.ts`/`en.ts` contained a literal `@369iojcn` (LINE OA handle) — vue-i18n reserves unescaped `@` for "linked message" syntax (`@:key`), so any literal `@` breaks compilation of that message the first time it's used
-- Verified root cause directly with `@intlify/message-compiler`'s `baseCompile` + throwing `onError` — reproduced "Invalid linked format" for the raw string, confirmed `\@369iojcn` (backslash-escaped) compiles cleanly
-- Fixed by escaping to `\\@369iojcn` in both locale files; `npm run build` passes clean
-- Ran backend sanity checks: `/health` 200, public endpoints respond correctly, admin routes 401 without token — backend logic unchanged since last full authenticated flow test
+- Fixed and confirmed live: home page crash from unescaped `@` in vue-i18n contactBody string (commit 278d469)
+- Added public live-queue feature:
+  - Extracted `app/services/queue_service.py` (I/O layer) out of the admin matchmaking router so both admin and public routers share the same queue-building logic without duplication
+  - Added `LiveQueueResponse` model + new public `GET /api/live` endpoint (`app/routers/public/live.py`) — self-resolves the currently open session server-side, no auth/session_id needed from the caller
+  - Admin matchmaking router (`/api/admin/matchmaking/*`) refactored to call `queue_service` instead of duplicated private functions — behavior unchanged
+  - New frontend `LiveView.vue` at `/live` route: shows in-progress matches (avatar clusters), next suggested pairing, and the waiting queue with estimated wait — polls every 7s like the admin matchmaking screen
+  - Added nav link + `nav.live` / `live.*` i18n keys (th/en)
+  - Completed matches still surface automatically on `/matches` once admin submits a result — no extra work needed there, already worked via existing completed-match filtering
+- Backend: mypy (39 files) and pytest (25/25) clean; Frontend: `vue-tsc -b && vite build` clean
 
 ## Next Steps
-- Commit and push the i18n escape fix, confirm live site renders HomeView again
-- Re-run full authenticated admin flow (login → checkin → matchmaking → billing → revenue) if user wants a fresh end-to-end pass
-- Clean up any QA test data created during verification
+- Commit, push, confirm both Render (backend) and Cloudflare (frontend) deploys are live
+- Manually verify `/live` on production once there's an open session with checked-in players
+- Re-run full authenticated admin flow (login → checkin → matchmaking → billing → revenue) as a fresh end-to-end QA pass if desired — still not re-run since the i18n/stamps changes
 
 ## Blockers
 - none
@@ -22,7 +26,5 @@
 - Claude Code — 2026-07-21
 
 ## Checkpoint (auto)
-- 05:21 — edited active.md
-- 05:20 — edited en.ts
-- 05:20 — edited th.ts
-- 05:19 — edited active.md
+- 06:08 — edited active.md
+- 05:24 — edited active.md
