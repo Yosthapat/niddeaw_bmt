@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePlayersStore } from '@/stores/players'
 import * as adminApi from '@/api/admin'
+import { ApiError } from '@/api/client'
 import type { SetScore } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 
@@ -36,8 +37,8 @@ async function submit(): Promise<void> {
   try {
     await adminApi.recordMatchResult(matchId.value, validSets.value)
     router.push('/admin/matchmaking')
-  } catch {
-    error.value = 'บันทึกผลไม่สำเร็จ'
+  } catch (e) {
+    error.value = e instanceof ApiError ? `บันทึกผลไม่สำเร็จ (${e.status}: ${e.message})` : 'บันทึกผลไม่สำเร็จ'
   } finally {
     submitting.value = false
   }

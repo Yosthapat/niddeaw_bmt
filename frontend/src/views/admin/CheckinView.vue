@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useSessionsStore } from '@/stores/sessions'
 import { usePlayersStore } from '@/stores/players'
 import * as adminApi from '@/api/admin'
+import { ApiError } from '@/api/client'
 import { usePolling } from '@/composables/usePolling'
 import type { Checkin } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
@@ -16,12 +17,20 @@ const playersStore = usePlayersStore()
 const checkins = ref<Checkin[]>([])
 const newPlayerName = ref('')
 const addingPlayer = ref(false)
+const actionError = ref<string | null>(null)
 
 const activeCheckins = computed(() => checkins.value.filter((c) => c.checkout_time === null))
 const activePlayerIds = computed(() => new Set(activeCheckins.value.map((c) => c.player_id)))
 const availablePlayers = computed(() =>
   playersStore.players.filter((p) => p.is_active && !activePlayerIds.value.has(p.id)),
 )
+
+function apiErrorMessage(e: unknown, fallback: string): string {
+  if (e instanceof ApiError) {
+    return `${fallback} (${e.status}: ${e.message})`
+  }
+  return fallback
+}
 
 async function refreshCheckins(): Promise<void> {
   if (!sessionsStore.currentSessionId) {
@@ -33,20 +42,35 @@ async function refreshCheckins(): Promise<void> {
 
 async function doCheckin(playerId: string): Promise<void> {
   if (!sessionsStore.currentSessionId) return
-  await adminApi.checkinPlayer(sessionsStore.currentSessionId, playerId)
-  await refreshCheckins()
+  actionError.value = null
+  try {
+    await adminApi.checkinPlayer(sessionsStore.currentSessionId, playerId)
+    await refreshCheckins()
+  } catch (e) {
+    actionError.value = apiErrorMessage(e, 'เช็คอินไม่สำเร็จ')
+  }
 }
 
 async function doCheckout(checkinId: string): Promise<void> {
-  await adminApi.checkoutPlayer(checkinId)
-  await refreshCheckins()
+  actionError.value = null
+  try {
+    await adminApi.checkoutPlayer(checkinId)
+    await refreshCheckins()
+  } catch (e) {
+    actionError.value = apiErrorMessage(e, 'เช็คเอาท์ไม่สำเร็จ')
+  }
 }
 
 async function quickAddPlayer(): Promise<void> {
   if (!newPlayerName.value.trim()) return
-  await playersStore.createPlayer({ name: newPlayerName.value.trim() })
-  newPlayerName.value = ''
-  addingPlayer.value = false
+  actionError.value = null
+  try {
+    await playersStore.createPlayer({ name: newPlayerName.value.trim() })
+    newPlayerName.value = ''
+    addingPlayer.value = false
+  } catch (e) {
+    actionError.value = apiErrorMessage(e, 'เพิ่มสมาชิกไม่สำเร็จ')
+  }
 }
 
 watch(() => sessionsStore.currentSessionId, refreshCheckins)
@@ -66,6 +90,8 @@ usePolling(refreshCheckins, 8000)
     <div class="mt-4">
       <SessionPicker />
     </div>
+
+    <p v-if="actionError" class="mt-4 text-sm text-status-error">{{ actionError }}</p>
 
     <section class="mt-6">
       <div class="flex items-center justify-between">

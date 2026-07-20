@@ -2,12 +2,14 @@
 import { onMounted, ref } from 'vue'
 import { useSessionsStore } from '@/stores/sessions'
 import { getClubSettings } from '@/api/admin'
+import { ApiError } from '@/api/client'
 
 const sessionsStore = useSessionsStore()
 const creating = ref(false)
 const newLocation = ref('')
 const newCourtFee = ref(80)
 const newShuttlecockPrice = ref(29)
+const createError = ref<string | null>(null)
 
 onMounted(async () => {
   sessionsStore.refresh()
@@ -22,14 +24,19 @@ onMounted(async () => {
 
 async function createToday(): Promise<void> {
   if (!newLocation.value.trim()) return
-  await sessionsStore.createSession({
-    date: new Date().toISOString().slice(0, 10),
-    location: newLocation.value.trim(),
-    court_fee_per_person: newCourtFee.value,
-    shuttlecock_price_per_game: newShuttlecockPrice.value,
-  })
-  creating.value = false
-  newLocation.value = ''
+  createError.value = null
+  try {
+    await sessionsStore.createSession({
+      date: new Date().toISOString().slice(0, 10),
+      location: newLocation.value.trim(),
+      court_fee_per_person: newCourtFee.value,
+      shuttlecock_price_per_game: newShuttlecockPrice.value,
+    })
+    creating.value = false
+    newLocation.value = ''
+  } catch (e) {
+    createError.value = e instanceof ApiError ? `สร้าง session ไม่สำเร็จ (${e.status}: ${e.message})` : 'สร้าง session ไม่สำเร็จ'
+  }
 }
 </script>
 
@@ -82,5 +89,6 @@ async function createToday(): Promise<void> {
       </button>
       <button class="text-sm text-white/50" @click="creating = false">ยกเลิก</button>
     </template>
+    <p v-if="createError" class="w-full text-xs text-status-error">{{ createError }}</p>
   </div>
 </template>

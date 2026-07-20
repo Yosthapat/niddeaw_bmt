@@ -3,6 +3,7 @@ import { onMounted, ref, watch } from 'vue'
 import { useSessionsStore } from '@/stores/sessions'
 import { usePlayersStore } from '@/stores/players'
 import * as adminApi from '@/api/admin'
+import { ApiError } from '@/api/client'
 import { effectiveAmount } from '@/types'
 import type { Billing } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
@@ -16,10 +17,18 @@ const billings = ref<Billing[]>([])
 const closing = ref(false)
 const qrByBillingId = ref<Record<string, string>>({})
 const editingAdjust = ref<Record<string, string>>({})
+const actionError = ref<string | null>(null)
 
 function nameOf(playerId: string): string {
   const p = playersStore.byId(playerId)
   return p ? p.nickname || p.name : '?'
+}
+
+function apiErrorMessage(e: unknown, fallback: string): string {
+  if (e instanceof ApiError) {
+    return `${fallback} (${e.status}: ${e.message})`
+  }
+  return fallback
 }
 
 async function refreshBillings(): Promise<void> {
@@ -33,28 +42,41 @@ async function refreshBillings(): Promise<void> {
 async function closeAndBill(): Promise<void> {
   if (!sessionsStore.currentSessionId) return
   closing.value = true
+  actionError.value = null
   try {
     billings.value = await adminApi.closeSessionAndBill(sessionsStore.currentSessionId)
     await sessionsStore.refresh()
+  } catch (e) {
+    actionError.value = apiErrorMessage(e, 'ปิด session ไม่สำเร็จ')
   } finally {
     closing.value = false
   }
 }
 
 async function saveAdjust(billing: Billing): Promise<void> {
-  const raw = editingAdjust.value[billing.id]
-  const amount = raw === '' || raw === undefined ? null : Number(raw)
-  const updated = await adminApi.adjustBilling(billing.id, amount)
-  billings.value = billings.value.map((b) => (b.id === updated.id ? updated : b))
-  delete editingAdjust.value[billing.id]
+  actionError.value = null
+  try {
+    const raw = editingAdjust.value[billing.id]
+    const amount = raw === '' || raw === undefined ? null : Number(raw)
+    const updated = await adminApi.adjustBilling(billing.id, amount)
+    billings.value = billings.value.map((b) => (b.id === updated.id ? updated : b))
+    delete editingAdjust.value[billing.id]
+  } catch (e) {
+    actionError.value = apiErrorMessage(e, 'ปรับยอดไม่สำเร็จ')
+  }
 }
 
 async function togglePaid(billing: Billing): Promise<void> {
-  const updated = await adminApi.setBillingPaidStatus(
-    billing.id,
-    billing.paid_status === 'paid' ? 'unpaid' : 'paid',
-  )
-  billings.value = billings.value.map((b) => (b.id === updated.id ? updated : b))
+  actionError.value = null
+  try {
+    const updated = await adminApi.setBillingPaidStatus(
+      billing.id,
+      billing.paid_status === 'paid' ? 'unpaid' : 'paid',
+    )
+    billings.value = billings.value.map((b) => (b.id === updated.id ? updated : b))
+  } catch (e) {
+    actionError.value = apiErrorMessage(e, 'อัพเดทสถานะจ่ายเงินไม่สำเร็จ')
+  }
 }
 
 async function showQr(billing: Billing): Promise<void> {
@@ -62,8 +84,13 @@ async function showQr(billing: Billing): Promise<void> {
     delete qrByBillingId.value[billing.id]
     return
   }
-  const { data_uri } = await adminApi.getBillingQrCode(billing.id)
-  qrByBillingId.value[billing.id] = data_uri
+  actionError.value = null
+  try {
+    const { data_uri } = await adminApi.getBillingQrCode(billing.id)
+    qrByBillingId.value[billing.id] = data_uri
+  } catch (e) {
+    actionError.value = apiErrorMessage(e, 'สร้าง QR ไม่สำเร็จ — ตั้งค่า PromptPay ID ใน Admin > ตั้งค่า ก่อน')
+  }
 }
 
 watch(() => sessionsStore.currentSessionId, refreshBillings)
@@ -81,6 +108,8 @@ onMounted(async () => {
     <div class="mt-4">
       <SessionPicker />
     </div>
+
+    <p v-if="actionError" class="mt-4 text-sm text-status-error">{{ actionError }}</p>
 
     <p v-if="!sessionsStore.currentSessionId" class="mt-8 text-white/60">เลือกหรือสร้าง session ก่อน</p>
 

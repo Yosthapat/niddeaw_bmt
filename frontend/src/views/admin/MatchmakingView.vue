@@ -3,6 +3,7 @@ import { onMounted, ref, watch } from 'vue'
 import { useSessionsStore } from '@/stores/sessions'
 import { usePlayersStore } from '@/stores/players'
 import * as adminApi from '@/api/admin'
+import { ApiError } from '@/api/client'
 import { usePolling } from '@/composables/usePolling'
 import type { MatchmakingQueueResponse } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
@@ -14,6 +15,14 @@ const playersStore = usePlayersStore()
 
 const queue = ref<MatchmakingQueueResponse | null>(null)
 const confirming = ref<number | null>(null)
+const confirmError = ref<string | null>(null)
+
+function apiErrorMessage(e: unknown, fallback: string): string {
+  if (e instanceof ApiError) {
+    return `${fallback} (${e.status}: ${e.message})`
+  }
+  return fallback
+}
 
 function nameOf(playerId: string): string {
   const p = playersStore.byId(playerId)
@@ -33,6 +42,7 @@ async function confirmSuggestion(groupNo: number): Promise<void> {
   const suggestion = queue.value.suggestions.find((s) => s.group_no === groupNo)
   if (!suggestion) return
   confirming.value = groupNo
+  confirmError.value = null
   try {
     await adminApi.confirmMatch({
       session_id: sessionsStore.currentSessionId,
@@ -41,6 +51,8 @@ async function confirmSuggestion(groupNo: number): Promise<void> {
       team2_player_ids: suggestion.team2_player_ids,
     })
     await refreshQueue()
+  } catch (e) {
+    confirmError.value = apiErrorMessage(e, 'ยืนยันคู่ไม่สำเร็จ')
   } finally {
     confirming.value = null
   }
@@ -63,6 +75,8 @@ usePolling(refreshQueue, 7000)
     <div class="mt-4">
       <SessionPicker />
     </div>
+
+    <p v-if="confirmError" class="mt-4 text-sm text-status-error">{{ confirmError }}</p>
 
     <p v-if="!sessionsStore.currentSessionId" class="mt-8 text-white/60">
       เลือกหรือสร้าง session ก่อน
