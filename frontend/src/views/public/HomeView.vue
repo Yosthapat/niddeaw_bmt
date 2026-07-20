@@ -19,6 +19,17 @@ const quickLinks = [
   { to: '/hall-of-fame', num: '03', label: 'Hall of Fame', desc: 'ตำนานตลอดกาล' },
   { to: '/matches', num: '04', label: 'ผลแมตช์', desc: 'เกมล่าสุดที่จบไป' },
 ]
+
+// bg: 'light' for logos with dark/colored ink (need a white backing to read
+// on our dark theme), 'dark' for logos drawn in white ink (match-mellow —
+// designed to sit on a dark/colored background, would vanish on white).
+const sponsors: { name: string; src: string; bg: 'light' | 'dark' }[] = [
+  { name: 'Wasteland', src: '/sponsors/wasteland.png', bg: 'light' },
+  { name: 'Match Mellow', src: '/sponsors/match-mellow.png', bg: 'dark' },
+  { name: 'Sawadee Natural Herbal Balm', src: '/sponsors/sawadee.png', bg: 'light' },
+  { name: 'Umore Made', src: '/sponsors/umore-made.png', bg: 'light' },
+  { name: 'The Players Club', src: '/sponsors/players-club.png', bg: 'light' },
+]
 </script>
 
 <template>
@@ -63,6 +74,20 @@ const quickLinks = [
         สมัครสมาชิกใหม่ / request คู่ หรือ คู่แข่ง ทักแอดมินได้ทาง LINE OA : @369iojcn ได้เลย
       </p>
     </section>
+
+    <section class="reveal sponsors mt-8 text-center sm:mt-10">
+      <h2 class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">ผู้สนับสนุน</h2>
+      <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+        <div
+          v-for="sponsor in sponsors"
+          :key="sponsor.name"
+          class="hud-panel flex h-20 items-center justify-center p-4"
+          :class="sponsor.bg === 'light' ? 'bg-white' : 'border border-brand-pink/20 bg-brand-surface'"
+        >
+          <img :src="sponsor.src" :alt="sponsor.name" class="h-full w-full object-contain" />
+        </div>
+      </div>
+    </section>
   </main>
 </template>
 
@@ -87,6 +112,9 @@ nav.reveal > *:nth-child(4) {
 }
 section.reveal {
   animation-delay: 0.25s;
+}
+section.reveal.sponsors {
+  animation-delay: 0.3s;
 }
 
 @keyframes reveal-up {
