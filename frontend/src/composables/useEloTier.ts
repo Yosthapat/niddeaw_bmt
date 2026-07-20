@@ -10,8 +10,9 @@ export interface TierInfo {
 const TIERS: { max: number; tier: EloTier; label: string; colorVar: string }[] = [
   { max: 900, tier: 'milk', label: 'Milk', colorVar: 'var(--color-tier-milk)' },
   { max: 1100, tier: 'soju', label: 'Soju', colorVar: 'var(--color-tier-soju)' },
-  { max: 1300, tier: 'beer', label: 'Beer', colorVar: 'var(--color-tier-beer)' },
-  { max: 1500, tier: 'highball', label: 'Highball', colorVar: 'var(--color-tier-highball)' },
+  { max: 1250, tier: 'beer', label: 'Beer', colorVar: 'var(--color-tier-beer)' },
+  { max: 1400, tier: 'whisky', label: 'Whisky', colorVar: 'var(--color-tier-whisky)' },
+  { max: 1550, tier: 'highball', label: 'Highball', colorVar: 'var(--color-tier-highball)' },
   { max: Infinity, tier: 'vodka', label: 'Vodka', colorVar: 'var(--color-tier-vodka)' },
 ]
 

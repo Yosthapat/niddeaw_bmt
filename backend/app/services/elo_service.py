@@ -14,8 +14,9 @@ SCORE_FLOOR = 100
 _TIER_THRESHOLDS: list[tuple[int, EloTier]] = [
     (900, "milk"),
     (1100, "soju"),
-    (1300, "beer"),
-    (1500, "highball"),
+    (1250, "beer"),
+    (1400, "whisky"),
+    (1550, "highball"),
 ]
 
 

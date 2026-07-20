@@ -18,14 +18,23 @@ const tierOptions: { tier: EloTier; label: string; score: number; color: string 
   { tier: 'milk', label: 'Milk', score: 800, color: 'var(--color-tier-milk)' },
   { tier: 'soju', label: 'Soju', score: 1000, color: 'var(--color-tier-soju)' },
   { tier: 'beer', label: 'Beer', score: 1200, color: 'var(--color-tier-beer)' },
-  { tier: 'highball', label: 'Highball', score: 1400, color: 'var(--color-tier-highball)' },
+  { tier: 'whisky', label: 'Whisky', score: 1325, color: 'var(--color-tier-whisky)' },
+  { tier: 'highball', label: 'Highball', score: 1475, color: 'var(--color-tier-highball)' },
   { tier: 'vodka', label: 'Vodka', score: 1600, color: 'var(--color-tier-vodka)' },
 ]
+
+type HandOption = '' | 'left' | 'right'
 
 const creating = ref(false)
 const savingCreate = ref(false)
 const createError = ref<string | null>(null)
-const newPlayer = reactive({ name: '', nickname: '', phone: '', line_id: '' })
+const newPlayer = reactive({
+  nickname: '',
+  line_id: '',
+  dominant_hand: '' as HandOption,
+  tiktok: '',
+  instagram: '',
+})
 const selectedTier = ref<EloTier | null>(null)
 const newAvatarFile = ref<File | null>(null)
 
@@ -36,7 +45,13 @@ function onNewAvatarSelected(event: Event): void {
 
 const editingId = ref<string | null>(null)
 const savingEdit = ref(false)
-const editForm = reactive({ name: '', nickname: '', phone: '', line_id: '' })
+const editForm = reactive({
+  nickname: '',
+  line_id: '',
+  dominant_hand: '' as HandOption,
+  tiktok: '',
+  instagram: '',
+})
 const uploadingAvatarId = ref<string | null>(null)
 
 async function loadPlayers(): Promise<void> {
@@ -59,7 +74,7 @@ function apiErrorMessage(e: unknown, fallback: string): string {
 }
 
 async function createPlayer(): Promise<void> {
-  if (!newPlayer.name.trim()) return
+  if (!newPlayer.nickname.trim()) return
   savingCreate.value = true
   createError.value = null
   try {
@@ -68,10 +83,12 @@ async function createPlayer(): Promise<void> {
       : null
 
     let created = await adminApi.createPlayer({
-      name: newPlayer.name.trim(),
-      nickname: newPlayer.nickname.trim() || null,
-      phone: newPlayer.phone.trim() || null,
+      name: newPlayer.nickname.trim(),
+      nickname: newPlayer.nickname.trim(),
       line_id: newPlayer.line_id.trim() || null,
+      dominant_hand: newPlayer.dominant_hand || null,
+      tiktok: newPlayer.tiktok.trim() || null,
+      instagram: newPlayer.instagram.trim() || null,
       elo_score: eloScore,
     })
 
@@ -84,10 +101,11 @@ async function createPlayer(): Promise<void> {
     }
 
     players.value.unshift(created)
-    newPlayer.name = ''
     newPlayer.nickname = ''
-    newPlayer.phone = ''
     newPlayer.line_id = ''
+    newPlayer.dominant_hand = ''
+    newPlayer.tiktok = ''
+    newPlayer.instagram = ''
     selectedTier.value = null
     newAvatarFile.value = null
     if (!createError.value) creating.value = false
@@ -100,10 +118,11 @@ async function createPlayer(): Promise<void> {
 
 function startEdit(player: Player): void {
   editingId.value = player.id
-  editForm.name = player.name
-  editForm.nickname = player.nickname ?? ''
-  editForm.phone = player.phone ?? ''
+  editForm.nickname = player.nickname ?? player.name
   editForm.line_id = player.line_id ?? ''
+  editForm.dominant_hand = player.dominant_hand ?? ''
+  editForm.tiktok = player.tiktok ?? ''
+  editForm.instagram = player.instagram ?? ''
 }
 
 function cancelEdit(): void {
@@ -114,10 +133,12 @@ async function saveEdit(player: Player): Promise<void> {
   savingEdit.value = true
   try {
     const updated = await adminApi.updatePlayer(player.id, {
-      name: editForm.name.trim(),
-      nickname: editForm.nickname.trim() || null,
-      phone: editForm.phone.trim() || null,
+      name: editForm.nickname.trim(),
+      nickname: editForm.nickname.trim(),
       line_id: editForm.line_id.trim() || null,
+      dominant_hand: editForm.dominant_hand || null,
+      tiktok: editForm.tiktok.trim() || null,
+      instagram: editForm.instagram.trim() || null,
     })
     players.value = players.value.map((p) => (p.id === updated.id ? updated : p))
     editingId.value = null
@@ -167,10 +188,15 @@ onMounted(loadPlayers)
       class="mt-4 grid gap-2 hud-panel border border-brand-pink/20 bg-brand-surface p-4 sm:grid-cols-2"
       @submit.prevent="createPlayer"
     >
-      <input v-model="newPlayer.name" placeholder="ชื่อจริง *" required class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
-      <input v-model="newPlayer.nickname" placeholder="ชื่อเล่น" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
-      <input v-model="newPlayer.phone" placeholder="เบอร์โทร" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
+      <input v-model="newPlayer.nickname" placeholder="ชื่อเล่น *" required class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
       <input v-model="newPlayer.line_id" placeholder="LINE ID" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
+      <select v-model="newPlayer.dominant_hand" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm text-white/80">
+        <option value="">ถนัด (ไม่ระบุ)</option>
+        <option value="left">ถนัดซ้าย</option>
+        <option value="right">ถนัดขวา</option>
+      </select>
+      <input v-model="newPlayer.tiktok" placeholder="TikTok" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
+      <input v-model="newPlayer.instagram" placeholder="Instagram" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
 
       <div class="sm:col-span-2">
         <p class="mb-1.5 text-xs text-white/40">ระดับเริ่มต้น (ไม่เลือก = เริ่มที่ Soju ตามปกติ)</p>
@@ -222,8 +248,16 @@ onMounted(loadPlayers)
             <span v-if="uploadingAvatarId === p.id" class="absolute inset-0 flex items-center justify-center rounded-full bg-black/60 text-[10px]">...</span>
           </label>
           <div class="flex-1">
-            <p class="font-medium">{{ p.nickname || p.name }} <span v-if="p.nickname" class="text-xs text-white/40">({{ p.name }})</span></p>
-            <p class="text-xs text-white/50">{{ p.phone || '-' }} · {{ p.line_id || '-' }}</p>
+            <p class="font-medium">
+              {{ p.nickname || p.name }}
+              <span class="text-xs text-white/40">{{ p.member_code }}</span>
+            </p>
+            <p class="text-xs text-white/50">
+              {{ p.line_id || '-' }}
+              <span v-if="p.dominant_hand"> · {{ p.dominant_hand === 'left' ? 'ถนัดซ้าย' : 'ถนัดขวา' }}</span>
+              <span v-if="p.tiktok"> · TikTok {{ p.tiktok }}</span>
+              <span v-if="p.instagram"> · IG {{ p.instagram }}</span>
+            </p>
           </div>
           <TierMascot :tier="p.elo_level" :size="28" />
           <EloBadge :elo-score="p.elo_score" show-score />
@@ -238,10 +272,15 @@ onMounted(loadPlayers)
         </div>
 
         <form v-else class="grid gap-2 sm:grid-cols-2" @submit.prevent="saveEdit(p)">
-          <input v-model="editForm.name" placeholder="ชื่อจริง *" required class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
-          <input v-model="editForm.nickname" placeholder="ชื่อเล่น" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
-          <input v-model="editForm.phone" placeholder="เบอร์โทร" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
+          <input v-model="editForm.nickname" placeholder="ชื่อเล่น *" required class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
           <input v-model="editForm.line_id" placeholder="LINE ID" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
+          <select v-model="editForm.dominant_hand" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm text-white/80">
+            <option value="">ถนัด (ไม่ระบุ)</option>
+            <option value="left">ถนัดซ้าย</option>
+            <option value="right">ถนัดขวา</option>
+          </select>
+          <input v-model="editForm.tiktok" placeholder="TikTok" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
+          <input v-model="editForm.instagram" placeholder="Instagram" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
           <div class="flex gap-2 sm:col-span-2">
             <button type="submit" :disabled="savingEdit" class="rounded-full bg-brand-pink px-4 py-1.5 text-sm font-semibold text-brand-black disabled:opacity-50">
               {{ savingEdit ? 'กำลังบันทึก...' : 'บันทึก' }}

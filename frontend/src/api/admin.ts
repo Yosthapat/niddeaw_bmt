@@ -138,6 +138,9 @@ export async function createPlayer(player: {
   nickname?: string | null
   phone?: string | null
   line_id?: string | null
+  dominant_hand?: 'left' | 'right' | null
+  tiktok?: string | null
+  instagram?: string | null
   elo_score?: number | null
 }): Promise<Player> {
   return request('/api/admin/players', {

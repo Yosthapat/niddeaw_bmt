@@ -102,6 +102,35 @@ withDefaults(defineProps<{ tier: EloTier; size?: number }>(), {
   </svg>
 
   <svg
+    v-else-if="tier === 'whisky'"
+    :width="size"
+    :height="size"
+    viewBox="0 0 120 120"
+    role="img"
+    aria-label="Whisky tier mascot"
+  >
+    <path
+      d="M32 34 L88 34 L84 104 Q83 110 77 110 L43 110 Q37 110 36 104 Z"
+      fill="none"
+      stroke="#2a2420"
+      stroke-width="4"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M34 60 L86 60 L84 104 Q83 110 77 110 L43 110 Q37 110 36 104 Z"
+      fill="#a8672c"
+      opacity="0.9"
+    />
+    <!-- a single big ice sphere, not cubes — steadier and more deliberate than highball's fizz -->
+    <circle cx="60" cy="64" r="16" fill="#f4e9da" opacity="0.95" stroke="#2a2420" stroke-width="3" />
+    <path d="M52 57 Q56 53 62 54" stroke="#ffffff" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.7" />
+    <!-- calm, composed eyes and an even, unhurried smile — matured confidence, no smirk or swagger yet -->
+    <path d="M48 90 Q52 87 56 90" stroke="#2a2420" stroke-width="3.5" fill="none" stroke-linecap="round" />
+    <path d="M64 90 Q68 87 72 90" stroke="#2a2420" stroke-width="3.5" fill="none" stroke-linecap="round" />
+    <path d="M52 98 Q60 102 68 98" stroke="#2a2420" stroke-width="3.5" fill="none" stroke-linecap="round" />
+  </svg>
+
+  <svg
     v-else-if="tier === 'highball'"
     :width="size"
     :height="size"

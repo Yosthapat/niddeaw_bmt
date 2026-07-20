@@ -2,9 +2,10 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field
 
-EloTier = Literal["milk", "soju", "beer", "highball", "vodka"]
+EloTier = Literal["milk", "soju", "beer", "whisky", "highball", "vodka"]
+DominantHand = Literal["left", "right"]
 
 
 class PlayerBase(BaseModel):
@@ -12,6 +13,9 @@ class PlayerBase(BaseModel):
     nickname: str | None = None
     phone: str | None = None
     line_id: str | None = None
+    dominant_hand: DominantHand | None = None
+    tiktok: str | None = None
+    instagram: str | None = None
 
 
 class PlayerCreate(PlayerBase):
@@ -27,6 +31,9 @@ class PlayerUpdate(BaseModel):
     line_id: str | None = None
     avatar_url: str | None = None
     is_active: bool | None = None
+    dominant_hand: DominantHand | None = None
+    tiktok: str | None = None
+    instagram: str | None = None
 
 
 class Player(PlayerBase):
@@ -36,6 +43,13 @@ class Player(PlayerBase):
     elo_level: EloTier
     is_active: bool
     created_at: datetime
+    member_seq: int
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def member_code(self) -> str:
+        """Display code e.g. "ND007" — derived from member_seq, not stored."""
+        return f"ND{self.member_seq:03d}"
 
 
 class PlayerStats(BaseModel):

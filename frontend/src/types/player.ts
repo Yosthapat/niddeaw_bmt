@@ -1,4 +1,5 @@
-export type EloTier = 'milk' | 'soju' | 'beer' | 'highball' | 'vodka'
+export type EloTier = 'milk' | 'soju' | 'beer' | 'whisky' | 'highball' | 'vodka'
+export type DominantHand = 'left' | 'right'
 
 export interface Player {
   id: string
@@ -9,8 +10,13 @@ export interface Player {
   elo_level: EloTier
   phone: string | null
   line_id: string | null
+  dominant_hand: DominantHand | null
+  tiktok: string | null
+  instagram: string | null
   is_active: boolean
   created_at: string
+  member_seq: number
+  member_code: string
 }
 
 /** Mirrors backend app/models/player.py PlayerStats. */
