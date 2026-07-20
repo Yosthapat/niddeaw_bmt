@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getPlayerProfile } from '@/api/public'
 import type { PlayerProfile } from '@/types'
@@ -12,15 +12,27 @@ const profile = ref<PlayerProfile | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 
-onMounted(async () => {
-  try {
-    profile.value = await getPlayerProfile(String(route.params.id))
-  } catch {
-    error.value = 'ไม่พบข้อมูลสมาชิกนี้'
-  } finally {
-    loading.value = false
-  }
-})
+// Navigating from one profile to another (e.g. clicking a similar-level
+// member or the nemesis card) reuses this component instance instead of
+// remounting it, since both URLs match the same /members/:id route record
+// — onMounted alone would never re-fire, leaving the old profile on screen
+// under the new URL. Watching the param (with immediate for the first load)
+// re-fetches every time it actually changes.
+watch(
+  () => route.params.id,
+  async (id) => {
+    loading.value = true
+    error.value = null
+    try {
+      profile.value = await getPlayerProfile(String(id))
+    } catch {
+      error.value = 'ไม่พบข้อมูลสมาชิกนี้'
+    } finally {
+      loading.value = false
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <template>

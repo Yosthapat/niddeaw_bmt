@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getMatchDetail } from '@/api/public'
 import type { MatchDetail } from '@/types'
@@ -31,15 +31,24 @@ const durationLabel = computed(() => {
   return `${minutes.toFixed(1)} นาที`
 })
 
-onMounted(async () => {
-  try {
-    detail.value = await getMatchDetail(String(route.params.id))
-  } catch {
-    error.value = 'ไม่พบข้อมูลแมตช์นี้'
-  } finally {
-    loading.value = false
-  }
-})
+// See PlayerProfileView.vue for why this watches the param instead of
+// onMounted — navigating between two /matches/:id URLs reuses this
+// component instance rather than remounting it.
+watch(
+  () => route.params.id,
+  async (id) => {
+    loading.value = true
+    error.value = null
+    try {
+      detail.value = await getMatchDetail(String(id))
+    } catch {
+      error.value = 'ไม่พบข้อมูลแมตช์นี้'
+    } finally {
+      loading.value = false
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
