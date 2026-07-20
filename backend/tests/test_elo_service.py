@@ -3,8 +3,8 @@ from app.services import elo_service
 
 def test_equal_ratings_win_gains_half_k() -> None:
     delta_winner, delta_loser = elo_service.compute_deltas([1000], [1000], "team1")
-    assert delta_winner == 16
-    assert delta_loser == -16
+    assert delta_winner == 2
+    assert delta_loser == -2
 
 
 def test_draw_between_equal_ratings_is_a_no_op() -> None:
@@ -15,8 +15,8 @@ def test_draw_between_equal_ratings_is_a_no_op() -> None:
 
 def test_underdog_win_gains_more_than_k_half() -> None:
     delta_underdog, delta_favorite = elo_service.compute_deltas([900], [1100], "team1")
-    assert delta_underdog > 16
-    assert delta_favorite < -16
+    assert delta_underdog > 2
+    assert delta_favorite < -2
 
 
 def test_doubles_team_rating_is_average() -> None:
@@ -32,9 +32,9 @@ def test_tier_boundaries() -> None:
     assert elo_service.get_tier(900) == "soju"
     assert elo_service.get_tier(1099) == "soju"
     assert elo_service.get_tier(1100) == "beer"
-    assert elo_service.get_tier(1249) == "beer"
-    assert elo_service.get_tier(1250) == "whisky"
-    assert elo_service.get_tier(1399) == "whisky"
-    assert elo_service.get_tier(1400) == "highball"
-    assert elo_service.get_tier(1549) == "highball"
-    assert elo_service.get_tier(1550) == "vodka"
+    assert elo_service.get_tier(1299) == "beer"
+    assert elo_service.get_tier(1300) == "whisky"
+    assert elo_service.get_tier(1499) == "whisky"
+    assert elo_service.get_tier(1500) == "highball"
+    assert elo_service.get_tier(1699) == "highball"
+    assert elo_service.get_tier(1700) == "vodka"

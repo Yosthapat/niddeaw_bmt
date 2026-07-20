@@ -14,7 +14,7 @@ insert into players (id, nickname, elo_score, elo_level) values
     ('00000000-0000-0000-0000-000000000101', 'Chai', 1000, 'soju'),
     ('00000000-0000-0000-0000-000000000102', 'Su', 1150, 'beer'),
     ('00000000-0000-0000-0000-000000000103', 'Nan', 1350, 'whisky'),
-    ('00000000-0000-0000-0000-000000000104', 'Pim', 1550, 'vodka');
+    ('00000000-0000-0000-0000-000000000104', 'Pim', 1550, 'highball');
 
 insert into sessions (id, date, location, court_fee_per_person, shuttlecock_price_per_game, status, created_by) values
     ('00000000-0000-0000-0000-000000000201', current_date, 'สนามแบดหลังบ้าน', 80.00, 29.00, 'open',

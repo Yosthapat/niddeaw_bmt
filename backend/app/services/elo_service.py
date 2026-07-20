@@ -7,17 +7,21 @@ the resulting delta is applied identically to both teammates.
 
 from app.models.player import EloTier
 
-K_FACTOR = 32
+K_FACTOR = 4
+"""Low on purpose: an even match nets a ~2-point swing per game (not the
+32-point swings of a competitive-ELO K-factor), so climbing the six tiers
+is a gradual, many-games club journey rather than a fast few-game jump."""
 STARTING_SCORE = 1000
 SCORE_FLOOR = 100
 
 _TIER_THRESHOLDS: list[tuple[int, EloTier]] = [
     (900, "milk"),
     (1100, "soju"),
-    (1250, "beer"),
-    (1400, "whisky"),
-    (1550, "highball"),
+    (1300, "beer"),
+    (1500, "whisky"),
+    (1700, "highball"),
 ]
+"""Every tier from Soju up is an equal 200-point band."""
 
 
 def get_tier(score: int) -> EloTier:
