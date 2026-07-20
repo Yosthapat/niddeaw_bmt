@@ -47,8 +47,6 @@
       <h2 class="text-lg font-bold text-brand-pink">ติดต่อผู้จัดก๊วน</h2>
       <p class="mt-2 text-sm text-white/70">
         สอบถามตารางตี / สมัครสมาชิกใหม่ ทักแอดมินได้ทาง LINE หรือโทรศัพท์
-        (ข้อมูลติดต่อ — แก้ไขได้ที่
-        <code class="rounded bg-black/40 px-1">src/views/public/HomeView.vue</code>)
       </p>
     </section>
   </main>
