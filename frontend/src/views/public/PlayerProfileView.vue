@@ -5,6 +5,7 @@ import { getPlayerProfile } from '@/api/public'
 import type { PlayerProfile } from '@/types'
 import EloBadge from '@/components/players/EloBadge.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
+import TierMascot from '@/components/players/TierMascot.vue'
 
 const route = useRoute()
 const profile = ref<PlayerProfile | null>(null)
@@ -36,6 +37,7 @@ onMounted(async () => {
         <PlayerAvatar :name="profile.player.name" :avatar-url="profile.player.avatar_url" size="lg" />
         <h1 class="font-display text-2xl font-bold">{{ profile.player.nickname || profile.player.name }}</h1>
         <p v-if="profile.player.nickname" class="-mt-2 text-sm text-white/40">{{ profile.player.name }}</p>
+        <TierMascot :tier="profile.player.elo_level" :size="72" />
         <EloBadge :elo-score="profile.player.elo_score" show-score />
         <p class="text-xs tracking-widest text-white/40 uppercase">
           อันดับ ELO <span class="font-semibold text-brand-pink">#{{ profile.elo_rank }}</span>

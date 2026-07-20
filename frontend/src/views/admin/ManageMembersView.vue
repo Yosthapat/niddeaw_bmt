@@ -6,6 +6,7 @@ import type { EloTier, Player } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import EloBadge from '@/components/players/EloBadge.vue'
+import TierMascot from '@/components/players/TierMascot.vue'
 
 const players = ref<Player[]>([])
 const loading = ref(true)
@@ -182,7 +183,7 @@ onMounted(loadPlayers)
             :class="selectedTier === opt.tier ? 'border-brand-pink bg-brand-surface-raised' : 'border-brand-pink/20 bg-brand-black text-white/50'"
             @click="selectedTier = selectedTier === opt.tier ? null : opt.tier"
           >
-            <span class="h-2 w-2 rotate-45" :style="{ backgroundColor: opt.color }" />
+            <TierMascot :tier="opt.tier" :size="20" />
             <span :style="{ color: selectedTier === opt.tier ? opt.color : undefined }">{{ opt.label }}</span>
           </button>
         </div>
