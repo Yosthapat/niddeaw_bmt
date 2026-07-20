@@ -23,7 +23,7 @@ function initials(name: string): string {
       'h-8 w-8': size === 'sm',
       'h-11 w-11': size === 'md',
       'h-16 w-16': size === 'lg',
-      'h-36 w-36': size === 'xl',
+      'h-44 w-44 sm:h-60 sm:w-60': size === 'xl',
     }"
   />
   <span
@@ -33,7 +33,7 @@ function initials(name: string): string {
       'h-8 w-8 text-xs': size === 'sm',
       'h-11 w-11 text-sm': size === 'md',
       'h-16 w-16 text-lg': size === 'lg',
-      'h-36 w-36 text-4xl': size === 'xl',
+      'h-44 w-44 text-6xl sm:h-60 sm:w-60': size === 'xl',
     }"
   >
     {{ initials(name) }}

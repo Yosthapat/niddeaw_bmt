@@ -40,7 +40,7 @@ onMounted(async () => {
           <p v-if="profile.player.nickname" class="-mt-2 text-sm text-white/40">{{ profile.player.name }}</p>
         </div>
 
-        <div class="hidden h-32 w-px bg-brand-pink/15 sm:block" />
+        <div class="hidden h-56 w-px bg-brand-pink/15 sm:block" />
 
         <div class="flex flex-col items-center gap-2 text-center">
           <TierMascot :tier="profile.player.elo_level" :size="72" />
