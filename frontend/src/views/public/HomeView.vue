@@ -8,6 +8,7 @@ const tiers: { tier: EloTier; label: string; color: string }[] = [
   { tier: 'milk', label: 'Milk', color: 'var(--color-tier-milk)' },
   { tier: 'soju', label: 'Soju', color: 'var(--color-tier-soju)' },
   { tier: 'beer', label: 'Beer', color: 'var(--color-tier-beer)' },
+  { tier: 'whisky', label: 'Whisky', color: 'var(--color-tier-whisky)' },
   { tier: 'highball', label: 'Highball', color: 'var(--color-tier-highball)' },
   { tier: 'vodka', label: 'Vodka', color: 'var(--color-tier-vodka)' },
 ]
