@@ -60,6 +60,26 @@ watch(
             อันดับ ELO <span class="font-semibold text-brand-pink">#{{ profile.elo_rank }}</span>
             / {{ profile.total_ranked_players }}
           </p>
+          <p v-if="profile.player.dominant_hand" class="text-xs text-white/50">
+            {{ profile.player.dominant_hand === 'left' ? 'ถนัดซ้าย' : 'ถนัดขวา' }}
+          </p>
+          <div
+            v-if="profile.player.tiktok || profile.player.instagram"
+            class="mt-1 flex flex-wrap items-center justify-center gap-1.5"
+          >
+            <span
+              v-if="profile.player.tiktok"
+              class="hud-panel border border-brand-pink/20 bg-brand-surface px-2.5 py-1 text-xs text-white/70"
+            >
+              TikTok {{ profile.player.tiktok }}
+            </span>
+            <span
+              v-if="profile.player.instagram"
+              class="hud-panel border border-brand-pink/20 bg-brand-surface px-2.5 py-1 text-xs text-white/70"
+            >
+              IG {{ profile.player.instagram }}
+            </span>
+          </div>
         </div>
       </div>
 
