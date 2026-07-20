@@ -14,9 +14,7 @@ const search = ref('')
 const filteredStats = computed(() => {
   const query = search.value.trim().toLowerCase()
   if (!query) return stats.value
-  return stats.value.filter((s) =>
-    [s.player.name, s.player.nickname ?? ''].some((field) => field.toLowerCase().includes(query)),
-  )
+  return stats.value.filter((s) => s.player.nickname.toLowerCase().includes(query))
 })
 
 onMounted(async () => {
@@ -69,8 +67,8 @@ onMounted(async () => {
           <tr v-for="s in filteredStats" :key="s.player.id" class="transition-colors hover:bg-brand-surface-raised">
             <td class="px-4 py-3 font-medium">
               <RouterLink :to="`/members/${s.player.id}`" class="flex items-center gap-2.5 hover:text-brand-pink">
-                <PlayerAvatar :name="s.player.name" :avatar-url="s.player.avatar_url" size="sm" />
-                {{ s.player.nickname || s.player.name }}
+                <PlayerAvatar :name="s.player.nickname" :avatar-url="s.player.avatar_url" size="sm" />
+                {{ s.player.nickname }}
               </RouterLink>
             </td>
             <td class="px-4 py-3">

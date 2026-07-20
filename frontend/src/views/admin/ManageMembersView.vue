@@ -83,7 +83,6 @@ async function createPlayer(): Promise<void> {
       : null
 
     let created = await adminApi.createPlayer({
-      name: newPlayer.nickname.trim(),
       nickname: newPlayer.nickname.trim(),
       line_id: newPlayer.line_id.trim() || null,
       dominant_hand: newPlayer.dominant_hand || null,
@@ -118,7 +117,7 @@ async function createPlayer(): Promise<void> {
 
 function startEdit(player: Player): void {
   editingId.value = player.id
-  editForm.nickname = player.nickname ?? player.name
+  editForm.nickname = player.nickname
   editForm.line_id = player.line_id ?? ''
   editForm.dominant_hand = player.dominant_hand ?? ''
   editForm.tiktok = player.tiktok ?? ''
@@ -133,7 +132,6 @@ async function saveEdit(player: Player): Promise<void> {
   savingEdit.value = true
   try {
     const updated = await adminApi.updatePlayer(player.id, {
-      name: editForm.nickname.trim(),
       nickname: editForm.nickname.trim(),
       line_id: editForm.line_id.trim() || null,
       dominant_hand: editForm.dominant_hand || null,
@@ -243,13 +241,13 @@ onMounted(loadPlayers)
       >
         <div v-if="editingId !== p.id" class="flex items-center gap-3">
           <label class="relative cursor-pointer">
-            <PlayerAvatar :name="p.name" :avatar-url="p.avatar_url" size="md" />
+            <PlayerAvatar :name="p.nickname" :avatar-url="p.avatar_url" size="md" />
             <input type="file" accept="image/*" class="hidden" @change="onAvatarSelected($event, p)" />
             <span v-if="uploadingAvatarId === p.id" class="absolute inset-0 flex items-center justify-center rounded-full bg-black/60 text-[10px]">...</span>
           </label>
           <div class="flex-1">
             <p class="font-medium">
-              {{ p.nickname || p.name }}
+              {{ p.nickname }}
               <span class="text-xs text-white/40">{{ p.member_code }}</span>
             </p>
             <p class="text-xs text-white/50">

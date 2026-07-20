@@ -29,9 +29,7 @@ export const usePlayersStore = defineStore('players', () => {
   }
 
   async function createPlayer(input: {
-    name: string
-    nickname?: string | null
-    phone?: string | null
+    nickname: string
     line_id?: string | null
   }): Promise<Player> {
     const player = await apiCreatePlayer(input)

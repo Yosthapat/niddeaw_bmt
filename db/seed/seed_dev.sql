@@ -10,11 +10,11 @@ insert into admins (id, username, password_hash, role) values
      '$2b$12$7dG3iWtf3c.L5bvcxiW5ceG9ZB8mGPk/b.A4542QxgRViQKj87NPa',
      'admin');
 
-insert into players (id, name, nickname, elo_score, elo_level, phone) values
-    ('00000000-0000-0000-0000-000000000101', 'Somchai Jaidee', 'Chai', 1000, 'soju', '0810000001'),
-    ('00000000-0000-0000-0000-000000000102', 'Suda Meechai', 'Su', 1150, 'beer', '0810000002'),
-    ('00000000-0000-0000-0000-000000000103', 'Anan Wongsa', 'Nan', 1350, 'highball', '0810000003'),
-    ('00000000-0000-0000-0000-000000000104', 'Pim Sukjai', 'Pim', 1550, 'vodka', '0810000004');
+insert into players (id, nickname, elo_score, elo_level) values
+    ('00000000-0000-0000-0000-000000000101', 'Chai', 1000, 'soju'),
+    ('00000000-0000-0000-0000-000000000102', 'Su', 1150, 'beer'),
+    ('00000000-0000-0000-0000-000000000103', 'Nan', 1350, 'whisky'),
+    ('00000000-0000-0000-0000-000000000104', 'Pim', 1550, 'vodka');
 
 insert into sessions (id, date, location, court_fee_per_person, shuttlecock_price_per_game, status, created_by) values
     ('00000000-0000-0000-0000-000000000201', current_date, 'สนามแบดหลังบ้าน', 80.00, 29.00, 'open',

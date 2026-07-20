@@ -142,9 +142,7 @@ export async function getAllPlayers(): Promise<Player[]> {
 }
 
 export async function createPlayer(player: {
-  name: string
-  nickname?: string | null
-  phone?: string | null
+  nickname: string
   line_id?: string | null
   dominant_hand?: 'left' | 'right' | null
   tiktok?: string | null

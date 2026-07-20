@@ -79,13 +79,13 @@ onMounted(async () => {
           </p>
           <div v-for="stat in detail.team1" :key="stat.player.id" class="mt-4 flex flex-col items-center gap-2">
             <RouterLink :to="`/members/${stat.player.id}`">
-              <PlayerAvatar :name="stat.player.name" :avatar-url="stat.player.avatar_url" size="lg" />
+              <PlayerAvatar :name="stat.player.nickname" :avatar-url="stat.player.avatar_url" size="lg" />
             </RouterLink>
             <RouterLink
               :to="`/members/${stat.player.id}`"
               class="font-display font-semibold text-white hover:text-brand-pink"
             >
-              {{ stat.player.nickname || stat.player.name }}
+              {{ stat.player.nickname }}
             </RouterLink>
             <TierMascot :tier="stat.player.elo_level" :size="32" />
             <EloBadge :elo-score="stat.player.elo_score" show-score />
@@ -116,13 +116,13 @@ onMounted(async () => {
           </p>
           <div v-for="stat in detail.team2" :key="stat.player.id" class="mt-4 flex flex-col items-center gap-2">
             <RouterLink :to="`/members/${stat.player.id}`">
-              <PlayerAvatar :name="stat.player.name" :avatar-url="stat.player.avatar_url" size="lg" />
+              <PlayerAvatar :name="stat.player.nickname" :avatar-url="stat.player.avatar_url" size="lg" />
             </RouterLink>
             <RouterLink
               :to="`/members/${stat.player.id}`"
               class="font-display font-semibold text-white hover:text-brand-pink"
             >
-              {{ stat.player.nickname || stat.player.name }}
+              {{ stat.player.nickname }}
             </RouterLink>
             <TierMascot :tier="stat.player.elo_level" :size="32" />
             <EloBadge :elo-score="stat.player.elo_score" show-score />

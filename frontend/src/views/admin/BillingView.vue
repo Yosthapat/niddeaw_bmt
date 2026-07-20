@@ -23,7 +23,7 @@ const actionError = ref<string | null>(null)
 
 function nameOf(playerId: string): string {
   const p = playersStore.byId(playerId)
-  return p ? p.nickname || p.name : '?'
+  return p ? p.nickname : '?'
 }
 
 function apiErrorMessage(e: unknown, fallback: string): string {

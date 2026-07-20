@@ -17,7 +17,7 @@ MAX_AVATAR_BYTES = 2 * 1024 * 1024  # 2MB — client resizes before upload; this
 def list_all_players(supabase: SupabaseDep, admin: AdminDep) -> list[Player]:
     """Full roster including inactive members — unlike the public
     /api/players list, which only shows active players with stats."""
-    result = supabase.table("players").select("*").order("name").execute()
+    result = supabase.table("players").select("*").order("nickname").execute()
     return [Player.model_validate(row) for row in rows(result)]
 
 

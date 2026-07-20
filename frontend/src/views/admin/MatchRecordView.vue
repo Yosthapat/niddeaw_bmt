@@ -17,7 +17,7 @@ const team2Ids = computed(() => String(route.query.team2 ?? '').split(',').filte
 
 function nameOf(playerId: string): string {
   const p = playersStore.byId(playerId)
-  return p ? p.nickname || p.name : '?'
+  return p ? p.nickname : '?'
 }
 
 const sets = ref<SetScore[]>([

@@ -41,11 +41,11 @@ onMounted(async () => {
         :class="i === 0 ? 'border-brand-pink/70 bg-brand-pink/5' : 'border-brand-pink/15'"
       >
         <RouterLink :to="`/members/${s.player.id}`" class="flex flex-1 items-center gap-3 hover:opacity-80">
-          <PlayerAvatar :name="s.player.name" :avatar-url="s.player.avatar_url" size="lg" />
+          <PlayerAvatar :name="s.player.nickname" :avatar-url="s.player.avatar_url" size="lg" />
           <TierMascot :tier="s.player.elo_level" :size="36" />
           <div class="flex-1">
             <p class="font-display font-bold">
-              {{ i === 0 ? '👑 ' : '' }}{{ s.player.nickname || s.player.name }}
+              {{ i === 0 ? '👑 ' : '' }}{{ s.player.nickname }}
             </p>
             <p class="text-xs text-white/40">
               {{ s.games }} เกม · {{ s.points }} pts · Sc {{ s.score_percent.toFixed(0) }}%

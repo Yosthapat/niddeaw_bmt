@@ -3,12 +3,10 @@ export type DominantHand = 'left' | 'right'
 
 export interface Player {
   id: string
-  name: string
-  nickname: string | null
+  nickname: string
   avatar_url: string | null
   elo_score: number
   elo_level: EloTier
-  phone: string | null
   line_id: string | null
   dominant_hand: DominantHand | null
   tiktok: string | null

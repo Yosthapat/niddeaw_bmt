@@ -19,7 +19,7 @@ function playerOf(playerId: string): Player | undefined {
 
 function nameOf(playerId: string): string {
   const p = playerOf(playerId)
-  return p ? p.nickname || p.name : '?'
+  return p ? p.nickname : '?'
 }
 
 function setsLabel(match: Match): string {

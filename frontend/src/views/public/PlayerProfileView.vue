@@ -35,9 +35,8 @@ onMounted(async () => {
     <template v-else>
       <div class="mt-6 flex flex-col items-center gap-6 sm:flex-row sm:items-center sm:justify-center">
         <div class="flex flex-col items-center gap-2 text-center">
-          <PlayerAvatar :name="profile.player.name" :avatar-url="profile.player.avatar_url" size="xl" />
-          <h1 class="mt-1 font-display text-2xl font-bold">{{ profile.player.nickname || profile.player.name }}</h1>
-          <p v-if="profile.player.nickname" class="-mt-2 text-sm text-white/40">{{ profile.player.name }}</p>
+          <PlayerAvatar :name="profile.player.nickname" :avatar-url="profile.player.avatar_url" size="xl" />
+          <h1 class="mt-1 font-display text-2xl font-bold">{{ profile.player.nickname }}</h1>
         </div>
 
         <div class="hidden h-56 w-px bg-brand-pink/15 sm:block" />
@@ -83,7 +82,7 @@ onMounted(async () => {
         <h2 class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">เทกันจัง</h2>
         <div class="mt-3 flex items-center gap-3">
           <PlayerAvatar
-            :name="profile.nemesis.player.name"
+            :name="profile.nemesis.player.nickname"
             :avatar-url="profile.nemesis.player.avatar_url"
             size="md"
           />
@@ -92,7 +91,7 @@ onMounted(async () => {
               :to="`/members/${profile.nemesis.player.id}`"
               class="font-medium text-brand-pink hover:underline"
             >
-              {{ profile.nemesis.player.nickname || profile.nemesis.player.name }}
+              {{ profile.nemesis.player.nickname }}
             </RouterLink>
             <p class="text-xs text-white/40">
               เจอกัน {{ profile.nemesis.encounters }} ครั้ง · ชนะ {{ profile.nemesis.wins }} · แพ้
@@ -113,8 +112,8 @@ onMounted(async () => {
               :to="`/members/${p.id}`"
               class="hud-panel flex items-center gap-2 border border-brand-pink/20 bg-brand-surface px-3 py-1.5 hover:border-brand-pink/50"
             >
-              <PlayerAvatar :name="p.name" :avatar-url="p.avatar_url" size="sm" />
-              <span class="text-sm font-medium text-white/80">{{ p.nickname || p.name }}</span>
+              <PlayerAvatar :name="p.nickname" :avatar-url="p.avatar_url" size="sm" />
+              <span class="text-sm font-medium text-white/80">{{ p.nickname }}</span>
             </RouterLink>
           </li>
         </ul>

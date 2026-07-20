@@ -66,7 +66,7 @@ async function quickAddPlayer(): Promise<void> {
   if (!newPlayerName.value.trim()) return
   actionError.value = null
   try {
-    await playersStore.createPlayer({ name: newPlayerName.value.trim() })
+    await playersStore.createPlayer({ nickname: newPlayerName.value.trim() })
     newPlayerName.value = ''
     addingPlayer.value = false
   } catch (e) {
@@ -97,9 +97,6 @@ usePolling(refreshCheckins, 8000)
     <section class="mt-6">
       <div class="flex items-center justify-between">
         <h2 class="text-sm font-semibold text-white/70">สมาชิกทั้งหมด</h2>
-        <button v-if="!addingPlayer" class="text-xs text-brand-pink underline" @click="addingPlayer = true">
-          + เพิ่มสมาชิกใหม่
-        </button>
       </div>
       <div v-if="addingPlayer" class="mt-2 flex gap-2">
         <input
@@ -130,12 +127,12 @@ usePolling(refreshCheckins, 8000)
             class="flex items-center gap-3 hud-panel border border-brand-pink/20 bg-brand-surface px-3 py-2"
           >
             <PlayerAvatar
-              :name="playersStore.byId(c.player_id)?.name ?? '?'"
+              :name="playersStore.byId(c.player_id)?.nickname ?? '?'"
               :avatar-url="playersStore.byId(c.player_id)?.avatar_url"
               size="sm"
             />
             <span class="flex-1 font-medium">
-              {{ playersStore.byId(c.player_id)?.nickname || playersStore.byId(c.player_id)?.name }}
+              {{ playersStore.byId(c.player_id)?.nickname }}
             </span>
             <TierMascot
               v-if="playersStore.byId(c.player_id)"
@@ -165,8 +162,8 @@ usePolling(refreshCheckins, 8000)
             :key="p.id"
             class="flex items-center gap-3 hud-panel border border-brand-pink/20 bg-brand-surface px-3 py-2"
           >
-            <PlayerAvatar :name="p.name" :avatar-url="p.avatar_url" size="sm" />
-            <span class="flex-1">{{ p.nickname || p.name }}</span>
+            <PlayerAvatar :name="p.nickname" :avatar-url="p.avatar_url" size="sm" />
+            <span class="flex-1">{{ p.nickname }}</span>
             <button
               class="rounded-full bg-brand-pink px-3 py-1 text-xs font-semibold text-brand-black"
               @click="doCheckin(p.id)"

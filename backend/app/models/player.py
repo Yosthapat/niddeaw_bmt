@@ -9,9 +9,7 @@ DominantHand = Literal["left", "right"]
 
 
 class PlayerBase(BaseModel):
-    name: str
-    nickname: str | None = None
-    phone: str | None = None
+    nickname: str
     line_id: str | None = None
     dominant_hand: DominantHand | None = None
     tiktok: str | None = None
@@ -25,9 +23,7 @@ class PlayerCreate(PlayerBase):
 
 
 class PlayerUpdate(BaseModel):
-    name: str | None = None
     nickname: str | None = None
-    phone: str | None = None
     line_id: str | None = None
     avatar_url: str | None = None
     is_active: bool | None = None

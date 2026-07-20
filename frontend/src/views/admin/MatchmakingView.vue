@@ -29,7 +29,7 @@ function apiErrorMessage(e: unknown, fallback: string): string {
 
 function nameOf(playerId: string): string {
   const p = playersStore.byId(playerId)
-  return p ? p.nickname || p.name : '?'
+  return p ? p.nickname : '?'
 }
 
 async function refreshQueue(): Promise<void> {
