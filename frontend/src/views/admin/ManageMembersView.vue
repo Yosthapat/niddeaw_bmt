@@ -270,6 +270,12 @@ onMounted(loadPlayers)
         </div>
 
         <form v-else class="grid gap-2 sm:grid-cols-2" @submit.prevent="saveEdit(p)">
+          <label class="relative flex w-fit cursor-pointer items-center gap-2 text-xs text-white/50 sm:col-span-2">
+            <PlayerAvatar :name="p.nickname" :avatar-url="p.avatar_url" size="md" />
+            <input type="file" accept="image/*" class="hidden" @change="onAvatarSelected($event, p)" />
+            <span v-if="uploadingAvatarId === p.id" class="absolute inset-0 flex items-center justify-center bg-black/60 text-[10px]">...</span>
+            <span>คลิกรูปเพื่อเปลี่ยนรูปโปรไฟล์</span>
+          </label>
           <input v-model="editForm.nickname" placeholder="ชื่อเล่น *" required class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
           <input v-model="editForm.line_id" placeholder="LINE ID" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
           <select v-model="editForm.dominant_hand" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm text-white/80">
