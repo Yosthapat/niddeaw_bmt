@@ -17,9 +17,9 @@
  * from the original OKLCH design intent so the actual colors are unchanged.)
  *
  * Tailwind v4 is CSS-first: custom tokens are declared with @theme instead
- * of a tailwind.config.js/ts `theme.extend` block. Each --color-*/--font-*
+ * of a tailwind.config.js/ts theme.extend block. Each --color- and --font-
  * variable below generates the matching utility class (e.g. --color-brand-pink
- * -> bg-brand-pink, text-brand-pink; --font-display -> font-display).
+ * makes bg-brand-pink, text-brand-pink; --font-display makes font-display).
  */
 @theme {
   --font-display: "Chakra Petch", ui-sans-serif, sans-serif;
