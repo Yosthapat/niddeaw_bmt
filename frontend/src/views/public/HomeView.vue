@@ -77,12 +77,12 @@ const sponsors: { name: string; src: string; bg: 'light' | 'dark' }[] = [
 
     <section class="reveal sponsors mt-8 text-center sm:mt-10">
       <h2 class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">ผู้สนับสนุน</h2>
-      <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+      <div class="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
         <div
           v-for="sponsor in sponsors"
           :key="sponsor.name"
-          class="hud-panel flex h-20 items-center justify-center p-4"
-          :class="sponsor.bg === 'light' ? 'bg-white' : 'border border-brand-pink/20 bg-brand-surface'"
+          class="flex h-32 items-center justify-center p-2"
+          :class="sponsor.bg === 'light' ? 'rounded-xl bg-white' : ''"
         >
           <img :src="sponsor.src" :alt="sponsor.name" class="h-full w-full object-contain" />
         </div>
