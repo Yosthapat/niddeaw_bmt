@@ -1,8 +1,9 @@
+from typing import Self
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
-from app.models.match import MatchStatus, MatchType
+from app.models.match import TEAM_SIZE_BY_TYPE, MatchStatus, MatchType
 
 
 class PairingSuggestion(BaseModel):
@@ -23,6 +24,13 @@ class MatchmakingConfirmRequest(BaseModel):
     type: MatchType
     team1_player_ids: list[UUID]
     team2_player_ids: list[UUID]
+
+    @model_validator(mode="after")
+    def _validate_team_sizes(self) -> Self:
+        expected = TEAM_SIZE_BY_TYPE[self.type]
+        if len(self.team1_player_ids) != expected or len(self.team2_player_ids) != expected:
+            raise ValueError(f"match type '{self.type}' requires {expected} player(s) per team")
+        return self
 
 
 class QueueEntry(BaseModel):
