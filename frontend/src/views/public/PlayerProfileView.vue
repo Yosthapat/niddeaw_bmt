@@ -37,6 +37,10 @@ onMounted(async () => {
         <h1 class="font-display text-2xl font-bold">{{ profile.player.nickname || profile.player.name }}</h1>
         <p v-if="profile.player.nickname" class="-mt-2 text-sm text-white/40">{{ profile.player.name }}</p>
         <EloBadge :elo-score="profile.player.elo_score" show-score />
+        <p class="text-xs tracking-widest text-white/40 uppercase">
+          อันดับ ELO <span class="font-semibold text-brand-pink">#{{ profile.elo_rank }}</span>
+          / {{ profile.total_ranked_players }}
+        </p>
       </div>
 
       <div class="mt-8 grid grid-cols-3 gap-2.5 sm:grid-cols-6">
@@ -89,6 +93,23 @@ onMounted(async () => {
         </div>
       </section>
       <p v-else class="mt-8 text-center text-sm text-white/40">ยังไม่มีข้อมูลคู่ปรับ (ต้องเล่นแมตช์ก่อน)</p>
+
+      <section v-if="profile.similar_players.length > 0" class="mt-8">
+        <h2 class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">
+          สมาชิกระดับใกล้เคียง
+        </h2>
+        <ul class="mt-3 flex flex-wrap gap-2">
+          <li v-for="p in profile.similar_players" :key="p.id">
+            <RouterLink
+              :to="`/members/${p.id}`"
+              class="hud-panel flex items-center gap-2 border border-brand-pink/20 bg-brand-surface px-3 py-1.5 hover:border-brand-pink/50"
+            >
+              <PlayerAvatar :name="p.name" :avatar-url="p.avatar_url" size="sm" />
+              <span class="text-sm font-medium text-white/80">{{ p.nickname || p.name }}</span>
+            </RouterLink>
+          </li>
+        </ul>
+      </section>
     </template>
   </main>
 </template>

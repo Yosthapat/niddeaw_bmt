@@ -84,6 +84,15 @@ def get_player_profile(player_id: UUID, supabase: SupabaseDep) -> PlayerProfile:
                 draws=nemesis_record.draws,
             )
 
+    active_players_result = supabase.table("players").select("*").eq("is_active", True).execute()
+    active_players = [Player.model_validate(row) for row in rows(active_players_result)]
+    elo_rank = stats_service.elo_rank(player.elo_score, [p.elo_score for p in active_players])
+    similar_ids = stats_service.nearest_by_elo(
+        player.elo_score, player.id, [(p.id, p.elo_score) for p in active_players]
+    )
+    players_by_id = {p.id: p for p in active_players}
+    similar_players = [players_by_id[pid] for pid in similar_ids]
+
     return PlayerProfile(
         player=player,
         games=record.games,
@@ -94,4 +103,7 @@ def get_player_profile(player_id: UUID, supabase: SupabaseDep) -> PlayerProfile:
         avg_points=record.avg_points,
         score_percent=record.score_percent,
         nemesis=nemesis,
+        elo_rank=elo_rank,
+        total_ranked_players=len(active_players),
+        similar_players=similar_players,
     )

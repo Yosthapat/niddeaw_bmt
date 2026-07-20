@@ -73,3 +73,6 @@ class PlayerProfile(BaseModel):
     avg_points: float
     score_percent: float
     nemesis: NemesisInfo | None = None
+    elo_rank: int
+    total_ranked_players: int
+    similar_players: list[Player] = []

@@ -1,10 +1,12 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query, status
 
 from app.db_utils import rows
 from app.deps import SupabaseDep
-from app.models.match import Match
+from app.models.match import Match, MatchDetail, PlayerMatchStat
+from app.models.player import Player
+from app.services import stats_service
 
 router = APIRouter(prefix="/api/matches", tags=["public-matches"])
 
@@ -27,3 +29,61 @@ def list_matches(
         query = query.eq("session_id", str(session_id))
     result = query.execute()
     return [Match.model_validate(row) for row in rows(result)]
+
+
+@router.get("/{match_id}/detail", response_model=MatchDetail)
+def get_match_detail(match_id: UUID, supabase: SupabaseDep) -> MatchDetail:
+    match_result = supabase.table("matches").select("*").eq("id", str(match_id)).limit(1).execute()
+    match_rows = rows(match_result)
+    if not match_rows:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Match not found")
+    match = Match.model_validate(match_rows[0])
+
+    all_matches_result = (
+        supabase.table("matches")
+        .select("team1_player_ids, team2_player_ids, winner")
+        .eq("status", "completed")
+        .execute()
+    )
+    records = stats_service.build_player_records(rows(all_matches_result))  # type: ignore[arg-type]
+
+    active_players_result = supabase.table("players").select("*").eq("is_active", True).execute()
+    players_by_id = {p.id: p for p in (Player.model_validate(row) for row in rows(active_players_result))}
+    all_scores = [p.elo_score for p in players_by_id.values()]
+
+    all_ids = match.team1_player_ids + match.team2_player_ids
+    missing_ids = [pid for pid in all_ids if pid not in players_by_id]
+    if missing_ids:
+        extra_result = (
+            supabase.table("players")
+            .select("*")
+            .in_("id", [str(pid) for pid in missing_ids])
+            .execute()
+        )
+        for row in rows(extra_result):
+            player = Player.model_validate(row)
+            players_by_id[player.id] = player
+
+    def build_stat(pid: UUID) -> PlayerMatchStat:
+        player = players_by_id[pid]
+        record = records.get(pid, stats_service.PlayerRecord())
+        return PlayerMatchStat(
+            player=player,
+            games=record.games,
+            wins=record.wins,
+            draws=record.draws,
+            losses=record.losses,
+            score_percent=record.score_percent,
+            elo_rank=stats_service.elo_rank(player.elo_score, all_scores),
+        )
+
+    duration_minutes: float | None = None
+    if match.status == "completed":
+        duration_minutes = (match.updated_at - match.created_at).total_seconds() / 60
+
+    return MatchDetail(
+        match=match,
+        team1=[build_stat(pid) for pid in match.team1_player_ids],
+        team2=[build_stat(pid) for pid in match.team2_player_ids],
+        duration_minutes=duration_minutes,
+    )

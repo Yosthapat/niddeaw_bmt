@@ -116,3 +116,17 @@ def find_nemesis(
         return None
     nemesis_id = max(records, key=lambda pid: records[pid].encounters)
     return nemesis_id, records[nemesis_id]
+
+
+def elo_rank(elo_score: int, other_scores: list[int]) -> int:
+    """1-based rank of elo_score among a pool of active players' scores."""
+    return sum(1 for s in other_scores if s > elo_score) + 1
+
+
+def nearest_by_elo(
+    target_score: int, exclude_id: UUID, players: list[tuple[UUID, int]], limit: int = 6
+) -> list[UUID]:
+    """IDs of the `limit` players with elo_score closest to target_score, excluding exclude_id."""
+    candidates = [(pid, score) for pid, score in players if pid != exclude_id]
+    candidates.sort(key=lambda p: abs(p[1] - target_score))
+    return [pid for pid, _ in candidates[:limit]]

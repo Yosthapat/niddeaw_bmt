@@ -41,6 +41,11 @@ const router = createRouter({
       name: 'matches',
       component: () => import('../views/public/MatchHistoryView.vue'),
     },
+    {
+      path: '/matches/:id',
+      name: 'match-detail',
+      component: () => import('../views/public/MatchDetailView.vue'),
+    },
 
     // Admin — guarded except login.
     {

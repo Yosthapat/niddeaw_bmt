@@ -1,5 +1,5 @@
 import { request } from './client'
-import type { Match, Player, PlayerProfile, PlayerStats } from '@/types'
+import type { Match, MatchDetail, Player, PlayerProfile, PlayerStats } from '@/types'
 
 // Mirrors backend/app/routers/public/{players,ranking,hall_of_fame,matches}.py.
 
@@ -23,7 +23,17 @@ export async function getHallOfFame(limit = 10): Promise<PlayerStats[]> {
   return request(`/api/hall-of-fame?limit=${limit}`)
 }
 
-export async function getMatches(sessionId?: string): Promise<Match[]> {
-  const query = sessionId ? `?session_id=${sessionId}` : ''
-  return request(`/api/matches${query}`)
+export async function getMatches(
+  options: { sessionId?: string; limit?: number; offset?: number } = {},
+): Promise<Match[]> {
+  const params = new URLSearchParams()
+  if (options.sessionId) params.set('session_id', options.sessionId)
+  if (options.limit !== undefined) params.set('limit', String(options.limit))
+  if (options.offset !== undefined) params.set('offset', String(options.offset))
+  const query = params.toString()
+  return request(`/api/matches${query ? `?${query}` : ''}`)
+}
+
+export async function getMatchDetail(matchId: string): Promise<MatchDetail> {
+  return request(`/api/matches/${matchId}/detail`)
 }

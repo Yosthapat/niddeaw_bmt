@@ -45,4 +45,7 @@ export interface PlayerProfile {
   avg_points: number
   score_percent: number
   nemesis: NemesisInfo | null
+  elo_rank: number
+  total_ranked_players: number
+  similar_players: Player[]
 }

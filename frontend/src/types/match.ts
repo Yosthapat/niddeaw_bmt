@@ -1,3 +1,5 @@
+import type { Player } from './player'
+
 export type MatchType = 'single' | 'double'
 export type MatchWinner = 'team1' | 'team2' | 'draw'
 export type MatchStatus = 'in_progress' | 'completed'
@@ -15,4 +17,24 @@ export interface Match {
   winner: MatchWinner | null
   status: MatchStatus
   created_at: string
+  updated_at: string
+}
+
+/** A player's overall record, shown side-by-side with their match opponents. */
+export interface PlayerMatchStat {
+  player: Player
+  games: number
+  wins: number
+  draws: number
+  losses: number
+  score_percent: number
+  elo_rank: number
+}
+
+/** Mirrors backend app/models/match.py MatchDetail. */
+export interface MatchDetail {
+  match: Match
+  team1: PlayerMatchStat[]
+  team2: PlayerMatchStat[]
+  duration_minutes: number | null
 }
