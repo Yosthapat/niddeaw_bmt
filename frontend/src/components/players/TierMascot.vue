@@ -118,7 +118,7 @@ withDefaults(defineProps<{ tier: EloTier; size?: number }>(), {
     />
     <path
       d="M34 60 L86 60 L84 104 Q83 110 77 110 L43 110 Q37 110 36 104 Z"
-      fill="#a8672c"
+      fill="#a8503f"
       opacity="0.9"
     />
     <!-- a single big ice sphere, not cubes — steadier and more deliberate than highball's fizz -->
