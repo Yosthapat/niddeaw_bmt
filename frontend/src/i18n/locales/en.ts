@@ -44,7 +44,7 @@ export default {
       noSmoking: 'No Smoking',
     },
     contactTitle: 'Contact the Organizer by Beerminton',
-    contactBody: 'New members / looking for a partner or opponent — message the admin on LINE OA: @369iojcn',
+    contactBody: 'New members / looking for a partner or opponent — message the admin on LINE OA: \\@369iojcn',
     sponsorsTitle: 'Presented by',
   },
   members: {
