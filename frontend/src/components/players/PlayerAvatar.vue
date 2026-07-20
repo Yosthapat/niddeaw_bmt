@@ -18,12 +18,12 @@ function initials(name: string): string {
     v-if="avatarUrl"
     :src="avatarUrl"
     :alt="name"
-    class="shrink-0 rounded-full object-cover ring-1 ring-brand-pink-dark/50"
+    class="hud-panel shrink-0 border border-brand-pink/40 object-cover"
     :class="{ 'h-8 w-8': size === 'sm', 'h-11 w-11': size === 'md', 'h-16 w-16': size === 'lg' }"
   />
   <span
     v-else
-    class="flex shrink-0 items-center justify-center rounded-full bg-brand-pink-dark/40 font-semibold text-brand-pink-light ring-1 ring-brand-pink-dark/50"
+    class="hud-panel flex shrink-0 items-center justify-center border border-brand-pink/40 bg-brand-surface-raised font-display font-semibold text-brand-pink-light"
     :class="{
       'h-8 w-8 text-xs': size === 'sm',
       'h-11 w-11 text-sm': size === 'md',

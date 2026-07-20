@@ -22,21 +22,24 @@ function logout(): void {
 </script>
 
 <template>
-  <nav class="mx-auto flex max-w-4xl flex-wrap items-center gap-1 px-4 pt-4 text-sm">
+  <nav class="mx-auto flex max-w-4xl flex-wrap items-center gap-1.5 px-4 pt-4 text-sm">
     <RouterLink
       v-for="link in links"
       :key="link.to"
       :to="link.to"
-      class="rounded-full px-3 py-1.5"
+      class="hud-panel px-3 py-1.5 font-semibold transition-colors"
       :class="
         route.path === link.to
-          ? 'bg-brand-pink text-brand-black font-semibold'
-          : 'text-white/70 hover:text-white'
+          ? 'bg-brand-pink text-brand-black'
+          : 'bg-brand-surface text-white/60 hover:bg-brand-surface-raised hover:text-white'
       "
     >
       {{ link.label }}
     </RouterLink>
-    <button class="ml-auto rounded-full border border-white/20 px-3 py-1.5 text-white/60 hover:text-white" @click="logout">
+    <button
+      class="hud-panel ml-auto border border-white/15 px-3 py-1.5 text-white/50 hover:border-white/30 hover:text-white"
+      @click="logout"
+    >
       ออกจากระบบ
     </button>
   </nav>

@@ -15,36 +15,36 @@ const publicLinks = [
 </script>
 
 <template>
-  <header class="sticky top-0 z-10 border-b border-brand-pink-dark/40 bg-brand-black/95 backdrop-blur">
-    <div class="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
-      <RouterLink to="/" class="flex items-center gap-2 shrink-0">
-        <img
-          src="/pwa-icons/pwa-64x64.png"
-          alt="นิดเดียว Badminton Club logo"
-          class="h-9 w-9 rounded-full ring-2 ring-brand-pink"
-        />
-        <span class="hidden text-base font-bold text-brand-pink sm:inline">นิดเดียว BMT</span>
+  <header class="sticky top-0 z-10 border-b border-brand-pink/20 bg-brand-black/95 backdrop-blur">
+    <div class="mx-auto flex max-w-5xl items-center gap-4 px-4 py-3">
+      <RouterLink to="/" class="flex shrink-0 items-center gap-2.5">
+        <span class="hud-panel bg-brand-pink p-0.5">
+          <img src="/pwa-icons/pwa-64x64.png" alt="นิดเดียว Badminton Club logo" class="hud-panel block h-8 w-8" />
+        </span>
+        <span class="hidden font-display text-base font-bold tracking-wide text-white sm:inline">
+          นิดเดียว<span class="text-brand-pink">BMT</span>
+        </span>
       </RouterLink>
 
-      <nav class="flex flex-1 gap-1 overflow-x-auto text-sm">
+      <nav class="flex flex-1 gap-4 overflow-x-auto text-xs font-semibold tracking-wider uppercase sm:gap-5">
         <RouterLink
           v-for="link in publicLinks"
           :key="link.to"
           :to="link.to"
-          class="whitespace-nowrap rounded-full px-3 py-1.5 transition-colors"
-          :class="
-            route.path === link.to
-              ? 'bg-brand-pink text-brand-black font-semibold'
-              : 'text-white/70 hover:text-white'
-          "
+          class="relative whitespace-nowrap py-2 transition-colors"
+          :class="route.path === link.to ? 'text-brand-pink' : 'text-white/50 hover:text-white'"
         >
           {{ link.label }}
+          <span
+            v-if="route.path === link.to"
+            class="absolute -bottom-px left-0 h-0.5 w-full bg-brand-pink"
+          />
         </RouterLink>
       </nav>
 
       <RouterLink
         :to="authStore.isAuthenticated ? '/admin' : '/admin/login'"
-        class="shrink-0 whitespace-nowrap rounded-full border border-brand-pink-dark px-3 py-1.5 text-sm text-brand-pink-light hover:bg-brand-pink-dark/20"
+        class="hud-panel shrink-0 whitespace-nowrap border border-brand-pink/50 px-3 py-1.5 text-xs font-semibold tracking-wide text-brand-pink-light uppercase hover:border-brand-pink hover:bg-brand-pink/10"
       >
         {{ authStore.isAuthenticated ? 'Admin' : 'Admin Login' }}
       </RouterLink>

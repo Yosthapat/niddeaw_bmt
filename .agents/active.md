@@ -4,20 +4,15 @@
 - none
 
 ## Done Last Session
-- Implemented admin players GET endpoint in backend for fetching members list
-- Built ManageMembersView.vue component with full member management UI (create/edit/avatar/activate-deactivate)
-- Added getAllPlayers API call to frontend service
-- Created new /admin/members route and added "จัดการสมาชิก" (Manage Members) link to Admin navigation
-- Verified all builds (mypy + pytest + vite)
-- Committed and pushed all changes to main branch
-- Verified backend redeployment completed successfully with new endpoint
-- Confirmed frontend /admin/members page responding with HTTP 200 and is live in production
+- Removed dev-note message from the application
+- Successfully built the project
+- Pushed changes to GitHub (commit `1d7df80`)
+- Deployment to Cloudflare initiated (redeploy expected within 1-2 minutes)
 
 ## Next Steps
-- Test the full member management UI in production at Admin → จัดการสมาชิก (/admin/members)
-- Test adding new members, editing member details, uploading avatars
-- Test activating/deactivating members
-- Monitor production for any issues with the new endpoint
+- Refresh the live site at https://niddeaw-bmt.yosthapatk-mbai.workers.dev/ to verify dev-note message is removed
+- Confirm Cloudflare deployment completed successfully
+- Conduct manual testing of member creation workflow if needed
 
 ## Blockers
 - none
@@ -26,7 +21,8 @@
 - Claude Code — 2026-07-20
 
 ## Checkpoint (auto)
-- 04:43 — edited players_admin.py
-- 04:43 — edited players_admin.py
-- 04:43 — edited player.py
-- 04:35 — edited active.md
+- 18:26 — edited tailwind.css
+- 18:25 — edited index.html
+- 18:24 — edited .impeccable.md
+- 18:14 — edited SKILL.md
+- 18:13 — edited active.md

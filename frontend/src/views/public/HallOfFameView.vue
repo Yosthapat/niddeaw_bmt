@@ -21,9 +21,10 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="mx-auto max-w-3xl px-4 py-8">
-    <h1 class="text-2xl font-bold text-brand-pink">🏆 Hall of Fame</h1>
-    <p class="mt-1 text-sm text-white/50">อันดับตลอดกาล (ต้องเล่นอย่างน้อย 5 เกม)</p>
+  <main class="mx-auto max-w-3xl px-4 py-8 sm:py-12">
+    <p class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">Legends</p>
+    <h1 class="font-display text-3xl font-bold text-white">Hall of Fame</h1>
+    <p class="mt-1 text-sm text-white/40">อันดับตลอดกาล (ต้องเล่นอย่างน้อย 5 เกม)</p>
 
     <p v-if="loading" class="mt-6 text-white/60">กำลังโหลด...</p>
     <p v-else-if="error" class="mt-6 text-red-400">{{ error }}</p>
@@ -35,20 +36,16 @@ onMounted(async () => {
       <div
         v-for="(s, i) in stats"
         :key="s.player.id"
-        class="flex items-center gap-3 rounded-xl border p-4"
-        :class="
-          i === 0
-            ? 'border-brand-pink bg-brand-pink/10'
-            : 'border-brand-pink-dark/40 bg-white/5'
-        "
+        class="hud-panel flex items-center gap-3 border bg-brand-surface p-4"
+        :class="i === 0 ? 'border-brand-pink/70 bg-brand-pink/5' : 'border-brand-pink/15'"
       >
         <RouterLink :to="`/members/${s.player.id}`" class="flex flex-1 items-center gap-3 hover:opacity-80">
           <PlayerAvatar :name="s.player.name" :avatar-url="s.player.avatar_url" size="lg" />
           <div class="flex-1">
-            <p class="font-bold">
+            <p class="font-display font-bold">
               {{ i === 0 ? '👑 ' : '' }}{{ s.player.nickname || s.player.name }}
             </p>
-            <p class="text-xs text-white/50">
+            <p class="text-xs text-white/40">
               {{ s.games }} เกม · {{ s.points }} pts · Sc {{ s.score_percent.toFixed(0) }}%
             </p>
             <EloBadge :elo-score="s.player.elo_score" show-score class="mt-1" />

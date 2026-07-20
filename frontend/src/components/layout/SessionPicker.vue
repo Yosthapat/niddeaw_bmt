@@ -34,12 +34,12 @@ async function createToday(): Promise<void> {
 </script>
 
 <template>
-  <div class="flex flex-wrap items-center gap-2 rounded-xl border border-brand-pink-dark/40 bg-white/5 p-3">
+  <div class="flex flex-wrap items-center gap-2 hud-panel border border-brand-pink/20 bg-brand-surface p-3">
     <span class="text-sm text-white/60">Session:</span>
     <select
       v-if="sessionsStore.sessions.length > 0"
       :value="sessionsStore.currentSessionId ?? ''"
-      class="rounded-lg border border-brand-pink-dark/40 bg-brand-black px-2 py-1 text-sm"
+      class="rounded-lg border border-brand-pink/25 bg-brand-black px-2 py-1 text-sm"
       @change="sessionsStore.setCurrentSession(($event.target as HTMLSelectElement).value || null)"
     >
       <option v-for="s in sessionsStore.sessions" :key="s.id" :value="s.id">
@@ -59,7 +59,7 @@ async function createToday(): Promise<void> {
       <input
         v-model="newLocation"
         placeholder="สถานที่"
-        class="w-32 rounded-lg border border-brand-pink-dark/40 bg-brand-black px-2 py-1 text-sm"
+        class="w-32 rounded-lg border border-brand-pink/25 bg-brand-black px-2 py-1 text-sm"
       />
       <input
         v-model.number="newCourtFee"
@@ -67,7 +67,7 @@ async function createToday(): Promise<void> {
         min="0"
         placeholder="ค่าสนาม/คน"
         title="ค่าสนามต่อคน (บาท)"
-        class="w-24 rounded-lg border border-brand-pink-dark/40 bg-brand-black px-2 py-1 text-sm"
+        class="w-24 rounded-lg border border-brand-pink/25 bg-brand-black px-2 py-1 text-sm"
       />
       <input
         v-model.number="newShuttlecockPrice"
@@ -75,7 +75,7 @@ async function createToday(): Promise<void> {
         min="0"
         placeholder="ค่าลูก/เกม"
         title="ค่าลูกแบดต่อเกม (บาท)"
-        class="w-24 rounded-lg border border-brand-pink-dark/40 bg-brand-black px-2 py-1 text-sm"
+        class="w-24 rounded-lg border border-brand-pink/25 bg-brand-black px-2 py-1 text-sm"
       />
       <button class="rounded-full bg-brand-pink px-3 py-1 text-sm font-semibold text-brand-black" @click="createToday">
         บันทึก

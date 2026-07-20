@@ -75,7 +75,7 @@ usePolling(refreshQueue, 7000)
           <li
             v-for="m in queue.in_progress"
             :key="m.match_id"
-            class="flex items-center justify-between gap-3 rounded-xl border border-brand-pink-dark/40 bg-white/5 px-4 py-3"
+            class="flex items-center justify-between gap-3 hud-panel border border-brand-pink/20 bg-brand-surface px-4 py-3"
           >
             <span class="flex-1 text-right">{{ m.team1_player_ids.map(nameOf).join(' & ') }}</span>
             <span class="text-xs text-white/40">VS</span>
@@ -104,7 +104,7 @@ usePolling(refreshQueue, 7000)
           <li
             v-for="s in queue.suggestions"
             :key="s.group_no"
-            class="flex items-center justify-between gap-3 rounded-xl border border-brand-pink-dark/40 bg-white/5 px-4 py-3"
+            class="flex items-center justify-between gap-3 hud-panel border border-brand-pink/20 bg-brand-surface px-4 py-3"
           >
             <span class="flex-1 text-right">{{ s.team1_player_ids.map(nameOf).join(' & ') }}</span>
             <span class="text-xs text-white/40">VS</span>
@@ -129,7 +129,7 @@ usePolling(refreshQueue, 7000)
           <li
             v-for="w in queue.waiting"
             :key="w.player_id"
-            class="flex items-center gap-2 rounded-full border border-brand-pink-dark/40 bg-white/5 px-3 py-1.5 text-sm"
+            class="flex items-center gap-2 rounded-full border border-brand-pink/25 bg-brand-surface px-3 py-1.5 text-sm"
           >
             <PlayerAvatar :name="nameOf(w.player_id)" size="sm" />
             {{ nameOf(w.player_id) }}

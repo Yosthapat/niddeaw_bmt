@@ -78,7 +78,7 @@ usePolling(refreshCheckins, 8000)
         <input
           v-model="newPlayerName"
           placeholder="ชื่อสมาชิกใหม่"
-          class="flex-1 rounded-lg border border-brand-pink-dark/40 bg-brand-black px-2 py-1 text-sm"
+          class="flex-1 rounded-lg border border-brand-pink/25 bg-brand-black px-2 py-1 text-sm"
         />
         <button class="rounded-full bg-brand-pink px-3 py-1 text-sm font-semibold text-brand-black" @click="quickAddPlayer">
           บันทึก
@@ -100,7 +100,7 @@ usePolling(refreshCheckins, 8000)
           <li
             v-for="c in activeCheckins"
             :key="c.id"
-            class="flex items-center gap-3 rounded-xl border border-brand-pink-dark/40 bg-white/5 px-3 py-2"
+            class="flex items-center gap-3 hud-panel border border-brand-pink/20 bg-brand-surface px-3 py-2"
           >
             <PlayerAvatar
               :name="playersStore.byId(c.player_id)?.name ?? '?'"
@@ -131,7 +131,7 @@ usePolling(refreshCheckins, 8000)
           <li
             v-for="p in availablePlayers"
             :key="p.id"
-            class="flex items-center gap-3 rounded-xl border border-brand-pink-dark/40 bg-white/5 px-3 py-2"
+            class="flex items-center gap-3 hud-panel border border-brand-pink/20 bg-brand-surface px-3 py-2"
           >
             <PlayerAvatar :name="p.name" :avatar-url="p.avatar_url" size="sm" />
             <span class="flex-1">{{ p.nickname || p.name }}</span>

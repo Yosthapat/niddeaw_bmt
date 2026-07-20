@@ -23,8 +23,10 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="mx-auto max-w-2xl px-4 py-8">
-    <RouterLink to="/members" class="text-sm text-brand-pink hover:underline">&larr; กลับไปหน้าสมาชิก</RouterLink>
+  <main class="mx-auto max-w-2xl px-4 py-8 sm:py-12">
+    <RouterLink to="/members" class="text-sm font-semibold text-brand-pink/70 hover:text-brand-pink">
+      &larr; กลับไปหน้าสมาชิก
+    </RouterLink>
 
     <p v-if="loading" class="mt-6 text-white/60">กำลังโหลด...</p>
     <p v-else-if="error || !profile" class="mt-6 text-red-400">{{ error }}</p>
@@ -32,40 +34,40 @@ onMounted(async () => {
     <template v-else>
       <div class="mt-6 flex flex-col items-center gap-3 text-center">
         <PlayerAvatar :name="profile.player.name" :avatar-url="profile.player.avatar_url" size="lg" />
-        <h1 class="text-2xl font-bold">{{ profile.player.nickname || profile.player.name }}</h1>
-        <p v-if="profile.player.nickname" class="-mt-2 text-sm text-white/50">{{ profile.player.name }}</p>
+        <h1 class="font-display text-2xl font-bold">{{ profile.player.nickname || profile.player.name }}</h1>
+        <p v-if="profile.player.nickname" class="-mt-2 text-sm text-white/40">{{ profile.player.name }}</p>
         <EloBadge :elo-score="profile.player.elo_score" show-score />
       </div>
 
-      <div class="mt-8 grid grid-cols-3 gap-3 sm:grid-cols-6">
-        <div class="rounded-xl border border-brand-pink-dark/40 bg-white/5 p-3 text-center">
-          <p class="text-xs text-white/50">Game</p>
-          <p class="mt-1 text-xl font-bold">{{ profile.games }}</p>
+      <div class="mt-8 grid grid-cols-3 gap-2.5 sm:grid-cols-6">
+        <div class="hud-panel border border-brand-pink/20 bg-brand-surface p-3 text-center">
+          <p class="text-xs tracking-wide text-white/40 uppercase">Game</p>
+          <p class="mt-1 font-display text-xl font-bold">{{ profile.games }}</p>
         </div>
-        <div class="rounded-xl border border-brand-pink-dark/40 bg-white/5 p-3 text-center">
-          <p class="text-xs text-white/50">Win</p>
-          <p class="mt-1 text-xl font-bold text-green-400">{{ profile.wins }}</p>
+        <div class="hud-panel border border-brand-pink/20 bg-brand-surface p-3 text-center">
+          <p class="text-xs tracking-wide text-white/40 uppercase">Win</p>
+          <p class="mt-1 font-display text-xl font-bold text-green-400">{{ profile.wins }}</p>
         </div>
-        <div class="rounded-xl border border-brand-pink-dark/40 bg-white/5 p-3 text-center">
-          <p class="text-xs text-white/50">Draw</p>
-          <p class="mt-1 text-xl font-bold text-white/70">{{ profile.draws }}</p>
+        <div class="hud-panel border border-brand-pink/20 bg-brand-surface p-3 text-center">
+          <p class="text-xs tracking-wide text-white/40 uppercase">Draw</p>
+          <p class="mt-1 font-display text-xl font-bold text-white/70">{{ profile.draws }}</p>
         </div>
-        <div class="rounded-xl border border-brand-pink-dark/40 bg-white/5 p-3 text-center">
-          <p class="text-xs text-white/50">Loss</p>
-          <p class="mt-1 text-xl font-bold text-red-400">{{ profile.losses }}</p>
+        <div class="hud-panel border border-brand-pink/20 bg-brand-surface p-3 text-center">
+          <p class="text-xs tracking-wide text-white/40 uppercase">Loss</p>
+          <p class="mt-1 font-display text-xl font-bold text-red-400">{{ profile.losses }}</p>
         </div>
-        <div class="rounded-xl border border-brand-pink-dark/40 bg-white/5 p-3 text-center">
-          <p class="text-xs text-white/50">Pts</p>
-          <p class="mt-1 text-xl font-bold text-brand-pink">{{ profile.points }}</p>
+        <div class="hud-panel border border-brand-pink/40 bg-brand-surface p-3 text-center">
+          <p class="text-xs tracking-wide text-white/40 uppercase">Pts</p>
+          <p class="mt-1 font-display text-xl font-bold text-brand-pink">{{ profile.points }}</p>
         </div>
-        <div class="rounded-xl border border-brand-pink-dark/40 bg-white/5 p-3 text-center">
-          <p class="text-xs text-white/50">Sc(%)</p>
-          <p class="mt-1 text-xl font-bold">{{ profile.score_percent.toFixed(1) }}</p>
+        <div class="hud-panel border border-brand-pink/20 bg-brand-surface p-3 text-center">
+          <p class="text-xs tracking-wide text-white/40 uppercase">Sc(%)</p>
+          <p class="mt-1 font-display text-xl font-bold">{{ profile.score_percent.toFixed(1) }}</p>
         </div>
       </div>
 
-      <section v-if="profile.nemesis" class="mt-8 rounded-xl border border-brand-pink-dark/40 bg-white/5 p-4">
-        <h2 class="text-sm font-semibold text-white/70">เทกันจัง</h2>
+      <section v-if="profile.nemesis" class="hud-panel mt-8 border border-brand-pink/20 bg-brand-surface p-4">
+        <h2 class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">เทกันจัง</h2>
         <div class="mt-3 flex items-center gap-3">
           <PlayerAvatar
             :name="profile.nemesis.player.name"
@@ -79,7 +81,7 @@ onMounted(async () => {
             >
               {{ profile.nemesis.player.nickname || profile.nemesis.player.name }}
             </RouterLink>
-            <p class="text-xs text-white/50">
+            <p class="text-xs text-white/40">
               เจอกัน {{ profile.nemesis.encounters }} ครั้ง · ชนะ {{ profile.nemesis.wins }} · แพ้
               {{ profile.nemesis.losses }} · เสมอ {{ profile.nemesis.draws }}
             </p>

@@ -5,22 +5,33 @@
  * background. No light/dark toggle, so Tailwind's `dark:` variant machinery
  * is intentionally unused here.
  *
- * Tailwind v4 is CSS-first: custom design tokens are declared with @theme
- * instead of a tailwind.config.js/ts `theme.extend.colors` block. Each
- * --color-* variable below generates the matching utility classes
- * (e.g. --color-brand-pink -> bg-brand-pink, text-brand-pink, border-brand-pink).
+ * Esports/HUD direction (see .impeccable.md): raw, high-contrast, hue-350
+ * (hot pink) as the single accent. Neutrals are tinted toward that same hue
+ * at near-zero chroma for subconscious cohesion instead of a flat gray.
+ *
+ * Tailwind v4 is CSS-first: custom tokens are declared with @theme instead
+ * of a tailwind.config.js/ts `theme.extend` block. Each --color-*/--font-*
+ * variable below generates the matching utility class (e.g. --color-brand-pink
+ * -> bg-brand-pink, text-brand-pink; --font-display -> font-display).
  */
 @theme {
-  --color-brand-black: #0a0a0a;
-  --color-brand-pink: #ec4899;
-  --color-brand-pink-dark: #be185d;
-  --color-brand-pink-light: #f9a8d4;
+  --font-display: "Chakra Petch", ui-sans-serif, sans-serif;
+  --font-body: "Mitr", ui-sans-serif, sans-serif;
 
-  --color-tier-milk: #f5f5f4;
-  --color-tier-soju: #a3e635;
-  --color-tier-beer: #fbbf24;
-  --color-tier-highball: #fb923c;
-  --color-tier-vodka: #a855f7;
+  --color-brand-black: oklch(12% 0.015 350);
+  --color-brand-surface: oklch(18% 0.02 350);
+  --color-brand-surface-raised: oklch(23% 0.025 350);
+  --color-brand-pink: oklch(66% 0.21 350);
+  --color-brand-pink-dark: oklch(38% 0.16 350);
+  --color-brand-pink-light: oklch(82% 0.1 350);
+
+  /* Milk -> Soju -> Beer -> Highball -> Vodka: an escalating read from pale
+     beginner to a striking elite hue, not five arbitrary Tailwind swatches. */
+  --color-tier-milk: oklch(92% 0.015 90);
+  --color-tier-soju: oklch(78% 0.09 150);
+  --color-tier-beer: oklch(75% 0.15 80);
+  --color-tier-highball: oklch(68% 0.17 45);
+  --color-tier-vodka: oklch(62% 0.22 300);
 }
 
 html {
@@ -31,5 +42,28 @@ body {
   margin: 0;
   min-height: 100vh;
   background-color: var(--color-brand-black);
-  color: white;
+  color: oklch(93% 0.01 350);
+  font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+}
+
+/* HUD corner-notch: the recurring motif that replaces plain rounded cards
+   everywhere a "container" is needed — clipped corners read as
+   technical/scoreboard rather than generic SaaS card. */
+.hud-panel {
+  clip-path: polygon(
+    0 12px,
+    12px 0,
+    100% 0,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    0 100%
+  );
 }

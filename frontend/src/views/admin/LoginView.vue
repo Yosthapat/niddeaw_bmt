@@ -38,7 +38,7 @@ async function submit(): Promise<void> {
         placeholder="Username"
         autocomplete="username"
         required
-        class="rounded-lg border border-brand-pink-dark/40 bg-white/5 px-3 py-2 outline-none focus:border-brand-pink"
+        class="rounded-lg border border-brand-pink/25 bg-brand-surface px-3 py-2 outline-none focus:border-brand-pink"
       />
       <input
         v-model="password"
@@ -46,7 +46,7 @@ async function submit(): Promise<void> {
         placeholder="Password"
         autocomplete="current-password"
         required
-        class="rounded-lg border border-brand-pink-dark/40 bg-white/5 px-3 py-2 outline-none focus:border-brand-pink"
+        class="rounded-lg border border-brand-pink/25 bg-brand-surface px-3 py-2 outline-none focus:border-brand-pink"
       />
       <p v-if="error" class="text-sm text-red-400">{{ error }}</p>
       <button

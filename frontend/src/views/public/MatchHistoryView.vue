@@ -40,8 +40,9 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="mx-auto max-w-3xl px-4 py-8">
-    <h1 class="text-2xl font-bold text-brand-pink">ผลแมตช์</h1>
+  <main class="mx-auto max-w-3xl px-4 py-8 sm:py-12">
+    <p class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">Match Log</p>
+    <h1 class="font-display text-3xl font-bold text-white">ผลแมตช์</h1>
 
     <p v-if="loading" class="mt-6 text-white/60">กำลังโหลด...</p>
     <p v-else-if="error" class="mt-6 text-red-400">{{ error }}</p>
@@ -51,25 +52,25 @@ onMounted(async () => {
       <li
         v-for="m in sortedMatches"
         :key="m.id"
-        class="rounded-xl border border-brand-pink-dark/40 bg-white/5 px-4 py-3"
+        class="hud-panel border border-brand-pink/15 bg-brand-surface px-4 py-3"
       >
-        <div class="flex items-center justify-between text-sm text-white/50">
+        <div class="flex items-center justify-between text-xs tracking-wide text-white/40 uppercase">
           <span>{{ m.type === 'double' ? 'คู่' : 'เดี่ยว' }}</span>
           <span>{{ new Date(m.created_at).toLocaleString('th-TH') }}</span>
         </div>
         <div class="mt-2 flex items-center justify-between gap-3">
           <span
             class="flex-1 text-right font-medium"
-            :class="m.winner === 'team1' ? 'text-brand-pink' : 'text-white/80'"
+            :class="m.winner === 'team1' ? 'text-brand-pink' : 'text-white/70'"
           >
             {{ teamLabel(m.team1_player_ids) }}
           </span>
-          <span class="shrink-0 rounded bg-black/40 px-2 py-1 text-sm font-mono">
+          <span class="hud-panel shrink-0 bg-brand-black px-2.5 py-1 font-mono text-sm text-white/80">
             {{ setsLabel(m) }}
           </span>
           <span
             class="flex-1 text-left font-medium"
-            :class="m.winner === 'team2' ? 'text-brand-pink' : 'text-white/80'"
+            :class="m.winner === 'team2' ? 'text-brand-pink' : 'text-white/70'"
           >
             {{ teamLabel(m.team2_player_ids) }}
           </span>

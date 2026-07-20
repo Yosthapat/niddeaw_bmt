@@ -107,7 +107,7 @@ onMounted(async () => {
         <li
           v-for="b in billings"
           :key="b.id"
-          class="rounded-xl border border-brand-pink-dark/40 bg-white/5 p-4"
+          class="hud-panel border border-brand-pink/20 bg-brand-surface p-4"
         >
           <div class="flex items-center gap-3">
             <PlayerAvatar :name="nameOf(b.player_id)" size="sm" />

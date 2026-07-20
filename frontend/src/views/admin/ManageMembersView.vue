@@ -130,21 +130,21 @@ onMounted(loadPlayers)
 
     <form
       v-if="creating"
-      class="mt-4 grid gap-2 rounded-xl border border-brand-pink-dark/40 bg-white/5 p-4 sm:grid-cols-2"
+      class="mt-4 grid gap-2 hud-panel border border-brand-pink/20 bg-brand-surface p-4 sm:grid-cols-2"
       @submit.prevent="createPlayer"
     >
-      <input v-model="newPlayer.name" placeholder="ชื่อจริง *" required class="rounded-lg border border-brand-pink-dark/40 bg-brand-black px-3 py-2 text-sm" />
-      <input v-model="newPlayer.nickname" placeholder="ชื่อเล่น" class="rounded-lg border border-brand-pink-dark/40 bg-brand-black px-3 py-2 text-sm" />
-      <input v-model="newPlayer.phone" placeholder="เบอร์โทร" class="rounded-lg border border-brand-pink-dark/40 bg-brand-black px-3 py-2 text-sm" />
-      <input v-model="newPlayer.line_id" placeholder="LINE ID" class="rounded-lg border border-brand-pink-dark/40 bg-brand-black px-3 py-2 text-sm" />
+      <input v-model="newPlayer.name" placeholder="ชื่อจริง *" required class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
+      <input v-model="newPlayer.nickname" placeholder="ชื่อเล่น" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
+      <input v-model="newPlayer.phone" placeholder="เบอร์โทร" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
+      <input v-model="newPlayer.line_id" placeholder="LINE ID" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
       <input
         v-model="newPlayer.elo_score"
         type="number"
         placeholder="ELO เริ่มต้น (ค่าเริ่มต้น 1000)"
         title="ปล่อยว่างไว้ถ้าให้เริ่มที่ 1000 ตามปกติ"
-        class="rounded-lg border border-brand-pink-dark/40 bg-brand-black px-3 py-2 text-sm"
+        class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm"
       />
-      <label class="flex items-center gap-2 rounded-lg border border-brand-pink-dark/40 bg-brand-black px-3 py-2 text-sm text-white/60">
+      <label class="flex items-center gap-2 rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm text-white/60">
         รูปโปรไฟล์
         <input type="file" accept="image/*" class="flex-1 text-xs" @change="onNewAvatarSelected" />
       </label>
@@ -164,7 +164,7 @@ onMounted(loadPlayers)
       <li
         v-for="p in players"
         :key="p.id"
-        class="rounded-xl border border-brand-pink-dark/40 bg-white/5 p-4"
+        class="hud-panel border border-brand-pink/20 bg-brand-surface p-4"
         :class="{ 'opacity-50': !p.is_active }"
       >
         <div v-if="editingId !== p.id" class="flex items-center gap-3">
@@ -189,10 +189,10 @@ onMounted(loadPlayers)
         </div>
 
         <form v-else class="grid gap-2 sm:grid-cols-2" @submit.prevent="saveEdit(p)">
-          <input v-model="editForm.name" placeholder="ชื่อจริง *" required class="rounded-lg border border-brand-pink-dark/40 bg-brand-black px-3 py-2 text-sm" />
-          <input v-model="editForm.nickname" placeholder="ชื่อเล่น" class="rounded-lg border border-brand-pink-dark/40 bg-brand-black px-3 py-2 text-sm" />
-          <input v-model="editForm.phone" placeholder="เบอร์โทร" class="rounded-lg border border-brand-pink-dark/40 bg-brand-black px-3 py-2 text-sm" />
-          <input v-model="editForm.line_id" placeholder="LINE ID" class="rounded-lg border border-brand-pink-dark/40 bg-brand-black px-3 py-2 text-sm" />
+          <input v-model="editForm.name" placeholder="ชื่อจริง *" required class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
+          <input v-model="editForm.nickname" placeholder="ชื่อเล่น" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
+          <input v-model="editForm.phone" placeholder="เบอร์โทร" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
+          <input v-model="editForm.line_id" placeholder="LINE ID" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
           <div class="flex gap-2 sm:col-span-2">
             <button type="submit" :disabled="savingEdit" class="rounded-full bg-brand-pink px-4 py-1.5 text-sm font-semibold text-brand-black disabled:opacity-50">
               {{ savingEdit ? 'กำลังบันทึก...' : 'บันทึก' }}

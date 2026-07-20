@@ -42,7 +42,7 @@ const promptPayTypeOptions: { value: PromptPayType; label: string }[] = [
         <input
           v-model="settings.promptpay_id"
           placeholder="เบอร์โทร / เลขบัตร / e-Wallet ID"
-          class="rounded-lg border border-brand-pink-dark/40 bg-white/5 px-3 py-2 outline-none focus:border-brand-pink"
+          class="rounded-lg border border-brand-pink/25 bg-brand-surface px-3 py-2 outline-none focus:border-brand-pink"
         />
       </label>
 
@@ -50,7 +50,7 @@ const promptPayTypeOptions: { value: PromptPayType; label: string }[] = [
         ประเภท PromptPay ID
         <select
           v-model="settings.promptpay_type"
-          class="rounded-lg border border-brand-pink-dark/40 bg-brand-black px-3 py-2"
+          class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2"
         >
           <option v-for="opt in promptPayTypeOptions" :key="opt.value" :value="opt.value">
             {{ opt.label }}
@@ -64,7 +64,7 @@ const promptPayTypeOptions: { value: PromptPayType; label: string }[] = [
           v-model.number="settings.default_court_fee_per_person"
           type="number"
           min="0"
-          class="rounded-lg border border-brand-pink-dark/40 bg-white/5 px-3 py-2 outline-none focus:border-brand-pink"
+          class="rounded-lg border border-brand-pink/25 bg-brand-surface px-3 py-2 outline-none focus:border-brand-pink"
         />
       </label>
 
@@ -74,7 +74,7 @@ const promptPayTypeOptions: { value: PromptPayType; label: string }[] = [
           v-model.number="settings.default_shuttlecock_price_per_game"
           type="number"
           min="0"
-          class="rounded-lg border border-brand-pink-dark/40 bg-white/5 px-3 py-2 outline-none focus:border-brand-pink"
+          class="rounded-lg border border-brand-pink/25 bg-brand-surface px-3 py-2 outline-none focus:border-brand-pink"
         />
       </label>
 

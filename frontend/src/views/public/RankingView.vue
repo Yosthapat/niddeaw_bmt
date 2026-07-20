@@ -28,20 +28,23 @@ const medalByRank = ['🥇', '🥈', '🥉']
 </script>
 
 <template>
-  <main class="mx-auto max-w-3xl px-4 py-8">
-    <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-bold text-brand-pink">อันดับ</h1>
-      <div class="flex gap-1 rounded-full border border-brand-pink-dark/40 p-1 text-sm">
+  <main class="mx-auto max-w-3xl px-4 py-8 sm:py-12">
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <p class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">Leaderboard</p>
+        <h1 class="font-display text-3xl font-bold text-white">อันดับ</h1>
+      </div>
+      <div class="hud-panel flex border border-brand-pink/25 bg-brand-surface p-1 text-sm">
         <button
-          class="rounded-full px-3 py-1"
-          :class="period === 'all' ? 'bg-brand-pink text-brand-black font-semibold' : 'text-white/70'"
+          class="px-3 py-1.5 font-semibold transition-colors"
+          :class="period === 'all' ? 'bg-brand-pink text-brand-black' : 'text-white/50 hover:text-white'"
           @click="period = 'all'"
         >
           All-time
         </button>
         <button
-          class="rounded-full px-3 py-1"
-          :class="period === 'year' ? 'bg-brand-pink text-brand-black font-semibold' : 'text-white/70'"
+          class="px-3 py-1.5 font-semibold transition-colors"
+          :class="period === 'year' ? 'bg-brand-pink text-brand-black' : 'text-white/50 hover:text-white'"
           @click="period = 'year'"
         >
           รายปี
@@ -57,20 +60,21 @@ const medalByRank = ['🥇', '🥈', '🥉']
       <li
         v-for="(s, i) in stats"
         :key="s.player.id"
-        class="flex items-center gap-3 rounded-xl border border-brand-pink-dark/40 bg-white/5 px-4 py-3"
+        class="hud-panel flex items-center gap-3 border bg-brand-surface px-4 py-3"
+        :class="i === 0 ? 'border-brand-pink/70' : 'border-brand-pink/15'"
       >
-        <span class="w-8 text-center text-lg font-bold text-brand-pink-light">
+        <span class="w-9 text-center font-display text-xl font-bold text-white/80">
           {{ medalByRank[i] ?? i + 1 }}
         </span>
         <RouterLink :to="`/members/${s.player.id}`" class="flex flex-1 items-center gap-3 hover:text-brand-pink">
           <PlayerAvatar :name="s.player.name" :avatar-url="s.player.avatar_url" size="sm" />
           <div>
             <p class="font-medium">{{ s.player.nickname || s.player.name }}</p>
-            <p class="text-xs text-white/50">{{ s.games }} เกม · ชนะ {{ s.wins }}</p>
+            <p class="text-xs text-white/40">{{ s.games }} เกม · ชนะ {{ s.wins }}</p>
           </div>
         </RouterLink>
-        <EloBadge :elo-score="s.player.elo_score" show-score />
-        <span class="w-12 text-right text-lg font-bold text-brand-pink">{{ s.points }}</span>
+        <EloBadge :elo-score="s.player.elo_score" show-score class="hidden sm:inline-flex" />
+        <span class="w-12 text-right font-display text-lg font-bold text-brand-pink">{{ s.points }}</span>
       </li>
     </ol>
   </main>

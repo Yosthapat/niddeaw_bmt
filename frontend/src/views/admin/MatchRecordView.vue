@@ -72,14 +72,14 @@ onMounted(() => {
             v-model.number="setScore[0]"
             type="number"
             min="0"
-            class="w-16 rounded-lg border border-brand-pink-dark/40 bg-white/5 px-2 py-1 text-center"
+            class="w-16 rounded-lg border border-brand-pink/25 bg-brand-surface px-2 py-1 text-center"
           />
           <span class="text-white/40">-</span>
           <input
             v-model.number="setScore[1]"
             type="number"
             min="0"
-            class="w-16 rounded-lg border border-brand-pink-dark/40 bg-white/5 px-2 py-1 text-center"
+            class="w-16 rounded-lg border border-brand-pink/25 bg-brand-surface px-2 py-1 text-center"
           />
         </div>
       </div>

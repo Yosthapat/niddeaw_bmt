@@ -30,14 +30,17 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="mx-auto max-w-4xl px-4 py-8">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <h1 class="text-2xl font-bold text-brand-pink">สมาชิก</h1>
+  <main class="mx-auto max-w-4xl px-4 py-8 sm:py-12">
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <p class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">Roster</p>
+        <h1 class="font-display text-3xl font-bold text-white">สมาชิก</h1>
+      </div>
       <input
         v-model="search"
         type="search"
         placeholder="ค้นหาสมาชิก..."
-        class="w-full max-w-xs rounded-full border border-brand-pink-dark/40 bg-white/5 px-4 py-1.5 text-sm outline-none focus:border-brand-pink"
+        class="hud-panel w-full max-w-xs border border-brand-pink/25 bg-brand-surface px-4 py-2 text-sm outline-none focus:border-brand-pink"
       />
     </div>
 
@@ -46,37 +49,37 @@ onMounted(async () => {
     <p v-else-if="stats.length === 0" class="mt-6 text-white/60">ยังไม่มีสมาชิก</p>
     <p v-else-if="filteredStats.length === 0" class="mt-6 text-white/60">ไม่พบสมาชิกที่ค้นหา</p>
 
-    <div v-else class="mt-6 overflow-x-auto rounded-xl border border-brand-pink-dark/40">
-      <table class="w-full min-w-[640px] text-left text-sm">
-        <thead class="bg-brand-pink-dark/20 text-white/70">
+    <div v-else class="hud-panel mt-6 overflow-x-auto border border-brand-pink/20 bg-brand-surface">
+      <table class="w-full min-w-[680px] text-left text-sm">
+        <thead class="border-b border-brand-pink/20 text-xs font-semibold tracking-wider text-white/40 uppercase">
           <tr>
-            <th class="px-3 py-2">ผู้เล่น</th>
-            <th class="px-3 py-2">Level</th>
-            <th class="px-3 py-2 text-right">Game</th>
-            <th class="px-3 py-2 text-right">Win</th>
-            <th class="px-3 py-2 text-right">Draw</th>
-            <th class="px-3 py-2 text-right">Loss</th>
-            <th class="px-3 py-2 text-right">Pts</th>
-            <th class="px-3 py-2 text-right">Avg</th>
-            <th class="px-3 py-2 text-right">Sc(%)</th>
+            <th class="px-4 py-3">ผู้เล่น</th>
+            <th class="px-4 py-3">Level</th>
+            <th class="px-4 py-3 text-right">Game</th>
+            <th class="px-4 py-3 text-right">Win</th>
+            <th class="px-4 py-3 text-right">Draw</th>
+            <th class="px-4 py-3 text-right">Loss</th>
+            <th class="px-4 py-3 text-right">Pts</th>
+            <th class="px-4 py-3 text-right">Avg</th>
+            <th class="px-4 py-3 text-right">Sc(%)</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-white/10">
-          <tr v-for="s in filteredStats" :key="s.player.id">
-            <td class="px-3 py-2 font-medium">
-              <RouterLink :to="`/members/${s.player.id}`" class="flex items-center gap-2 hover:text-brand-pink">
+        <tbody class="divide-y divide-white/5">
+          <tr v-for="s in filteredStats" :key="s.player.id" class="transition-colors hover:bg-brand-surface-raised">
+            <td class="px-4 py-3 font-medium">
+              <RouterLink :to="`/members/${s.player.id}`" class="flex items-center gap-2.5 hover:text-brand-pink">
                 <PlayerAvatar :name="s.player.name" :avatar-url="s.player.avatar_url" size="sm" />
                 {{ s.player.nickname || s.player.name }}
               </RouterLink>
             </td>
-            <td class="px-3 py-2"><EloBadge :elo-score="s.player.elo_score" /></td>
-            <td class="px-3 py-2 text-right">{{ s.games }}</td>
-            <td class="px-3 py-2 text-right">{{ s.wins }}</td>
-            <td class="px-3 py-2 text-right">{{ s.draws }}</td>
-            <td class="px-3 py-2 text-right">{{ s.losses }}</td>
-            <td class="px-3 py-2 text-right font-semibold text-brand-pink">{{ s.points }}</td>
-            <td class="px-3 py-2 text-right">{{ s.avg_points.toFixed(2) }}</td>
-            <td class="px-3 py-2 text-right">{{ s.score_percent.toFixed(1) }}%</td>
+            <td class="px-4 py-3"><EloBadge :elo-score="s.player.elo_score" /></td>
+            <td class="px-4 py-3 text-right text-white/70">{{ s.games }}</td>
+            <td class="px-4 py-3 text-right text-white/70">{{ s.wins }}</td>
+            <td class="px-4 py-3 text-right text-white/70">{{ s.draws }}</td>
+            <td class="px-4 py-3 text-right text-white/70">{{ s.losses }}</td>
+            <td class="px-4 py-3 text-right font-display font-semibold text-brand-pink">{{ s.points }}</td>
+            <td class="px-4 py-3 text-right text-white/70">{{ s.avg_points.toFixed(2) }}</td>
+            <td class="px-4 py-3 text-right text-white/70">{{ s.score_percent.toFixed(1) }}%</td>
           </tr>
         </tbody>
       </table>

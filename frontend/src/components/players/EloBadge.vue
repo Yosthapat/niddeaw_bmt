@@ -7,11 +7,9 @@ const tierInfo = computed(() => useEloTier(props.eloScore))
 </script>
 
 <template>
-  <span
-    class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold"
-    :style="{ color: tierInfo.colorVar, borderColor: tierInfo.colorVar }"
-  >
-    {{ tierInfo.label }}
-    <span v-if="showScore" class="opacity-70">({{ eloScore }})</span>
+  <span class="inline-flex items-center gap-1.5 text-xs font-semibold tracking-wide uppercase">
+    <span class="h-2 w-2 rotate-45" :style="{ backgroundColor: tierInfo.colorVar }" />
+    <span :style="{ color: tierInfo.colorVar }">{{ tierInfo.label }}</span>
+    <span v-if="showScore" class="font-normal text-white/40 normal-case">{{ eloScore }}</span>
   </span>
 </template>
