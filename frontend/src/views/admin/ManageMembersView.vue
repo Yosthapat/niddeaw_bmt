@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import * as adminApi from '@/api/admin'
-import type { Player } from '@/types'
+import { ApiError } from '@/api/client'
+import type { EloTier, Player } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import EloBadge from '@/components/players/EloBadge.vue'
@@ -10,9 +11,21 @@ const players = ref<Player[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 
+// Representative starting score per tier — matches the boundaries in
+// backend/app/services/elo_service.py's get_tier() thresholds.
+const tierOptions: { tier: EloTier; label: string; score: number; color: string }[] = [
+  { tier: 'milk', label: 'Milk', score: 800, color: 'var(--color-tier-milk)' },
+  { tier: 'soju', label: 'Soju', score: 1000, color: 'var(--color-tier-soju)' },
+  { tier: 'beer', label: 'Beer', score: 1200, color: 'var(--color-tier-beer)' },
+  { tier: 'highball', label: 'Highball', score: 1400, color: 'var(--color-tier-highball)' },
+  { tier: 'vodka', label: 'Vodka', score: 1600, color: 'var(--color-tier-vodka)' },
+]
+
 const creating = ref(false)
 const savingCreate = ref(false)
-const newPlayer = reactive({ name: '', nickname: '', phone: '', line_id: '', elo_score: '' })
+const createError = ref<string | null>(null)
+const newPlayer = reactive({ name: '', nickname: '', phone: '', line_id: '' })
+const selectedTier = ref<EloTier | null>(null)
 const newAvatarFile = ref<File | null>(null)
 
 function onNewAvatarSelected(event: Event): void {
@@ -37,28 +50,48 @@ async function loadPlayers(): Promise<void> {
   }
 }
 
+function apiErrorMessage(e: unknown, fallback: string): string {
+  if (e instanceof ApiError) {
+    return `${fallback} (${e.status}: ${e.message})`
+  }
+  return fallback
+}
+
 async function createPlayer(): Promise<void> {
   if (!newPlayer.name.trim()) return
   savingCreate.value = true
+  createError.value = null
   try {
+    const eloScore = selectedTier.value
+      ? (tierOptions.find((t) => t.tier === selectedTier.value)?.score ?? null)
+      : null
+
     let created = await adminApi.createPlayer({
       name: newPlayer.name.trim(),
       nickname: newPlayer.nickname.trim() || null,
       phone: newPlayer.phone.trim() || null,
       line_id: newPlayer.line_id.trim() || null,
-      elo_score: newPlayer.elo_score.trim() ? Number(newPlayer.elo_score) : null,
+      elo_score: eloScore,
     })
+
     if (newAvatarFile.value) {
-      created = await adminApi.uploadAvatar(created.id, newAvatarFile.value)
+      try {
+        created = await adminApi.uploadAvatar(created.id, newAvatarFile.value)
+      } catch (e) {
+        createError.value = apiErrorMessage(e, 'สร้างสมาชิกสำเร็จ แต่อัพโหลดรูปไม่สำเร็จ — ลองอัพโหลดใหม่ทีหลังได้')
+      }
     }
+
     players.value.unshift(created)
     newPlayer.name = ''
     newPlayer.nickname = ''
     newPlayer.phone = ''
     newPlayer.line_id = ''
-    newPlayer.elo_score = ''
+    selectedTier.value = null
     newAvatarFile.value = null
-    creating.value = false
+    if (!createError.value) creating.value = false
+  } catch (e) {
+    createError.value = apiErrorMessage(e, 'สร้างสมาชิกไม่สำเร็จ ลองใหม่อีกครั้ง')
   } finally {
     savingCreate.value = false
   }
@@ -137,17 +170,31 @@ onMounted(loadPlayers)
       <input v-model="newPlayer.nickname" placeholder="ชื่อเล่น" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
       <input v-model="newPlayer.phone" placeholder="เบอร์โทร" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
       <input v-model="newPlayer.line_id" placeholder="LINE ID" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
-      <input
-        v-model="newPlayer.elo_score"
-        type="number"
-        placeholder="ELO เริ่มต้น (ค่าเริ่มต้น 1000)"
-        title="ปล่อยว่างไว้ถ้าให้เริ่มที่ 1000 ตามปกติ"
-        class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm"
-      />
-      <label class="flex items-center gap-2 rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm text-white/60">
+
+      <div class="sm:col-span-2">
+        <p class="mb-1.5 text-xs text-white/40">ระดับเริ่มต้น (ไม่เลือก = เริ่มที่ Soju ตามปกติ)</p>
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="opt in tierOptions"
+            :key="opt.tier"
+            type="button"
+            class="hud-panel flex items-center gap-1.5 border px-3 py-1.5 text-xs font-semibold tracking-wide uppercase"
+            :class="selectedTier === opt.tier ? 'border-brand-pink bg-brand-surface-raised' : 'border-brand-pink/20 bg-brand-black text-white/50'"
+            @click="selectedTier = selectedTier === opt.tier ? null : opt.tier"
+          >
+            <span class="h-2 w-2 rotate-45" :style="{ backgroundColor: opt.color }" />
+            <span :style="{ color: selectedTier === opt.tier ? opt.color : undefined }">{{ opt.label }}</span>
+          </button>
+        </div>
+      </div>
+
+      <label class="flex items-center gap-2 rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm text-white/60 sm:col-span-2">
         รูปโปรไฟล์
         <input type="file" accept="image/*" class="flex-1 text-xs" @change="onNewAvatarSelected" />
       </label>
+
+      <p v-if="createError" class="text-sm text-red-400 sm:col-span-2">{{ createError }}</p>
+
       <div class="flex gap-2 sm:col-span-2">
         <button type="submit" :disabled="savingCreate" class="rounded-full bg-brand-pink px-4 py-1.5 text-sm font-semibold text-brand-black disabled:opacity-50">
           {{ savingCreate ? 'กำลังบันทึก...' : 'บันทึกสมาชิกใหม่' }}
