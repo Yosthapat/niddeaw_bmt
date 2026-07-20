@@ -145,7 +145,7 @@ const sponsors = [
           :key="sponsor.name"
           :src="sponsor.src"
           :alt="sponsor.name"
-          class="h-14 w-auto object-contain opacity-80 transition-opacity hover:opacity-100 sm:h-16"
+          class="h-24 w-auto object-contain opacity-80 transition-opacity hover:opacity-100 sm:h-28"
         />
       </div>
     </section>
