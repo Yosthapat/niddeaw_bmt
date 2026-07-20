@@ -193,7 +193,7 @@ onMounted(loadPlayers)
         <input type="file" accept="image/*" class="flex-1 text-xs" @change="onNewAvatarSelected" />
       </label>
 
-      <p v-if="createError" class="text-sm text-red-400 sm:col-span-2">{{ createError }}</p>
+      <p v-if="createError" class="text-sm text-status-error sm:col-span-2">{{ createError }}</p>
 
       <div class="flex gap-2 sm:col-span-2">
         <button type="submit" :disabled="savingCreate" class="rounded-full bg-brand-pink px-4 py-1.5 text-sm font-semibold text-brand-black disabled:opacity-50">
@@ -204,7 +204,7 @@ onMounted(loadPlayers)
     </form>
 
     <p v-if="loading" class="mt-6 text-white/60">กำลังโหลด...</p>
-    <p v-else-if="error" class="mt-6 text-red-400">{{ error }}</p>
+    <p v-else-if="error" class="mt-6 text-status-error">{{ error }}</p>
     <p v-else-if="players.length === 0" class="mt-6 text-white/60">ยังไม่มีสมาชิก</p>
 
     <ul v-else class="mt-6 space-y-3">
@@ -228,7 +228,7 @@ onMounted(loadPlayers)
           <button class="text-xs text-brand-pink underline" @click="startEdit(p)">แก้ไข</button>
           <button
             class="rounded-full px-3 py-1 text-xs font-semibold"
-            :class="p.is_active ? 'bg-white/10 text-white/60' : 'bg-green-500/20 text-green-400'"
+            :class="p.is_active ? 'bg-white/10 text-white/60' : 'bg-status-success/20 text-status-success'"
             @click="toggleActive(p)"
           >
             {{ p.is_active ? 'ปิดใช้งาน' : 'เปิดใช้งาน' }}

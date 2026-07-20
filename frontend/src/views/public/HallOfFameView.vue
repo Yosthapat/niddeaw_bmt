@@ -27,7 +27,7 @@ onMounted(async () => {
     <p class="mt-1 text-sm text-white/40">อันดับตลอดกาล (ต้องเล่นอย่างน้อย 5 เกม)</p>
 
     <p v-if="loading" class="mt-6 text-white/60">กำลังโหลด...</p>
-    <p v-else-if="error" class="mt-6 text-red-400">{{ error }}</p>
+    <p v-else-if="error" class="mt-6 text-status-error">{{ error }}</p>
     <p v-else-if="stats.length === 0" class="mt-6 text-white/60">
       ยังไม่มีใครเล่นครบ 5 เกม — เล่นเยอะๆ แล้วมาอยู่ตรงนี้กัน!
     </p>

@@ -84,7 +84,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <p v-if="error" class="mt-4 text-center text-sm text-red-400">{{ error }}</p>
+      <p v-if="error" class="mt-4 text-center text-sm text-status-error">{{ error }}</p>
 
       <button
         :disabled="submitting || validSets.length === 0"

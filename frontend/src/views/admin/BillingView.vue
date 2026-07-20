@@ -116,7 +116,7 @@ onMounted(async () => {
             <span class="font-bold text-brand-pink">฿{{ effectiveAmount(b).toFixed(2) }}</span>
             <button
               class="rounded-full px-3 py-1 text-xs font-semibold"
-              :class="b.paid_status === 'paid' ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-white/60'"
+              :class="b.paid_status === 'paid' ? 'bg-status-success/20 text-status-success' : 'bg-white/10 text-white/60'"
               @click="togglePaid(b)"
             >
               {{ b.paid_status === 'paid' ? 'จ่ายแล้ว' : 'ยังไม่จ่าย' }}

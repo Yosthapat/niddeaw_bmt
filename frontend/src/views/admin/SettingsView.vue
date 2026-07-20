@@ -78,7 +78,7 @@ const promptPayTypeOptions: { value: PromptPayType; label: string }[] = [
         />
       </label>
 
-      <p v-if="saved" class="text-sm text-green-400">บันทึกแล้ว</p>
+      <p v-if="saved" class="text-sm text-status-success">บันทึกแล้ว</p>
 
       <button
         type="submit"

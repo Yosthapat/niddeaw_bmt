@@ -29,7 +29,7 @@ onMounted(async () => {
     </RouterLink>
 
     <p v-if="loading" class="mt-6 text-white/60">กำลังโหลด...</p>
-    <p v-else-if="error || !profile" class="mt-6 text-red-400">{{ error }}</p>
+    <p v-else-if="error || !profile" class="mt-6 text-status-error">{{ error }}</p>
 
     <template v-else>
       <div class="mt-6 flex flex-col items-center gap-3 text-center">
@@ -46,7 +46,7 @@ onMounted(async () => {
         </div>
         <div class="hud-panel border border-brand-pink/20 bg-brand-surface p-3 text-center">
           <p class="text-xs tracking-wide text-white/40 uppercase">Win</p>
-          <p class="mt-1 font-display text-xl font-bold text-green-400">{{ profile.wins }}</p>
+          <p class="mt-1 font-display text-xl font-bold text-status-success">{{ profile.wins }}</p>
         </div>
         <div class="hud-panel border border-brand-pink/20 bg-brand-surface p-3 text-center">
           <p class="text-xs tracking-wide text-white/40 uppercase">Draw</p>
@@ -54,7 +54,7 @@ onMounted(async () => {
         </div>
         <div class="hud-panel border border-brand-pink/20 bg-brand-surface p-3 text-center">
           <p class="text-xs tracking-wide text-white/40 uppercase">Loss</p>
-          <p class="mt-1 font-display text-xl font-bold text-red-400">{{ profile.losses }}</p>
+          <p class="mt-1 font-display text-xl font-bold text-status-error">{{ profile.losses }}</p>
         </div>
         <div class="hud-panel border border-brand-pink/40 bg-brand-surface p-3 text-center">
           <p class="text-xs tracking-wide text-white/40 uppercase">Pts</p>

@@ -48,7 +48,7 @@ async function submit(): Promise<void> {
         required
         class="rounded-lg border border-brand-pink/25 bg-brand-surface px-3 py-2 outline-none focus:border-brand-pink"
       />
-      <p v-if="error" class="text-sm text-red-400">{{ error }}</p>
+      <p v-if="error" class="text-sm text-status-error">{{ error }}</p>
       <button
         type="submit"
         :disabled="loading"

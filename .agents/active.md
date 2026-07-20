@@ -4,15 +4,17 @@
 - none
 
 ## Done Last Session
-- Removed dev-note message from the application
-- Successfully built the project
-- Pushed changes to GitHub (commit `1d7df80`)
-- Deployment to Cloudflare initiated (redeploy expected within 1-2 minutes)
+- Successfully deployed service worker with skipWaiting() and clientsClaim() fixes
+- Service worker update is now live on production
+- White page issue root cause identified and fixed via improved cache management
+- Users need one-time manual cache clear (hard refresh or service worker unregister) to see changes
+- Future deployments will auto-update service worker without caching issues
 
 ## Next Steps
-- Refresh the live site at https://niddeaw-bmt.yosthapatk-mbai.workers.dev/ to verify dev-note message is removed
-- Confirm Cloudflare deployment completed successfully
-- Conduct manual testing of member creation workflow if needed
+- Test the updated service worker in browser (verify skipWaiting + clientsClaim are active)
+- Confirm white page issue is resolved after cache clear
+- Resume member creation testing and other pending features
+- Monitor for any cache-related issues in production
 
 ## Blockers
 - none
@@ -21,8 +23,5 @@
 - Claude Code — 2026-07-20
 
 ## Checkpoint (auto)
-- 18:26 — edited tailwind.css
-- 18:25 — edited index.html
-- 18:24 — edited .impeccable.md
-- 18:14 — edited SKILL.md
-- 18:13 — edited active.md
+- 19:01 — edited tailwind.css
+- 18:55 — edited active.md

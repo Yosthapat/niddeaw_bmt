@@ -53,7 +53,7 @@ const medalByRank = ['🥇', '🥈', '🥉']
     </div>
 
     <p v-if="loading" class="mt-6 text-white/60">กำลังโหลด...</p>
-    <p v-else-if="error" class="mt-6 text-red-400">{{ error }}</p>
+    <p v-else-if="error" class="mt-6 text-status-error">{{ error }}</p>
     <p v-else-if="stats.length === 0" class="mt-6 text-white/60">ยังไม่มีข้อมูลอันดับ</p>
 
     <ol v-else class="mt-6 space-y-2">
