@@ -32,6 +32,13 @@ class MatchmakingConfirmRequest(BaseModel):
             raise ValueError(f"match type '{self.type}' requires {expected} player(s) per team")
         return self
 
+    @model_validator(mode="after")
+    def _validate_no_duplicate_players(self) -> Self:
+        all_ids = self.team1_player_ids + self.team2_player_ids
+        if len(set(all_ids)) != len(all_ids):
+            raise ValueError("a player cannot appear more than once across team1/team2")
+        return self
+
 
 class QueueEntry(BaseModel):
     match_id: UUID
