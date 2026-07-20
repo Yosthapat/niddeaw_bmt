@@ -87,6 +87,7 @@ export default {
     backToMatches: 'กลับไปหน้าผลแมตช์',
     win: 'WIN',
     loss: 'LOSS',
+    inProgress: 'กำลังแข่ง',
   },
   profile: {
     backToMembers: 'กลับไปหน้าสมาชิก',

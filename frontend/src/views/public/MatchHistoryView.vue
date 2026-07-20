@@ -102,20 +102,22 @@ onMounted(async () => {
           <div class="mt-3 flex items-center justify-between gap-3">
             <div
               class="flex flex-1 flex-col items-end gap-1.5"
-              :class="{ 'opacity-50': m.winner === 'team2' }"
+              :class="{ 'opacity-45 grayscale': m.winner === 'team2' }"
             >
               <div class="flex items-center gap-2">
                 <span class="text-right font-medium" :class="m.winner === 'team1' ? 'text-brand-pink' : 'text-white/70'">
                   {{ m.team1_player_ids.map(nameOf).join(' & ') }}
                 </span>
-                <div class="flex -space-x-2">
+                <div class="stamp-wrap relative flex -space-x-2">
                   <PlayerAvatar
                     v-for="pid in m.team1_player_ids"
                     :key="pid"
                     :name="nameOf(pid)"
                     :avatar-url="playerOf(pid)?.avatar_url"
-                    size="sm"
+                    size="md"
                   />
+                  <span v-if="m.winner === 'team1'" class="stamp stamp--win">{{ t('matches.win') }}</span>
+                  <span v-else-if="m.winner === 'draw'" class="stamp stamp--draw">{{ t('common.draw') }}</span>
                 </div>
               </div>
             </div>
@@ -126,17 +128,19 @@ onMounted(async () => {
 
             <div
               class="flex flex-1 flex-col items-start gap-1.5"
-              :class="{ 'opacity-50': m.winner === 'team1' }"
+              :class="{ 'opacity-45 grayscale': m.winner === 'team1' }"
             >
               <div class="flex items-center gap-2">
-                <div class="flex -space-x-2">
+                <div class="stamp-wrap relative flex -space-x-2">
                   <PlayerAvatar
                     v-for="pid in m.team2_player_ids"
                     :key="pid"
                     :name="nameOf(pid)"
                     :avatar-url="playerOf(pid)?.avatar_url"
-                    size="sm"
+                    size="md"
                   />
+                  <span v-if="m.winner === 'team2'" class="stamp stamp--win">{{ t('matches.win') }}</span>
+                  <span v-else-if="m.winner === 'draw'" class="stamp stamp--draw">{{ t('common.draw') }}</span>
                 </div>
                 <span class="font-medium" :class="m.winner === 'team2' ? 'text-brand-pink' : 'text-white/70'">
                   {{ m.team2_player_ids.map(nameOf).join(' & ') }}
@@ -144,7 +148,6 @@ onMounted(async () => {
               </div>
             </div>
           </div>
-          <p v-if="m.winner === 'draw'" class="mt-1 text-center text-xs text-white/40">{{ t('common.draw') }}</p>
         </RouterLink>
       </li>
     </ul>
@@ -160,3 +163,36 @@ onMounted(async () => {
     </div>
   </main>
 </template>
+
+<style scoped>
+.stamp-wrap {
+  overflow: visible;
+}
+.stamp {
+  position: absolute;
+  top: -0.6rem;
+  left: 50%;
+  translate: -50% 0;
+  rotate: -10deg;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.05rem 0.4rem;
+  border-radius: 0.25rem;
+  border-width: 2px;
+  border-style: solid;
+  background-color: var(--color-brand-black);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.stamp--win {
+  color: var(--color-status-success);
+  border-color: var(--color-status-success);
+}
+.stamp--draw {
+  color: var(--color-tier-milk);
+  border-color: var(--color-tier-milk);
+}
+</style>

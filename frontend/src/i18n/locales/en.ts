@@ -88,6 +88,7 @@ export default {
     backToMatches: 'Back to matches',
     win: 'WIN',
     loss: 'LOSS',
+    inProgress: 'In Progress',
   },
   profile: {
     backToMembers: 'Back to members',

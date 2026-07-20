@@ -25,7 +25,8 @@ function statusLabel(side: 'team1' | 'team2'): string {
   const status = statusFor(side)
   if (status === 'win') return t('matches.win')
   if (status === 'draw') return t('common.draw').toUpperCase()
-  return t('matches.loss')
+  if (status === 'loss') return t('matches.loss')
+  return t('matches.inProgress')
 }
 
 const setsLabel = computed(() => {
@@ -94,12 +95,11 @@ watch(
               : 'border-brand-pink/15 bg-brand-surface opacity-70'
           "
         >
-          <p
-            class="text-center text-xs font-bold tracking-widest uppercase"
-            :class="statusFor('team1') === 'win' ? 'text-brand-pink' : 'text-white/40'"
-          >
-            {{ statusLabel('team1') }}
-          </p>
+          <div class="flex justify-center">
+            <span class="stamp-badge" :class="`stamp-badge--${statusFor('team1') ?? 'pending'}`">
+              {{ statusLabel('team1') }}
+            </span>
+          </div>
           <div v-for="stat in detail.team1" :key="stat.player.id" class="mt-4 flex flex-col items-center gap-2">
             <RouterLink :to="`/members/${stat.player.id}`">
               <PlayerAvatar :name="stat.player.nickname" :avatar-url="stat.player.avatar_url" size="lg" />
@@ -131,12 +131,11 @@ watch(
               : 'border-brand-pink/15 bg-brand-surface opacity-70'
           "
         >
-          <p
-            class="text-center text-xs font-bold tracking-widest uppercase"
-            :class="statusFor('team2') === 'win' ? 'text-brand-pink' : 'text-white/40'"
-          >
-            {{ statusLabel('team2') }}
-          </p>
+          <div class="flex justify-center">
+            <span class="stamp-badge" :class="`stamp-badge--${statusFor('team2') ?? 'pending'}`">
+              {{ statusLabel('team2') }}
+            </span>
+          </div>
           <div v-for="stat in detail.team2" :key="stat.player.id" class="mt-4 flex flex-col items-center gap-2">
             <RouterLink :to="`/members/${stat.player.id}`">
               <PlayerAvatar :name="stat.player.nickname" :avatar-url="stat.player.avatar_url" size="lg" />
@@ -163,3 +162,37 @@ watch(
     </template>
   </main>
 </template>
+
+<style scoped>
+.stamp-badge {
+  display: inline-block;
+  rotate: -8deg;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.75rem;
+  border-radius: 0.25rem;
+  border-width: 2px;
+  border-style: solid;
+}
+.stamp-badge--win {
+  color: var(--color-status-success);
+  border-color: var(--color-status-success);
+}
+.stamp-badge--loss {
+  color: rgb(255 255 255 / 0.4);
+  border-color: rgb(255 255 255 / 0.2);
+  rotate: 8deg;
+}
+.stamp-badge--draw {
+  color: var(--color-tier-milk);
+  border-color: var(--color-tier-milk);
+}
+.stamp-badge--pending {
+  color: rgb(255 255 255 / 0.4);
+  border-color: rgb(255 255 255 / 0.2);
+  border-style: dashed;
+}
+</style>

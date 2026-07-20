@@ -134,24 +134,46 @@ const pollControls = usePolling(refreshQueue, 7000)
           <li
             v-for="m in queue.in_progress"
             :key="m.match_id"
-            class="flex items-center justify-between gap-3 hud-panel border border-brand-pink/20 bg-brand-surface px-4 py-3"
+            class="hud-panel border border-brand-pink/20 bg-brand-surface px-4 py-3"
           >
-            <span class="flex-1 text-right">{{ m.team1_player_ids.map(nameOf).join(' & ') }}</span>
-            <span class="text-xs text-white/40">VS</span>
-            <span class="flex-1">{{ m.team2_player_ids.map(nameOf).join(' & ') }}</span>
-            <RouterLink
-              :to="{
-                path: '/admin/matches/record',
-                query: {
-                  match_id: m.match_id,
-                  team1: m.team1_player_ids.join(','),
-                  team2: m.team2_player_ids.join(','),
-                },
-              }"
-              class="shrink-0 rounded-full bg-brand-pink px-3 py-1 text-xs font-semibold text-brand-black"
-            >
-              {{ t('matchmaking.recordResult') }}
-            </RouterLink>
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex flex-1 flex-col items-end gap-1.5">
+                <div class="flex items-center gap-2">
+                  <span class="text-right font-medium text-white/80">{{ m.team1_player_ids.map(nameOf).join(' & ') }}</span>
+                  <div class="flex -space-x-2">
+                    <PlayerAvatar v-for="pid in m.team1_player_ids" :key="pid" :name="nameOf(pid)" size="md" />
+                  </div>
+                </div>
+              </div>
+
+              <span class="hud-panel shrink-0 border border-brand-pink/20 bg-brand-black px-2.5 py-1 text-xs font-semibold text-white/50 uppercase">
+                {{ t('matches.inProgress') }}
+              </span>
+
+              <div class="flex flex-1 flex-col items-start gap-1.5">
+                <div class="flex items-center gap-2">
+                  <div class="flex -space-x-2">
+                    <PlayerAvatar v-for="pid in m.team2_player_ids" :key="pid" :name="nameOf(pid)" size="md" />
+                  </div>
+                  <span class="font-medium text-white/80">{{ m.team2_player_ids.map(nameOf).join(' & ') }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="mt-2 flex justify-center">
+              <RouterLink
+                :to="{
+                  path: '/admin/matches/record',
+                  query: {
+                    match_id: m.match_id,
+                    team1: m.team1_player_ids.join(','),
+                    team2: m.team2_player_ids.join(','),
+                  },
+                }"
+                class="rounded-full bg-brand-pink px-3 py-1 text-xs font-semibold text-brand-black"
+              >
+                {{ t('matchmaking.recordResult') }}
+              </RouterLink>
+            </div>
           </li>
           <li v-if="queue.in_progress.length === 0" class="text-sm text-white/40">{{ t('matchmaking.noneInProgress') }}</li>
         </ul>
