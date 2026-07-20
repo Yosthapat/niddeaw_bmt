@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -29,3 +29,14 @@ class Billing(BaseModel):
     @property
     def effective_amount(self) -> float:
         return self.amount_adjusted if self.amount_adjusted is not None else self.amount_calc
+
+
+class DailyRevenue(BaseModel):
+    """One day's billing summary — grouped by the session's date."""
+
+    date: date
+    total_amount: float
+    paid_amount: float
+    unpaid_amount: float
+    session_count: int
+    billing_count: int

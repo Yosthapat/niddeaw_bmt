@@ -12,6 +12,7 @@ const links = [
   { to: '/admin/members', label: 'จัดการสมาชิก' },
   { to: '/admin/matchmaking', label: 'จับคู่' },
   { to: '/admin/billing', label: 'คิดเงิน' },
+  { to: '/admin/revenue', label: 'ยอดรายรับ' },
   { to: '/admin/settings', label: 'ตั้งค่า' },
 ]
 

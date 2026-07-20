@@ -90,6 +90,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/admin/revenue',
+      name: 'admin-revenue',
+      component: () => import('../views/admin/RevenueView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/admin/settings',
       name: 'admin-settings',
       component: () => import('../views/admin/SettingsView.vue'),

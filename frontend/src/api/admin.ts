@@ -3,6 +3,7 @@ import type {
   Billing,
   Checkin,
   ClubSettings,
+  DailyRevenue,
   LoginCredentials,
   LoginResponse,
   Match,
@@ -110,6 +111,10 @@ export async function closeSessionAndBill(sessionId: string): Promise<Billing[]>
 
 export async function billPlayer(sessionId: string, playerId: string): Promise<Billing> {
   return request(`/api/admin/billing/player/${sessionId}/${playerId}`, { method: 'POST' })
+}
+
+export async function getRevenue(): Promise<DailyRevenue[]> {
+  return request('/api/admin/billing/revenue')
 }
 
 export async function adjustBilling(

@@ -6,8 +6,8 @@ from pydantic import BaseModel
 
 from app.db_utils import rows
 from app.deps import AdminDep, SupabaseDep
-from app.models.billing import Billing, BillingAdjust, BillingMarkPaid
-from app.services import billing_service, promptpay_service
+from app.models.billing import Billing, BillingAdjust, BillingMarkPaid, DailyRevenue
+from app.services import billing_service, promptpay_service, revenue_service
 
 router = APIRouter(prefix="/api/admin/billing", tags=["admin-billing"])
 
@@ -20,6 +20,19 @@ class QrResponse(BaseModel):
 def list_billing(session_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> list[Billing]:
     result = supabase.table("billings").select("*").eq("session_id", str(session_id)).execute()
     return [Billing.model_validate(row) for row in rows(result)]
+
+
+@router.get("/revenue", response_model=list[DailyRevenue])
+def get_daily_revenue(supabase: SupabaseDep, admin: AdminDep) -> list[DailyRevenue]:
+    """Revenue summary grouped by session date, most recent day first."""
+    sessions_result = supabase.table("sessions").select("id, date").execute()
+    billings_result = (
+        supabase.table("billings")
+        .select("session_id, amount_calc, amount_adjusted, paid_status")
+        .execute()
+    )
+    daily = revenue_service.build_daily_revenue(rows(sessions_result), rows(billings_result))  # type: ignore[arg-type]
+    return [DailyRevenue.model_validate(vars(entry)) for entry in daily]
 
 
 @router.post("/close-session/{session_id}", response_model=list[Billing])
