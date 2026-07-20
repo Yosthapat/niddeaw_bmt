@@ -20,6 +20,46 @@ const quickLinks = [
   { to: '/matches', num: '04', label: 'ผลแมตช์', desc: 'เกมล่าสุดที่จบไป' },
 ]
 
+// Club vibe strip — hand-drawn line icons (24x24, stroke-based) instead of
+// filled/flat glyphs so they sit quietly next to the bolder TierMascot
+// illustrations above rather than competing with them.
+const vibes = [
+  {
+    label: 'แอลกอฮอล์',
+    path: 'M5 4h14l-7 9z M12 13v7 M8 20h8',
+  },
+  {
+    label: 'เสียงเพลง',
+    path: 'M9 18V5l11-2v13 M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z M17 19a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z',
+  },
+  {
+    label: 'เน้นมือสนุก',
+    path: 'M12 2.5l2.9 6.3 6.9.6-5.2 4.6 1.6 6.8L12 16.9l-6.2 3.4 1.6-6.8-5.2-4.6 6.9-.6z',
+  },
+  {
+    label: 'ไม่เครียด',
+    path: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z M8 14s1.5 2 4 2 4-2 4-2 M8.5 9.5h.01 M15.5 9.5h.01',
+  },
+  {
+    label: 'มีผลไม้',
+    path: 'M12 8.5c-3.3 0-5.5 2.6-5.5 6 0 3.6 2.2 6.5 5.5 6.5s5.5-2.9 5.5-6.5c0-3.4-2.2-6-5.5-6Z M12 8.5V5.5 M12 5.5c1-1.5 3-1.8 3-1.8',
+  },
+  {
+    label: 'มีขนม',
+    path: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z',
+    dots: [
+      [9, 9],
+      [15, 10],
+      [10.5, 15],
+      [15, 15.5],
+    ],
+  },
+  {
+    label: 'งดบุหรี่',
+    path: 'M4 11h11a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2H4z M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z M5 20 19 4',
+  },
+]
+
 // -mono.png variants: original logos recolored to a white silhouette
 // (RGB -> white, original alpha kept as the mask) so every logo reads
 // cleanly straight against the dark background with no card/box needed —
@@ -69,6 +109,27 @@ const sponsors = [
       </RouterLink>
     </nav>
 
+    <section class="reveal hud-panel mt-8 border border-brand-pink/20 bg-brand-surface p-6 sm:mt-10">
+      <h2 class="text-center text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">บรรยากาศก๊วน</h2>
+      <div class="mt-5 flex flex-wrap justify-center gap-x-6 gap-y-5 sm:gap-x-8">
+        <div v-for="vibe in vibes" :key="vibe.label" class="flex w-16 flex-col items-center gap-2 text-center">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="h-7 w-7 text-brand-pink"
+          >
+            <path :d="vibe.path" />
+            <circle v-for="(dot, i) in vibe.dots" :key="i" :cx="dot[0]" :cy="dot[1]" r="1" fill="currentColor" stroke="none" />
+          </svg>
+          <span class="text-[11px] leading-tight text-white/60">{{ vibe.label }}</span>
+        </div>
+      </div>
+    </section>
+
     <section class="reveal hud-panel mt-8 border border-brand-pink/20 bg-brand-surface p-6 text-left sm:mt-10">
       <h2 class="font-display text-sm font-bold tracking-wide text-brand-pink uppercase">ติดต่อผู้จัดก๊วน</h2>
       <p class="mt-2 text-sm text-white/60">
@@ -77,7 +138,7 @@ const sponsors = [
     </section>
 
     <section class="reveal sponsors mt-10 border-t border-b border-brand-pink/15 py-8 text-center sm:mt-12">
-      <h2 class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">ผู้สนับสนุน</h2>
+      <h2 class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">Presented by</h2>
       <div class="mt-6 flex flex-wrap items-center justify-center gap-x-12 gap-y-8">
         <img
           v-for="sponsor in sponsors"
