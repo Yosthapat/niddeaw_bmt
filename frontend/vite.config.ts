@@ -11,6 +11,14 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico'],
+      // Explicit (not relying on plugin defaults) so a new deploy takes over
+      // an already-open tab immediately instead of serving a stale cached
+      // build until the user manually clears the service worker.
+      workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
+      },
       manifest: {
         name: 'นิดเดียว Badminton Club',
         short_name: 'นิดเดียว BMT',
