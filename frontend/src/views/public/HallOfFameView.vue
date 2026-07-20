@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { getHallOfFame } from '@/api/public'
 import type { PlayerStats } from '@/types'
 import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
+
+const { t } = useI18n()
 
 const stats = ref<PlayerStats[]>([])
 const loading = ref(true)
@@ -14,7 +17,7 @@ onMounted(async () => {
   try {
     stats.value = await getHallOfFame()
   } catch {
-    error.value = 'โหลด Hall of Fame ไม่สำเร็จ'
+    error.value = t('hallOfFame.loadError')
   } finally {
     loading.value = false
   }
@@ -25,12 +28,12 @@ onMounted(async () => {
   <main class="mx-auto max-w-3xl px-4 py-8 sm:py-12">
     <p class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">Legends</p>
     <h1 class="font-display text-3xl font-bold text-white">Hall of Fame</h1>
-    <p class="mt-1 text-sm text-white/40">อันดับตลอดกาล (ต้องเล่นอย่างน้อย 5 เกม)</p>
+    <p class="mt-1 text-sm text-white/40">{{ t('hallOfFame.subtitle') }}</p>
 
-    <p v-if="loading" class="mt-6 text-white/60">กำลังโหลด...</p>
+    <p v-if="loading" class="mt-6 text-white/60">{{ t('common.loading') }}</p>
     <p v-else-if="error" class="mt-6 text-status-error">{{ error }}</p>
     <p v-else-if="stats.length === 0" class="mt-6 text-white/60">
-      ยังไม่มีใครเล่นครบ 5 เกม — เล่นเยอะๆ แล้วมาอยู่ตรงนี้กัน!
+      {{ t('hallOfFame.empty') }}
     </p>
 
     <div v-else class="mt-6 grid gap-3 sm:grid-cols-2">
@@ -48,7 +51,7 @@ onMounted(async () => {
               {{ i === 0 ? '👑 ' : '' }}{{ s.player.nickname }}
             </p>
             <p class="text-xs text-white/40">
-              {{ s.games }} เกม · {{ s.points }} pts · Sc {{ s.score_percent.toFixed(0) }}%
+              {{ s.games }} {{ t('common.game') }} · {{ s.points }} pts · Sc {{ s.score_percent.toFixed(0) }}%
             </p>
             <EloBadge :elo-score="s.player.elo_score" show-score class="mt-1" />
           </div>

@@ -1,17 +1,21 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import LanguageSwitcher from './LanguageSwitcher.vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
+const { t } = useI18n()
 
-const publicLinks = [
-  { to: '/', label: 'หน้าแรก' },
-  { to: '/members', label: 'สมาชิก' },
-  { to: '/ranking', label: 'อันดับ' },
-  { to: '/hall-of-fame', label: 'Hall of Fame' },
-  { to: '/matches', label: 'ผลแมตช์' },
-]
+const publicLinks = computed(() => [
+  { to: '/', label: t('nav.home') },
+  { to: '/members', label: t('nav.members') },
+  { to: '/ranking', label: t('nav.ranking') },
+  { to: '/hall-of-fame', label: t('nav.hallOfFame') },
+  { to: '/matches', label: t('nav.matches') },
+])
 </script>
 
 <template>
@@ -42,11 +46,13 @@ const publicLinks = [
         </RouterLink>
       </nav>
 
+      <LanguageSwitcher class="shrink-0" />
+
       <RouterLink
         :to="authStore.isAuthenticated ? '/admin' : '/admin/login'"
         class="hud-panel shrink-0 whitespace-nowrap border border-brand-pink/50 px-3 py-1.5 text-xs font-semibold tracking-wide text-brand-pink-light uppercase hover:border-brand-pink hover:bg-brand-pink/10"
       >
-        {{ authStore.isAuthenticated ? 'Admin' : 'Admin Login' }}
+        {{ authStore.isAuthenticated ? t('nav.admin') : t('nav.adminLogin') }}
       </RouterLink>
     </div>
   </header>

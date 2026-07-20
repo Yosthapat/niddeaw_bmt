@@ -1,20 +1,23 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const { t } = useI18n()
 
-const links = [
-  { to: '/admin', label: 'Dashboard' },
-  { to: '/admin/checkin', label: 'Check-in' },
-  { to: '/admin/members', label: 'จัดการสมาชิก' },
-  { to: '/admin/matchmaking', label: 'จับคู่' },
-  { to: '/admin/billing', label: 'คิดเงิน' },
-  { to: '/admin/revenue', label: 'ยอดรายรับ' },
-  { to: '/admin/settings', label: 'ตั้งค่า' },
-]
+const links = computed(() => [
+  { to: '/admin', label: t('admin.nav.dashboard') },
+  { to: '/admin/checkin', label: t('admin.nav.checkin') },
+  { to: '/admin/members', label: t('admin.nav.members') },
+  { to: '/admin/matchmaking', label: t('admin.nav.matchmaking') },
+  { to: '/admin/billing', label: t('admin.nav.billing') },
+  { to: '/admin/revenue', label: t('admin.nav.revenue') },
+  { to: '/admin/settings', label: t('admin.nav.settings') },
+])
 
 function logout(): void {
   authStore.logout()
@@ -41,7 +44,7 @@ function logout(): void {
       class="hud-panel ml-auto border border-white/15 px-3 py-1.5 text-white/50 hover:border-white/30 hover:text-white"
       @click="logout"
     >
-      ออกจากระบบ
+      {{ t('admin.nav.logout') }}
     </button>
   </nav>
 </template>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
 import { ApiError } from '@/api/client'
 import type { EloTier, Player } from '@/types'
@@ -7,6 +8,8 @@ import AdminNav from '@/components/layout/AdminNav.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
+
+const { t } = useI18n()
 
 const players = ref<Player[]>([])
 const loading = ref(true)
@@ -60,7 +63,7 @@ async function loadPlayers(): Promise<void> {
   try {
     players.value = await adminApi.getAllPlayers()
   } catch {
-    error.value = 'โหลดรายชื่อสมาชิกไม่สำเร็จ'
+    error.value = t('members.loadListError')
   } finally {
     loading.value = false
   }
@@ -95,7 +98,7 @@ async function createPlayer(): Promise<void> {
       try {
         created = await adminApi.uploadAvatar(created.id, newAvatarFile.value)
       } catch (e) {
-        createError.value = apiErrorMessage(e, 'สร้างสมาชิกสำเร็จ แต่อัพโหลดรูปไม่สำเร็จ — ลองอัพโหลดใหม่ทีหลังได้')
+        createError.value = apiErrorMessage(e, t('members.createdButAvatarFailed'))
       }
     }
 
@@ -109,7 +112,7 @@ async function createPlayer(): Promise<void> {
     newAvatarFile.value = null
     if (!createError.value) creating.value = false
   } catch (e) {
-    createError.value = apiErrorMessage(e, 'สร้างสมาชิกไม่สำเร็จ ลองใหม่อีกครั้ง')
+    createError.value = apiErrorMessage(e, t('members.createFailed'))
   } finally {
     savingCreate.value = false
   }
@@ -171,13 +174,13 @@ onMounted(loadPlayers)
   <AdminNav />
   <main class="mx-auto max-w-3xl px-4 py-6">
     <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-bold text-brand-pink">จัดการสมาชิก</h1>
+      <h1 class="text-2xl font-bold text-brand-pink">{{ t('admin.nav.members') }}</h1>
       <button
         v-if="!creating"
         class="rounded-full bg-brand-pink px-3 py-1.5 text-sm font-semibold text-brand-black"
         @click="creating = true"
       >
-        + เพิ่มสมาชิกใหม่
+        + {{ t('members.addNew') }}
       </button>
     </div>
 
@@ -186,18 +189,18 @@ onMounted(loadPlayers)
       class="mt-4 grid gap-2 hud-panel border border-brand-pink/20 bg-brand-surface p-4 sm:grid-cols-2"
       @submit.prevent="createPlayer"
     >
-      <input v-model="newPlayer.nickname" placeholder="ชื่อเล่น *" required class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
+      <input v-model="newPlayer.nickname" :placeholder="t('members.nicknameRequired')" required class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
       <input v-model="newPlayer.line_id" placeholder="LINE ID" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
       <select v-model="newPlayer.dominant_hand" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm text-white/80">
-        <option value="">ถนัด (ไม่ระบุ)</option>
-        <option value="left">ถนัดซ้าย</option>
-        <option value="right">ถนัดขวา</option>
+        <option value="">{{ t('members.handUnset') }}</option>
+        <option value="left">{{ t('profile.leftHanded') }}</option>
+        <option value="right">{{ t('profile.rightHanded') }}</option>
       </select>
       <input v-model="newPlayer.tiktok" placeholder="TikTok" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
       <input v-model="newPlayer.instagram" placeholder="Instagram" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
 
       <div class="sm:col-span-2">
-        <p class="mb-1.5 text-xs text-white/40">ระดับเริ่มต้น (ไม่เลือก = เริ่มที่ Soju ตามปกติ)</p>
+        <p class="mb-1.5 text-xs text-white/40">{{ t('members.startingTierHint') }}</p>
         <div class="flex flex-wrap gap-2">
           <button
             v-for="opt in tierOptions"
@@ -214,7 +217,7 @@ onMounted(loadPlayers)
       </div>
 
       <label class="flex items-center gap-2 rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm text-white/60 sm:col-span-2">
-        รูปโปรไฟล์
+        {{ t('members.profilePhoto') }}
         <input type="file" accept="image/*" class="flex-1 text-xs" @change="onNewAvatarSelected" />
       </label>
 
@@ -222,15 +225,15 @@ onMounted(loadPlayers)
 
       <div class="flex gap-2 sm:col-span-2">
         <button type="submit" :disabled="savingCreate" class="rounded-full bg-brand-pink px-4 py-1.5 text-sm font-semibold text-brand-black disabled:opacity-50">
-          {{ savingCreate ? 'กำลังบันทึก...' : 'บันทึกสมาชิกใหม่' }}
+          {{ savingCreate ? t('common.saving') : t('members.saveNew') }}
         </button>
-        <button type="button" class="text-sm text-white/50" @click="creating = false">ยกเลิก</button>
+        <button type="button" class="text-sm text-white/50" @click="creating = false">{{ t('common.cancel') }}</button>
       </div>
     </form>
 
-    <p v-if="loading" class="mt-6 text-white/60">กำลังโหลด...</p>
+    <p v-if="loading" class="mt-6 text-white/60">{{ t('common.loading') }}</p>
     <p v-else-if="error" class="mt-6 text-status-error">{{ error }}</p>
-    <p v-else-if="players.length === 0" class="mt-6 text-white/60">ยังไม่มีสมาชิก</p>
+    <p v-else-if="players.length === 0" class="mt-6 text-white/60">{{ t('members.empty') }}</p>
 
     <ul v-else class="mt-6 space-y-3">
       <li
@@ -252,20 +255,20 @@ onMounted(loadPlayers)
             </p>
             <p class="text-xs text-white/50">
               {{ p.line_id || '-' }}
-              <span v-if="p.dominant_hand"> · {{ p.dominant_hand === 'left' ? 'ถนัดซ้าย' : 'ถนัดขวา' }}</span>
+              <span v-if="p.dominant_hand"> · {{ p.dominant_hand === 'left' ? t('profile.leftHanded') : t('profile.rightHanded') }}</span>
               <span v-if="p.tiktok"> · TikTok {{ p.tiktok }}</span>
               <span v-if="p.instagram"> · IG {{ p.instagram }}</span>
             </p>
           </div>
           <TierMascot :tier="p.elo_level" :size="28" />
           <EloBadge :elo-score="p.elo_score" show-score />
-          <button class="text-xs text-brand-pink underline" @click="startEdit(p)">แก้ไข</button>
+          <button class="text-xs text-brand-pink underline" @click="startEdit(p)">{{ t('common.edit') }}</button>
           <button
             class="rounded-full px-3 py-1 text-xs font-semibold"
             :class="p.is_active ? 'bg-white/10 text-white/60' : 'bg-status-success/20 text-status-success'"
             @click="toggleActive(p)"
           >
-            {{ p.is_active ? 'ปิดใช้งาน' : 'เปิดใช้งาน' }}
+            {{ p.is_active ? t('members.deactivate') : t('members.activate') }}
           </button>
         </div>
 
@@ -274,22 +277,22 @@ onMounted(loadPlayers)
             <PlayerAvatar :name="p.nickname" :avatar-url="p.avatar_url" size="md" />
             <input type="file" accept="image/*" class="hidden" @change="onAvatarSelected($event, p)" />
             <span v-if="uploadingAvatarId === p.id" class="absolute inset-0 flex items-center justify-center bg-black/60 text-[10px]">...</span>
-            <span>คลิกรูปเพื่อเปลี่ยนรูปโปรไฟล์</span>
+            <span>{{ t('members.clickToChangePhoto') }}</span>
           </label>
-          <input v-model="editForm.nickname" placeholder="ชื่อเล่น *" required class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
+          <input v-model="editForm.nickname" :placeholder="t('members.nicknameRequired')" required class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
           <input v-model="editForm.line_id" placeholder="LINE ID" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
           <select v-model="editForm.dominant_hand" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm text-white/80">
-            <option value="">ถนัด (ไม่ระบุ)</option>
-            <option value="left">ถนัดซ้าย</option>
-            <option value="right">ถนัดขวา</option>
+            <option value="">{{ t('members.handUnset') }}</option>
+            <option value="left">{{ t('profile.leftHanded') }}</option>
+            <option value="right">{{ t('profile.rightHanded') }}</option>
           </select>
           <input v-model="editForm.tiktok" placeholder="TikTok" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
           <input v-model="editForm.instagram" placeholder="Instagram" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
           <div class="flex gap-2 sm:col-span-2">
             <button type="submit" :disabled="savingEdit" class="rounded-full bg-brand-pink px-4 py-1.5 text-sm font-semibold text-brand-black disabled:opacity-50">
-              {{ savingEdit ? 'กำลังบันทึก...' : 'บันทึก' }}
+              {{ savingEdit ? t('common.saving') : t('common.save') }}
             </button>
-            <button type="button" class="text-sm text-white/50" @click="cancelEdit">ยกเลิก</button>
+            <button type="button" class="text-sm text-white/50" @click="cancelEdit">{{ t('common.cancel') }}</button>
           </div>
         </form>
       </li>

@@ -1,8 +1,12 @@
 <script setup lang="ts">
 // Static club intro + contact — there's no backend-driven "club info" table
 // (out of scope per the issue doc), so this content is edited directly here.
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { EloTier } from '@/types'
 import TierMascot from '@/components/players/TierMascot.vue'
+
+const { t } = useI18n()
 
 const tiers: { tier: EloTier; label: string; color: string }[] = [
   { tier: 'milk', label: 'Milk', color: 'var(--color-tier-milk)' },
@@ -13,39 +17,36 @@ const tiers: { tier: EloTier; label: string; color: string }[] = [
   { tier: 'vodka', label: 'Vodka', color: 'var(--color-tier-vodka)' },
 ]
 
-const quickLinks = [
-  { to: '/members', num: '01', label: 'สมาชิก', desc: 'สถิติทุกคนในก๊วน' },
-  { to: '/ranking', num: '02', label: 'อันดับ', desc: 'ใครแน่ที่สุดตอนนี้' },
-  { to: '/hall-of-fame', num: '03', label: 'Hall of Fame', desc: 'ตำนานตลอดกาล' },
-  { to: '/matches', num: '04', label: 'ผลแมตช์', desc: 'เกมล่าสุดที่จบไป' },
-]
+const quickLinks = computed(() => [
+  { to: '/members', num: '01', label: t('nav.members'), desc: t('home.quickLinks.membersDesc') },
+  { to: '/ranking', num: '02', label: t('nav.ranking'), desc: t('home.quickLinks.rankingDesc') },
+  { to: '/hall-of-fame', num: '03', label: t('nav.hallOfFame'), desc: t('home.quickLinks.hallOfFameDesc') },
+  { to: '/matches', num: '04', label: t('nav.matches'), desc: t('home.quickLinks.matchesDesc') },
+])
 
 // Club vibe strip — hand-drawn line icons (24x24, stroke-based) instead of
 // filled/flat glyphs so they sit quietly next to the bolder TierMascot
 // illustrations above rather than competing with them.
-const vibes = [
+const vibes = computed(() => [
+  { label: t('home.vibes.alcohol'), path: 'M5 4h14l-7 9z M12 13v7 M8 20h8' },
   {
-    label: 'แอลกอฮอล์',
-    path: 'M5 4h14l-7 9z M12 13v7 M8 20h8',
-  },
-  {
-    label: 'เสียงเพลง',
+    label: t('home.vibes.music'),
     path: 'M9 18V5l11-2v13 M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z M17 19a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z',
   },
   {
-    label: 'เน้นมือสนุก',
+    label: t('home.vibes.fun'),
     path: 'M12 2.5l2.9 6.3 6.9.6-5.2 4.6 1.6 6.8L12 16.9l-6.2 3.4 1.6-6.8-5.2-4.6 6.9-.6z',
   },
   {
-    label: 'ไม่เครียด',
+    label: t('home.vibes.relax'),
     path: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z M8 14s1.5 2 4 2 4-2 4-2 M8.5 9.5h.01 M15.5 9.5h.01',
   },
   {
-    label: 'มีผลไม้',
+    label: t('home.vibes.fruit'),
     path: 'M12 8.5c-3.3 0-5.5 2.6-5.5 6 0 3.6 2.2 6.5 5.5 6.5s5.5-2.9 5.5-6.5c0-3.4-2.2-6-5.5-6Z M12 8.5V5.5 M12 5.5c1-1.5 3-1.8 3-1.8',
   },
   {
-    label: 'มีขนม',
+    label: t('home.vibes.snacks'),
     path: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z',
     dots: [
       [9, 9],
@@ -55,10 +56,10 @@ const vibes = [
     ],
   },
   {
-    label: 'งดบุหรี่',
+    label: t('home.vibes.noSmoking'),
     path: 'M4 11h11a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2H4z M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z M5 20 19 4',
   },
-]
+])
 
 // -mono.png variants: original logos recolored to a white silhouette
 // (RGB -> white, original alpha kept as the mask) so every logo reads
@@ -84,8 +85,7 @@ const sponsors = [
         นิดเดียว<span class="text-brand-pink">BADMINTON</span>
       </h1>
       <p class="mt-4 max-w-md text-balance text-white/60">
-        ก๊วนแบดสายมันส์ — เช็คอิน จัดคู่ตาม ELO คิดเงินอัตโนมัติ
-        ไม่มีใครหนีสถิติไปได้
+        {{ t('home.tagline') }}
       </p>
 
       <div class="mt-6 flex flex-wrap items-center justify-center gap-3 text-xs font-semibold tracking-widest text-white/40 uppercase">
@@ -110,7 +110,7 @@ const sponsors = [
     </nav>
 
     <section class="reveal hud-panel mt-8 border border-brand-pink/20 bg-brand-surface p-6 sm:mt-10">
-      <h2 class="text-center text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">บรรยากาศก๊วน</h2>
+      <h2 class="text-center text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">{{ t('home.vibesTitle') }}</h2>
       <div class="mt-5 flex flex-wrap justify-center gap-x-6 gap-y-5 sm:gap-x-8">
         <div v-for="vibe in vibes" :key="vibe.label" class="flex w-16 flex-col items-center gap-2 text-center">
           <svg
@@ -131,14 +131,14 @@ const sponsors = [
     </section>
 
     <section class="reveal hud-panel mt-8 border border-brand-pink/20 bg-brand-surface p-6 text-left sm:mt-10">
-      <h2 class="font-display text-sm font-bold tracking-wide text-brand-pink uppercase">ติดต่อผู้จัดก๊วน</h2>
+      <h2 class="font-display text-sm font-bold tracking-wide text-brand-pink uppercase">{{ t('home.contactTitle') }}</h2>
       <p class="mt-2 text-sm text-white/60">
-        สมัครสมาชิกใหม่ / request คู่ หรือ คู่แข่ง ทักแอดมินได้ทาง LINE OA : @369iojcn ได้เลย
+        {{ t('home.contactBody') }}
       </p>
     </section>
 
     <section class="reveal sponsors mt-10 border-t border-b border-brand-pink/15 py-8 text-center sm:mt-12">
-      <h2 class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">Presented by</h2>
+      <h2 class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">{{ t('home.sponsorsTitle') }}</h2>
       <div class="mt-6 flex flex-wrap items-center justify-center gap-x-12 gap-y-8">
         <img
           v-for="sponsor in sponsors"

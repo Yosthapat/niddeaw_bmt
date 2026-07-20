@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useSessionsStore } from '@/stores/sessions'
 import { usePlayersStore } from '@/stores/players'
 import * as adminApi from '@/api/admin'
@@ -10,6 +11,7 @@ import AdminNav from '@/components/layout/AdminNav.vue'
 import SessionPicker from '@/components/layout/SessionPicker.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 
+const { t } = useI18n()
 const sessionsStore = useSessionsStore()
 const playersStore = usePlayersStore()
 
@@ -95,7 +97,7 @@ async function confirmSuggestion(groupNo: number): Promise<void> {
     pollControls.start()
     await refreshQueue()
   } catch (e) {
-    confirmError.value = apiErrorMessage(e, 'ยืนยันคู่ไม่สำเร็จ')
+    confirmError.value = apiErrorMessage(e, t('matchmaking.confirmFailed'))
   } finally {
     confirming.value = null
   }
@@ -114,7 +116,7 @@ const pollControls = usePolling(refreshQueue, 7000)
 <template>
   <AdminNav />
   <main class="mx-auto max-w-4xl px-4 py-6">
-    <h1 class="text-2xl font-bold text-brand-pink">จับคู่ (Matchmaking)</h1>
+    <h1 class="text-2xl font-bold text-brand-pink">{{ t('admin.nav.matchmaking') }} (Matchmaking)</h1>
     <div class="mt-4">
       <SessionPicker />
     </div>
@@ -122,12 +124,12 @@ const pollControls = usePolling(refreshQueue, 7000)
     <p v-if="confirmError" class="mt-4 text-sm text-status-error">{{ confirmError }}</p>
 
     <p v-if="!sessionsStore.currentSessionId" class="mt-8 text-white/60">
-      เลือกหรือสร้าง session ก่อน
+      {{ t('matchmaking.selectSessionFirst') }}
     </p>
 
     <template v-else-if="queue">
       <section class="mt-6">
-        <h2 class="text-sm font-semibold text-white/70">กำลังแข่ง ({{ queue.in_progress.length }})</h2>
+        <h2 class="text-sm font-semibold text-white/70">{{ t('matchmaking.inProgress') }} ({{ queue.in_progress.length }})</h2>
         <ul class="mt-2 space-y-2">
           <li
             v-for="m in queue.in_progress"
@@ -148,15 +150,15 @@ const pollControls = usePolling(refreshQueue, 7000)
               }"
               class="shrink-0 rounded-full bg-brand-pink px-3 py-1 text-xs font-semibold text-brand-black"
             >
-              บันทึกผล
+              {{ t('matchmaking.recordResult') }}
             </RouterLink>
           </li>
-          <li v-if="queue.in_progress.length === 0" class="text-sm text-white/40">ไม่มีแมตช์ที่กำลังแข่ง</li>
+          <li v-if="queue.in_progress.length === 0" class="text-sm text-white/40">{{ t('matchmaking.noneInProgress') }}</li>
         </ul>
       </section>
 
       <section class="mt-8">
-        <h2 class="text-sm font-semibold text-white/70">แนะนำคู่ถัดไป</h2>
+        <h2 class="text-sm font-semibold text-white/70">{{ t('matchmaking.nextSuggestion') }}</h2>
         <ul class="mt-2 space-y-2">
           <li
             v-for="s in queue.suggestions"
@@ -172,14 +174,14 @@ const pollControls = usePolling(refreshQueue, 7000)
                   class="rounded-full border border-white/20 px-3 py-1 text-xs text-white/60 hover:border-brand-pink hover:text-brand-pink"
                   @click="startEdit(s)"
                 >
-                  แก้คู่
+                  {{ t('matchmaking.editPair') }}
                 </button>
                 <button
                   :disabled="confirming === s.group_no"
                   class="rounded-full border border-brand-pink px-3 py-1 text-xs text-brand-pink hover:bg-brand-pink hover:text-brand-black disabled:opacity-50"
                   @click="confirmSuggestion(s.group_no)"
                 >
-                  {{ confirming === s.group_no ? '...' : 'ยืนยัน' }}
+                  {{ confirming === s.group_no ? '...' : t('matchmaking.confirm') }}
                 </button>
               </div>
             </div>
@@ -187,7 +189,7 @@ const pollControls = usePolling(refreshQueue, 7000)
             <div v-else class="space-y-3">
               <div class="grid grid-cols-2 gap-3 text-xs">
                 <div>
-                  <p class="mb-1 text-white/40">ทีม 1</p>
+                  <p class="mb-1 text-white/40">{{ t('matchmaking.team') }} 1</p>
                   <select
                     v-for="(_, i) in draftByGroup[s.group_no]?.team1 ?? []"
                     :key="'t1-' + i"
@@ -198,7 +200,7 @@ const pollControls = usePolling(refreshQueue, 7000)
                   </select>
                 </div>
                 <div>
-                  <p class="mb-1 text-white/40">ทีม 2</p>
+                  <p class="mb-1 text-white/40">{{ t('matchmaking.team') }} 2</p>
                   <select
                     v-for="(_, i) in draftByGroup[s.group_no]?.team2 ?? []"
                     :key="'t2-' + i"
@@ -210,7 +212,7 @@ const pollControls = usePolling(refreshQueue, 7000)
                 </div>
               </div>
               <p v-if="draftHasDuplicate(s.group_no)" class="text-xs text-status-error">
-                เลือกผู้เล่นคนเดียวกันซ้ำ — แก้ก่อนยืนยัน
+                {{ t('matchmaking.duplicatePlayer') }}
               </p>
               <div class="flex gap-2">
                 <button
@@ -218,20 +220,20 @@ const pollControls = usePolling(refreshQueue, 7000)
                   class="rounded-full bg-brand-pink px-3 py-1 text-xs font-semibold text-brand-black disabled:opacity-50"
                   @click="confirmSuggestion(s.group_no)"
                 >
-                  {{ confirming === s.group_no ? '...' : 'ยืนยันคู่ที่แก้ไข' }}
+                  {{ confirming === s.group_no ? '...' : t('matchmaking.confirmEdited') }}
                 </button>
-                <button class="text-xs text-white/50" @click="cancelEdit(s.group_no)">ยกเลิก</button>
+                <button class="text-xs text-white/50" @click="cancelEdit(s.group_no)">{{ t('common.cancel') }}</button>
               </div>
             </div>
           </li>
           <li v-if="queue.suggestions.length === 0" class="text-sm text-white/40">
-            รอผู้เล่นเช็คอินให้ครบ 4 คนเพื่อจัดคู่
+            {{ t('matchmaking.waitingForPlayers') }}
           </li>
         </ul>
       </section>
 
       <section class="mt-8">
-        <h2 class="text-sm font-semibold text-white/70">รอคิว ({{ queue.waiting.length }})</h2>
+        <h2 class="text-sm font-semibold text-white/70">{{ t('matchmaking.inQueue') }} ({{ queue.waiting.length }})</h2>
         <ul class="mt-2 flex flex-wrap gap-2">
           <li
             v-for="w in queue.waiting"
@@ -240,7 +242,7 @@ const pollControls = usePolling(refreshQueue, 7000)
           >
             <PlayerAvatar :name="nameOf(w.player_id)" size="sm" />
             {{ nameOf(w.player_id) }}
-            <span class="text-xs text-white/40">~{{ Math.round(w.estimated_wait_minutes) }} นาที</span>
+            <span class="text-xs text-white/40">~{{ Math.round(w.estimated_wait_minutes) }} {{ t('matches.minutes') }}</span>
           </li>
         </ul>
       </section>

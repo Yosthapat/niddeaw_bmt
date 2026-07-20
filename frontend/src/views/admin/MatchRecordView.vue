@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { usePlayersStore } from '@/stores/players'
 import * as adminApi from '@/api/admin'
@@ -7,6 +8,7 @@ import { ApiError } from '@/api/client'
 import type { SetScore } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const playersStore = usePlayersStore()
@@ -38,7 +40,7 @@ async function submit(): Promise<void> {
     await adminApi.recordMatchResult(matchId.value, validSets.value)
     router.push('/admin/matchmaking')
   } catch (e) {
-    error.value = e instanceof ApiError ? `บันทึกผลไม่สำเร็จ (${e.status}: ${e.message})` : 'บันทึกผลไม่สำเร็จ'
+    error.value = e instanceof ApiError ? `${t('matchRecord.failed')} (${e.status}: ${e.message})` : t('matchRecord.failed')
   } finally {
     submitting.value = false
   }
@@ -52,11 +54,11 @@ onMounted(() => {
 <template>
   <AdminNav />
   <main class="mx-auto max-w-lg px-4 py-6">
-    <h1 class="text-2xl font-bold text-brand-pink">บันทึกผลแมตช์</h1>
+    <h1 class="text-2xl font-bold text-brand-pink">{{ t('matchRecord.title') }}</h1>
 
     <p v-if="!matchId" class="mt-8 text-white/60">
-      ไม่พบแมตช์ — กลับไปหน้า
-      <RouterLink to="/admin/matchmaking" class="text-brand-pink underline">จับคู่</RouterLink>
+      {{ t('matchRecord.notFound') }}
+      <RouterLink to="/admin/matchmaking" class="text-brand-pink underline">{{ t('admin.nav.matchmaking') }}</RouterLink>
     </p>
 
     <template v-else>
@@ -68,7 +70,7 @@ onMounted(() => {
 
       <div class="mt-6 space-y-3">
         <div v-for="(setScore, i) in sets" :key="i" class="flex items-center justify-center gap-3">
-          <span class="w-16 text-right text-xs text-white/40">Set {{ i + 1 }}</span>
+          <span class="w-16 text-right text-xs text-white/40">{{ t('matchRecord.set') }} {{ i + 1 }}</span>
           <input
             v-model.number="setScore[0]"
             type="number"
@@ -92,7 +94,7 @@ onMounted(() => {
         class="mt-6 w-full rounded-lg bg-brand-pink px-3 py-2 font-semibold text-brand-black disabled:opacity-50"
         @click="submit"
       >
-        {{ submitting ? 'กำลังบันทึก...' : 'บันทึกผล (ELO จะอัพเดทอัตโนมัติ)' }}
+        {{ submitting ? t('common.saving') : t('matchRecord.submit') }}
       </button>
     </template>
   </main>

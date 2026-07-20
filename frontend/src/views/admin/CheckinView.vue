@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useSessionsStore } from '@/stores/sessions'
 import { usePlayersStore } from '@/stores/players'
 import * as adminApi from '@/api/admin'
@@ -12,6 +13,7 @@ import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 
+const { t, locale } = useI18n()
 const sessionsStore = useSessionsStore()
 const playersStore = usePlayersStore()
 
@@ -48,7 +50,7 @@ async function doCheckin(playerId: string): Promise<void> {
     await adminApi.checkinPlayer(sessionsStore.currentSessionId, playerId)
     await refreshCheckins()
   } catch (e) {
-    actionError.value = apiErrorMessage(e, 'เช็คอินไม่สำเร็จ')
+    actionError.value = apiErrorMessage(e, t('checkin.checkinFailed'))
   }
 }
 
@@ -58,7 +60,7 @@ async function doCheckout(checkinId: string): Promise<void> {
     await adminApi.checkoutPlayer(checkinId)
     await refreshCheckins()
   } catch (e) {
-    actionError.value = apiErrorMessage(e, 'เช็คเอาท์ไม่สำเร็จ')
+    actionError.value = apiErrorMessage(e, t('checkin.checkoutFailed'))
   }
 }
 
@@ -70,7 +72,7 @@ async function quickAddPlayer(): Promise<void> {
     newPlayerName.value = ''
     addingPlayer.value = false
   } catch (e) {
-    actionError.value = apiErrorMessage(e, 'เพิ่มสมาชิกไม่สำเร็จ')
+    actionError.value = apiErrorMessage(e, t('checkin.addFailed'))
   }
 }
 
@@ -87,7 +89,7 @@ usePolling(refreshCheckins, 8000)
 <template>
   <AdminNav />
   <main class="mx-auto max-w-4xl px-4 py-6">
-    <h1 class="text-2xl font-bold text-brand-pink">เช็คอิน</h1>
+    <h1 class="text-2xl font-bold text-brand-pink">{{ t('admin.nav.checkin') }}</h1>
     <div class="mt-4">
       <SessionPicker />
     </div>
@@ -96,29 +98,29 @@ usePolling(refreshCheckins, 8000)
 
     <section class="mt-6">
       <div class="flex items-center justify-between">
-        <h2 class="text-sm font-semibold text-white/70">สมาชิกทั้งหมด</h2>
+        <h2 class="text-sm font-semibold text-white/70">{{ t('checkin.allMembers') }}</h2>
       </div>
       <div v-if="addingPlayer" class="mt-2 flex gap-2">
         <input
           v-model="newPlayerName"
-          placeholder="ชื่อสมาชิกใหม่"
+          :placeholder="t('checkin.newMemberName')"
           class="flex-1 rounded-lg border border-brand-pink/25 bg-brand-black px-2 py-1 text-sm"
         />
         <button class="rounded-full bg-brand-pink px-3 py-1 text-sm font-semibold text-brand-black" @click="quickAddPlayer">
-          บันทึก
+          {{ t('common.save') }}
         </button>
-        <button class="text-sm text-white/50" @click="addingPlayer = false">ยกเลิก</button>
+        <button class="text-sm text-white/50" @click="addingPlayer = false">{{ t('common.cancel') }}</button>
       </div>
     </section>
 
     <p v-if="!sessionsStore.currentSessionId" class="mt-8 text-white/60">
-      เลือกหรือสร้าง session ก่อนเช็คอิน
+      {{ t('checkin.selectSessionFirst') }}
     </p>
 
     <template v-else>
       <section class="mt-8">
         <h2 class="text-sm font-semibold text-white/70">
-          กำลังเช็คอิน ({{ activeCheckins.length }})
+          {{ t('checkin.checkingIn') }} ({{ activeCheckins.length }})
         </h2>
         <ul class="mt-2 space-y-2">
           <li
@@ -141,21 +143,21 @@ usePolling(refreshCheckins, 8000)
             />
             <EloBadge v-if="playersStore.byId(c.player_id)" :elo-score="playersStore.byId(c.player_id)!.elo_score" />
             <span class="text-xs text-white/40">
-              {{ new Date(c.checkin_time).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) }}
+              {{ new Date(c.checkin_time).toLocaleTimeString(locale === 'th' ? 'th-TH' : 'en-US', { hour: '2-digit', minute: '2-digit' }) }}
             </span>
             <button
               class="rounded-full border border-brand-pink px-3 py-1 text-xs text-brand-pink hover:bg-brand-pink hover:text-brand-black"
               @click="doCheckout(c.id)"
             >
-              เช็คเอาท์
+              {{ t('checkin.checkout') }}
             </button>
           </li>
-          <li v-if="activeCheckins.length === 0" class="text-sm text-white/40">ยังไม่มีใครเช็คอิน</li>
+          <li v-if="activeCheckins.length === 0" class="text-sm text-white/40">{{ t('checkin.noneCheckedIn') }}</li>
         </ul>
       </section>
 
       <section class="mt-8">
-        <h2 class="text-sm font-semibold text-white/70">สมาชิกที่ยังไม่เช็คอิน</h2>
+        <h2 class="text-sm font-semibold text-white/70">{{ t('checkin.notCheckedIn') }}</h2>
         <ul class="mt-2 grid gap-2 sm:grid-cols-2">
           <li
             v-for="p in availablePlayers"
@@ -168,7 +170,7 @@ usePolling(refreshCheckins, 8000)
               class="rounded-full bg-brand-pink px-3 py-1 text-xs font-semibold text-brand-black"
               @click="doCheckin(p.id)"
             >
-              เช็คอิน
+              {{ t('checkin.checkin') }}
             </button>
           </li>
         </ul>

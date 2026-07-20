@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { getRanking } from '@/api/public'
 import type { PlayerStats } from '@/types'
 import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
+
+const { t } = useI18n()
 
 const period = ref<'all' | 'year'>('all')
 const stats = ref<PlayerStats[]>([])
@@ -17,7 +20,7 @@ async function load(): Promise<void> {
   try {
     stats.value = await getRanking(period.value)
   } catch {
-    error.value = 'โหลดอันดับไม่สำเร็จ'
+    error.value = t('ranking.loadError')
   } finally {
     loading.value = false
   }
@@ -33,7 +36,7 @@ const medalByRank = ['🥇', '🥈', '🥉']
     <div class="flex flex-wrap items-end justify-between gap-4">
       <div>
         <p class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">Leaderboard</p>
-        <h1 class="font-display text-3xl font-bold text-white">อันดับ</h1>
+        <h1 class="font-display text-3xl font-bold text-white">{{ t('nav.ranking') }}</h1>
       </div>
       <div class="hud-panel flex border border-brand-pink/25 bg-brand-surface p-1 text-sm">
         <button
@@ -41,21 +44,21 @@ const medalByRank = ['🥇', '🥈', '🥉']
           :class="period === 'all' ? 'bg-brand-pink text-brand-black' : 'text-white/50 hover:text-white'"
           @click="period = 'all'"
         >
-          All-time
+          {{ t('ranking.allTime') }}
         </button>
         <button
           class="px-3 py-1.5 font-semibold transition-colors"
           :class="period === 'year' ? 'bg-brand-pink text-brand-black' : 'text-white/50 hover:text-white'"
           @click="period = 'year'"
         >
-          รายปี
+          {{ t('ranking.thisYear') }}
         </button>
       </div>
     </div>
 
-    <p v-if="loading" class="mt-6 text-white/60">กำลังโหลด...</p>
+    <p v-if="loading" class="mt-6 text-white/60">{{ t('common.loading') }}</p>
     <p v-else-if="error" class="mt-6 text-status-error">{{ error }}</p>
-    <p v-else-if="stats.length === 0" class="mt-6 text-white/60">ยังไม่มีข้อมูลอันดับ</p>
+    <p v-else-if="stats.length === 0" class="mt-6 text-white/60">{{ t('ranking.empty') }}</p>
 
     <ol v-else class="mt-6 space-y-2">
       <li
@@ -71,7 +74,7 @@ const medalByRank = ['🥇', '🥈', '🥉']
           <PlayerAvatar :name="s.player.nickname" :avatar-url="s.player.avatar_url" size="sm" />
           <div>
             <p class="font-medium">{{ s.player.nickname }}</p>
-            <p class="text-xs text-white/40">{{ s.games }} เกม · ชนะ {{ s.wins }}</p>
+            <p class="text-xs text-white/40">{{ s.games }} {{ t('common.game') }} · {{ t('common.win') }} {{ s.wins }}</p>
           </div>
         </RouterLink>
         <TierMascot :tier="s.player.elo_level" :size="28" class="hidden sm:block" />

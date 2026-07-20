@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useSessionsStore } from '@/stores/sessions'
 import { getClubSettings } from '@/api/admin'
 import { ApiError } from '@/api/client'
 
+const { t } = useI18n()
 const sessionsStore = useSessionsStore()
 const creating = ref(false)
 const newLocation = ref('')
@@ -35,7 +37,7 @@ async function createToday(): Promise<void> {
     creating.value = false
     newLocation.value = ''
   } catch (e) {
-    createError.value = e instanceof ApiError ? `สร้าง session ไม่สำเร็จ (${e.status}: ${e.message})` : 'สร้าง session ไม่สำเร็จ'
+    createError.value = e instanceof ApiError ? `${t('session.createFailed')} (${e.status}: ${e.message})` : t('session.createFailed')
   }
 }
 
@@ -45,7 +47,7 @@ async function deleteCurrent(): Promise<void> {
   const session = sessionsStore.currentSession
   if (!session) return
   const confirmed = window.confirm(
-    `ลบ session ${session.date} · ${session.location} ถาวร?\nข้อมูลเช็คอิน แมตช์ และบิลทั้งหมดของ session นี้จะหายไปด้วย — กู้คืนไม่ได้`,
+    `${t('session.deleteConfirm', { date: session.date, location: session.location })}\n${t('session.deleteWarning')}`,
   )
   if (!confirmed) return
   deleting.value = true
@@ -53,7 +55,7 @@ async function deleteCurrent(): Promise<void> {
   try {
     await sessionsStore.deleteSession(session.id)
   } catch (e) {
-    createError.value = e instanceof ApiError ? `ลบ session ไม่สำเร็จ (${e.status}: ${e.message})` : 'ลบ session ไม่สำเร็จ'
+    createError.value = e instanceof ApiError ? `${t('session.deleteFailed')} (${e.status}: ${e.message})` : t('session.deleteFailed')
   } finally {
     deleting.value = false
   }
@@ -73,7 +75,7 @@ async function deleteCurrent(): Promise<void> {
         {{ s.date }} · {{ s.location }} ({{ s.status }})
       </option>
     </select>
-    <span v-else class="text-sm text-white/40">ยังไม่มี session</span>
+    <span v-else class="text-sm text-white/40">{{ t('session.none') }}</span>
 
     <button
       v-if="sessionsStore.currentSession"
@@ -81,7 +83,7 @@ async function deleteCurrent(): Promise<void> {
       class="rounded-full border border-status-error/50 px-3 py-1 text-xs text-status-error hover:bg-status-error/10 disabled:opacity-50"
       @click="deleteCurrent"
     >
-      {{ deleting ? 'กำลังลบ...' : 'ลบ session นี้' }}
+      {{ deleting ? t('session.deleting') : t('session.deleteThis') }}
     </button>
 
     <button
@@ -89,34 +91,34 @@ async function deleteCurrent(): Promise<void> {
       class="rounded-full bg-brand-pink px-3 py-1 text-sm font-semibold text-brand-black"
       @click="creating = true"
     >
-      + สร้าง session วันนี้
+      + {{ t('session.createToday') }}
     </button>
     <template v-else>
       <input
         v-model="newLocation"
-        placeholder="สถานที่"
+        :placeholder="t('session.location')"
         class="w-32 rounded-lg border border-brand-pink/25 bg-brand-black px-2 py-1 text-sm"
       />
       <input
         v-model.number="newCourtFee"
         type="number"
         min="0"
-        placeholder="ค่าสนาม/คน"
-        title="ค่าสนามต่อคน (บาท)"
+        :placeholder="t('session.courtFee')"
+        :title="t('session.courtFeeTitle')"
         class="w-24 rounded-lg border border-brand-pink/25 bg-brand-black px-2 py-1 text-sm"
       />
       <input
         v-model.number="newShuttlecockPrice"
         type="number"
         min="0"
-        placeholder="ค่าลูก/เกม"
-        title="ค่าลูกแบดต่อเกม (บาท)"
+        :placeholder="t('session.shuttlecockPrice')"
+        :title="t('session.shuttlecockPriceTitle')"
         class="w-24 rounded-lg border border-brand-pink/25 bg-brand-black px-2 py-1 text-sm"
       />
       <button class="rounded-full bg-brand-pink px-3 py-1 text-sm font-semibold text-brand-black" @click="createToday">
-        บันทึก
+        {{ t('common.save') }}
       </button>
-      <button class="text-sm text-white/50" @click="creating = false">ยกเลิก</button>
+      <button class="text-sm text-white/50" @click="creating = false">{{ t('common.cancel') }}</button>
     </template>
     <p v-if="createError" class="w-full text-xs text-status-error">{{ createError }}</p>
   </div>

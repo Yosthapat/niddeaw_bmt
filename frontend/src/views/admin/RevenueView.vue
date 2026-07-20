@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
 import { ApiError } from '@/api/client'
 import type { DailyRevenue } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
+
+const { t, locale } = useI18n()
 
 const daily = ref<DailyRevenue[]>([])
 const loading = ref(true)
@@ -17,7 +20,7 @@ function apiErrorMessage(e: unknown, fallback: string): string {
 }
 
 function formatDate(isoDate: string): string {
-  return new Date(isoDate).toLocaleDateString('th-TH', {
+  return new Date(isoDate).toLocaleDateString(locale.value === 'th' ? 'th-TH' : 'en-US', {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
@@ -35,7 +38,7 @@ async function load(): Promise<void> {
   try {
     daily.value = await adminApi.getRevenue()
   } catch (e) {
-    error.value = apiErrorMessage(e, 'โหลดยอดรายรับไม่สำเร็จ')
+    error.value = apiErrorMessage(e, t('revenue.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -47,24 +50,24 @@ onMounted(load)
 <template>
   <AdminNav />
   <main class="mx-auto max-w-3xl px-4 py-6">
-    <h1 class="text-2xl font-bold text-brand-pink">ยอดรายรับ</h1>
+    <h1 class="text-2xl font-bold text-brand-pink">{{ t('admin.nav.revenue') }}</h1>
 
-    <p v-if="loading" class="mt-6 text-white/60">กำลังโหลด...</p>
+    <p v-if="loading" class="mt-6 text-white/60">{{ t('common.loading') }}</p>
     <p v-else-if="error" class="mt-6 text-status-error">{{ error }}</p>
-    <p v-else-if="daily.length === 0" class="mt-6 text-sm text-white/40">ยังไม่มีข้อมูลรายรับ</p>
+    <p v-else-if="daily.length === 0" class="mt-6 text-sm text-white/40">{{ t('revenue.empty') }}</p>
 
     <template v-else>
       <div class="mt-6 grid grid-cols-3 gap-2.5">
         <div class="hud-panel border border-brand-pink/40 bg-brand-surface p-3 text-center">
-          <p class="text-xs tracking-wide text-white/40 uppercase">รวมทั้งหมด</p>
+          <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('revenue.grandTotal') }}</p>
           <p class="mt-1 font-display text-xl font-bold text-brand-pink">฿{{ grandTotal.toFixed(2) }}</p>
         </div>
         <div class="hud-panel border border-brand-pink/20 bg-brand-surface p-3 text-center">
-          <p class="text-xs tracking-wide text-white/40 uppercase">จ่ายแล้ว</p>
+          <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('billing.paid') }}</p>
           <p class="mt-1 font-display text-xl font-bold text-status-success">฿{{ grandPaid.toFixed(2) }}</p>
         </div>
         <div class="hud-panel border border-brand-pink/20 bg-brand-surface p-3 text-center">
-          <p class="text-xs tracking-wide text-white/40 uppercase">ยังไม่จ่าย</p>
+          <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('billing.unpaid') }}</p>
           <p class="mt-1 font-display text-xl font-bold text-status-error">฿{{ grandUnpaid.toFixed(2) }}</p>
         </div>
       </div>
@@ -82,11 +85,11 @@ onMounted(load)
           <div class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/50">
             <span>{{ d.session_count }} session{{ d.session_count > 1 ? 's' : '' }}</span>
             <span>·</span>
-            <span>{{ d.billing_count }} บิล</span>
+            <span>{{ d.billing_count }} {{ t('revenue.bills') }}</span>
             <span>·</span>
-            <span class="text-status-success">จ่ายแล้ว ฿{{ d.paid_amount.toFixed(2) }}</span>
+            <span class="text-status-success">{{ t('billing.paid') }} ฿{{ d.paid_amount.toFixed(2) }}</span>
             <span v-if="d.unpaid_amount > 0" class="text-status-error">
-              ค้าง ฿{{ d.unpaid_amount.toFixed(2) }}
+              {{ t('revenue.outstanding') }} ฿{{ d.unpaid_amount.toFixed(2) }}
             </span>
           </div>
         </li>

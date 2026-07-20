@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { getMatches, getPlayers } from '@/api/public'
 import type { Match, Player } from '@/types'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 
 const PAGE_SIZE = 20
+
+const { t, locale } = useI18n()
 
 const matches = ref<Match[]>([])
 const playersById = ref<Record<string, Player>>({})
@@ -31,7 +34,11 @@ function durationLabel(match: Match): string | null {
   if (match.status !== 'completed') return null
   const minutes = (new Date(match.updated_at).getTime() - new Date(match.created_at).getTime()) / 60000
   if (!Number.isFinite(minutes) || minutes <= 0) return null
-  return `${minutes.toFixed(0)} นาที`
+  return `${minutes.toFixed(0)} ${t('matches.minutes')}`
+}
+
+function dateLabel(isoDate: string): string {
+  return new Date(isoDate).toLocaleString(locale.value === 'th' ? 'th-TH' : 'en-US')
 }
 
 const sortedMatches = computed(() =>
@@ -45,7 +52,7 @@ async function loadMore(): Promise<void> {
     matches.value = [...matches.value, ...next]
     hasMore.value = next.length === PAGE_SIZE
   } catch {
-    error.value = 'โหลดผลแมตช์เพิ่มไม่สำเร็จ'
+    error.value = t('matches.loadMoreError')
   } finally {
     loadingMore.value = false
   }
@@ -61,7 +68,7 @@ onMounted(async () => {
     hasMore.value = matchList.length === PAGE_SIZE
     playersById.value = Object.fromEntries(stats.map((s) => [s.player.id, s.player]))
   } catch {
-    error.value = 'โหลดผลแมตช์ไม่สำเร็จ'
+    error.value = t('matches.loadError')
   } finally {
     loading.value = false
   }
@@ -71,11 +78,11 @@ onMounted(async () => {
 <template>
   <main class="mx-auto max-w-3xl px-4 py-8 sm:py-12">
     <p class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">Match Log</p>
-    <h1 class="font-display text-3xl font-bold text-white">ผลแมตช์</h1>
+    <h1 class="font-display text-3xl font-bold text-white">{{ t('nav.matches') }}</h1>
 
-    <p v-if="loading" class="mt-6 text-white/60">กำลังโหลด...</p>
+    <p v-if="loading" class="mt-6 text-white/60">{{ t('common.loading') }}</p>
     <p v-else-if="error" class="mt-6 text-status-error">{{ error }}</p>
-    <p v-else-if="sortedMatches.length === 0" class="mt-6 text-white/60">ยังไม่มีผลแมตช์</p>
+    <p v-else-if="sortedMatches.length === 0" class="mt-6 text-white/60">{{ t('matches.empty') }}</p>
 
     <ul v-else class="mt-6 space-y-3">
       <li
@@ -85,10 +92,10 @@ onMounted(async () => {
       >
         <RouterLink :to="`/matches/${m.id}`" class="block px-4 py-3">
           <div class="flex items-center justify-between text-xs tracking-wide text-white/40 uppercase">
-            <span>{{ m.type === 'double' ? 'คู่' : 'เดี่ยว' }}</span>
+            <span>{{ m.type === 'double' ? t('matches.doubles') : t('matches.singles') }}</span>
             <span class="flex items-center gap-2">
               <span v-if="durationLabel(m)">{{ durationLabel(m) }} ·</span>
-              {{ new Date(m.created_at).toLocaleString('th-TH') }}
+              {{ dateLabel(m.created_at) }}
             </span>
           </div>
 
@@ -137,7 +144,7 @@ onMounted(async () => {
               </div>
             </div>
           </div>
-          <p v-if="m.winner === 'draw'" class="mt-1 text-center text-xs text-white/40">เสมอ</p>
+          <p v-if="m.winner === 'draw'" class="mt-1 text-center text-xs text-white/40">{{ t('common.draw') }}</p>
         </RouterLink>
       </li>
     </ul>
@@ -148,7 +155,7 @@ onMounted(async () => {
         class="rounded-full border border-brand-pink/40 px-5 py-2 text-sm font-semibold text-brand-pink hover:bg-brand-pink hover:text-brand-black disabled:opacity-50"
         @click="loadMore"
       >
-        {{ loadingMore ? 'กำลังโหลด...' : 'โหลดเพิ่ม' }}
+        {{ loadingMore ? t('common.loading') : t('matches.loadMore') }}
       </button>
     </div>
   </main>

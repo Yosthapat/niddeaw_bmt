@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { login } from '@/api/admin'
 import { ApiError } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 
+const { t } = useI18n()
 const username = ref('')
 const password = ref('')
 const loading = ref(false)
@@ -21,7 +23,7 @@ async function submit(): Promise<void> {
     authStore.login(access_token)
     router.push('/admin')
   } catch (e) {
-    error.value = e instanceof ApiError && e.status === 401 ? 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' : 'เข้าสู่ระบบไม่สำเร็จ'
+    error.value = e instanceof ApiError && e.status === 401 ? t('login.invalidCredentials') : t('login.failed')
   } finally {
     loading.value = false
   }
@@ -54,7 +56,7 @@ async function submit(): Promise<void> {
         :disabled="loading"
         class="rounded-lg bg-brand-pink px-3 py-2 font-semibold text-brand-black disabled:opacity-50"
       >
-        {{ loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ' }}
+        {{ loading ? t('login.loggingIn') : t('login.submit') }}
       </button>
     </form>
   </main>
