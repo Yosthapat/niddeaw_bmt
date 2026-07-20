@@ -1,13 +1,15 @@
 <script setup lang="ts">
 // Static club intro + contact — there's no backend-driven "club info" table
 // (out of scope per the issue doc), so this content is edited directly here.
+import type { EloTier } from '@/types'
+import TierMascot from '@/components/players/TierMascot.vue'
 
-const tiers = [
-  { label: 'Milk', color: 'var(--color-tier-milk)' },
-  { label: 'Soju', color: 'var(--color-tier-soju)' },
-  { label: 'Beer', color: 'var(--color-tier-beer)' },
-  { label: 'Highball', color: 'var(--color-tier-highball)' },
-  { label: 'Vodka', color: 'var(--color-tier-vodka)' },
+const tiers: { tier: EloTier; label: string; color: string }[] = [
+  { tier: 'milk', label: 'Milk', color: 'var(--color-tier-milk)' },
+  { tier: 'soju', label: 'Soju', color: 'var(--color-tier-soju)' },
+  { tier: 'beer', label: 'Beer', color: 'var(--color-tier-beer)' },
+  { tier: 'highball', label: 'Highball', color: 'var(--color-tier-highball)' },
+  { tier: 'vodka', label: 'Vodka', color: 'var(--color-tier-vodka)' },
 ]
 
 const quickLinks = [
@@ -33,13 +35,10 @@ const quickLinks = [
         ไม่มีใครหนีสถิติไปได้
       </p>
 
-      <div class="mt-6 flex items-center gap-2 text-xs font-semibold tracking-widest text-white/40 uppercase">
-        <span v-for="(tier, i) in tiers" :key="tier.label" class="flex items-center gap-2">
-          <span class="flex items-center gap-1">
-            <span class="h-2 w-2 rotate-45" :style="{ backgroundColor: tier.color }" />
-            {{ tier.label }}
-          </span>
-          <span v-if="i < tiers.length - 1" class="text-white/20">/</span>
+      <div class="mt-6 flex flex-wrap items-center justify-center gap-3 text-xs font-semibold tracking-widest text-white/40 uppercase">
+        <span v-for="tier in tiers" :key="tier.label" class="flex flex-col items-center gap-1">
+          <TierMascot :tier="tier.tier" :size="40" />
+          <span :style="{ color: tier.color }">{{ tier.label }}</span>
         </span>
       </div>
     </div>

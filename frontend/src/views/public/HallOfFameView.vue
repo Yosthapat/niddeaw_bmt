@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { getHallOfFame } from '@/api/public'
 import type { PlayerStats } from '@/types'
 import EloBadge from '@/components/players/EloBadge.vue'
+import TierMascot from '@/components/players/TierMascot.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 
 const stats = ref<PlayerStats[]>([])
@@ -41,6 +42,7 @@ onMounted(async () => {
       >
         <RouterLink :to="`/members/${s.player.id}`" class="flex flex-1 items-center gap-3 hover:opacity-80">
           <PlayerAvatar :name="s.player.name" :avatar-url="s.player.avatar_url" size="lg" />
+          <TierMascot :tier="s.player.elo_level" :size="36" />
           <div class="flex-1">
             <p class="font-display font-bold">
               {{ i === 0 ? '👑 ' : '' }}{{ s.player.nickname || s.player.name }}

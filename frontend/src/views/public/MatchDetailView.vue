@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { getMatchDetail } from '@/api/public'
 import type { MatchDetail } from '@/types'
 import EloBadge from '@/components/players/EloBadge.vue'
+import TierMascot from '@/components/players/TierMascot.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 
 const route = useRoute()
@@ -86,6 +87,7 @@ onMounted(async () => {
             >
               {{ stat.player.nickname || stat.player.name }}
             </RouterLink>
+            <TierMascot :tier="stat.player.elo_level" :size="32" />
             <EloBadge :elo-score="stat.player.elo_score" show-score />
             <dl class="mt-1 grid grid-cols-3 gap-x-3 gap-y-1 text-center text-xs text-white/50">
               <div><dt class="uppercase">Rank</dt><dd class="font-semibold text-white/80">#{{ stat.elo_rank }}</dd></div>
@@ -122,6 +124,7 @@ onMounted(async () => {
             >
               {{ stat.player.nickname || stat.player.name }}
             </RouterLink>
+            <TierMascot :tier="stat.player.elo_level" :size="32" />
             <EloBadge :elo-score="stat.player.elo_score" show-score />
             <dl class="mt-1 grid grid-cols-3 gap-x-3 gap-y-1 text-center text-xs text-white/50">
               <div><dt class="uppercase">Rank</dt><dd class="font-semibold text-white/80">#{{ stat.elo_rank }}</dd></div>

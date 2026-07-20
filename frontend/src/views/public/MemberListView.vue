@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { getPlayers } from '@/api/public'
 import type { PlayerStats } from '@/types'
 import EloBadge from '@/components/players/EloBadge.vue'
+import TierMascot from '@/components/players/TierMascot.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 
 const stats = ref<PlayerStats[]>([])
@@ -72,7 +73,12 @@ onMounted(async () => {
                 {{ s.player.nickname || s.player.name }}
               </RouterLink>
             </td>
-            <td class="px-4 py-3"><EloBadge :elo-score="s.player.elo_score" /></td>
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-1.5">
+                <TierMascot :tier="s.player.elo_level" :size="22" />
+                <EloBadge :elo-score="s.player.elo_score" />
+              </div>
+            </td>
             <td class="px-4 py-3 text-right text-white/70">{{ s.games }}</td>
             <td class="px-4 py-3 text-right text-white/70">{{ s.wins }}</td>
             <td class="px-4 py-3 text-right text-white/70">{{ s.draws }}</td>

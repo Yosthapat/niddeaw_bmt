@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 import { getRanking } from '@/api/public'
 import type { PlayerStats } from '@/types'
 import EloBadge from '@/components/players/EloBadge.vue'
+import TierMascot from '@/components/players/TierMascot.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 
 const period = ref<'all' | 'year'>('all')
@@ -73,6 +74,7 @@ const medalByRank = ['🥇', '🥈', '🥉']
             <p class="text-xs text-white/40">{{ s.games }} เกม · ชนะ {{ s.wins }}</p>
           </div>
         </RouterLink>
+        <TierMascot :tier="s.player.elo_level" :size="28" class="hidden sm:block" />
         <EloBadge :elo-score="s.player.elo_score" show-score class="hidden sm:inline-flex" />
         <span class="w-12 text-right font-display text-lg font-bold text-brand-pink">{{ s.points }}</span>
       </li>

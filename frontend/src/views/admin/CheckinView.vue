@@ -10,6 +10,7 @@ import AdminNav from '@/components/layout/AdminNav.vue'
 import SessionPicker from '@/components/layout/SessionPicker.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import EloBadge from '@/components/players/EloBadge.vue'
+import TierMascot from '@/components/players/TierMascot.vue'
 
 const sessionsStore = useSessionsStore()
 const playersStore = usePlayersStore()
@@ -136,6 +137,11 @@ usePolling(refreshCheckins, 8000)
             <span class="flex-1 font-medium">
               {{ playersStore.byId(c.player_id)?.nickname || playersStore.byId(c.player_id)?.name }}
             </span>
+            <TierMascot
+              v-if="playersStore.byId(c.player_id)"
+              :tier="playersStore.byId(c.player_id)!.elo_level"
+              :size="24"
+            />
             <EloBadge v-if="playersStore.byId(c.player_id)" :elo-score="playersStore.byId(c.player_id)!.elo_score" />
             <span class="text-xs text-white/40">
               {{ new Date(c.checkin_time).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) }}

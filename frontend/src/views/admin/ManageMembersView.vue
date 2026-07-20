@@ -225,6 +225,7 @@ onMounted(loadPlayers)
             <p class="font-medium">{{ p.nickname || p.name }} <span v-if="p.nickname" class="text-xs text-white/40">({{ p.name }})</span></p>
             <p class="text-xs text-white/50">{{ p.phone || '-' }} · {{ p.line_id || '-' }}</p>
           </div>
+          <TierMascot :tier="p.elo_level" :size="28" />
           <EloBadge :elo-score="p.elo_score" show-score />
           <button class="text-xs text-brand-pink underline" @click="startEdit(p)">แก้ไข</button>
           <button
