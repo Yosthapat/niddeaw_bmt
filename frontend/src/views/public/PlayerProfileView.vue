@@ -33,16 +33,23 @@ onMounted(async () => {
     <p v-else-if="error || !profile" class="mt-6 text-status-error">{{ error }}</p>
 
     <template v-else>
-      <div class="mt-6 flex flex-col items-center gap-3 text-center">
-        <PlayerAvatar :name="profile.player.name" :avatar-url="profile.player.avatar_url" size="lg" />
-        <h1 class="font-display text-2xl font-bold">{{ profile.player.nickname || profile.player.name }}</h1>
-        <p v-if="profile.player.nickname" class="-mt-2 text-sm text-white/40">{{ profile.player.name }}</p>
-        <TierMascot :tier="profile.player.elo_level" :size="72" />
-        <EloBadge :elo-score="profile.player.elo_score" show-score />
-        <p class="text-xs tracking-widest text-white/40 uppercase">
-          อันดับ ELO <span class="font-semibold text-brand-pink">#{{ profile.elo_rank }}</span>
-          / {{ profile.total_ranked_players }}
-        </p>
+      <div class="mt-6 flex flex-col items-center gap-6 sm:flex-row sm:items-center sm:justify-center">
+        <div class="flex flex-col items-center gap-2 text-center">
+          <PlayerAvatar :name="profile.player.name" :avatar-url="profile.player.avatar_url" size="xl" />
+          <h1 class="mt-1 font-display text-2xl font-bold">{{ profile.player.nickname || profile.player.name }}</h1>
+          <p v-if="profile.player.nickname" class="-mt-2 text-sm text-white/40">{{ profile.player.name }}</p>
+        </div>
+
+        <div class="hidden h-32 w-px bg-brand-pink/15 sm:block" />
+
+        <div class="flex flex-col items-center gap-2 text-center">
+          <TierMascot :tier="profile.player.elo_level" :size="72" />
+          <EloBadge :elo-score="profile.player.elo_score" show-score />
+          <p class="text-xs tracking-widest text-white/40 uppercase">
+            อันดับ ELO <span class="font-semibold text-brand-pink">#{{ profile.elo_rank }}</span>
+            / {{ profile.total_ranked_players }}
+          </p>
+        </div>
       </div>
 
       <div class="mt-8 grid grid-cols-3 gap-2.5 sm:grid-cols-6">

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-withDefaults(defineProps<{ name: string; avatarUrl?: string | null; size?: 'sm' | 'md' | 'lg' }>(), {
+withDefaults(defineProps<{ name: string; avatarUrl?: string | null; size?: 'sm' | 'md' | 'lg' | 'xl' }>(), {
   size: 'md',
 })
 
@@ -19,7 +19,12 @@ function initials(name: string): string {
     :src="avatarUrl"
     :alt="name"
     class="hud-panel shrink-0 border border-brand-pink/40 object-cover"
-    :class="{ 'h-8 w-8': size === 'sm', 'h-11 w-11': size === 'md', 'h-16 w-16': size === 'lg' }"
+    :class="{
+      'h-8 w-8': size === 'sm',
+      'h-11 w-11': size === 'md',
+      'h-16 w-16': size === 'lg',
+      'h-36 w-36': size === 'xl',
+    }"
   />
   <span
     v-else
@@ -28,6 +33,7 @@ function initials(name: string): string {
       'h-8 w-8 text-xs': size === 'sm',
       'h-11 w-11 text-sm': size === 'md',
       'h-16 w-16 text-lg': size === 'lg',
+      'h-36 w-36 text-4xl': size === 'xl',
     }"
   >
     {{ initials(name) }}
