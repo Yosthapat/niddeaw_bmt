@@ -51,6 +51,10 @@ export async function updateSession(
   })
 }
 
+export async function deleteSession(sessionId: string): Promise<void> {
+  return request(`/api/admin/sessions/${sessionId}`, { method: 'DELETE' })
+}
+
 // Check-ins
 export async function getCheckins(sessionId: string, activeOnly = false): Promise<Checkin[]> {
   return request(`/api/admin/checkins?session_id=${sessionId}&active_only=${activeOnly}`)
@@ -102,6 +106,10 @@ export async function getBillings(sessionId: string): Promise<Billing[]> {
 
 export async function closeSessionAndBill(sessionId: string): Promise<Billing[]> {
   return request(`/api/admin/billing/close-session/${sessionId}`, { method: 'POST' })
+}
+
+export async function billPlayer(sessionId: string, playerId: string): Promise<Billing> {
+  return request(`/api/admin/billing/player/${sessionId}/${playerId}`, { method: 'POST' })
 }
 
 export async function adjustBilling(

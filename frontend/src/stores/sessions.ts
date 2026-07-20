@@ -52,6 +52,14 @@ export const useSessionsStore = defineStore('sessions', () => {
     return session
   }
 
+  async function deleteSession(sessionId: string): Promise<void> {
+    await adminApi.deleteSession(sessionId)
+    sessions.value = sessions.value.filter((s) => s.id !== sessionId)
+    if (currentSessionId.value === sessionId) {
+      setCurrentSession(openSessions.value[0]?.id ?? null)
+    }
+  }
+
   return {
     sessions,
     currentSessionId,
@@ -60,5 +68,6 @@ export const useSessionsStore = defineStore('sessions', () => {
     setCurrentSession,
     refresh,
     createSession,
+    deleteSession,
   }
 })

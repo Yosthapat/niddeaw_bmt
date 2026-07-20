@@ -38,6 +38,26 @@ async function createToday(): Promise<void> {
     createError.value = e instanceof ApiError ? `สร้าง session ไม่สำเร็จ (${e.status}: ${e.message})` : 'สร้าง session ไม่สำเร็จ'
   }
 }
+
+const deleting = ref(false)
+
+async function deleteCurrent(): Promise<void> {
+  const session = sessionsStore.currentSession
+  if (!session) return
+  const confirmed = window.confirm(
+    `ลบ session ${session.date} · ${session.location} ถาวร?\nข้อมูลเช็คอิน แมตช์ และบิลทั้งหมดของ session นี้จะหายไปด้วย — กู้คืนไม่ได้`,
+  )
+  if (!confirmed) return
+  deleting.value = true
+  createError.value = null
+  try {
+    await sessionsStore.deleteSession(session.id)
+  } catch (e) {
+    createError.value = e instanceof ApiError ? `ลบ session ไม่สำเร็จ (${e.status}: ${e.message})` : 'ลบ session ไม่สำเร็จ'
+  } finally {
+    deleting.value = false
+  }
+}
 </script>
 
 <template>
@@ -54,6 +74,15 @@ async function createToday(): Promise<void> {
       </option>
     </select>
     <span v-else class="text-sm text-white/40">ยังไม่มี session</span>
+
+    <button
+      v-if="sessionsStore.currentSession"
+      :disabled="deleting"
+      class="rounded-full border border-status-error/50 px-3 py-1 text-xs text-status-error hover:bg-status-error/10 disabled:opacity-50"
+      @click="deleteCurrent"
+    >
+      {{ deleting ? 'กำลังลบ...' : 'ลบ session นี้' }}
+    </button>
 
     <button
       v-if="!creating"

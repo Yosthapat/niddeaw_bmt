@@ -14,5 +14,14 @@ def compute_amount_calc(
     return round(court_fee_per_person + game_count * shuttlecock_price_per_game, 2)
 
 
+def count_games_played(player_id: str, matches: list[dict[str, list[str]]]) -> int:
+    """Counts completed matches (singles or doubles) `player_id` appears in."""
+    return sum(
+        1
+        for match in matches
+        if player_id in [*match["team1_player_ids"], *match["team2_player_ids"]]
+    )
+
+
 def effective_amount(amount_calc: float, amount_adjusted: float | None) -> float:
     return amount_adjusted if amount_adjusted is not None else amount_calc

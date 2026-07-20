@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useSessionsStore } from '@/stores/sessions'
 import { usePlayersStore } from '@/stores/players'
 import * as adminApi from '@/api/admin'
 import { ApiError } from '@/api/client'
 import { effectiveAmount } from '@/types'
-import type { Billing } from '@/types'
+import type { Billing, Checkin } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import SessionPicker from '@/components/layout/SessionPicker.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
@@ -14,7 +14,9 @@ const sessionsStore = useSessionsStore()
 const playersStore = usePlayersStore()
 
 const billings = ref<Billing[]>([])
+const checkins = ref<Checkin[]>([])
 const closing = ref(false)
+const billingPlayerId = ref<string | null>(null)
 const qrByBillingId = ref<Record<string, string>>({})
 const editingAdjust = ref<Record<string, string>>({})
 const actionError = ref<string | null>(null)
@@ -31,12 +33,36 @@ function apiErrorMessage(e: unknown, fallback: string): string {
   return fallback
 }
 
+const unbilledAttendeeIds = computed(() => {
+  const billedIds = new Set(billings.value.map((b) => b.player_id))
+  const attendeeIds = new Set(checkins.value.map((c) => c.player_id))
+  return [...attendeeIds].filter((id) => !billedIds.has(id))
+})
+
 async function refreshBillings(): Promise<void> {
   if (!sessionsStore.currentSessionId) {
     billings.value = []
+    checkins.value = []
     return
   }
-  billings.value = await adminApi.getBillings(sessionsStore.currentSessionId)
+  ;[billings.value, checkins.value] = await Promise.all([
+    adminApi.getBillings(sessionsStore.currentSessionId),
+    adminApi.getCheckins(sessionsStore.currentSessionId),
+  ])
+}
+
+async function billOnePlayer(playerId: string): Promise<void> {
+  if (!sessionsStore.currentSessionId) return
+  billingPlayerId.value = playerId
+  actionError.value = null
+  try {
+    const billing = await adminApi.billPlayer(sessionsStore.currentSessionId, playerId)
+    billings.value = [...billings.value.filter((b) => b.id !== billing.id), billing]
+  } catch (e) {
+    actionError.value = apiErrorMessage(e, 'คิดเงินไม่สำเร็จ')
+  } finally {
+    billingPlayerId.value = null
+  }
 }
 
 async function closeAndBill(): Promise<void> {
@@ -128,8 +154,32 @@ onMounted(async () => {
         </button>
       </div>
 
+      <section v-if="unbilledAttendeeIds.length > 0" class="mt-6">
+        <h2 class="text-sm font-semibold text-white/70">ยังไม่คิดเงิน ({{ unbilledAttendeeIds.length }})</h2>
+        <p class="mt-1 text-xs text-white/40">
+          คิดเงินรายคนได้เลยโดยไม่ต้องรอปิด session — เผื่อบางคน checkout ก่อนคนอื่น
+        </p>
+        <ul class="mt-2 space-y-2">
+          <li
+            v-for="pid in unbilledAttendeeIds"
+            :key="pid"
+            class="flex items-center gap-3 hud-panel border border-brand-pink/15 bg-brand-surface px-3 py-2"
+          >
+            <PlayerAvatar :name="nameOf(pid)" size="sm" />
+            <span class="flex-1 font-medium">{{ nameOf(pid) }}</span>
+            <button
+              :disabled="billingPlayerId === pid"
+              class="rounded-full border border-brand-pink px-3 py-1 text-xs text-brand-pink hover:bg-brand-pink hover:text-brand-black disabled:opacity-50"
+              @click="billOnePlayer(pid)"
+            >
+              {{ billingPlayerId === pid ? '...' : 'คิดเงินคนนี้' }}
+            </button>
+          </li>
+        </ul>
+      </section>
+
       <p v-if="billings.length === 0" class="mt-6 text-sm text-white/40">
-        ยังไม่มีบิล — ปิด session เพื่อคำนวณค่าสนาม + ค่าลูกตามจำนวนเกมที่เล่น
+        ยังไม่มีบิล — คิดเงินรายคน หรือปิด session เพื่อคิดเงินทุกคนพร้อมกัน
       </p>
 
       <ul v-else class="mt-6 space-y-3">

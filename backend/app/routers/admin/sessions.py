@@ -34,3 +34,13 @@ def update_session(
     if not result_rows:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
     return Session.model_validate(result_rows[0])
+
+
+@router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_session(session_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> None:
+    """Permanently deletes a session — e.g. it was created by mistake.
+    checkins/matches/billings/pairing_history all reference sessions with
+    ON DELETE CASCADE, so they're removed automatically."""
+    result = supabase.table("sessions").delete().eq("id", str(session_id)).execute()
+    if not rows(result):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
