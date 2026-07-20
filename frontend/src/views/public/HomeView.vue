@@ -59,7 +59,7 @@ const quickLinks = [
     <section class="reveal hud-panel mt-8 border border-brand-pink/20 bg-brand-surface p-6 text-left sm:mt-10">
       <h2 class="font-display text-sm font-bold tracking-wide text-brand-pink uppercase">ติดต่อผู้จัดก๊วน</h2>
       <p class="mt-2 text-sm text-white/60">
-        สอบถามตารางตี / สมัครสมาชิกใหม่ ทักแอดมินได้ทาง LINE หรือโทรศัพท์
+        สมัครสมาชิกใหม่ / request คู่ หรือ คู่แข่ง ทักแอดมินได้ทาง LINE OA : @369iojcn ได้เลย
       </p>
     </section>
   </main>
