@@ -1,17 +1,17 @@
 # Active Context
 
 ## Current Task
-- Regenerated apple-touch-icon-180x180.png (had a real bug: 15%-per-side opaque white margin baked in, unlike the sibling icons) — pushing this fix
+- Removed the Hall of Fame quick-link card from the home page grid (was still showing there even after unlinking it from the header nav) — pushing this fix
 
 ## Done Last Session
-- Confirmed live: ad banner cropping fix (object-contain + matched aspect ratio) and redundant logo badge removal
-- Found and fixed `frontend/public/pwa-icons/apple-touch-icon-180x180.png`: had a 27px opaque white margin per side (content bbox only 27,27–152,152 of a 180x180 canvas) — this is what iOS uses for "Add to Home Screen", so it rendered with a visible white border unlike every other app icon
-  - Regenerated from `pwa-512x512.png` (the full-bleed transparent master icon): cropped to its content bbox, flattened onto solid brand-black (matches the icon's own black backing so edges stay seamless), resized to 180x180
-  - Checked siblings for the same bug: `pwa-192x192.png`/`pwa-64x64.png` already near-full-bleed (~2.5% margin, fine); `maskable-icon-512x512.png` has an intentional ~15% safe-zone margin per the Android maskable-icon spec — left untouched, that one's correct as-is
+- Confirmed live via MD5 hash match: apple-touch-icon-180x180.png fix (regenerated full-bleed, no more baked-in white margin) — iOS caches the icon on-device, so a plain refresh won't show it; user needs to remove and re-add "Add to Home Screen" to see the fix
+- Removed the "03 Hall of Fame" card from HomeView.vue's `quickLinks` grid — user flagged it was still showing there even though it's already unlinked from the header nav (not in use yet)
+- Renumbered remaining quick links (01 สมาชิก, 02 อันดับ, 03 ผลแมตช์) and changed the grid from `grid-cols-2 sm:grid-cols-4` to `grid-cols-1 sm:grid-cols-3` so 3 cards lay out cleanly instead of leaving an awkward gap
 - `vue-tsc -b && vite build` clean
 
 ## Next Steps
-- Push, confirm deploy live, and ask user to re-add the home screen icon (iOS caches the old icon PNG on-device — a plain page refresh won't update it, they'll need to remove and re-add "Add to Home Screen")
+- Push and confirm live
+- Whenever Hall of Fame is ready to use again: re-add its entry to `publicLinks` in AppHeader.vue AND `quickLinks` in HomeView.vue (both were hidden, not deleted)
 
 ## Blockers
 - none
@@ -20,5 +20,8 @@
 - Claude Code — 2026-07-21
 
 ## Checkpoint (auto)
+- 18:40 — edited active.md
+- 18:40 — edited HomeView.vue
+- 18:39 — edited HomeView.vue
 - 18:39 — edited active.md
 - 18:34 — edited active.md

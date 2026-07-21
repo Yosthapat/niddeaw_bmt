@@ -22,11 +22,12 @@ const tiers: { tier: EloTier; label: string; color: string }[] = [
   { tier: 'vodka', label: 'Vodka', color: 'var(--color-tier-vodka)' },
 ]
 
+// Hall of Fame quick-link card is temporarily hidden (not in use yet),
+// matching the header nav — see AppHeader.vue.
 const quickLinks = computed(() => [
   { to: '/members', num: '01', label: t('nav.members'), desc: t('home.quickLinks.membersDesc') },
   { to: '/ranking', num: '02', label: t('nav.ranking'), desc: t('home.quickLinks.rankingDesc') },
-  { to: '/hall-of-fame', num: '03', label: t('nav.hallOfFame'), desc: t('home.quickLinks.hallOfFameDesc') },
-  { to: '/matches', num: '04', label: t('nav.matches'), desc: t('home.quickLinks.matchesDesc') },
+  { to: '/matches', num: '03', label: t('nav.matches'), desc: t('home.quickLinks.matchesDesc') },
 ])
 
 // Club vibe strip — hand-drawn line icons (24x24, stroke-based) instead of
@@ -117,7 +118,7 @@ const sponsors = [
       </div>
     </div>
 
-    <nav class="reveal mt-12 grid grid-cols-2 gap-3 sm:mt-16 sm:grid-cols-4">
+    <nav class="reveal mt-12 grid grid-cols-1 gap-3 sm:mt-16 sm:grid-cols-3">
       <RouterLink
         v-for="link in quickLinks"
         :key="link.to"
