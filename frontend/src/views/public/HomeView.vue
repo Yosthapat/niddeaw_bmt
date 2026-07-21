@@ -5,8 +5,13 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { EloTier } from '@/types'
 import TierMascot from '@/components/players/TierMascot.vue'
+import AdCarousel from '@/components/home/AdCarousel.vue'
 
 const { t } = useI18n()
+
+// Auto-rotating promo banner slot, up to 4 images — drop files into
+// frontend/public/ads/ and list them here.
+const ads = ['/ads/cover-page.webp']
 
 const tiers: { tier: EloTier; label: string; color: string }[] = [
   { tier: 'milk', label: 'Milk', color: 'var(--color-tier-milk)' },
@@ -92,7 +97,11 @@ const sponsors = [
 
 <template>
   <main class="mx-auto max-w-4xl px-4 py-12 sm:py-20">
-    <div class="reveal flex flex-col items-center text-center">
+    <div class="reveal">
+      <AdCarousel :images="ads" />
+    </div>
+
+    <div class="reveal mt-10 flex flex-col items-center text-center sm:mt-12">
       <span class="hud-panel border border-brand-pink/40 bg-brand-surface p-1">
         <img src="/pwa-icons/pwa-512x512.png" alt="นิดเดียว Badminton Club logo" class="hud-panel h-24 w-24 sm:h-32 sm:w-32" />
       </span>
