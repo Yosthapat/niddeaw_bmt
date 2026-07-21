@@ -88,6 +88,7 @@ export default {
     backToMatches: 'กลับไปหน้าผลแมตช์',
     win: 'WIN',
     loss: 'LOSS',
+    draw: 'DRAW',
     inProgress: 'กำลังแข่ง',
   },
   live: {

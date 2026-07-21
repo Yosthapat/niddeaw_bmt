@@ -24,7 +24,7 @@ function statusFor(side: 'team1' | 'team2'): 'win' | 'loss' | 'draw' | null {
 function statusLabel(side: 'team1' | 'team2'): string {
   const status = statusFor(side)
   if (status === 'win') return t('matches.win')
-  if (status === 'draw') return t('common.draw').toUpperCase()
+  if (status === 'draw') return t('matches.draw')
   if (status === 'loss') return t('matches.loss')
   return t('matches.inProgress')
 }

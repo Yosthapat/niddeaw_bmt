@@ -113,7 +113,7 @@ onMounted(async () => {
                   size="lg"
                 />
                 <span v-if="m.winner === 'team1'" class="stamp stamp--win">{{ t('matches.win') }}</span>
-                <span v-else-if="m.winner === 'draw'" class="stamp stamp--draw">{{ t('common.draw') }}</span>
+                <span v-else-if="m.winner === 'draw'" class="stamp stamp--draw">{{ t('matches.draw') }}</span>
               </div>
               <span class="text-center text-sm font-medium" :class="m.winner === 'team1' ? 'text-brand-pink' : 'text-white/70'">
                 {{ m.team1_player_ids.map(nameOf).join(' & ') }}
@@ -137,7 +137,7 @@ onMounted(async () => {
                   size="lg"
                 />
                 <span v-if="m.winner === 'team2'" class="stamp stamp--win">{{ t('matches.win') }}</span>
-                <span v-else-if="m.winner === 'draw'" class="stamp stamp--draw">{{ t('common.draw') }}</span>
+                <span v-else-if="m.winner === 'draw'" class="stamp stamp--draw">{{ t('matches.draw') }}</span>
               </div>
               <span class="text-center text-sm font-medium" :class="m.winner === 'team2' ? 'text-brand-pink' : 'text-white/70'">
                 {{ m.team2_player_ids.map(nameOf).join(' & ') }}

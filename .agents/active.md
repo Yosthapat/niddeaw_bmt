@@ -1,30 +1,23 @@
 # Active Context
 
 ## Current Task
-- Added a standalone "สร้างคู่เอง" (Create Custom Match) button to admin matchmaking — works even when fewer than 4 checked-in players means no auto-suggestion exists to edit. Pushing now.
+- Made the DRAW stamp label consistent with WIN/LOSS (always-English badge convention) — pushing now
 
 ## Done Last Session
-- Explained existing "แก้คู่" (Edit Pair) capability to user, then user asked for a dedicated manual-create flow that doesn't depend on an auto-suggestion existing first
-- Added `creatingCustom`/`customDraft` state + `startCustomMatch`/`cancelCustomMatch`/`confirmCustomMatch`/`customHasDuplicate`/`customIsComplete` to MatchmakingView.vue — a standalone form (2 dropdowns per team, reusing the existing `availablePool()` which already unions suggestions+waiting so it covers every checked-in-and-available player regardless of whether any suggestion groups formed) that calls the same `/api/admin/matchmaking/confirm` endpoint already in use — no backend changes needed
-- i18n: `matchmaking.createCustom`, `matchmaking.pickPlayer` (th/en)
-- `vue-tsc -b && vite build` clean; no backend risk since it's the same already-tested confirm endpoint
+- Confirmed "Create Custom Match" (สร้างคู่เอง) live in production (commit 802c23e), verified via direct chunk inspection (grep for "createCustom"/"pickPlayer"/"cancelMatch" in the new MatchmakingView-DOvVgtV1.js) after a couple of transient/stale polling reads
+- User flagged inconsistency: the WIN/LOSS stamp badges on /matches and /matches/:id are always English ("WIN"/"LOSS", matches.win/matches.loss keys, same in both locales) but the DRAW stamp used `common.draw` which is localized ("เสมอ" in Thai) — visually inconsistent badge style
+- Added a new `matches.draw: 'DRAW'` key (English, both locales) matching the matches.win/matches.loss pattern
+- Updated the 3 actual stamp/badge usages to use it: MatchHistoryView.vue's two `stamp--draw` spans, MatchDetailView.vue's `statusLabel()` draw case (dropped the now-redundant `.toUpperCase()`)
+- Left `common.draw` (localized "เสมอ"/"Draw") untouched everywhere else it's plain prose or a table header, not a badge: MatchRecordView.vue's draw button, PlayerProfileView.vue (x2), MatchDetailView.vue's plain text line under the score, MemberListView.vue's table header
+- `vue-tsc -b && vite build` clean
 
 ## Next Steps
 - Push and confirm live
-- Optional: add singles match support to the frontend UI (backend already supports type: 'single')
-
-## Blockers
-- none
+- Consider adding singles match UI support (backend already supports type: 'single')
 
 ## Last Updated
 - Claude Code — 2026-07-22
 
 ## Checkpoint (auto)
-- 06:50 — edited active.md
-- 06:49 — edited en.ts
-- 06:49 — edited th.ts
-- 06:49 — edited MatchmakingView.vue
-- 06:49 — edited MatchmakingView.vue
-- 06:49 — edited MatchmakingView.vue
-- 06:47 — edited active.md
-- 06:47 — edited active.md
+- 06:56 — edited active.md
+- 06:54 — edited active.md
