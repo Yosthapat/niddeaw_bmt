@@ -101,25 +101,23 @@ onMounted(async () => {
 
           <div class="mt-3 flex items-center justify-between gap-3">
             <div
-              class="flex flex-1 flex-col items-end gap-1.5"
+              class="flex flex-1 flex-col items-center gap-1.5"
               :class="{ 'opacity-45 grayscale': m.winner === 'team2' }"
             >
-              <div class="flex items-center gap-2">
-                <span class="text-right font-medium" :class="m.winner === 'team1' ? 'text-brand-pink' : 'text-white/70'">
-                  {{ m.team1_player_ids.map(nameOf).join(' & ') }}
-                </span>
-                <div class="stamp-wrap relative flex -space-x-2">
-                  <PlayerAvatar
-                    v-for="pid in m.team1_player_ids"
-                    :key="pid"
-                    :name="nameOf(pid)"
-                    :avatar-url="playerOf(pid)?.avatar_url"
-                    size="md"
-                  />
-                  <span v-if="m.winner === 'team1'" class="stamp stamp--win">{{ t('matches.win') }}</span>
-                  <span v-else-if="m.winner === 'draw'" class="stamp stamp--draw">{{ t('common.draw') }}</span>
-                </div>
+              <div class="stamp-wrap relative flex -space-x-3">
+                <PlayerAvatar
+                  v-for="pid in m.team1_player_ids"
+                  :key="pid"
+                  :name="nameOf(pid)"
+                  :avatar-url="playerOf(pid)?.avatar_url"
+                  size="lg"
+                />
+                <span v-if="m.winner === 'team1'" class="stamp stamp--win">{{ t('matches.win') }}</span>
+                <span v-else-if="m.winner === 'draw'" class="stamp stamp--draw">{{ t('common.draw') }}</span>
               </div>
+              <span class="text-center text-sm font-medium" :class="m.winner === 'team1' ? 'text-brand-pink' : 'text-white/70'">
+                {{ m.team1_player_ids.map(nameOf).join(' & ') }}
+              </span>
             </div>
 
             <span class="hud-panel shrink-0 bg-brand-black px-2.5 py-1 font-mono text-sm text-white/80">
@@ -127,25 +125,23 @@ onMounted(async () => {
             </span>
 
             <div
-              class="flex flex-1 flex-col items-start gap-1.5"
+              class="flex flex-1 flex-col items-center gap-1.5"
               :class="{ 'opacity-45 grayscale': m.winner === 'team1' }"
             >
-              <div class="flex items-center gap-2">
-                <div class="stamp-wrap relative flex -space-x-2">
-                  <PlayerAvatar
-                    v-for="pid in m.team2_player_ids"
-                    :key="pid"
-                    :name="nameOf(pid)"
-                    :avatar-url="playerOf(pid)?.avatar_url"
-                    size="md"
-                  />
-                  <span v-if="m.winner === 'team2'" class="stamp stamp--win">{{ t('matches.win') }}</span>
-                  <span v-else-if="m.winner === 'draw'" class="stamp stamp--draw">{{ t('common.draw') }}</span>
-                </div>
-                <span class="font-medium" :class="m.winner === 'team2' ? 'text-brand-pink' : 'text-white/70'">
-                  {{ m.team2_player_ids.map(nameOf).join(' & ') }}
-                </span>
+              <div class="stamp-wrap relative flex -space-x-3">
+                <PlayerAvatar
+                  v-for="pid in m.team2_player_ids"
+                  :key="pid"
+                  :name="nameOf(pid)"
+                  :avatar-url="playerOf(pid)?.avatar_url"
+                  size="lg"
+                />
+                <span v-if="m.winner === 'team2'" class="stamp stamp--win">{{ t('matches.win') }}</span>
+                <span v-else-if="m.winner === 'draw'" class="stamp stamp--draw">{{ t('common.draw') }}</span>
               </div>
+              <span class="text-center text-sm font-medium" :class="m.winner === 'team2' ? 'text-brand-pink' : 'text-white/70'">
+                {{ m.team2_player_ids.map(nameOf).join(' & ') }}
+              </span>
             </div>
           </div>
         </RouterLink>

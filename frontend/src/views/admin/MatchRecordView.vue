@@ -25,7 +25,6 @@ function nameOf(playerId: string): string {
 const sets = ref<SetScore[]>([
   [0, 0],
   [0, 0],
-  [0, 0],
 ])
 const submitting = ref(false)
 const error = ref<string | null>(null)

@@ -1,27 +1,33 @@
 # Active Context
 
 ## Current Task
-- Added a "cancel match" admin feature (previously missing entirely) — pushing now; a throwaway in-progress match (id 65884409-01da-4930-b8d5-bdc7d6dcdf5a) is sitting on prod waiting to be cancelled once this deploys, to verify the new endpoint end-to-end
+- Pushing: bigger player avatars + name-below-avatar layout on /matches and /live, and match format reduced to 2 sets (no 3rd/tiebreaker set)
 
 ## Done Last Session
-- Confirmed live via distinctive class-string check (not exact hash — unreliable across build environments): /live "Up Next" avatars fix (commit a6db7f9)
-- User asked how admin cancels/undoes a confirmed pairing — discovered there was NO such capability: matchmaking router only had suggest/queue/confirm/submit-result, nothing to cancel an in_progress match
-- Added `DELETE /api/admin/matchmaking/matches/{match_id}` — only allowed while status is still `in_progress` (409 if already completed, protects real ELO/result history from accidental deletion); pairing_history rows cascade-delete automatically via existing FK
-- Frontend: `cancelMatch()` in `api/admin.ts`, a "Cancel Match" ghost button next to "Record Result" in MatchmakingView.vue's in-progress list (native `confirm()` dialog before cancelling, matching the existing session-delete confirm pattern), i18n keys (th/en)
-- Backend mypy + pytest (25/25) clean, frontend vue-tsc + vite build clean
-- Created a throwaway in-progress match on prod (id 65884409-...) to test the new cancel endpoint once deployed — NOT yet cancelled, needs the deploy first
+- Cancel-match feature fully verified end-to-end on prod with the real admin token: DELETE on an in-progress throwaway match -> 204, disappeared from `/api/live`; DELETE on an already-completed match -> 409 as designed
+- User reviewed `/matches` and `/live` with real member photos now uploaded, asked for: bigger avatars, name moved below the avatar instead of beside it, and only 2 sets per match (no 3rd set)
+  - `MatchHistoryView.vue` and `LiveView.vue` (both in-progress and Up Next sections): avatar size `md` -> `lg`, layout changed from horizontal (name beside cluster) to vertical (cluster centered, name below), `-space-x-2` -> `-space-x-3` for the bigger avatars
+  - `MatchRecordView.vue`: `sets` ref reduced from 3 rows to 2 — no backend change needed, winner-derivation already just counts sets_won without assuming a fixed count
+  - Scoped to the two pages the user screenshotted; MatchmakingView.vue's admin in-progress list and MatchDetailView.vue still use the old horizontal/md layout — offered to extend if wanted
+- `vue-tsc -b && vite build` clean
 
 ## Next Steps
-- Once this deploy is live, call DELETE on match 65884409-01da-4930-b8d5-bdc7d6dcdf5a to verify: 204, match disappears from /api/live and /api/admin/matchmaking/queue, then verify cancelling an already-completed match correctly 409s
-- Report result to user
+- Push and confirm live
+- If user wants full consistency, extend the same avatar-size/vertical-layout treatment to MatchmakingView.vue (admin) and MatchDetailView.vue too
 
 ## Blockers
-- none
+- None
 
 ## Last Updated
 - Claude Code — 2026-07-22
 
 ## Checkpoint (auto)
-- 02:55 — edited active.md
-- 02:52 — edited matchmaking.py
-- 02:50 — edited active.md
+- 03:02 — edited active.md
+- 03:02 — edited MatchRecordView.vue
+- 03:01 — edited LiveView.vue
+- 03:01 — edited LiveView.vue
+- 03:01 — edited MatchHistoryView.vue
+- 02:59 — edited active.md
+- 02:58 — edited active.md
+- 19:58 — deployment confirmed live (check 7)
+- Multiple deployment checks 2-6 returned 404 while Render was building

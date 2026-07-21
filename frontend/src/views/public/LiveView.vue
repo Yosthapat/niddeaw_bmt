@@ -76,42 +76,38 @@ usePolling(refresh, 7000)
             class="hud-panel border border-brand-pink/20 bg-brand-surface px-4 py-3"
           >
             <div class="flex items-center justify-between gap-3">
-              <div class="flex flex-1 flex-col items-end gap-1.5">
-                <div class="flex items-center gap-2">
-                  <span class="text-right font-medium text-white/80">
-                    {{ m.team1_player_ids.map(nameOf).join(' & ') }}
-                  </span>
-                  <div class="flex -space-x-2">
-                    <PlayerAvatar
-                      v-for="pid in m.team1_player_ids"
-                      :key="pid"
-                      :name="nameOf(pid)"
-                      :avatar-url="avatarOf(pid)"
-                      size="md"
-                    />
-                  </div>
+              <div class="flex flex-1 flex-col items-center gap-1.5">
+                <div class="flex -space-x-3">
+                  <PlayerAvatar
+                    v-for="pid in m.team1_player_ids"
+                    :key="pid"
+                    :name="nameOf(pid)"
+                    :avatar-url="avatarOf(pid)"
+                    size="lg"
+                  />
                 </div>
+                <span class="text-center font-medium text-white/80">
+                  {{ m.team1_player_ids.map(nameOf).join(' & ') }}
+                </span>
               </div>
 
               <span class="hud-panel shrink-0 border border-brand-pink/20 bg-brand-black px-2.5 py-1 text-xs font-semibold text-white/50 uppercase">
                 {{ t('live.playing') }}
               </span>
 
-              <div class="flex flex-1 flex-col items-start gap-1.5">
-                <div class="flex items-center gap-2">
-                  <div class="flex -space-x-2">
-                    <PlayerAvatar
-                      v-for="pid in m.team2_player_ids"
-                      :key="pid"
-                      :name="nameOf(pid)"
-                      :avatar-url="avatarOf(pid)"
-                      size="md"
-                    />
-                  </div>
-                  <span class="font-medium text-white/80">
-                    {{ m.team2_player_ids.map(nameOf).join(' & ') }}
-                  </span>
+              <div class="flex flex-1 flex-col items-center gap-1.5">
+                <div class="flex -space-x-3">
+                  <PlayerAvatar
+                    v-for="pid in m.team2_player_ids"
+                    :key="pid"
+                    :name="nameOf(pid)"
+                    :avatar-url="avatarOf(pid)"
+                    size="lg"
+                  />
                 </div>
+                <span class="text-center font-medium text-white/80">
+                  {{ m.team2_player_ids.map(nameOf).join(' & ') }}
+                </span>
               </div>
             </div>
           </li>
@@ -130,36 +126,36 @@ usePolling(refresh, 7000)
             class="hud-panel border border-brand-pink/20 bg-brand-surface px-4 py-3"
           >
             <div class="flex items-center justify-between gap-3">
-              <div class="flex flex-1 items-center justify-end gap-2">
-                <span class="text-right text-sm text-white/80">
-                  {{ s.team1_player_ids.map(nameOf).join(' & ') }}
-                </span>
-                <div class="flex -space-x-2">
+              <div class="flex flex-1 flex-col items-center gap-1.5">
+                <div class="flex -space-x-3">
                   <PlayerAvatar
                     v-for="pid in s.team1_player_ids"
                     :key="pid"
                     :name="nameOf(pid)"
                     :avatar-url="avatarOf(pid)"
-                    size="md"
+                    size="lg"
                   />
                 </div>
+                <span class="text-center text-sm text-white/80">
+                  {{ s.team1_player_ids.map(nameOf).join(' & ') }}
+                </span>
               </div>
 
               <span class="hud-panel shrink-0 border border-brand-pink/20 bg-brand-black px-2 py-0.5 text-xs font-semibold text-brand-pink/70 uppercase">
                 VS
               </span>
 
-              <div class="flex flex-1 items-center gap-2">
-                <div class="flex -space-x-2">
+              <div class="flex flex-1 flex-col items-center gap-1.5">
+                <div class="flex -space-x-3">
                   <PlayerAvatar
                     v-for="pid in s.team2_player_ids"
                     :key="pid"
                     :name="nameOf(pid)"
                     :avatar-url="avatarOf(pid)"
-                    size="md"
+                    size="lg"
                   />
                 </div>
-                <span class="text-sm text-white/80">
+                <span class="text-center text-sm text-white/80">
                   {{ s.team2_player_ids.map(nameOf).join(' & ') }}
                 </span>
               </div>
