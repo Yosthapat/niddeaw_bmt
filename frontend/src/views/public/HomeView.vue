@@ -102,11 +102,7 @@ const sponsors = [
     </div>
 
     <div class="reveal mt-10 flex flex-col items-center text-center sm:mt-12">
-      <span class="hud-panel border border-brand-pink/40 bg-brand-surface p-1">
-        <img src="/pwa-icons/pwa-512x512.png" alt="นิดเดียว Badminton Club logo" class="hud-panel h-24 w-24 sm:h-32 sm:w-32" />
-      </span>
-
-      <h1 class="mt-8 font-display text-[clamp(2rem,7vw,3.75rem)] leading-none font-bold text-white">
+      <h1 class="font-display text-[clamp(2rem,7vw,3.75rem)] leading-none font-bold text-white">
         นิดเดียว<span class="text-brand-pink">BADMINTON</span>
       </h1>
       <p class="mt-4 max-w-md text-balance text-white/60">

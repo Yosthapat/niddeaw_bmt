@@ -47,14 +47,14 @@ onUnmounted(stop)
 <template>
   <div
     v-if="images.length > 0"
-    class="hud-panel relative aspect-[21/5] w-full overflow-hidden border border-brand-pink/20 bg-brand-black sm:aspect-[16/3.2]"
+    class="hud-panel relative aspect-[12/5] w-full overflow-hidden border border-brand-pink/20 bg-brand-black"
   >
     <img
       v-for="(src, i) in images"
       :key="src"
       :src="src"
       alt=""
-      class="absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ease-out"
+      class="absolute inset-0 h-full w-full object-contain transition-opacity duration-700 ease-out"
       :class="i === activeIndex ? 'opacity-100' : 'opacity-0'"
     />
     <div v-if="images.length > 1" class="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1.5">
