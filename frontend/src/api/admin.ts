@@ -9,9 +9,9 @@ import type {
   Match,
   MatchmakingQueueResponse,
   MatchmakingSuggestionResponse,
+  MatchWinner,
   Player,
   Session,
-  SetScore,
 } from '@/types'
 
 // Mirrors backend/app/routers/admin/{auth,sessions,checkins,matchmaking,billing,players_admin,settings}.py.
@@ -93,10 +93,10 @@ export async function confirmMatch(match: {
   })
 }
 
-export async function recordMatchResult(matchId: string, sets: SetScore[]): Promise<Match> {
+export async function recordMatchResult(matchId: string, winner: MatchWinner): Promise<Match> {
   return request(`/api/admin/matchmaking/matches/${matchId}/result`, {
     method: 'POST',
-    body: JSON.stringify({ sets }),
+    body: JSON.stringify({ winner }),
   })
 }
 

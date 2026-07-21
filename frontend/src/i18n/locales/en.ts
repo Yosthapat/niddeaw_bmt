@@ -172,8 +172,7 @@ export default {
   matchRecord: {
     title: 'Record Match Result',
     notFound: 'Match not found — back to',
-    set: 'Set',
-    submit: 'Submit Result (ELO updates automatically)',
+    wins: 'Wins',
     failed: 'Failed to submit result',
   },
   billing: {

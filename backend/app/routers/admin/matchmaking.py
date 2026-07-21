@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, status
 
 from app.db_utils import rows
 from app.deps import AdminDep, SupabaseDep
-from app.models.match import Match, MatchResultSubmit, Winner
+from app.models.match import Match, MatchResultSubmit
 from app.models.matchmaking import MatchmakingConfirmRequest, MatchmakingQueueResponse, MatchmakingSuggestionResponse
 from app.services import elo_service, matchmaking_service, queue_service
 
@@ -85,16 +85,7 @@ def submit_result(
 
     team1_ids = [UUID(pid) for pid in match_row["team1_player_ids"]]
     team2_ids = [UUID(pid) for pid in match_row["team2_player_ids"]]
-
-    sets_won_team1 = sum(1 for s1, s2 in payload.sets if s1 > s2)
-    sets_won_team2 = sum(1 for s1, s2 in payload.sets if s2 > s1)
-    winner: Winner
-    if sets_won_team1 > sets_won_team2:
-        winner = "team1"
-    elif sets_won_team2 > sets_won_team1:
-        winner = "team2"
-    else:
-        winner = "draw"
+    winner = payload.winner
 
     all_ids = team1_ids + team2_ids
     players_result = (
@@ -128,7 +119,6 @@ def submit_result(
         supabase.table("matches")
         .update(
             {
-                "sets": [list(s) for s in payload.sets],
                 "winner": winner,
                 "status": "completed",
                 "updated_at": datetime.now(timezone.utc).isoformat(),

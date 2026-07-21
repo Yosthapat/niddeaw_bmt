@@ -16,9 +16,9 @@ TEAM_SIZE_BY_TYPE: dict[MatchType, int] = {"single": 1, "double": 2}
 
 
 class MatchResultSubmit(BaseModel):
-    """Admin submits raw set scores; winner is always derived server-side."""
+    """Admin submits the outcome directly — win/loss/draw, no set scores."""
 
-    sets: list[SetScore]
+    winner: Winner
 
 
 class Match(BaseModel):

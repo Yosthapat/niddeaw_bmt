@@ -170,8 +170,7 @@ export default {
   matchRecord: {
     title: 'บันทึกผลแมตช์',
     notFound: 'ไม่พบแมตช์ — กลับไปหน้า',
-    set: 'Set',
-    submit: 'บันทึกผล (ELO จะอัพเดทอัตโนมัติ)',
+    wins: 'ชนะ',
     failed: 'บันทึกผลไม่สำเร็จ',
   },
   billing: {
