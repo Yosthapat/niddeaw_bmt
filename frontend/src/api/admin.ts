@@ -100,6 +100,10 @@ export async function recordMatchResult(matchId: string, sets: SetScore[]): Prom
   })
 }
 
+export async function cancelMatch(matchId: string): Promise<void> {
+  await request(`/api/admin/matchmaking/matches/${matchId}`, { method: 'DELETE' })
+}
+
 // Billing
 export async function getBillings(sessionId: string): Promise<Billing[]> {
   return request(`/api/admin/billing?session_id=${sessionId}`)

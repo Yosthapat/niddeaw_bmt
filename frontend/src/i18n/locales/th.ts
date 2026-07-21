@@ -162,6 +162,10 @@ export default {
     waitingForPlayers: 'รอผู้เล่นเช็คอินให้ครบ 4 คนเพื่อจัดคู่',
     inQueue: 'รอคิว',
     confirmFailed: 'ยืนยันคู่ไม่สำเร็จ',
+    cancelMatch: 'ยกเลิกแมตช์',
+    cancelling: 'กำลังยกเลิก...',
+    cancelConfirm: 'ยกเลิกแมตช์ {team1} vs {team2}? ผู้เล่นจะกลับไปอยู่ในคิวรอ',
+    cancelFailed: 'ยกเลิกแมตช์ไม่สำเร็จ',
   },
   matchRecord: {
     title: 'บันทึกผลแมตช์',

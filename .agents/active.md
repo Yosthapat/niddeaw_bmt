@@ -1,17 +1,19 @@
 # Active Context
 
 ## Current Task
-- Fixed /live page: "Up Next" suggestions were showing plain text names with no player avatars, unlike the in-progress section — pushing this fix
+- Added a "cancel match" admin feature (previously missing entirely) — pushing now; a throwaway in-progress match (id 65884409-01da-4930-b8d5-bdc7d6dcdf5a) is sitting on prod waiting to be cancelled once this deploys, to verify the new endpoint end-to-end
 
 ## Done Last Session
-- Full end-to-end live testing of matchmaking system with 9 real members (session created, all checked in, 5 matches played covering win/loss/draw, ELO/tier updates verified) — nothing deleted per user request
-- User spotted via screenshot that LiveView.vue's "คิวถัดไป" (Up Next) suggestions section only rendered team names as plain text, no `PlayerAvatar` — inconsistent with the in-progress section above it and the waiting-queue section below it, both of which already had avatars
-- Added `PlayerAvatar` clusters (size md, `-space-x-2` stacking) to the Up Next section, matching the in-progress section's layout exactly
-- `vue-tsc -b && vite build` clean
+- Confirmed live via distinctive class-string check (not exact hash — unreliable across build environments): /live "Up Next" avatars fix (commit a6db7f9)
+- User asked how admin cancels/undoes a confirmed pairing — discovered there was NO such capability: matchmaking router only had suggest/queue/confirm/submit-result, nothing to cancel an in_progress match
+- Added `DELETE /api/admin/matchmaking/matches/{match_id}` — only allowed while status is still `in_progress` (409 if already completed, protects real ELO/result history from accidental deletion); pairing_history rows cascade-delete automatically via existing FK
+- Frontend: `cancelMatch()` in `api/admin.ts`, a "Cancel Match" ghost button next to "Record Result" in MatchmakingView.vue's in-progress list (native `confirm()` dialog before cancelling, matching the existing session-delete confirm pattern), i18n keys (th/en)
+- Backend mypy + pytest (25/25) clean, frontend vue-tsc + vite build clean
+- Created a throwaway in-progress match on prod (id 65884409-...) to test the new cancel endpoint once deployed — NOT yet cancelled, needs the deploy first
 
 ## Next Steps
-- Push and confirm live
-- Known minor gap from testing: no server-side check preventing an admin from manually pairing a player who's still marked in-progress in another match (only auto-suggest excludes them) — not fixed, flagged for user to decide if it's worth guarding against
+- Once this deploy is live, call DELETE on match 65884409-01da-4930-b8d5-bdc7d6dcdf5a to verify: 204, match disappears from /api/live and /api/admin/matchmaking/queue, then verify cancelling an already-completed match correctly 409s
+- Report result to user
 
 ## Blockers
 - none
@@ -20,6 +22,6 @@
 - Claude Code — 2026-07-22
 
 ## Checkpoint (auto)
-- 02:49 — edited active.md
-- 02:48 — edited LiveView.vue
-- 02:43 — edited active.md
+- 02:55 — edited active.md
+- 02:52 — edited matchmaking.py
+- 02:50 — edited active.md

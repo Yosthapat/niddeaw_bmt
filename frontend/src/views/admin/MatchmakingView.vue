@@ -19,6 +19,9 @@ const queue = ref<MatchmakingQueueResponse | null>(null)
 const confirming = ref<number | null>(null)
 const confirmError = ref<string | null>(null)
 
+const cancelling = ref<string | null>(null)
+const cancelError = ref<string | null>(null)
+
 const editingGroup = ref<number | null>(null)
 const draftByGroup = ref<Record<number, { team1: string[]; team2: string[] }>>({})
 
@@ -40,6 +43,21 @@ async function refreshQueue(): Promise<void> {
     return
   }
   queue.value = await adminApi.getMatchmakingQueue(sessionsStore.currentSessionId)
+}
+
+async function cancelMatch(matchId: string, team1: string, team2: string): Promise<void> {
+  const confirmed = window.confirm(t('matchmaking.cancelConfirm', { team1, team2 }))
+  if (!confirmed) return
+  cancelling.value = matchId
+  cancelError.value = null
+  try {
+    await adminApi.cancelMatch(matchId)
+    await refreshQueue()
+  } catch (e) {
+    cancelError.value = apiErrorMessage(e, t('matchmaking.cancelFailed'))
+  } finally {
+    cancelling.value = null
+  }
 }
 
 function availablePool(): { id: string; name: string }[] {
@@ -122,6 +140,7 @@ const pollControls = usePolling(refreshQueue, 7000)
     </div>
 
     <p v-if="confirmError" class="mt-4 text-sm text-status-error">{{ confirmError }}</p>
+    <p v-if="cancelError" class="mt-4 text-sm text-status-error">{{ cancelError }}</p>
 
     <p v-if="!sessionsStore.currentSessionId" class="mt-8 text-white/60">
       {{ t('matchmaking.selectSessionFirst') }}
@@ -159,7 +178,7 @@ const pollControls = usePolling(refreshQueue, 7000)
                 </div>
               </div>
             </div>
-            <div class="mt-2 flex justify-center">
+            <div class="mt-2 flex items-center justify-center gap-2">
               <RouterLink
                 :to="{
                   path: '/admin/matches/record',
@@ -173,6 +192,15 @@ const pollControls = usePolling(refreshQueue, 7000)
               >
                 {{ t('matchmaking.recordResult') }}
               </RouterLink>
+              <button
+                :disabled="cancelling === m.match_id"
+                class="rounded-full border border-white/20 px-3 py-1 text-xs text-white/60 hover:border-status-error hover:text-status-error disabled:opacity-50"
+                @click="
+                  cancelMatch(m.match_id, m.team1_player_ids.map(nameOf).join(' & '), m.team2_player_ids.map(nameOf).join(' & '))
+                "
+              >
+                {{ cancelling === m.match_id ? t('matchmaking.cancelling') : t('matchmaking.cancelMatch') }}
+              </button>
             </div>
           </li>
           <li v-if="queue.in_progress.length === 0" class="text-sm text-white/40">{{ t('matchmaking.noneInProgress') }}</li>

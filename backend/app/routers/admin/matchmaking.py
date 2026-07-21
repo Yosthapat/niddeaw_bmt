@@ -56,6 +56,23 @@ def confirm(payload: MatchmakingConfirmRequest, supabase: SupabaseDep, admin: Ad
     return Match.model_validate(match_result_rows[0])
 
 
+@router.delete("/matches/{match_id}", status_code=status.HTTP_204_NO_CONTENT)
+def cancel_match(match_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> None:
+    """Cancels a mis-paired or no-longer-needed match — only while it's still
+    in_progress, so a completed match's result/ELO history can't be erased
+    by mistake. pairing_history rows cascade-delete with the match."""
+    match_result = supabase.table("matches").select("status").eq("id", str(match_id)).limit(1).execute()
+    match_rows = rows(match_result)
+    if not match_rows:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Match not found")
+    if match_rows[0]["status"] != "in_progress":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only an in-progress match can be cancelled",
+        )
+    supabase.table("matches").delete().eq("id", str(match_id)).execute()
+
+
 @router.post("/matches/{match_id}/result", response_model=Match)
 def submit_result(
     match_id: UUID, payload: MatchResultSubmit, supabase: SupabaseDep, admin: AdminDep
