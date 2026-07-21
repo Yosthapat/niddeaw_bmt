@@ -43,8 +43,8 @@ export default {
       snacks: 'มีขนม',
       noSmoking: 'งดบุหรี่',
     },
-    contactTitle: 'ติดต่อผู้จัดก๊วน โดย Beerminton',
-    contactBody: 'สมัครสมาชิกใหม่ / request คู่ หรือ คู่แข่ง ทักแอดมินได้ทาง LINE OA : \\@369iojcn ได้เลย',
+    contactTitle: 'ติดต่อผู้จัดก๊วน — Beerminton',
+    contactBody: 'สมัครสมาชิกใหม่ / request คู่ หรือ คู่แข่ง ทักแอดมินได้เลย',
     sponsorsTitle: 'ผู้สนับสนุน',
   },
   members: {

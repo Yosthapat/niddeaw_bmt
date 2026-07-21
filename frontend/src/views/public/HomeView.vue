@@ -61,6 +61,22 @@ const vibes = computed(() => [
   },
 ])
 
+// Own-drawn line-icon glyphs (not the real brand marks) so the contact
+// badges match the site's hand-drawn icon language instead of pasting in
+// LINE's green speech-bubble or TikTok's note logo.
+const socialLinks = [
+  {
+    label: 'LINE OA',
+    href: 'https://line.me/R/ti/p/@369iojcn',
+    path: 'M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9l-4 4v-4H6a2 2 0 0 1-2-2Z',
+  },
+  {
+    label: 'TikTok',
+    href: 'https://www.tiktok.com/@nidde4w',
+    path: 'M6 20V10 M12 20V4 M18 20V13',
+  },
+]
+
 // -mono.png variants: original logos recolored to a white silhouette
 // (RGB -> white, original alpha kept as the mask) so every logo reads
 // cleanly straight against the dark background with no card/box needed —
@@ -135,6 +151,29 @@ const sponsors = [
       <p class="mt-2 text-sm text-white/60">
         {{ t('home.contactBody') }}
       </p>
+      <div class="mt-4 flex flex-wrap gap-2">
+        <a
+          v-for="social in socialLinks"
+          :key="social.label"
+          :href="social.href"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="hud-panel inline-flex items-center gap-1.5 border border-brand-pink/25 bg-brand-black px-3 py-1.5 text-xs font-semibold text-white/80 transition-colors hover:border-brand-pink hover:text-brand-pink"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="h-4 w-4"
+          >
+            <path :d="social.path" />
+          </svg>
+          {{ social.label }}
+        </a>
+      </div>
     </section>
 
     <section class="reveal sponsors mt-10 border-t border-b border-brand-pink/15 py-8 text-center sm:mt-12">

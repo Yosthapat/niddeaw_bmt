@@ -44,8 +44,8 @@ export default {
       snacks: 'Snacks Provided',
       noSmoking: 'No Smoking',
     },
-    contactTitle: 'Contact the Organizer by Beerminton',
-    contactBody: 'New members / looking for a partner or opponent — message the admin on LINE OA: \\@369iojcn',
+    contactTitle: 'Contact the Club Organizer — Beerminton',
+    contactBody: 'New members / looking for a partner or opponent — feel free to message the admin',
     sponsorsTitle: 'Presented by',
   },
   members: {
