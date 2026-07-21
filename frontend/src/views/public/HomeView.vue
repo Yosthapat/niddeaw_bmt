@@ -22,14 +22,6 @@ const tiers: { tier: EloTier; label: string; color: string }[] = [
   { tier: 'vodka', label: 'Vodka', color: 'var(--color-tier-vodka)' },
 ]
 
-// Hall of Fame quick-link card is temporarily hidden (not in use yet),
-// matching the header nav — see AppHeader.vue.
-const quickLinks = computed(() => [
-  { to: '/members', num: '01', label: t('nav.members'), desc: t('home.quickLinks.membersDesc') },
-  { to: '/ranking', num: '02', label: t('nav.ranking'), desc: t('home.quickLinks.rankingDesc') },
-  { to: '/matches', num: '03', label: t('nav.matches'), desc: t('home.quickLinks.matchesDesc') },
-])
-
 // Club vibe strip — hand-drawn line icons (24x24, stroke-based) instead of
 // filled/flat glyphs so they sit quietly next to the bolder TierMascot
 // illustrations above rather than competing with them.
@@ -118,19 +110,6 @@ const sponsors = [
       </div>
     </div>
 
-    <nav class="reveal mt-12 grid grid-cols-1 gap-3 sm:mt-16 sm:grid-cols-3">
-      <RouterLink
-        v-for="link in quickLinks"
-        :key="link.to"
-        :to="link.to"
-        class="hud-panel group border border-brand-pink/20 bg-brand-surface p-4 transition-colors hover:border-brand-pink/60 hover:bg-brand-surface-raised"
-      >
-        <span class="font-display text-xs text-brand-pink/60 group-hover:text-brand-pink">{{ link.num }}</span>
-        <p class="mt-2 font-display font-semibold text-white">{{ link.label }}</p>
-        <p class="mt-1 text-xs text-white/40">{{ link.desc }}</p>
-      </RouterLink>
-    </nav>
-
     <section class="reveal hud-panel mt-8 border border-brand-pink/20 bg-brand-surface p-6 sm:mt-10">
       <h2 class="text-center text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">{{ t('home.vibesTitle') }}</h2>
       <div class="mt-5 flex flex-wrap justify-center gap-x-6 gap-y-5 sm:gap-x-8">
@@ -201,21 +180,6 @@ const sponsors = [
 .reveal {
   animation: reveal-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-nav.reveal > * {
-  animation: reveal-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-nav.reveal > *:nth-child(1) {
-  animation-delay: 0.05s;
-}
-nav.reveal > *:nth-child(2) {
-  animation-delay: 0.1s;
-}
-nav.reveal > *:nth-child(3) {
-  animation-delay: 0.15s;
-}
-nav.reveal > *:nth-child(4) {
-  animation-delay: 0.2s;
-}
 section.reveal {
   animation-delay: 0.25s;
 }
@@ -235,8 +199,7 @@ section.reveal.sponsors {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .reveal,
-  nav.reveal > * {
+  .reveal {
     animation: none;
   }
 }
