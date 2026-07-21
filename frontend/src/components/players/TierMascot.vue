@@ -174,6 +174,35 @@ withDefaults(defineProps<{ tier: EloTier; size?: number }>(), {
   </svg>
 
   <svg
+    v-else-if="tier === 'wine'"
+    :width="size"
+    :height="size"
+    viewBox="0 0 120 120"
+    role="img"
+    aria-label="Wine tier mascot"
+  >
+    <path
+      d="M32 16 Q30 46 46 58 Q52 62 52 70 L52 100 Q52 106 58 106 L62 106 Q68 106 68 100 L68 70 Q68 62 74 58 Q90 46 88 16 Z"
+      fill="none"
+      stroke="#2a2420"
+      stroke-width="4"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M36 30 Q36 48 48 57 Q54 61 54 68 L66 68 Q66 61 72 57 Q84 48 84 30 Z"
+      fill="#7c2d42"
+      opacity="0.9"
+    />
+    <path d="M46 106 L74 106" stroke="#2a2420" stroke-width="4" stroke-linecap="round" />
+    <!-- a soft swirl highlight on the wine surface -->
+    <path d="M42 34 Q46 30 52 31" stroke="#c98aa0" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.8" />
+    <!-- calm, half-closed eyes and a small content smile — mellow and savoring, sitting between highball's sporty energy and soju's easygoing tipsiness -->
+    <path d="M44 40 Q48 37 52 40" stroke="#2a2420" stroke-width="3.5" fill="none" stroke-linecap="round" />
+    <path d="M68 40 Q72 37 76 40" stroke="#2a2420" stroke-width="3.5" fill="none" stroke-linecap="round" />
+    <path d="M52 48 Q60 52 68 48" stroke="#2a2420" stroke-width="3.5" fill="none" stroke-linecap="round" />
+  </svg>
+
+  <svg
     v-else
     :width="size"
     :height="size"

@@ -16,12 +16,15 @@ SCORE_FLOOR = 100
 
 _TIER_THRESHOLDS: list[tuple[int, EloTier]] = [
     (900, "milk"),
-    (1100, "soju"),
-    (1300, "beer"),
-    (1500, "whisky"),
-    (1700, "highball"),
+    (1100, "beer"),
+    (1300, "highball"),
+    (1500, "wine"),
+    (1700, "soju"),
+    (1900, "whisky"),
 ]
-"""Every tier from Soju up is an equal 200-point band."""
+"""Ordered by rising alcohol content (Milk 0% -> Beer ~5% -> Highball ~7-9%
+-> Wine ~12-13% -> Soju ~16-20% -> Whisky ~40% -> Vodka ~40%+), each tier
+from Beer up an equal 200-point band."""
 
 
 def get_tier(score: int) -> EloTier:

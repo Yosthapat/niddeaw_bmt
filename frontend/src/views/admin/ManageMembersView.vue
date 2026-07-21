@@ -19,11 +19,12 @@ const error = ref<string | null>(null)
 // backend/app/services/elo_service.py's get_tier() thresholds.
 const tierOptions: { tier: EloTier; label: string; score: number; color: string }[] = [
   { tier: 'milk', label: 'Milk', score: 800, color: 'var(--color-tier-milk)' },
-  { tier: 'soju', label: 'Soju', score: 1000, color: 'var(--color-tier-soju)' },
-  { tier: 'beer', label: 'Beer', score: 1200, color: 'var(--color-tier-beer)' },
-  { tier: 'whisky', label: 'Whisky', score: 1400, color: 'var(--color-tier-whisky)' },
-  { tier: 'highball', label: 'Highball', score: 1600, color: 'var(--color-tier-highball)' },
-  { tier: 'vodka', label: 'Vodka', score: 1800, color: 'var(--color-tier-vodka)' },
+  { tier: 'beer', label: 'Beer', score: 1000, color: 'var(--color-tier-beer)' },
+  { tier: 'highball', label: 'Highball', score: 1200, color: 'var(--color-tier-highball)' },
+  { tier: 'wine', label: 'Wine', score: 1400, color: 'var(--color-tier-wine)' },
+  { tier: 'soju', label: 'Soju', score: 1600, color: 'var(--color-tier-soju)' },
+  { tier: 'whisky', label: 'Whisky', score: 1800, color: 'var(--color-tier-whisky)' },
+  { tier: 'vodka', label: 'Vodka', score: 2000, color: 'var(--color-tier-vodka)' },
 ]
 
 type HandOption = '' | 'left' | 'right'

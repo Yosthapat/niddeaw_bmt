@@ -1,4 +1,4 @@
-export type EloTier = 'milk' | 'soju' | 'beer' | 'whisky' | 'highball' | 'vodka'
+export type EloTier = 'milk' | 'beer' | 'highball' | 'wine' | 'soju' | 'whisky' | 'vodka'
 export type DominantHand = 'left' | 'right'
 
 export interface Player {
