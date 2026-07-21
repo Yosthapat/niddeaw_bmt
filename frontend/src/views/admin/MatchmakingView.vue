@@ -25,6 +25,10 @@ const cancelError = ref<string | null>(null)
 const editingGroup = ref<number | null>(null)
 const draftByGroup = ref<Record<number, { team1: string[]; team2: string[] }>>({})
 
+const creatingCustom = ref(false)
+const customConfirming = ref(false)
+const customDraft = ref<{ team1: string[]; team2: string[] }>({ team1: ['', ''], team2: ['', ''] })
+
 function apiErrorMessage(e: unknown, fallback: string): string {
   if (e instanceof ApiError) {
     return `${fallback} (${e.status}: ${e.message})`
@@ -121,6 +125,48 @@ async function confirmSuggestion(groupNo: number): Promise<void> {
   }
 }
 
+function customHasDuplicate(): boolean {
+  const all = [...customDraft.value.team1, ...customDraft.value.team2].filter(Boolean)
+  return new Set(all).size !== all.length
+}
+
+function customIsComplete(): boolean {
+  return [...customDraft.value.team1, ...customDraft.value.team2].every((id) => id !== '')
+}
+
+function startCustomMatch(): void {
+  customDraft.value = { team1: ['', ''], team2: ['', ''] }
+  creatingCustom.value = true
+  pollControls.stop()
+}
+
+function cancelCustomMatch(): void {
+  creatingCustom.value = false
+  pollControls.start()
+}
+
+async function confirmCustomMatch(): Promise<void> {
+  if (!sessionsStore.currentSessionId) return
+  if (!customIsComplete() || customHasDuplicate()) return
+  customConfirming.value = true
+  confirmError.value = null
+  try {
+    await adminApi.confirmMatch({
+      session_id: sessionsStore.currentSessionId,
+      type: 'double',
+      team1_player_ids: customDraft.value.team1,
+      team2_player_ids: customDraft.value.team2,
+    })
+    creatingCustom.value = false
+    pollControls.start()
+    await refreshQueue()
+  } catch (e) {
+    confirmError.value = apiErrorMessage(e, t('matchmaking.confirmFailed'))
+  } finally {
+    customConfirming.value = false
+  }
+}
+
 watch(() => sessionsStore.currentSessionId, refreshQueue)
 
 onMounted(async () => {
@@ -208,7 +254,59 @@ const pollControls = usePolling(refreshQueue, 7000)
       </section>
 
       <section class="mt-8">
-        <h2 class="text-sm font-semibold text-white/70">{{ t('matchmaking.nextSuggestion') }}</h2>
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-semibold text-white/70">{{ t('matchmaking.nextSuggestion') }}</h2>
+          <button
+            v-if="!creatingCustom"
+            class="rounded-full border border-brand-pink/40 px-3 py-1 text-xs text-brand-pink hover:bg-brand-pink hover:text-brand-black"
+            @click="startCustomMatch"
+          >
+            {{ t('matchmaking.createCustom') }}
+          </button>
+        </div>
+
+        <div v-if="creatingCustom" class="hud-panel mt-2 border border-brand-pink/20 bg-brand-surface px-4 py-3">
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <div>
+              <p class="mb-1 text-white/40">{{ t('matchmaking.team') }} 1</p>
+              <select
+                v-for="(_, i) in customDraft.team1"
+                :key="'c1-' + i"
+                v-model="customDraft.team1[i]"
+                class="mb-1 w-full rounded border border-brand-pink/25 bg-brand-black px-2 py-1"
+              >
+                <option value="" disabled>{{ t('matchmaking.pickPlayer') }}</option>
+                <option v-for="p in availablePool()" :key="p.id" :value="p.id">{{ p.name }}</option>
+              </select>
+            </div>
+            <div>
+              <p class="mb-1 text-white/40">{{ t('matchmaking.team') }} 2</p>
+              <select
+                v-for="(_, i) in customDraft.team2"
+                :key="'c2-' + i"
+                v-model="customDraft.team2[i]"
+                class="mb-1 w-full rounded border border-brand-pink/25 bg-brand-black px-2 py-1"
+              >
+                <option value="" disabled>{{ t('matchmaking.pickPlayer') }}</option>
+                <option v-for="p in availablePool()" :key="p.id" :value="p.id">{{ p.name }}</option>
+              </select>
+            </div>
+          </div>
+          <p v-if="customHasDuplicate()" class="mt-2 text-xs text-status-error">
+            {{ t('matchmaking.duplicatePlayer') }}
+          </p>
+          <div class="mt-3 flex gap-2">
+            <button
+              :disabled="customConfirming || !customIsComplete() || customHasDuplicate()"
+              class="rounded-full bg-brand-pink px-3 py-1 text-xs font-semibold text-brand-black disabled:opacity-50"
+              @click="confirmCustomMatch"
+            >
+              {{ customConfirming ? '...' : t('matchmaking.confirm') }}
+            </button>
+            <button class="text-xs text-white/50" @click="cancelCustomMatch">{{ t('common.cancel') }}</button>
+          </div>
+        </div>
+
         <ul class="mt-2 space-y-2">
           <li
             v-for="s in queue.suggestions"

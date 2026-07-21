@@ -168,6 +168,8 @@ export default {
     cancelling: 'Cancelling...',
     cancelConfirm: 'Cancel match {team1} vs {team2}? Players will return to the waiting queue.',
     cancelFailed: 'Failed to cancel match',
+    createCustom: 'Create Custom Match',
+    pickPlayer: 'Pick a player',
   },
   matchRecord: {
     title: 'Record Match Result',

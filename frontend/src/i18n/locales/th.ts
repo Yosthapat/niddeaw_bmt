@@ -166,6 +166,8 @@ export default {
     cancelling: 'กำลังยกเลิก...',
     cancelConfirm: 'ยกเลิกแมตช์ {team1} vs {team2}? ผู้เล่นจะกลับไปอยู่ในคิวรอ',
     cancelFailed: 'ยกเลิกแมตช์ไม่สำเร็จ',
+    createCustom: 'สร้างคู่เอง',
+    pickPlayer: 'เลือกผู้เล่น',
   },
   matchRecord: {
     title: 'บันทึกผลแมตช์',
