@@ -9,11 +9,12 @@ const route = useRoute()
 const authStore = useAuthStore()
 const { t } = useI18n()
 
+// Hall of Fame nav link is temporarily hidden (not in use yet) — the
+// /hall-of-fame route and view still exist, just unlinked from the header.
 const publicLinks = computed(() => [
   { to: '/', label: t('nav.home') },
   { to: '/members', label: t('nav.members') },
   { to: '/ranking', label: t('nav.ranking') },
-  { to: '/hall-of-fame', label: t('nav.hallOfFame') },
   { to: '/live', label: t('nav.live') },
   { to: '/matches', label: t('nav.matches') },
 ])
@@ -31,7 +32,7 @@ const publicLinks = computed(() => [
         </span>
       </RouterLink>
 
-      <nav class="flex flex-1 gap-4 overflow-x-auto text-xs font-semibold tracking-wider uppercase sm:gap-5">
+      <nav class="flex flex-1 gap-4 text-xs font-semibold tracking-wider uppercase sm:gap-5">
         <RouterLink
           v-for="link in publicLinks"
           :key="link.to"
