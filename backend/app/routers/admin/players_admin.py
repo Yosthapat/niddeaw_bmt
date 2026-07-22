@@ -41,6 +41,10 @@ def update_player(
     updates = payload.model_dump(mode="json", exclude_unset=True)
     if not updates:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
+    if "elo_score" in updates and updates["elo_score"] is not None:
+        clamped = max(SCORE_FLOOR, updates["elo_score"])
+        updates["elo_score"] = clamped
+        updates["elo_level"] = get_tier(clamped)
     result = supabase.table("players").update(updates).eq("id", str(player_id)).execute()
     result_rows = rows(result)
     if not result_rows:

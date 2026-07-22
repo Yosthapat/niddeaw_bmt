@@ -65,6 +65,7 @@ export default {
     deactivate: 'Deactivate',
     activate: 'Activate',
     clickToChangePhoto: 'Click photo to change it',
+    eloScore: 'ELO Score',
   },
   ranking: {
     allTime: 'All-time',

@@ -30,6 +30,10 @@ class PlayerUpdate(BaseModel):
     dominant_hand: DominantHand | None = None
     tiktok: str | None = None
     instagram: str | None = None
+    elo_score: int | None = None
+    """Manual admin override — bypasses match-based deltas entirely. When
+    set, elo_level is recomputed from this value server-side (see
+    update_player in routers/admin/players_admin.py)."""
 
 
 class Player(PlayerBase):

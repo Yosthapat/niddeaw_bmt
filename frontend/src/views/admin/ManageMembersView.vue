@@ -3,6 +3,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
 import { ApiError } from '@/api/client'
+import { useEloTier } from '@/composables/useEloTier'
 import type { EloTier, Player } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
@@ -55,6 +56,7 @@ const editForm = reactive({
   dominant_hand: '' as HandOption,
   tiktok: '',
   instagram: '',
+  elo_score: 0,
 })
 const uploadingAvatarId = ref<string | null>(null)
 
@@ -126,6 +128,7 @@ function startEdit(player: Player): void {
   editForm.dominant_hand = player.dominant_hand ?? ''
   editForm.tiktok = player.tiktok ?? ''
   editForm.instagram = player.instagram ?? ''
+  editForm.elo_score = player.elo_score
 }
 
 function cancelEdit(): void {
@@ -141,6 +144,7 @@ async function saveEdit(player: Player): Promise<void> {
       dominant_hand: editForm.dominant_hand || null,
       tiktok: editForm.tiktok.trim() || null,
       instagram: editForm.instagram.trim() || null,
+      elo_score: editForm.elo_score,
     })
     players.value = players.value.map((p) => (p.id === updated.id ? updated : p))
     editingId.value = null
@@ -152,6 +156,10 @@ async function saveEdit(player: Player): Promise<void> {
 async function toggleActive(player: Player): Promise<void> {
   const updated = await adminApi.updatePlayer(player.id, { is_active: !player.is_active })
   players.value = players.value.map((p) => (p.id === updated.id ? updated : p))
+}
+
+function eloTierFor(score: number): EloTier {
+  return useEloTier(score).tier
 }
 
 async function onAvatarSelected(event: Event, player: Player): Promise<void> {
@@ -289,6 +297,11 @@ onMounted(loadPlayers)
           </select>
           <input v-model="editForm.tiktok" placeholder="TikTok" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
           <input v-model="editForm.instagram" placeholder="Instagram" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
+          <label class="flex items-center gap-2 rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm sm:col-span-2">
+            <span class="shrink-0 text-white/50">{{ t('members.eloScore') }}</span>
+            <input v-model.number="editForm.elo_score" type="number" class="w-24 bg-transparent text-center" />
+            <TierMascot :tier="eloTierFor(editForm.elo_score)" :size="24" class="shrink-0" />
+          </label>
           <div class="flex gap-2 sm:col-span-2">
             <button type="submit" :disabled="savingEdit" class="rounded-full bg-brand-pink px-4 py-1.5 text-sm font-semibold text-brand-black disabled:opacity-50">
               {{ savingEdit ? t('common.saving') : t('common.save') }}
