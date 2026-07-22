@@ -16,6 +16,16 @@ OPPONENT_PENALTY = 1
 FAIRNESS_WEIGHT = 20
 DEFAULT_MATCH_DURATION_MINUTES = 15.0
 
+GROUP_SEARCH_WINDOW = 7
+"""When forming a group of 4 around the highest-remaining-ELO player, how
+many of the next-closest-ELO remaining players are considered as
+candidate groupmates — not rigidly just the next 3. A small, ELO-stable
+checked-in pool otherwise keeps reforming the exact same foursome round
+after round, leaving only 3 possible 2v2 splits to rotate between no
+matter how good the fairness penalty is. Widening the pool lets the
+penalty actually influence *who* gets grouped, not just how a fixed
+foursome splits into teams."""
+
 
 @dataclass
 class CheckedInPlayer:
@@ -107,25 +117,53 @@ def _best_split_for_group(
     return min(scored, key=lambda s: s.total_cost)
 
 
+def _best_group_from_pool(
+    anchor: UUID,
+    pool: list[UUID],
+    scores_by_id: dict[UUID, int],
+    history: list[PairHistoryEntry],
+    current_round: int,
+) -> tuple[tuple[UUID, ...], Split]:
+    """Tries every foursome of anchor + 3 players from pool (pool always has
+    at least 3, since it's only called when len(remaining) >= 4), returns
+    the group and its lowest-cost 2v2 split."""
+    best_group: tuple[UUID, ...] | None = None
+    best_split: Split | None = None
+    for trio in combinations(pool, 3):
+        group = (anchor, *trio)
+        split = _best_split_for_group(group, scores_by_id, history, current_round)
+        if best_split is None or split.total_cost < best_split.total_cost:
+            best_group, best_split = group, split
+    assert best_group is not None and best_split is not None
+    return best_group, best_split
+
+
 def suggest_doubles_pairings(
     checked_in: list[CheckedInPlayer],
     history: list[PairHistoryEntry],
     current_round: int,
 ) -> tuple[list[Split], list[UUID]]:
-    """Returns (suggested splits, waiting player_ids) for doubles (groups of 4)."""
+    """Returns (suggested splits, waiting player_ids) for doubles (groups of 4).
+
+    Groups are formed one at a time: the highest-ELO remaining player
+    anchors a group, and its 3 groupmates are chosen from a window of the
+    next GROUP_SEARCH_WINDOW closest-ELO remaining players — not rigidly
+    the next 3 — picking whichever foursome+split combination has the
+    lowest total cost. See GROUP_SEARCH_WINDOW's docstring for why.
+    """
     sorted_players = sorted(checked_in, key=lambda p: p.elo_score, reverse=True)
     scores_by_id = {p.player_id: p.elo_score for p in sorted_players}
+    remaining = [p.player_id for p in sorted_players]
 
     splits: list[Split] = []
-    ids = [p.player_id for p in sorted_players]
-    i = 0
-    while i + 4 <= len(ids):
-        group = tuple(ids[i : i + 4])
-        splits.append(_best_split_for_group(group, scores_by_id, history, current_round))
-        i += 4
+    while len(remaining) >= 4:
+        anchor, *rest = remaining
+        pool = rest[:GROUP_SEARCH_WINDOW]
+        group, split = _best_group_from_pool(anchor, pool, scores_by_id, history, current_round)
+        splits.append(split)
+        remaining = [pid for pid in remaining if pid not in group]
 
-    waiting = ids[i:]
-    return splits, waiting
+    return splits, remaining
 
 
 def estimate_wait_minutes(queue_position: int, recent_durations_minutes: list[float]) -> float:
