@@ -44,6 +44,13 @@ class Player(PlayerBase):
     is_active: bool
     created_at: datetime
     member_seq: int
+    games: int = 0
+    wins: int = 0
+    draws: int = 0
+    losses: int = 0
+    """Denormalized totals, incremented in submit_result — see
+    db/migrations/0011_denormalize_player_stats.sql. Avoids recomputing
+    every player's record from a full match-history scan on every read."""
 
     @computed_field  # type: ignore[prop-decorator]
     @property

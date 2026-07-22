@@ -3,8 +3,14 @@ import type { LiveQueueResponse, Match, MatchDetail, Player, PlayerProfile, Play
 
 // Mirrors backend/app/routers/public/{players,ranking,hall_of_fame,matches}.py.
 
-export async function getPlayers(): Promise<PlayerStats[]> {
-  return request('/api/players')
+export async function getPlayers(
+  options: { limit?: number; offset?: number } = {},
+): Promise<PlayerStats[]> {
+  const params = new URLSearchParams()
+  if (options.limit !== undefined) params.set('limit', String(options.limit))
+  if (options.offset !== undefined) params.set('offset', String(options.offset))
+  const query = params.toString()
+  return request(`/api/players${query ? `?${query}` : ''}`)
 }
 
 export async function getPlayer(playerId: string): Promise<Player> {

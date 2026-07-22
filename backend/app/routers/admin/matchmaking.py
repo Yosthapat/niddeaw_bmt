@@ -90,13 +90,12 @@ def submit_result(
     all_ids = team1_ids + team2_ids
     players_result = (
         supabase.table("players")
-        .select("id, elo_score")
+        .select("id, elo_score, games, wins, draws, losses")
         .in_("id", [str(pid) for pid in all_ids])
         .execute()
     )
-    scores_by_id: dict[UUID, int] = {
-        UUID(row["id"]): row["elo_score"] for row in rows(players_result)
-    }
+    players_by_id = {UUID(row["id"]): row for row in rows(players_result)}
+    scores_by_id: dict[UUID, int] = {pid: row["elo_score"] for pid, row in players_by_id.items()}
 
     delta_team1, delta_team2 = elo_service.compute_deltas(
         [scores_by_id[pid] for pid in team1_ids],
@@ -104,16 +103,26 @@ def submit_result(
         winner,
     )
 
+    def _apply_result(pid: UUID, delta: int, outcome: str) -> None:
+        row = players_by_id[pid]
+        new_score = elo_service.apply_delta(row["elo_score"], delta)
+        supabase.table("players").update(
+            {
+                "elo_score": new_score,
+                "elo_level": elo_service.get_tier(new_score),
+                "games": row["games"] + 1,
+                "wins": row["wins"] + (1 if outcome == "win" else 0),
+                "draws": row["draws"] + (1 if outcome == "draw" else 0),
+                "losses": row["losses"] + (1 if outcome == "loss" else 0),
+            }
+        ).eq("id", str(pid)).execute()
+
+    team1_outcome = "win" if winner == "team1" else "draw" if winner == "draw" else "loss"
+    team2_outcome = "win" if winner == "team2" else "draw" if winner == "draw" else "loss"
     for pid in team1_ids:
-        new_score = elo_service.apply_delta(scores_by_id[pid], delta_team1)
-        supabase.table("players").update(
-            {"elo_score": new_score, "elo_level": elo_service.get_tier(new_score)}
-        ).eq("id", str(pid)).execute()
+        _apply_result(pid, delta_team1, team1_outcome)
     for pid in team2_ids:
-        new_score = elo_service.apply_delta(scores_by_id[pid], delta_team2)
-        supabase.table("players").update(
-            {"elo_score": new_score, "elo_level": elo_service.get_tier(new_score)}
-        ).eq("id", str(pid)).execute()
+        _apply_result(pid, delta_team2, team2_outcome)
 
     updated = (
         supabase.table("matches")

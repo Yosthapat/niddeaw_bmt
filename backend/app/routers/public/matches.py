@@ -39,14 +39,6 @@ def get_match_detail(match_id: UUID, supabase: SupabaseDep) -> MatchDetail:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Match not found")
     match = Match.model_validate(match_rows[0])
 
-    all_matches_result = (
-        supabase.table("matches")
-        .select("team1_player_ids, team2_player_ids, winner")
-        .eq("status", "completed")
-        .execute()
-    )
-    records = stats_service.build_player_records(rows(all_matches_result))  # type: ignore[arg-type]
-
     active_players_result = supabase.table("players").select("*").eq("is_active", True).execute()
     players_by_id = {p.id: p for p in (Player.model_validate(row) for row in rows(active_players_result))}
     all_scores = [p.elo_score for p in players_by_id.values()]
@@ -66,7 +58,9 @@ def get_match_detail(match_id: UUID, supabase: SupabaseDep) -> MatchDetail:
 
     def build_stat(pid: UUID) -> PlayerMatchStat:
         player = players_by_id[pid]
-        record = records.get(pid, stats_service.PlayerRecord())
+        record = stats_service.PlayerRecord(
+            games=player.games, wins=player.wins, draws=player.draws, losses=player.losses
+        )
         return PlayerMatchStat(
             player=player,
             games=record.games,

@@ -20,18 +20,13 @@ def get_hall_of_fame(
     supabase: SupabaseDep, limit: int = Query(default=10, le=50)
 ) -> list[PlayerStats]:
     players_result = supabase.table("players").select("*").execute()
-    matches_result = (
-        supabase.table("matches")
-        .select("team1_player_ids, team2_player_ids, winner")
-        .eq("status", "completed")
-        .execute()
-    )
-    records = stats_service.build_player_records(rows(matches_result))  # type: ignore[arg-type]
 
     stats: list[PlayerStats] = []
     for row in rows(players_result):
         player = Player.model_validate(row)
-        record = records.get(player.id, stats_service.PlayerRecord())
+        record = stats_service.PlayerRecord(
+            games=player.games, wins=player.wins, draws=player.draws, losses=player.losses
+        )
         if record.games < MIN_GAMES_TO_QUALIFY:
             continue
         stats.append(

@@ -15,6 +15,10 @@ export interface Player {
   created_at: string
   member_seq: number
   member_code: string
+  games: number
+  wins: number
+  draws: number
+  losses: number
 }
 
 /** Mirrors backend app/models/player.py PlayerStats. */

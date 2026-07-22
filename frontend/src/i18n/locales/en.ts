@@ -54,6 +54,7 @@ export default {
     empty: 'No members yet',
     noSearchResults: 'No members found',
     loadListError: 'Failed to load member list',
+    loadMoreError: 'Failed to load more members',
     createdButAvatarFailed: 'Member created, but photo upload failed — try uploading again later',
     createFailed: 'Failed to create member, please try again',
     addNew: 'Add New Member',

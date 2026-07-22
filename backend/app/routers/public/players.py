@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 
 from app.db_utils import rows
 from app.deps import SupabaseDep
@@ -10,34 +10,43 @@ from app.services import stats_service
 router = APIRouter(prefix="/api/players", tags=["public-players"])
 
 
-@router.get("", response_model=list[PlayerStats])
-def list_players(supabase: SupabaseDep) -> list[PlayerStats]:
-    players_result = supabase.table("players").select("*").eq("is_active", True).execute()
-    matches_result = (
-        supabase.table("matches")
-        .select("team1_player_ids, team2_player_ids, winner")
-        .eq("status", "completed")
-        .execute()
+def _record_for(player: Player) -> stats_service.PlayerRecord:
+    """Builds a PlayerRecord straight from a player's own denormalized
+    counters — no match-history scan needed."""
+    return stats_service.PlayerRecord(
+        games=player.games, wins=player.wins, draws=player.draws, losses=player.losses
     )
-    records = stats_service.build_player_records(rows(matches_result))  # type: ignore[arg-type]
 
-    stats: list[PlayerStats] = []
-    for row in rows(players_result):
-        player = Player.model_validate(row)
-        record = records.get(player.id, stats_service.PlayerRecord())
-        stats.append(
-            PlayerStats(
-                player=player,
-                games=record.games,
-                wins=record.wins,
-                draws=record.draws,
-                losses=record.losses,
-                points=record.points,
-                avg_points=record.avg_points,
-                score_percent=record.score_percent,
-            )
-        )
-    return stats
+
+def _to_stats(player: Player) -> PlayerStats:
+    record = _record_for(player)
+    return PlayerStats(
+        player=player,
+        games=record.games,
+        wins=record.wins,
+        draws=record.draws,
+        losses=record.losses,
+        points=record.points,
+        avg_points=record.avg_points,
+        score_percent=record.score_percent,
+    )
+
+
+@router.get("", response_model=list[PlayerStats])
+def list_players(
+    supabase: SupabaseDep,
+    limit: int | None = Query(default=None, le=200),
+    offset: int = Query(default=0, ge=0),
+) -> list[PlayerStats]:
+    """Omit limit/offset to get the full active roster (used by other
+    views' name/avatar lookups). Pass both to paginate the member list."""
+    players_result = supabase.table("players").select("*").eq("is_active", True).execute()
+    stats = [_to_stats(Player.model_validate(row)) for row in rows(players_result)]
+    stats.sort(key=lambda s: s.points, reverse=True)
+
+    if limit is None:
+        return stats
+    return stats[offset : offset + limit]
 
 
 @router.get("/{player_id}", response_model=Player)
@@ -56,19 +65,22 @@ def get_player_profile(player_id: UUID, supabase: SupabaseDep) -> PlayerProfile:
     if not player_rows:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Player not found")
     player = Player.model_validate(player_rows[0])
+    record = _record_for(player)
 
-    matches_result = (
+    # Nemesis needs a per-opponent breakdown, which isn't denormalized —
+    # but this only needs to scan matches *this player* was in, not every
+    # completed match site-wide.
+    own_matches_result = (
         supabase.table("matches")
         .select("team1_player_ids, team2_player_ids, winner")
         .eq("status", "completed")
+        .or_(f"team1_player_ids.cs.{{{player_id}}},team2_player_ids.cs.{{{player_id}}}")
         .execute()
     )
-    all_matches = rows(matches_result)
-    records = stats_service.build_player_records(all_matches)  # type: ignore[arg-type]
-    record = records.get(player_id, stats_service.PlayerRecord())
+    own_matches = rows(own_matches_result)
 
     nemesis: NemesisInfo | None = None
-    nemesis_result = stats_service.find_nemesis(player_id, all_matches)  # type: ignore[arg-type]
+    nemesis_result = stats_service.find_nemesis(player_id, own_matches)  # type: ignore[arg-type]
     if nemesis_result is not None:
         nemesis_id, nemesis_record = nemesis_result
         nemesis_player_result = (
