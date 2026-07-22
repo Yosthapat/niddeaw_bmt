@@ -28,6 +28,10 @@ function nameOf(playerId: string): string {
   return p ? p.nickname : '?'
 }
 
+function avatarOf(playerId: string): string | undefined {
+  return playersStore.byId(playerId)?.avatar_url ?? undefined
+}
+
 function apiErrorMessage(e: unknown, fallback: string): string {
   if (e instanceof ApiError) {
     return `${fallback} (${e.status}: ${e.message})`
@@ -167,7 +171,7 @@ onMounted(async () => {
             :key="pid"
             class="flex items-center gap-3 hud-panel border border-brand-pink/15 bg-brand-surface px-3 py-2"
           >
-            <PlayerAvatar :name="nameOf(pid)" size="sm" />
+            <PlayerAvatar :name="nameOf(pid)" :avatar-url="avatarOf(pid)" size="sm" />
             <span class="flex-1 font-medium">{{ nameOf(pid) }}</span>
             <button
               :disabled="billingPlayerId === pid"
@@ -191,7 +195,7 @@ onMounted(async () => {
           class="hud-panel border border-brand-pink/20 bg-brand-surface p-4"
         >
           <div class="flex items-center gap-3">
-            <PlayerAvatar :name="nameOf(b.player_id)" size="sm" />
+            <PlayerAvatar :name="nameOf(b.player_id)" :avatar-url="avatarOf(b.player_id)" size="sm" />
             <span class="flex-1 font-medium">{{ nameOf(b.player_id) }}</span>
             <span class="text-xs text-white/40">{{ b.game_count }} {{ t('common.game') }}</span>
             <span class="font-bold text-brand-pink">฿{{ effectiveAmount(b).toFixed(2) }}</span>

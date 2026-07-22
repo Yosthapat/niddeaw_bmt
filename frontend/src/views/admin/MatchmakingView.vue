@@ -41,6 +41,10 @@ function nameOf(playerId: string): string {
   return p ? p.nickname : '?'
 }
 
+function avatarOf(playerId: string): string | undefined {
+  return playersStore.byId(playerId)?.avatar_url ?? undefined
+}
+
 async function refreshQueue(): Promise<void> {
   if (!sessionsStore.currentSessionId) {
     queue.value = null
@@ -206,7 +210,13 @@ const pollControls = usePolling(refreshQueue, 7000)
                 <div class="flex items-center gap-2">
                   <span class="text-right font-medium text-white/80">{{ m.team1_player_ids.map(nameOf).join(' & ') }}</span>
                   <div class="flex -space-x-2">
-                    <PlayerAvatar v-for="pid in m.team1_player_ids" :key="pid" :name="nameOf(pid)" size="md" />
+                    <PlayerAvatar
+                      v-for="pid in m.team1_player_ids"
+                      :key="pid"
+                      :name="nameOf(pid)"
+                      :avatar-url="avatarOf(pid)"
+                      size="md"
+                    />
                   </div>
                 </div>
               </div>
@@ -218,7 +228,13 @@ const pollControls = usePolling(refreshQueue, 7000)
               <div class="flex flex-1 flex-col items-start gap-1.5">
                 <div class="flex items-center gap-2">
                   <div class="flex -space-x-2">
-                    <PlayerAvatar v-for="pid in m.team2_player_ids" :key="pid" :name="nameOf(pid)" size="md" />
+                    <PlayerAvatar
+                      v-for="pid in m.team2_player_ids"
+                      :key="pid"
+                      :name="nameOf(pid)"
+                      :avatar-url="avatarOf(pid)"
+                      size="md"
+                    />
                   </div>
                   <span class="font-medium text-white/80">{{ m.team2_player_ids.map(nameOf).join(' & ') }}</span>
                 </div>
@@ -314,9 +330,31 @@ const pollControls = usePolling(refreshQueue, 7000)
             class="hud-panel border border-brand-pink/20 bg-brand-surface px-4 py-3"
           >
             <div v-if="editingGroup !== s.group_no" class="flex items-center justify-between gap-3">
-              <span class="flex-1 text-right">{{ s.team1_player_ids.map(nameOf).join(' & ') }}</span>
+              <div class="flex flex-1 items-center justify-end gap-2">
+                <span class="text-right">{{ s.team1_player_ids.map(nameOf).join(' & ') }}</span>
+                <div class="flex -space-x-2">
+                  <PlayerAvatar
+                    v-for="pid in s.team1_player_ids"
+                    :key="pid"
+                    :name="nameOf(pid)"
+                    :avatar-url="avatarOf(pid)"
+                    size="sm"
+                  />
+                </div>
+              </div>
               <span class="text-xs text-white/40">VS</span>
-              <span class="flex-1">{{ s.team2_player_ids.map(nameOf).join(' & ') }}</span>
+              <div class="flex flex-1 items-center gap-2">
+                <div class="flex -space-x-2">
+                  <PlayerAvatar
+                    v-for="pid in s.team2_player_ids"
+                    :key="pid"
+                    :name="nameOf(pid)"
+                    :avatar-url="avatarOf(pid)"
+                    size="sm"
+                  />
+                </div>
+                <span>{{ s.team2_player_ids.map(nameOf).join(' & ') }}</span>
+              </div>
               <div class="flex shrink-0 gap-2">
                 <button
                   class="rounded-full border border-white/20 px-3 py-1 text-xs text-white/60 hover:border-brand-pink hover:text-brand-pink"
@@ -388,7 +426,7 @@ const pollControls = usePolling(refreshQueue, 7000)
             :key="w.player_id"
             class="flex items-center gap-2 rounded-full border border-brand-pink/25 bg-brand-surface px-3 py-1.5 text-sm"
           >
-            <PlayerAvatar :name="nameOf(w.player_id)" size="sm" />
+            <PlayerAvatar :name="nameOf(w.player_id)" :avatar-url="avatarOf(w.player_id)" size="sm" />
             {{ nameOf(w.player_id) }}
             <span class="text-xs text-white/40">~{{ Math.round(w.estimated_wait_minutes) }} {{ t('matches.minutes') }}</span>
           </li>
