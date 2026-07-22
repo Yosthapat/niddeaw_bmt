@@ -26,7 +26,13 @@ async function refresh(): Promise<void> {
     live.value = await getLiveStatus()
     error.value = null
   } catch {
-    error.value = t('live.loadError')
+    // Only surface the error screen on the initial load. Once we have
+    // data on screen, a single failed poll (e.g. a cold-starting free-tier
+    // backend) shouldn't wipe out an already-successful view — just keep
+    // showing the last-known-good state and let the next poll retry.
+    if (!live.value) {
+      error.value = t('live.loadError')
+    }
   } finally {
     loading.value = false
   }
