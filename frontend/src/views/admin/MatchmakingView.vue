@@ -209,7 +209,7 @@ const pollControls = usePolling(refreshQueue, 7000)
               <div class="flex flex-1 flex-col items-end gap-1.5">
                 <div class="flex items-center gap-2">
                   <span class="text-right font-medium text-white/80">{{ m.team1_player_ids.map(nameOf).join(' & ') }}</span>
-                  <div class="flex -space-x-2">
+                  <div class="flex gap-1.5">
                     <PlayerAvatar
                       v-for="pid in m.team1_player_ids"
                       :key="pid"
@@ -227,7 +227,7 @@ const pollControls = usePolling(refreshQueue, 7000)
 
               <div class="flex flex-1 flex-col items-start gap-1.5">
                 <div class="flex items-center gap-2">
-                  <div class="flex -space-x-2">
+                  <div class="flex gap-1.5">
                     <PlayerAvatar
                       v-for="pid in m.team2_player_ids"
                       :key="pid"
@@ -332,7 +332,7 @@ const pollControls = usePolling(refreshQueue, 7000)
             <div v-if="editingGroup !== s.group_no" class="flex items-center justify-between gap-3">
               <div class="flex flex-1 items-center justify-end gap-2">
                 <span class="text-right">{{ s.team1_player_ids.map(nameOf).join(' & ') }}</span>
-                <div class="flex -space-x-2">
+                <div class="flex gap-1.5">
                   <PlayerAvatar
                     v-for="pid in s.team1_player_ids"
                     :key="pid"
@@ -344,7 +344,7 @@ const pollControls = usePolling(refreshQueue, 7000)
               </div>
               <span class="text-xs text-white/40">VS</span>
               <div class="flex flex-1 items-center gap-2">
-                <div class="flex -space-x-2">
+                <div class="flex gap-1.5">
                   <PlayerAvatar
                     v-for="pid in s.team2_player_ids"
                     :key="pid"

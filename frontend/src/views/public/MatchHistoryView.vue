@@ -104,7 +104,7 @@ onMounted(async () => {
               class="flex flex-1 flex-col items-center gap-1.5"
               :class="{ 'opacity-45 grayscale': m.winner === 'team2' }"
             >
-              <div class="stamp-wrap relative flex -space-x-3">
+              <div class="stamp-wrap relative flex gap-2">
                 <PlayerAvatar
                   v-for="pid in m.team1_player_ids"
                   :key="pid"
@@ -128,7 +128,7 @@ onMounted(async () => {
               class="flex flex-1 flex-col items-center gap-1.5"
               :class="{ 'opacity-45 grayscale': m.winner === 'team1' }"
             >
-              <div class="stamp-wrap relative flex -space-x-3">
+              <div class="stamp-wrap relative flex gap-2">
                 <PlayerAvatar
                   v-for="pid in m.team2_player_ids"
                   :key="pid"

@@ -77,7 +77,7 @@ usePolling(refresh, 7000)
           >
             <div class="flex items-center justify-between gap-3">
               <div class="flex flex-1 flex-col items-center gap-1.5">
-                <div class="flex -space-x-3">
+                <div class="flex gap-2">
                   <PlayerAvatar
                     v-for="pid in m.team1_player_ids"
                     :key="pid"
@@ -96,7 +96,7 @@ usePolling(refresh, 7000)
               </span>
 
               <div class="flex flex-1 flex-col items-center gap-1.5">
-                <div class="flex -space-x-3">
+                <div class="flex gap-2">
                   <PlayerAvatar
                     v-for="pid in m.team2_player_ids"
                     :key="pid"
@@ -127,7 +127,7 @@ usePolling(refresh, 7000)
           >
             <div class="flex items-center justify-between gap-3">
               <div class="flex flex-1 flex-col items-center gap-1.5">
-                <div class="flex -space-x-3">
+                <div class="flex gap-2">
                   <PlayerAvatar
                     v-for="pid in s.team1_player_ids"
                     :key="pid"
@@ -146,7 +146,7 @@ usePolling(refresh, 7000)
               </span>
 
               <div class="flex flex-1 flex-col items-center gap-1.5">
-                <div class="flex -space-x-3">
+                <div class="flex gap-2">
                   <PlayerAvatar
                     v-for="pid in s.team2_player_ids"
                     :key="pid"
