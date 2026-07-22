@@ -173,6 +173,12 @@ export default {
     cancelFailed: 'Failed to cancel match',
     createCustom: 'Create Custom Match',
     pickPlayer: 'Pick a player',
+    lockedPairs: 'Locked Pairs',
+    lockPair: 'Lock Pair',
+    unlock: 'Unlock',
+    noLockedPairs: 'No locked pairs yet',
+    lockFailed: 'Failed to lock pair',
+    unlockFailed: 'Failed to unlock pair',
   },
   matchRecord: {
     title: 'Record Match Result',

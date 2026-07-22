@@ -138,24 +138,76 @@ def _best_group_from_pool(
     return best_group, best_split
 
 
+def _complete_locked_pair(
+    pair: tuple[UUID, UUID],
+    remaining: list[UUID],
+    other_active_locks: list[tuple[UUID, UUID]],
+    scores_by_id: dict[UUID, int],
+    history: list[PairHistoryEntry],
+    current_round: int,
+) -> Split | None:
+    """Finds the best opponents to complete a locked pair's group of 4 —
+    either two solo (unlocked) players, or one other complete locked pair
+    faced off against them. Never splits any locked pair across teams.
+    Returns None if there aren't enough other players available yet."""
+    other_locked_member_ids = {pid for other in other_active_locks for pid in other}
+    solo_candidates = [pid for pid in remaining if pid not in pair and pid not in other_locked_member_ids]
+
+    best: Split | None = None
+    for duo in combinations(solo_candidates[:GROUP_SEARCH_WINDOW], 2):
+        split = _score_split(pair, duo, scores_by_id, history, current_round)
+        if best is None or split.total_cost < best.total_cost:
+            best = split
+
+    for other in other_active_locks:
+        if other[0] in remaining and other[1] in remaining:
+            split = _score_split(pair, other, scores_by_id, history, current_round)
+            if best is None or split.total_cost < best.total_cost:
+                best = split
+
+    return best
+
+
 def suggest_doubles_pairings(
     checked_in: list[CheckedInPlayer],
     history: list[PairHistoryEntry],
     current_round: int,
+    locked_pairs: tuple[tuple[UUID, UUID], ...] = (),
 ) -> tuple[list[Split], list[UUID]]:
     """Returns (suggested splits, waiting player_ids) for doubles (groups of 4).
 
-    Groups are formed one at a time: the highest-ELO remaining player
-    anchors a group, and its 3 groupmates are chosen from a window of the
-    next GROUP_SEARCH_WINDOW closest-ELO remaining players — not rigidly
-    the next 3 — picking whichever foursome+split combination has the
-    lowest total cost. See GROUP_SEARCH_WINDOW's docstring for why.
+    locked_pairs are admin-pinned teammates for this session (e.g. two
+    friends who came together today) — each is always kept on the same
+    team, matched against either two solo players or one other complete
+    locked pair, never split up. Pairs where either member isn't currently
+    checked in are ignored.
+
+    Whatever's left after locked pairs are handled forms groups one at a
+    time: the highest-ELO remaining player anchors a group, and its 3
+    groupmates are chosen from a window of the next GROUP_SEARCH_WINDOW
+    closest-ELO remaining players — not rigidly the next 3 — picking
+    whichever foursome+split combination has the lowest total cost. See
+    GROUP_SEARCH_WINDOW's docstring for why.
     """
     sorted_players = sorted(checked_in, key=lambda p: p.elo_score, reverse=True)
     scores_by_id = {p.player_id: p.elo_score for p in sorted_players}
+    all_ids = set(scores_by_id)
     remaining = [p.player_id for p in sorted_players]
 
+    active_locks = [pair for pair in locked_pairs if pair[0] in all_ids and pair[1] in all_ids]
+
     splits: list[Split] = []
+    for pair in active_locks:
+        if pair[0] not in remaining or pair[1] not in remaining:
+            continue  # already used as another lock's opponents this round
+        other_locks = [p for p in active_locks if p != pair and p[0] in remaining and p[1] in remaining]
+        split = _complete_locked_pair(pair, remaining, other_locks, scores_by_id, history, current_round)
+        if split is None:
+            continue  # not enough other players checked in to complete this group yet
+        splits.append(split)
+        used = set(split.team1) | set(split.team2)
+        remaining = [pid for pid in remaining if pid not in used]
+
     while len(remaining) >= 4:
         anchor, *rest = remaining
         pool = rest[:GROUP_SEARCH_WINDOW]

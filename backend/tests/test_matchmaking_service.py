@@ -54,3 +54,64 @@ def test_cross_group_rotation_avoids_recent_partners_even_with_equal_elo() -> No
         h,
     }
     assert not ({b, c, d} & a_groupmates)
+
+
+def test_locked_pair_always_stays_on_the_same_team() -> None:
+    """Two friends locked together should never end up split across teams,
+    even when that would otherwise be the better ELO-balance choice."""
+    ids, players = _checked_in([2000, 1000, 1500, 1500])
+    a, b, c, d = ids  # a+b locked despite being the most mismatched ELOs
+
+    splits, waiting = mm.suggest_doubles_pairings(
+        players, history=[], current_round=1, locked_pairs=((a, b),)
+    )
+
+    assert waiting == []
+    assert len(splits) == 1
+    split = splits[0]
+    assert (a in split.team1 and b in split.team1) or (a in split.team2 and b in split.team2)
+    assert set(split.team1) | set(split.team2) == {a, b, c, d}
+
+
+def test_two_locked_pairs_face_off_without_splitting_either() -> None:
+    ids, players = _checked_in([1000] * 4)
+    a, b, c, d = ids
+
+    splits, waiting = mm.suggest_doubles_pairings(
+        players, history=[], current_round=1, locked_pairs=((a, b), (c, d))
+    )
+
+    assert waiting == []
+    assert len(splits) == 1
+    split = splits[0]
+    ab_together = (a in split.team1 and b in split.team1) or (a in split.team2 and b in split.team2)
+    cd_together = (c in split.team1 and d in split.team1) or (c in split.team2 and d in split.team2)
+    assert ab_together
+    assert cd_together
+
+
+def test_locked_pair_ignored_when_a_member_is_not_checked_in() -> None:
+    ids, players = _checked_in([1000] * 4)
+    a, b, c, d = ids
+    missing = UUID(int=0)
+
+    splits, waiting = mm.suggest_doubles_pairings(
+        players, history=[], current_round=1, locked_pairs=((a, missing),)
+    )
+
+    assert waiting == []
+    assert len(splits) == 1
+    group = set(splits[0].team1) | set(splits[0].team2)
+    assert group == {a, b, c, d}
+
+
+def test_locked_pair_waits_together_when_not_enough_others_checked_in() -> None:
+    ids, players = _checked_in([1000, 1000, 1000])
+    a, b, c = ids
+
+    splits, waiting = mm.suggest_doubles_pairings(
+        players, history=[], current_round=1, locked_pairs=((a, b),)
+    )
+
+    assert splits == []
+    assert set(waiting) == {a, b, c}

@@ -27,11 +27,20 @@ export interface WaitingEntry {
   estimated_wait_minutes: number
 }
 
+export interface LockedPair {
+  id: string
+  session_id: string
+  player_a_id: string
+  player_b_id: string
+  created_at: string
+}
+
 export interface MatchmakingQueueResponse {
   in_progress: QueueEntry[]
   suggestions: PairingSuggestion[]
   waiting: WaitingEntry[]
   avg_match_duration_minutes: number
+  locked_pairs: LockedPair[]
 }
 
 export interface LiveQueueResponse {

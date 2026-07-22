@@ -4,6 +4,7 @@ import type {
   Checkin,
   ClubSettings,
   DailyRevenue,
+  LockedPair,
   LoginCredentials,
   LoginResponse,
   Match,
@@ -102,6 +103,21 @@ export async function recordMatchResult(matchId: string, winner: MatchWinner): P
 
 export async function cancelMatch(matchId: string): Promise<void> {
   await request(`/api/admin/matchmaking/matches/${matchId}`, { method: 'DELETE' })
+}
+
+export async function createLockedPair(
+  sessionId: string,
+  playerAId: string,
+  playerBId: string,
+): Promise<LockedPair> {
+  return request('/api/admin/matchmaking/locked-pairs', {
+    method: 'POST',
+    body: JSON.stringify({ session_id: sessionId, player_a_id: playerAId, player_b_id: playerBId }),
+  })
+}
+
+export async function deleteLockedPair(lockId: string): Promise<void> {
+  await request(`/api/admin/matchmaking/locked-pairs/${lockId}`, { method: 'DELETE' })
 }
 
 // Billing

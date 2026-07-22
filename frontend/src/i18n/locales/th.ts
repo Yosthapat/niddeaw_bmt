@@ -171,6 +171,12 @@ export default {
     cancelFailed: 'ยกเลิกแมตช์ไม่สำเร็จ',
     createCustom: 'สร้างคู่เอง',
     pickPlayer: 'เลือกผู้เล่น',
+    lockedPairs: 'คู่ล็อค',
+    lockPair: 'ล็อคคู่',
+    unlock: 'ปลดล็อค',
+    noLockedPairs: 'ยังไม่มีคู่ล็อค',
+    lockFailed: 'ล็อคคู่ไม่สำเร็จ',
+    unlockFailed: 'ปลดล็อคไม่สำเร็จ',
   },
   matchRecord: {
     title: 'บันทึกผลแมตช์',

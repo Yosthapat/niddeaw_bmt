@@ -7,10 +7,48 @@ from fastapi import APIRouter, HTTPException, status
 from app.db_utils import rows
 from app.deps import AdminDep, SupabaseDep
 from app.models.match import Match, MatchResultSubmit
-from app.models.matchmaking import MatchmakingConfirmRequest, MatchmakingQueueResponse, MatchmakingSuggestionResponse
+from app.models.matchmaking import (
+    LockedPair,
+    LockedPairCreate,
+    MatchmakingConfirmRequest,
+    MatchmakingQueueResponse,
+    MatchmakingSuggestionResponse,
+)
 from app.services import elo_service, matchmaking_service, queue_service
 
 router = APIRouter(prefix="/api/admin/matchmaking", tags=["admin-matchmaking"])
+
+
+@router.post("/locked-pairs", response_model=LockedPair, status_code=status.HTTP_201_CREATED)
+def create_locked_pair(
+    payload: LockedPairCreate, supabase: SupabaseDep, admin: AdminDep
+) -> LockedPair:
+    """Pins two checked-in players as teammates for the rest of this
+    session — e.g. two friends who came together today. Never sticks to
+    their profile; it's tied to this session_id and cascade-deletes with
+    it."""
+    existing = queue_service.fetch_locked_pairs(supabase, payload.session_id)
+    already_locked = {pid for lp in existing for pid in (lp.player_a_id, lp.player_b_id)}
+    if payload.player_a_id in already_locked or payload.player_b_id in already_locked:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="One of these players is already locked with someone else this session",
+        )
+
+    row = {
+        "session_id": str(payload.session_id),
+        "player_a_id": str(payload.player_a_id),
+        "player_b_id": str(payload.player_b_id),
+    }
+    result = supabase.table("locked_pairs").insert(row).execute()
+    return LockedPair.model_validate(rows(result)[0])
+
+
+@router.delete("/locked-pairs/{lock_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_locked_pair(lock_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> None:
+    result = supabase.table("locked_pairs").delete().eq("id", str(lock_id)).execute()
+    if not rows(result):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Locked pair not found")
 
 
 @router.get("/suggest", response_model=MatchmakingSuggestionResponse)

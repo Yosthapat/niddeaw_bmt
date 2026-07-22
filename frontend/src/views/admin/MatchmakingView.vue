@@ -29,6 +29,12 @@ const creatingCustom = ref(false)
 const customConfirming = ref(false)
 const customDraft = ref<{ team1: string[]; team2: string[] }>({ team1: ['', ''], team2: ['', ''] })
 
+const lockingPair = ref(false)
+const lockConfirming = ref(false)
+const lockError = ref<string | null>(null)
+const lockDraft = ref<{ a: string; b: string }>({ a: '', b: '' })
+const unlockingId = ref<string | null>(null)
+
 function apiErrorMessage(e: unknown, fallback: string): string {
   if (e instanceof ApiError) {
     return `${fallback} (${e.status}: ${e.message})`
@@ -65,6 +71,50 @@ async function cancelMatch(matchId: string, team1: string, team2: string): Promi
     cancelError.value = apiErrorMessage(e, t('matchmaking.cancelFailed'))
   } finally {
     cancelling.value = null
+  }
+}
+
+function startLockPair(): void {
+  lockDraft.value = { a: '', b: '' }
+  lockingPair.value = true
+  pollControls.stop()
+}
+
+function cancelLockPair(): void {
+  lockingPair.value = false
+  pollControls.start()
+}
+
+function lockDraftIsValid(): boolean {
+  return lockDraft.value.a !== '' && lockDraft.value.b !== '' && lockDraft.value.a !== lockDraft.value.b
+}
+
+async function confirmLockPair(): Promise<void> {
+  if (!sessionsStore.currentSessionId || !lockDraftIsValid()) return
+  lockConfirming.value = true
+  lockError.value = null
+  try {
+    await adminApi.createLockedPair(sessionsStore.currentSessionId, lockDraft.value.a, lockDraft.value.b)
+    lockingPair.value = false
+    pollControls.start()
+    await refreshQueue()
+  } catch (e) {
+    lockError.value = apiErrorMessage(e, t('matchmaking.lockFailed'))
+  } finally {
+    lockConfirming.value = false
+  }
+}
+
+async function unlockPair(lockId: string): Promise<void> {
+  unlockingId.value = lockId
+  lockError.value = null
+  try {
+    await adminApi.deleteLockedPair(lockId)
+    await refreshQueue()
+  } catch (e) {
+    lockError.value = apiErrorMessage(e, t('matchmaking.unlockFailed'))
+  } finally {
+    unlockingId.value = null
   }
 }
 
@@ -262,6 +312,69 @@ const pollControls = usePolling(refreshQueue, 7000)
             </div>
           </li>
           <li v-if="queue.in_progress.length === 0" class="text-sm text-white/40">{{ t('matchmaking.noneInProgress') }}</li>
+        </ul>
+      </section>
+
+      <section class="mt-8">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-semibold text-white/70">
+            {{ t('matchmaking.lockedPairs') }} ({{ queue.locked_pairs.length }})
+          </h2>
+          <button
+            v-if="!lockingPair"
+            class="rounded-full border border-brand-pink/40 px-3 py-1 text-xs text-brand-pink hover:bg-brand-pink hover:text-brand-black"
+            @click="startLockPair"
+          >
+            {{ t('matchmaking.lockPair') }}
+          </button>
+        </div>
+
+        <div v-if="lockingPair" class="hud-panel mt-2 border border-brand-pink/20 bg-brand-surface px-4 py-3">
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <select v-model="lockDraft.a" class="w-full rounded border border-brand-pink/25 bg-brand-black px-2 py-1">
+              <option value="" disabled>{{ t('matchmaking.pickPlayer') }}</option>
+              <option v-for="p in availablePool()" :key="p.id" :value="p.id">{{ p.name }}</option>
+            </select>
+            <select v-model="lockDraft.b" class="w-full rounded border border-brand-pink/25 bg-brand-black px-2 py-1">
+              <option value="" disabled>{{ t('matchmaking.pickPlayer') }}</option>
+              <option v-for="p in availablePool()" :key="p.id" :value="p.id">{{ p.name }}</option>
+            </select>
+          </div>
+          <p v-if="lockDraft.a && lockDraft.a === lockDraft.b" class="mt-2 text-xs text-status-error">
+            {{ t('matchmaking.duplicatePlayer') }}
+          </p>
+          <div class="mt-3 flex gap-2">
+            <button
+              :disabled="lockConfirming || !lockDraftIsValid()"
+              class="rounded-full bg-brand-pink px-3 py-1 text-xs font-semibold text-brand-black disabled:opacity-50"
+              @click="confirmLockPair"
+            >
+              {{ lockConfirming ? '...' : t('matchmaking.confirm') }}
+            </button>
+            <button class="text-xs text-white/50" @click="cancelLockPair">{{ t('common.cancel') }}</button>
+          </div>
+        </div>
+
+        <p v-if="lockError" class="mt-2 text-xs text-status-error">{{ lockError }}</p>
+
+        <ul class="mt-2 flex flex-wrap gap-2">
+          <li
+            v-for="lp in queue.locked_pairs"
+            :key="lp.id"
+            class="flex items-center gap-2 rounded-full border border-brand-pink/25 bg-brand-surface px-3 py-1.5 text-sm"
+          >
+            {{ nameOf(lp.player_a_id) }} &amp; {{ nameOf(lp.player_b_id) }}
+            <button
+              :disabled="unlockingId === lp.id"
+              class="text-xs text-white/50 hover:text-status-error disabled:opacity-50"
+              @click="unlockPair(lp.id)"
+            >
+              {{ unlockingId === lp.id ? '...' : t('matchmaking.unlock') }}
+            </button>
+          </li>
+          <li v-if="queue.locked_pairs.length === 0" class="text-sm text-white/40">
+            {{ t('matchmaking.noLockedPairs') }}
+          </li>
         </ul>
       </section>
 

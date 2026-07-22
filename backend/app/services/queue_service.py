@@ -13,7 +13,13 @@ from postgrest.types import CountMethod
 from supabase import Client
 
 from app.db_utils import rows
-from app.models.matchmaking import MatchmakingQueueResponse, PairingSuggestion, QueueEntry, WaitingEntry
+from app.models.matchmaking import (
+    LockedPair,
+    MatchmakingQueueResponse,
+    PairingSuggestion,
+    QueueEntry,
+    WaitingEntry,
+)
 from app.services import matchmaking_service
 
 RECENT_MATCHES_FOR_DURATION_AVG = 10
@@ -91,6 +97,17 @@ def current_round_no(supabase: Client, session_id: UUID) -> int:
     return (result.count or 0) + 1
 
 
+def fetch_locked_pairs(supabase: Client, session_id: UUID) -> list[LockedPair]:
+    result = (
+        supabase.table("locked_pairs")
+        .select("*")
+        .eq("session_id", str(session_id))
+        .order("created_at")
+        .execute()
+    )
+    return [LockedPair.model_validate(row) for row in rows(result)]
+
+
 def build_suggestions(
     supabase: Client, session_id: UUID
 ) -> tuple[list[PairingSuggestion], list[UUID]]:
@@ -98,8 +115,13 @@ def build_suggestions(
     checked_in = fetch_checked_in_players(supabase, session_id, in_progress_ids)
     history = fetch_pairing_history(supabase, session_id)
     current_round = current_round_no(supabase, session_id)
+    locked_pairs = tuple(
+        (lp.player_a_id, lp.player_b_id) for lp in fetch_locked_pairs(supabase, session_id)
+    )
 
-    splits, waiting = matchmaking_service.suggest_doubles_pairings(checked_in, history, current_round)
+    splits, waiting = matchmaking_service.suggest_doubles_pairings(
+        checked_in, history, current_round, locked_pairs
+    )
     suggestions = [
         PairingSuggestion(
             group_no=i + 1,
@@ -171,4 +193,5 @@ def build_queue(supabase: Client, session_id: UUID) -> MatchmakingQueueResponse:
         suggestions=suggestions,
         waiting=waiting,
         avg_match_duration_minutes=avg_duration,
+        locked_pairs=fetch_locked_pairs(supabase, session_id),
     )
