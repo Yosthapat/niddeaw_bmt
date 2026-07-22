@@ -1,22 +1,27 @@
 # Active Context
 
 ## Current Task
-- Removed the overlapping avatar-stack effect (-space-x-2/-space-x-3 negative margins) across every page that used it, per user request — pushing now
+- Rebuilt admin matchmaking's in-progress + suggestions layouts to match /live's vertical avatar-on-top/name-below style — pushing now
 
 ## Done Last Session
-- Confirmed live: avatar_url wiring fix for MatchmakingView + BillingView (verified via direct chunk inspection after some stale/transient polling reads)
-- User asked to stop member photos from overlapping each other across all pages, specifically flagging /live as an example
-- Audited every .vue file for the `-space-x-2`/`-space-x-3` overlapping-avatar-cluster technique — found exactly 3 files: MatchmakingView.vue (admin, 4 clusters), MatchHistoryView.vue (public, 2 clusters), LiveView.vue (public, 4 clusters)
-- Replaced `flex -space-x-3` -> `flex gap-2` and `flex -space-x-2` -> `flex gap-1.5` in all of them — avatars in a team cluster now sit side-by-side with a small gap instead of stacked/overlapping
+- Confirmed live: avatar overlap fix (-space-x -> gap) across /live, /matches, admin matchmaking
+- User screenshotted the admin matchmaking "แนะนำคู่ถัดไป" suggestions row looking cramped (name text wrapping, colliding with avatars) on mobile width, asked to match /live's layout
+- Rebuilt MatchmakingView.vue's in-progress list AND suggestions list: both now use the vertical stack (avatar cluster centered on top, name centered below) instead of the old horizontal name-beside-avatar row
+- Suggestions list's แก้คู่/ยืนยัน buttons moved to their own centered row below the team blocks, matching how the in-progress list already puts Record Result/Cancel below — edit-mode form (dropdowns) untouched
 - `vue-tsc -b && vite build` clean
 
 ## Next Steps
 - Push and confirm live
 - Optional: add UI support for singles matches (backend already supports type: 'single')
 
+## Blockers
+- none
+
 ## Last Updated
 - Claude Code — 2026-07-22
 
 ## Checkpoint (auto)
-- 07:07 — edited active.md
-- 07:05 — edited active.md
+- 07:10 — edited active.md
+- 07:09 — edited MatchmakingView.vue
+- 07:09 — edited MatchmakingView.vue
+- 07:08 — edited active.md
