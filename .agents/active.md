@@ -1,27 +1,23 @@
 # Active Context
 
 ## Current Task
-- Awaiting deployment to production via `npx wrangler deploy` (need Cloudflare auth)
+- None — all pending work shipped and verified. Awaiting next request.
 
 ## Done Last Session
-- **Session location dropdown**: Implemented dropdown in "สร้าง session" form with three options (KB badminton court โยธินพัฒนา, Guy badminton court, Custom free-text); updated SessionPicker.vue, MatchmakingView.vue, and i18n translations (en.ts, th.ts)
-- **Lock-pair error handling fix**: Fixed race condition where `refreshQueue()` failure after successful lock creation was misreported as lock failure; improved both `createLockedPair` and `unlockPair` error handling
-- **Frontend build**: Ran full TypeScript build, verified clean output, PWA assets generated (41 precache entries)
+- **Session location dropdown**: "สร้าง session" form now has a dropdown (KB badminton court โยธินพัฒนา / Guy badminton court / Custom free-text) instead of a plain text field
+- **Lock-pair error handling fix**: fixed a bug where a follow-up queue-refresh failure (after a successful lock/unlock) was misreported to the admin as "ล็อคคู่ไม่สำเร็จ" even though the lock/unlock itself succeeded
+- User created a scoped Cloudflare API token and ran `npx wrangler deploy` themselves
+- Verified both fixes are live in production by diffing deployed JS chunk content against the local build (dropdown strings present in `SessionPicker` chunk; empty-catch fix present in `MatchmakingView` chunk)
+- Cleaned up repo housekeeping: added `.wrangler/` to `.gitignore` (wrangler's local account-info cache was untracked and un-ignored)
 
 ## Next Steps
-- User runs `wrangler login` (interactively, opens OAuth) in their terminal
-- User runs `npx wrangler deploy` from repo root to deploy both fixes
-- Confirm deployment success in production
+- None pending
 
 ## Blockers
-- Wrangler auth token requires interactive OAuth login (non-interactive environment cannot proceed)
-- CLOUDFLARE_API_TOKEN env var not set in this session
+- none
 
 ## Last Updated
-- Claude Code — July 23, 2026
+- Claude Code — 2026-07-23
 
 ## Checkpoint (auto)
-- 07:04 — edited active.md
-- 07:04 — frontend build complete (TSC_OK, 214ms)
-- 07:01 — edited SessionPicker.vue, en.ts, th.ts
-- 00:03 — attempted wrangler deploy (needs auth)
+- 07:16 — edited active.md

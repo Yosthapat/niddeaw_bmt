@@ -24,3 +24,6 @@ frontend/.env
 # Editors
 .vscode/
 .idea/
+
+# Wrangler local cache (account info, etc.)
+.wrangler/
