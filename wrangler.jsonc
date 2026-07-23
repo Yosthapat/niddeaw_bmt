@@ -5,7 +5,7 @@
   // current onboarding screen has no root-directory field; the Build
   // Command instead `cd`s into frontend/ itself, and this file's
   // assets.directory path is relative to repo root.
-  "name": "niddeaw-bmt-frontend",
+  "name": "niddeaw-bmt",
   "compatibility_date": "2026-07-20",
   "assets": {
     "directory": "./frontend/dist",
