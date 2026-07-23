@@ -95,13 +95,18 @@ async function confirmLockPair(): Promise<void> {
   lockError.value = null
   try {
     await adminApi.createLockedPair(sessionsStore.currentSessionId, lockDraft.value.a, lockDraft.value.b)
-    lockingPair.value = false
-    pollControls.start()
-    await refreshQueue()
   } catch (e) {
     lockError.value = apiErrorMessage(e, t('matchmaking.lockFailed'))
-  } finally {
     lockConfirming.value = false
+    return
+  }
+  lockingPair.value = false
+  pollControls.start()
+  lockConfirming.value = false
+  try {
+    await refreshQueue()
+  } catch {
+    // Lock already created; the next poll tick will pick up the queue.
   }
 }
 
@@ -110,11 +115,16 @@ async function unlockPair(lockId: string): Promise<void> {
   lockError.value = null
   try {
     await adminApi.deleteLockedPair(lockId)
-    await refreshQueue()
   } catch (e) {
     lockError.value = apiErrorMessage(e, t('matchmaking.unlockFailed'))
-  } finally {
     unlockingId.value = null
+    return
+  }
+  unlockingId.value = null
+  try {
+    await refreshQueue()
+  } catch {
+    // Unlock already succeeded; the next poll tick will pick up the queue.
   }
 }
 

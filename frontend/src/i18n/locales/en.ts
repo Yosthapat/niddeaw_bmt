@@ -135,6 +135,7 @@ export default {
     createToday: "Create today's session",
     createFailed: 'Failed to create session',
     location: 'Location',
+    locationCustom: 'Enter location manually',
     courtFee: 'Court fee/person',
     courtFeeTitle: 'Court fee per person (THB)',
     shuttlecockPrice: 'Shuttlecock/game',

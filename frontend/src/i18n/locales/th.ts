@@ -133,6 +133,7 @@ export default {
     createToday: 'สร้าง session วันนี้',
     createFailed: 'สร้าง session ไม่สำเร็จ',
     location: 'สถานที่',
+    locationCustom: 'กรอกสถานที่เอง',
     courtFee: 'ค่าสนาม/คน',
     courtFeeTitle: 'ค่าสนามต่อคน (บาท)',
     shuttlecockPrice: 'ค่าลูก/เกม',

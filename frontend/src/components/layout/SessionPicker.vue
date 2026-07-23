@@ -8,7 +8,12 @@ import { ApiError } from '@/api/client'
 const { t } = useI18n()
 const sessionsStore = useSessionsStore()
 const creating = ref(false)
-const newLocation = ref('')
+
+const COURT_OPTIONS = ['KB badminton court โยธินพัฒนา', 'Guy badminton court']
+const CUSTOM_OPTION = '__custom__'
+
+const locationChoice = ref(COURT_OPTIONS[0])
+const customLocation = ref('')
 const newCourtFee = ref(80)
 const newShuttlecockPrice = ref(29)
 const createError = ref<string | null>(null)
@@ -25,17 +30,19 @@ onMounted(async () => {
 })
 
 async function createToday(): Promise<void> {
-  if (!newLocation.value.trim()) return
+  const location = locationChoice.value === CUSTOM_OPTION ? customLocation.value.trim() : locationChoice.value
+  if (!location) return
   createError.value = null
   try {
     await sessionsStore.createSession({
       date: new Date().toISOString().slice(0, 10),
-      location: newLocation.value.trim(),
+      location,
       court_fee_per_person: newCourtFee.value,
       shuttlecock_price_per_game: newShuttlecockPrice.value,
     })
     creating.value = false
-    newLocation.value = ''
+    locationChoice.value = COURT_OPTIONS[0]
+    customLocation.value = ''
   } catch (e) {
     createError.value = e instanceof ApiError ? `${t('session.createFailed')} (${e.status}: ${e.message})` : t('session.createFailed')
   }
@@ -94,8 +101,16 @@ async function deleteCurrent(): Promise<void> {
       + {{ t('session.createToday') }}
     </button>
     <template v-else>
+      <select
+        v-model="locationChoice"
+        class="rounded-lg border border-brand-pink/25 bg-brand-black px-2 py-1 text-sm"
+      >
+        <option v-for="loc in COURT_OPTIONS" :key="loc" :value="loc">{{ loc }}</option>
+        <option :value="CUSTOM_OPTION">{{ t('session.locationCustom') }}</option>
+      </select>
       <input
-        v-model="newLocation"
+        v-if="locationChoice === CUSTOM_OPTION"
+        v-model="customLocation"
         :placeholder="t('session.location')"
         class="w-32 rounded-lg border border-brand-pink/25 bg-brand-black px-2 py-1 text-sm"
       />
