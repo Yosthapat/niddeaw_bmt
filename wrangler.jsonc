@@ -5,7 +5,13 @@
   // current onboarding screen has no root-directory field; the Build
   // Command instead `cd`s into frontend/ itself, and this file's
   // assets.directory path is relative to repo root.
-  "name": "niddeaw-bmt-frontend",
+  //
+  // IMPORTANT: must match the real production Worker name exactly
+  // (niddeaw-bmt.yosthapatk-mbai.workers.dev) — this previously said
+  // "niddeaw-bmt-frontend", a name that doesn't exist as the live site, so
+  // every `wrangler deploy` from the CLI silently landed on a separate,
+  // unused Worker instead of updating production.
+  "name": "niddeaw-bmt",
   "compatibility_date": "2026-07-20",
   "assets": {
     "directory": "./frontend/dist",
