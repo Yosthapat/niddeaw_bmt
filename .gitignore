@@ -17,6 +17,10 @@ frontend/.vite/
 backend/.env
 frontend/.env
 !*.env.example
+# frontend/.env.production is intentionally NOT ignored — it holds only
+# VITE_API_BASE_URL, a public URL (not a secret), baked in at Vite build
+# time. Its absence previously caused every local build to silently embed
+# "undefined" as the API base URL, breaking the deployed site.
 
 # OS
 .DS_Store
