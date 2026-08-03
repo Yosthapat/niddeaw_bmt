@@ -52,9 +52,14 @@ const publicLinks = computed(() => [
 
       <RouterLink
         :to="authStore.isAuthenticated ? '/admin' : '/admin/login'"
-        class="hud-panel shrink-0 whitespace-nowrap border border-brand-pink/50 px-3 py-1.5 text-xs font-semibold tracking-wide text-brand-pink-light uppercase hover:border-brand-pink hover:bg-brand-pink/10"
+        class="hud-panel shrink-0 whitespace-nowrap border border-brand-pink/50 p-2 text-xs font-semibold tracking-wide text-brand-pink-light uppercase hover:border-brand-pink hover:bg-brand-pink/10 sm:px-3 sm:py-1.5"
+        :aria-label="authStore.isAuthenticated ? t('nav.admin') : t('nav.adminLogin')"
       >
-        {{ authStore.isAuthenticated ? t('nav.admin') : t('nav.adminLogin') }}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 sm:hidden">
+          <rect x="5" y="11" width="14" height="9" rx="1.5" />
+          <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+        </svg>
+        <span class="hidden sm:inline">{{ authStore.isAuthenticated ? t('nav.admin') : t('nav.adminLogin') }}</span>
       </RouterLink>
     </div>
   </header>
