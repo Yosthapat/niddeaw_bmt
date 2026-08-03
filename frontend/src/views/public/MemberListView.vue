@@ -19,8 +19,8 @@ const hasMore = ref(true)
 const search = ref('')
 const loadedAll = ref(false)
 
-// Sorted by points server-side now (cheap — denormalized stats, no
-// match-history scan), so the roster arrives in ranked order already.
+// Sorted alphabetically (A-Z) server-side (cheap — denormalized stats, no
+// match-history scan), so the roster arrives in that order already.
 const filteredStats = computed(() => {
   const query = search.value.trim().toLowerCase()
   if (!query) return stats.value

@@ -42,7 +42,9 @@ def list_players(
     views' name/avatar lookups). Pass both to paginate the member list."""
     players_result = supabase.table("players").select("*").eq("is_active", True).execute()
     stats = [_to_stats(Player.model_validate(row)) for row in rows(players_result)]
-    stats.sort(key=lambda s: s.points, reverse=True)
+    # Alphabetical roster — points-based ranking lives on the separate
+    # /api/ranking endpoint (RankingView), not here.
+    stats.sort(key=lambda s: s.player.nickname.lower())
 
     if limit is None:
         return stats

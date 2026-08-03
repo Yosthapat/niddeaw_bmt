@@ -1,32 +1,32 @@
 # Active Context
 
 ## Current Task
-- User needs to run `npx wrangler deploy` once more to push the just-normalized mascot sizes
+- Wait for production deploy (b16aa31 + latest commit), then run end-to-end tests (admin login, member list, matchmaking) against live site
 
 ## Done Last Session
-- Fixed the wrangler.jsonc worker-name mismatch (cfb22a8) — user redeployed
-  successfully afterward and confirmed rainbow Absinthe is now live
-- User then noticed mascot sizes were visibly inconsistent across the 8
-  tiers (screenshot showed Vodka/Absinthe noticeably smaller than the
-  other 6). Root cause: each source image had different amounts of
-  transparent padding around the character within its 320x320 canvas —
-  measured via alpha-channel bounding box (`Image.getbbox()`), Vodka's
-  content only filled 72% of canvas height vs ~90% for the rest.
-  Normalized all 8 mascots (milk/beer/highball/wine/soju/whisky/vodka/absinthe)
-  to the same content height (288px, centered) so they render at visually
-  matching sizes everywhere `<TierMascot>` is used.
-- Frontend rebuilt clean (JS bundle hash unchanged, only image bytes changed)
+- Diagnosed root cause of production site failure: `frontend/.env.production` was missing, so Vite compiled with `undefined` as `VITE_API_BASE_URL`, breaking all API calls
+- Created `frontend/.env.production` with correct backend URL, committed (not gitignored — it's a public URL, not a secret) (b16aa31)
+- Changed `/members` page sort order from points-descending to alphabetical
+  (A-Z): backend `list_players` in `players.py` now sorts by
+  `nickname.lower()` instead of points. Ranking page is unaffected — it
+  uses a separate `/api/ranking` endpoint entirely.
+- Backend mypy + all 31 tests pass, frontend type-check + build clean,
+  re-verified the correct API URL is still baked into this build
 
 ## Next Steps
-- Commit + push the normalized mascot images
-- User runs `npx wrangler deploy` again to push this update
+- User deploys via `wrangler deploy`
+- Run end-to-end tests on live site: admin login flow, member list
+  alphabetical order, matchmaking functionality
+- Establish e2e test suite to prevent this class of build-time env bug recurring
 
 ## Blockers
-- none
+- Waiting for production deploy to be executed
 
 ## Last Updated
 - Claude Code — 2026-08-04
 
 ## Checkpoint (auto)
-- 02:46 — edited active.md
-- 02:43 — edited active.md
+- 03:08 — edited active.md
+- 03:07 — edited MemberListView.vue
+- 03:07 — edited players.py
+- 02:59 — edited active.md
