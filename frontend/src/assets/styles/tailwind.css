@@ -50,6 +50,13 @@
   --color-tier-absinthe: #4b3f9e;
 }
 
+/* Absinthe is the top tier — a rainbow treatment (not a plain @theme color,
+   since it's a gradient, not a solid) marks it as the rarest rank, applied
+   via the tierTextStyle()/tierSwatchStyle() helpers in useEloTier.ts. */
+:root {
+  --gradient-tier-absinthe: linear-gradient(90deg, #ff5a5a, #ffab4d, #ffe14d, #5ce88a, #4dd2ff, #6d7dff, #c96dff);
+}
+
 html {
   background-color: var(--color-brand-black);
 }

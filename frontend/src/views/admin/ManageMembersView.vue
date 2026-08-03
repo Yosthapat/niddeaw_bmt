@@ -3,7 +3,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
 import { ApiError } from '@/api/client'
-import { useEloTier } from '@/composables/useEloTier'
+import { useEloTier, tierTextStyle } from '@/composables/useEloTier'
 import type { EloTier, Player } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
@@ -18,7 +18,7 @@ const error = ref<string | null>(null)
 
 // Representative starting score per tier — matches the boundaries in
 // backend/app/services/elo_service.py's get_tier() thresholds.
-const tierOptions: { tier: EloTier; label: string; score: number; color: string }[] = [
+const tierOptions: { tier: EloTier; label: string; score: number; color: string; gradient?: string }[] = [
   { tier: 'milk', label: 'Milk', score: 800, color: 'var(--color-tier-milk)' },
   { tier: 'beer', label: 'Beer', score: 1000, color: 'var(--color-tier-beer)' },
   { tier: 'highball', label: 'Highball', score: 1200, color: 'var(--color-tier-highball)' },
@@ -26,7 +26,7 @@ const tierOptions: { tier: EloTier; label: string; score: number; color: string 
   { tier: 'soju', label: 'Soju', score: 1600, color: 'var(--color-tier-soju)' },
   { tier: 'whisky', label: 'Whisky', score: 1800, color: 'var(--color-tier-whisky)' },
   { tier: 'vodka', label: 'Vodka', score: 2000, color: 'var(--color-tier-vodka)' },
-  { tier: 'absinthe', label: 'Absinthe', score: 2200, color: 'var(--color-tier-absinthe)' },
+  { tier: 'absinthe', label: 'Absinthe', score: 2200, color: 'var(--color-tier-absinthe)', gradient: 'var(--gradient-tier-absinthe)' },
 ]
 
 type HandOption = '' | 'left' | 'right'
@@ -221,7 +221,7 @@ onMounted(loadPlayers)
             @click="selectedTier = selectedTier === opt.tier ? null : opt.tier"
           >
             <TierMascot :tier="opt.tier" :size="20" />
-            <span :style="{ color: selectedTier === opt.tier ? opt.color : undefined }">{{ opt.label }}</span>
+            <span :style="selectedTier === opt.tier ? tierTextStyle(opt.color, opt.gradient) : undefined">{{ opt.label }}</span>
           </button>
         </div>
       </div>

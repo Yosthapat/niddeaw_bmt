@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n'
 import type { EloTier } from '@/types'
 import TierMascot from '@/components/players/TierMascot.vue'
 import AdCarousel from '@/components/home/AdCarousel.vue'
+import { tierTextStyle } from '@/composables/useEloTier'
 
 const { t } = useI18n()
 
@@ -14,8 +15,9 @@ const { t } = useI18n()
 const ads = ['/ads/cover-page.webp']
 
 // Ordered by rising alcohol content — matches elo_service.py's
-// _TIER_THRESHOLDS order.
-const tiers: { tier: EloTier; label: string; color: string }[] = [
+// _TIER_THRESHOLDS order. Absinthe's `gradient` gives it the rainbow
+// "rarest rank" treatment via tierTextStyle() instead of a flat color.
+const tiers: { tier: EloTier; label: string; color: string; gradient?: string }[] = [
   { tier: 'milk', label: 'Milk', color: 'var(--color-tier-milk)' },
   { tier: 'beer', label: 'Beer', color: 'var(--color-tier-beer)' },
   { tier: 'highball', label: 'Highball', color: 'var(--color-tier-highball)' },
@@ -23,7 +25,7 @@ const tiers: { tier: EloTier; label: string; color: string }[] = [
   { tier: 'soju', label: 'Soju', color: 'var(--color-tier-soju)' },
   { tier: 'whisky', label: 'Whisky', color: 'var(--color-tier-whisky)' },
   { tier: 'vodka', label: 'Vodka', color: 'var(--color-tier-vodka)' },
-  { tier: 'absinthe', label: 'Absinthe', color: 'var(--color-tier-absinthe)' },
+  { tier: 'absinthe', label: 'Absinthe', color: 'var(--color-tier-absinthe)', gradient: 'var(--gradient-tier-absinthe)' },
 ]
 
 // Club vibe strip — hand-drawn line icons (24x24, stroke-based) instead of
@@ -109,7 +111,7 @@ const sponsors = [
       <div class="mt-6 flex flex-wrap items-center justify-center gap-3 text-xs font-semibold tracking-widest text-white/40 uppercase">
         <span v-for="tier in tiers" :key="tier.label" class="flex flex-col items-center gap-1">
           <TierMascot :tier="tier.tier" :size="40" />
-          <span :style="{ color: tier.color }">{{ tier.label }}</span>
+          <span :style="tierTextStyle(tier.color, tier.gradient)">{{ tier.label }}</span>
         </span>
       </div>
     </div>
