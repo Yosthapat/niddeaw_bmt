@@ -8,7 +8,7 @@ export interface TierInfo {
 
 // Same thresholds as elo_service.get_tier() on the backend — ordered by
 // rising alcohol content (Milk 0% -> Beer ~5% -> Highball ~7-9% -> Wine
-// ~12-13% -> Soju ~16-20% -> Whisky ~40% -> Vodka ~40%+).
+// ~12-13% -> Soju ~16-20% -> Whisky ~40% -> Vodka ~40%+ -> Absinthe ~55-74%).
 const TIERS: { max: number; tier: EloTier; label: string; colorVar: string }[] = [
   { max: 900, tier: 'milk', label: 'Milk', colorVar: 'var(--color-tier-milk)' },
   { max: 1100, tier: 'beer', label: 'Beer', colorVar: 'var(--color-tier-beer)' },
@@ -16,7 +16,8 @@ const TIERS: { max: number; tier: EloTier; label: string; colorVar: string }[] =
   { max: 1500, tier: 'wine', label: 'Wine', colorVar: 'var(--color-tier-wine)' },
   { max: 1700, tier: 'soju', label: 'Soju', colorVar: 'var(--color-tier-soju)' },
   { max: 1900, tier: 'whisky', label: 'Whisky', colorVar: 'var(--color-tier-whisky)' },
-  { max: Infinity, tier: 'vodka', label: 'Vodka', colorVar: 'var(--color-tier-vodka)' },
+  { max: 2100, tier: 'vodka', label: 'Vodka', colorVar: 'var(--color-tier-vodka)' },
+  { max: Infinity, tier: 'absinthe', label: 'Absinthe', colorVar: 'var(--color-tier-absinthe)' },
 ]
 
 /**

@@ -26,6 +26,7 @@ const tierOptions: { tier: EloTier; label: string; score: number; color: string 
   { tier: 'soju', label: 'Soju', score: 1600, color: 'var(--color-tier-soju)' },
   { tier: 'whisky', label: 'Whisky', score: 1800, color: 'var(--color-tier-whisky)' },
   { tier: 'vodka', label: 'Vodka', score: 2000, color: 'var(--color-tier-vodka)' },
+  { tier: 'absinthe', label: 'Absinthe', score: 2200, color: 'var(--color-tier-absinthe)' },
 ]
 
 type HandOption = '' | 'left' | 'right'

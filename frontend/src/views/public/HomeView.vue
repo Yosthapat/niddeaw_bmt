@@ -23,6 +23,7 @@ const tiers: { tier: EloTier; label: string; color: string }[] = [
   { tier: 'soju', label: 'Soju', color: 'var(--color-tier-soju)' },
   { tier: 'whisky', label: 'Whisky', color: 'var(--color-tier-whisky)' },
   { tier: 'vodka', label: 'Vodka', color: 'var(--color-tier-vodka)' },
+  { tier: 'absinthe', label: 'Absinthe', color: 'var(--color-tier-absinthe)' },
 ]
 
 // Club vibe strip — hand-drawn line icons (24x24, stroke-based) instead of

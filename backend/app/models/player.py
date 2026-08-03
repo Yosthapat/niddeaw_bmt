@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, computed_field
 
-EloTier = Literal["milk", "beer", "highball", "wine", "soju", "whisky", "vodka"]
+EloTier = Literal["milk", "beer", "highball", "wine", "soju", "whisky", "vodka", "absinthe"]
 DominantHand = Literal["left", "right"]
 
 

@@ -21,17 +21,18 @@ _TIER_THRESHOLDS: list[tuple[int, EloTier]] = [
     (1500, "wine"),
     (1700, "soju"),
     (1900, "whisky"),
+    (2100, "vodka"),
 ]
 """Ordered by rising alcohol content (Milk 0% -> Beer ~5% -> Highball ~7-9%
--> Wine ~12-13% -> Soju ~16-20% -> Whisky ~40% -> Vodka ~40%+), each tier
-from Beer up an equal 200-point band."""
+-> Wine ~12-13% -> Soju ~16-20% -> Whisky ~40% -> Vodka ~40%+ -> Absinthe
+~55-74%), each tier from Beer up an equal 200-point band."""
 
 
 def get_tier(score: int) -> EloTier:
     for threshold, tier in _TIER_THRESHOLDS:
         if score < threshold:
             return tier
-    return "vodka"
+    return "absinthe"
 
 
 def expected_score(rating_a: float, rating_b: float) -> float:

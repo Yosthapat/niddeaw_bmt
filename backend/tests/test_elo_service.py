@@ -40,3 +40,5 @@ def test_tier_boundaries() -> None:
     assert elo_service.get_tier(1700) == "whisky"
     assert elo_service.get_tier(1899) == "whisky"
     assert elo_service.get_tier(1900) == "vodka"
+    assert elo_service.get_tier(2099) == "vodka"
+    assert elo_service.get_tier(2100) == "absinthe"

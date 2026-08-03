@@ -13,6 +13,7 @@ const labels: Record<EloTier, string> = {
   soju: 'Soju tier mascot',
   whisky: 'Whisky tier mascot',
   vodka: 'Vodka tier mascot',
+  absinthe: 'Absinthe tier mascot',
 }
 </script>
 

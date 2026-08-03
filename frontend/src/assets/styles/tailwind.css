@@ -37,9 +37,9 @@
   --color-status-success: #4ade80;
   --color-status-error: #f87171;
 
-  /* Milk -> Beer -> Highball -> Wine -> Soju -> Whisky -> Vodka: ordered by
-     rising alcohol content, an escalating read from pale beginner to a
-     striking elite hue, not arbitrary Tailwind swatches. */
+  /* Milk -> Beer -> Highball -> Wine -> Soju -> Whisky -> Vodka -> Absinthe:
+     ordered by rising alcohol content, an escalating read from pale
+     beginner to a striking elite hue, not arbitrary Tailwind swatches. */
   --color-tier-milk: #e8e4da;
   --color-tier-beer: #dfa11a;
   --color-tier-highball: #ea6f2f;
@@ -47,6 +47,7 @@
   --color-tier-soju: #8ec899;
   --color-tier-whisky: #a8503f;
   --color-tier-vodka: #9d5bf4;
+  --color-tier-absinthe: #4b3f9e;
 }
 
 html {

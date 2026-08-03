@@ -1,23 +1,24 @@
 # Active Context
 
 ## Current Task
-- None — all pending work shipped and verified. Awaiting next request.
+- None — all pending work committed. Awaiting next request.
 
 ## Done Last Session
-- **Session location dropdown**: "สร้าง session" form now has a dropdown (KB badminton court โยธินพัฒนา / Guy badminton court / Custom free-text) instead of a plain text field
-- **Lock-pair error handling fix**: fixed a bug where a follow-up queue-refresh failure (after a successful lock/unlock) was misreported to the admin as "ล็อคคู่ไม่สำเร็จ" even though the lock/unlock itself succeeded
-- User created a scoped Cloudflare API token and ran `npx wrangler deploy` themselves
-- Verified both fixes are live in production by diffing deployed JS chunk content against the local build (dropdown strings present in `SessionPicker` chunk; empty-catch fix present in `MatchmakingView` chunk)
-- Cleaned up repo housekeeping: added `.wrangler/` to `.gitignore` (wrangler's local account-info cache was untracked and un-ignored)
+- Added "Absinthe" as a new highest ELO tier above Vodka:
+  - Backend: `EloTier` literal, `_TIER_THRESHOLDS` (Vodka 1900-2099, Absinthe >=2100), tests updated
+  - Migration `0013_absinthe_tier.sql` (constraint + recompute elo_level, following the wine-tier precedent)
+  - Frontend: `EloTier` type, `useEloTier` composable, `TierMascot` labels, tier lists in `HomeView.vue` and `ManageMembersView.vue`, new `--color-tier-absinthe` CSS var
+  - Mascot artwork saved to `frontend/public/tiers/absinthe.webp`, background removed via corner-seeded flood-fill (same method as the other 7 mascots), resized to 320x320 to match
+  - Backend: mypy clean, all 31 tests pass. Frontend: vue-tsc clean, build clean
+- Replaced home ad banner with new "Friday Night" promo artwork, adjusted `AdCarousel`'s aspect ratio to match (pushed as 94be2fc)
 
 ## Next Steps
-- None pending
+- Commit + push the Absinthe tier work
+- User still needs to run the `0013_absinthe_tier.sql` migration in Supabase
+- User still needs `CLOUDFLARE_API_TOKEN` (or `wrangler login`) in their own terminal to deploy — same standing blocker as previous sessions
 
 ## Blockers
-- none
+- Wrangler auth not available in this non-interactive environment — deploy must be run by the user
 
 ## Last Updated
-- Claude Code — 2026-07-23
-
-## Checkpoint (auto)
-- 07:16 — edited active.md
+- Claude Code — 2026-08-04
