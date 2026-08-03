@@ -1,21 +1,25 @@
 # Active Context
 
 ## Current Task
-- none
+- User needs to run `npx wrangler deploy` once more to push the just-normalized mascot sizes
 
 ## Done Last Session
-- New Vodka tier mascot artwork committed and pushed (414ae80) — background removed via flood-fill script, resized to 320x320, saved as vodka.webp
-- Fixed cramped mobile header: on screens <640px, the "ADMIN LOGIN" button in
-  AppHeader.vue collapses to an icon-only lock button (text hidden below
-  `sm:`) instead of full text, freeing horizontal space for the 5 nav links
-  + language switcher that were all fighting for the same row
-- Pending changes ready to deploy: rainbow Absinthe tier (4de6f11), new
-  Vodka mascot (414ae80), mobile header fix (not yet committed — next step)
+- Fixed the wrangler.jsonc worker-name mismatch (cfb22a8) — user redeployed
+  successfully afterward and confirmed rainbow Absinthe is now live
+- User then noticed mascot sizes were visibly inconsistent across the 8
+  tiers (screenshot showed Vodka/Absinthe noticeably smaller than the
+  other 6). Root cause: each source image had different amounts of
+  transparent padding around the character within its 320x320 canvas —
+  measured via alpha-channel bounding box (`Image.getbbox()`), Vodka's
+  content only filled 72% of canvas height vs ~90% for the rest.
+  Normalized all 8 mascots (milk/beer/highball/wine/soju/whisky/vodka/absinthe)
+  to the same content height (288px, centered) so they render at visually
+  matching sizes everywhere `<TierMascot>` is used.
+- Frontend rebuilt clean (JS bundle hash unchanged, only image bytes changed)
 
 ## Next Steps
-- Commit + push the AppHeader.vue mobile fix
-- User deploys to Cloudflare Workers when ready: `export CLOUDFLARE_API_TOKEN="your-token" && cd "/Users/tabby/For work/niddeaw_bmt" && npx wrangler deploy`
-- No browser tool available in this environment to visually confirm the mobile fix — worth a quick look on a real phone once deployed
+- Commit + push the normalized mascot images
+- User runs `npx wrangler deploy` again to push this update
 
 ## Blockers
 - none
@@ -24,6 +28,5 @@
 - Claude Code — 2026-08-04
 
 ## Checkpoint (auto)
-- 02:21 — edited active.md
-- 02:21 — edited AppHeader.vue
-- 02:18 — edited active.md
+- 02:46 — edited active.md
+- 02:43 — edited active.md
