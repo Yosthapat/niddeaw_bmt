@@ -1,29 +1,26 @@
 # Active Context
 
 ## Current Task
-- Deploy the Absinthe rainbow-color change to production (needs `npx wrangler deploy` from user's terminal)
+- Deploy pending changes to production (rainbow Absinthe + new Vodka mascot art)
 
 ## Done Last Session
-- Absinthe tier (ELO >= 2100) fully deployed to production and verified live
-- Added rainbow gradient treatment for Absinthe specifically (top/rarest rank):
-  - New `--gradient-tier-absinthe` CSS var in tailwind.css (7-stop rainbow linear-gradient)
-  - `useEloTier.ts` gained `gradient?` field on TierInfo plus two shared helpers,
-    `tierTextStyle()` (gradient background-clip text, falls back to solid color)
-    and `tierSwatchStyle()` (gradient background, falls back to solid backgroundColor)
-  - Applied via the helpers in `EloBadge.vue` (used everywhere — member list,
-    ranking, hall of fame, checkin, profile, match detail), `HomeView.vue`
-    tier showcase strip, and `ManageMembersView.vue` starting-tier picker
-  - Every other tier unaffected — helpers fall back to the existing solid colorVar
-  - Frontend type-check and build both clean
+- Rainbow Absinthe tier (ELO >= 2100) implemented, committed (4de6f11) — still pending deploy
+- Replaced Vodka tier mascot art: user dropped a new bottle image at
+  `frontend/public/tiers/vodka.png`, background removed via the same
+  corner-seeded flood-fill script used for Absinthe, resized to 320x320,
+  saved as `vodka.webp` (overwriting the old one) and the source .png deleted
+- Frontend rebuilt clean
 
 ## Next Steps
-- User runs `npx wrangler deploy` from their terminal to push the rainbow-color change live
+- Commit + push the new vodka.webp
+- User deploys to Cloudflare Workers: `export CLOUDFLARE_API_TOKEN="your-token" && cd "/Users/tabby/For work/niddeaw_bmt" && npx wrangler deploy`
 
 ## Blockers
-- Wrangler auth not available in non-interactive environment; user must deploy from their own terminal with API token
+- none
 
 ## Last Updated
 - Claude Code — 2026-08-04
 
 ## Checkpoint (auto)
-- 01:54 — edited active.md
+- 02:17 — edited active.md
+- 01:55 — edited active.md
