@@ -47,7 +47,7 @@ onUnmounted(stop)
 <template>
   <div
     v-if="images.length > 0"
-    class="hud-panel relative aspect-[12/5] w-full overflow-hidden border border-brand-pink/20 bg-brand-black"
+    class="hud-panel relative aspect-[1280/474] w-full overflow-hidden border border-brand-pink/20 bg-brand-black"
   >
     <img
       v-for="(src, i) in images"
