@@ -237,6 +237,12 @@ export default {
     matchmakingDesc: 'Match by ELO and record results',
     billingDesc: 'Close session, generate PromptPay QR',
     settingsDesc: 'PromptPay ID, default rates',
+    revenueExpenseChart: 'Monthly revenue vs. expenses',
+    revenue: 'Revenue',
+    expense: 'Expenses',
+    net: 'Net',
+    chartLoadFailed: 'Failed to load chart',
+    chartEmpty: 'No revenue/expense data yet',
   },
   admin: {
     nav: {
