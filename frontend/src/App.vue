@@ -5,6 +5,10 @@ import AppHeader from '@/components/layout/AppHeader.vue'
 <template>
   <div class="min-h-screen bg-brand-black">
     <AppHeader />
-    <RouterView />
+    <RouterView v-slot="{ Component, route }">
+      <Transition name="page" mode="out-in">
+        <component :is="Component" :key="route.path" />
+      </Transition>
+    </RouterView>
   </div>
 </template>

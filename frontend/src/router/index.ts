@@ -9,6 +9,12 @@ declare module 'vue-router' {
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
+  // Reset scroll to top on every new navigation (App.vue's page transition
+  // unmounts the old view, so landing mid-scroll on the new one reads as
+  // broken) — except back/forward, which restores where the user was.
+  scrollBehavior(_to, _from, savedPosition) {
+    return savedPosition ?? { top: 0 }
+  },
   routes: [
     // Public — read-only, no auth guard.
     {
