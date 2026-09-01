@@ -254,13 +254,21 @@ export default {
   // highest, matching the tier order (rising alcohol content).
   tierInfo: {
     close: 'Close',
-    milk: "I'm Milk — haven't touched a drop of alcohol yet. Fresh off learning how to hold a racket, still thrilled just to hit the shuttle. 🥛 I'm rank VB.",
-    beer: "I'm Beer — easy to drink, easy on the court. No pressure here, just show up, swing, and sweat it out. 🍺 I'm rank BG-.",
-    highball: "I'm Highball — a little mixed, still smooth. Starting to find my rhythm, no longer fumbling like day one. 🥃 I'm rank BG.",
-    wine: "I'm Wine — got some finesse now. My swings have a bit of style, not just a beginner's guesswork anymore. 🍷 I'm rank N-.",
-    soju: "I'm Soju — everyone's favorite. My game's gotten steadier, hitting with more control these days. 🍶 I'm rank N.",
-    whisky: "I'm Whisky — stronger stuff, not for the faint-hearted. My smashes have teeth now, no fear of a real opponent. 🥃 I'm rank S.",
-    vodka: "I'm Vodka — high proof, not everyone can handle me. On court, I'm the one people watch out for. 🍸 I'm rank P.",
-    absinthe: "I'm Absinthe — the legend not everyone gets to taste. Rarest, strongest, top of the club. 👑 I'm rank C.",
+    milk:
+      "I'm Milk — the club's newest rookie, joined just last week. My hands still shake holding the racket, and I don't touch a drop of alcohol, but I haven't missed a single session yet. The seniors are starting to recognize my face. 🥛 Rank VB — where every legend starts.",
+    beer:
+      "I'm Beer — honestly not sure if I show up for the badminton or the drinks after. 😅 Still drop a lot of shuttles, but I've never skipped an invite. Ask me anywhere, I'm in. 🍺 Rank BG- — the easygoing regular every club needs.",
+    highball:
+      "I'm Highball — I mix well with any partner, any playstyle. Nobody says no when I'm up for doubles. Getting steadier by the week. 🥃 Rank BG — starting to actually read the game, not just flail around like day one.",
+    wine:
+      "I'm Wine — been around the club long enough to pick up a few things. I don't rush; I wait for the right moment, like a good vintage waiting to be ready. 🍷 Rank N- — some finesse now, not just raw effort.",
+    soju:
+      "I'm Soju — the club's favorite, first to reply whenever the group chat needs one more player. Call me to play, call me to drink, I'm there either way. Footwork's gotten light enough people can barely keep up. 🍶 Rank N — the one every team wants on their side.",
+    whisky:
+      "I'm Whisky — been through enough seasons to age into something steadier. Don't say much before a match, but my smashes make opponents back off on their own. 🥃 Rank S — the level where people start planning ahead just to face me.",
+    vodka:
+      "I'm Vodka — full proof, no mixer needed. Not much talk, just power. Whoever draws me as an opponent already knows it's going to be a long game. 🍸 Rank P — a name the club brings up with a little respect.",
+    absinthe:
+      "I'm Absinthe — the green legend everyone's heard of but almost nobody's actually played. Rarest, strongest — getting matched with me is basically an achievement unlock. 👑 Rank C — the ceiling nobody's reached past yet.",
   },
 }
