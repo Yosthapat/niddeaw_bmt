@@ -6,7 +6,11 @@ import TierInfoModal from '@/components/players/TierInfoModal.vue'
 <template>
   <div class="min-h-screen bg-brand-black">
     <AppHeader />
-    <RouterView />
+    <RouterView v-slot="{ Component, route }">
+      <Transition name="page" mode="out-in">
+        <component :is="Component" :key="route.path" />
+      </Transition>
+    </RouterView>
     <TierInfoModal />
   </div>
 </template>

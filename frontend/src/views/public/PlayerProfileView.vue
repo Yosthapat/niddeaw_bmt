@@ -15,12 +15,11 @@ const profile = ref<PlayerProfile | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 
-// Navigating from one profile to another (e.g. clicking a similar-level
-// member or the nemesis card) reuses this component instance instead of
-// remounting it, since both URLs match the same /members/:id route record
-// — onMounted alone would never re-fire, leaving the old profile on screen
-// under the new URL. Watching the param (with immediate for the first load)
-// re-fetches every time it actually changes.
+// Watches the param instead of onMounted so this also works if Vue ever
+// reuses the component instance across two /members/:id URLs (both match
+// the same route record, so onMounted alone wouldn't re-fire). App.vue's
+// route-transition currently keys on the full path, which happens to force
+// a remount on every navigation too — but don't rely on that holding.
 watch(
   () => route.params.id,
   async (id) => {

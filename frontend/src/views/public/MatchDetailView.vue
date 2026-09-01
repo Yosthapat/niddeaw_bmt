@@ -48,8 +48,7 @@ const dateLabel = computed(() => {
 })
 
 // See PlayerProfileView.vue for why this watches the param instead of
-// onMounted — navigating between two /matches/:id URLs reuses this
-// component instance rather than remounting it.
+// onMounted.
 watch(
   () => route.params.id,
   async (id) => {
