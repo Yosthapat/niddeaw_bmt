@@ -117,6 +117,24 @@ h3,
   background-color: var(--color-brand-pink);
 }
 
+/* TierInfoModal.vue — backdrop fades, panel fades + scales up from 95%. */
+.tier-modal-enter-active,
+.tier-modal-leave-active {
+  transition: opacity 0.18s ease;
+}
+.tier-modal-enter-active > div,
+.tier-modal-leave-active > div {
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.tier-modal-enter-from,
+.tier-modal-leave-to {
+  opacity: 0;
+}
+.tier-modal-enter-from > div,
+.tier-modal-leave-to > div {
+  transform: scale(0.95);
+}
+
 /* v-reveal directive (useScrollReveal.ts): starts hidden/offset, then
    plays reveal-up once IntersectionObserver flags the element as visible.
    --reveal-delay is set per-element by the directive for staggered lists. */
@@ -190,6 +208,12 @@ h3,
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .tier-modal-enter-active,
+  .tier-modal-leave-active,
+  .tier-modal-enter-active > div,
+  .tier-modal-leave-active > div {
+    transition: none;
+  }
   .reveal-init {
     opacity: 1;
     transform: none;

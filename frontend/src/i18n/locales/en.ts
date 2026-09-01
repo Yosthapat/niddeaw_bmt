@@ -249,4 +249,17 @@ export default {
       logout: 'Log Out',
     },
   },
+  // TierInfoModal.vue — draft copy, pending confirmation of the actual
+  // "มือ" skill-level label per tier before this ships.
+  tierInfo: {
+    close: 'Close',
+    milk: "I'm Milk (blurb pending) I'm rank [TBD]",
+    beer: "I'm Beer (blurb pending) I'm rank [TBD]",
+    highball: "I'm Highball (blurb pending) I'm rank [TBD]",
+    wine: "I'm Wine (blurb pending) I'm rank [TBD]",
+    soju: "I'm Soju (blurb pending) I'm rank [TBD]",
+    whisky: "I'm Whisky (blurb pending) I'm rank [TBD]",
+    vodka: "I'm Vodka (blurb pending) I'm rank [TBD]",
+    absinthe: "I'm Absinthe (blurb pending) I'm rank [TBD]",
+  },
 }

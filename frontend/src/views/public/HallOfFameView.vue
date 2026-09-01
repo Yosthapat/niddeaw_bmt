@@ -49,7 +49,7 @@ onMounted(async () => {
       >
         <RouterLink :to="`/members/${s.player.id}`" class="flex flex-1 items-center gap-3 hover:opacity-80">
           <PlayerAvatar :name="s.player.nickname" :avatar-url="s.player.avatar_url" size="lg" />
-          <TierMascot :tier="s.player.elo_level" :size="36" />
+          <TierMascot :tier="s.player.elo_level" :size="36" :interactive="false" />
           <div class="flex-1">
             <p class="font-display font-bold">
               {{ i === 0 ? '👑 ' : '' }}{{ s.player.nickname }}

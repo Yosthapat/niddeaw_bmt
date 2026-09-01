@@ -247,4 +247,17 @@ export default {
       logout: 'ออกจากระบบ',
     },
   },
+  // TierInfoModal.vue — draft copy, pending confirmation of the actual
+  // "มือ" skill-level label per tier before this ships.
+  tierInfo: {
+    close: 'ปิด',
+    milk: 'เรา Milk นะ (ข้อความรอแต่ง) เราอยู่มือ [รอยืนยัน]',
+    beer: 'เรา Beer นะ (ข้อความรอแต่ง) เราอยู่มือ [รอยืนยัน]',
+    highball: 'เรา Highball นะ (ข้อความรอแต่ง) เราอยู่มือ [รอยืนยัน]',
+    wine: 'เรา Wine นะ (ข้อความรอแต่ง) เราอยู่มือ [รอยืนยัน]',
+    soju: 'เรา Soju นะ (ข้อความรอแต่ง) เราอยู่มือ [รอยืนยัน]',
+    whisky: 'เรา Whisky นะ (ข้อความรอแต่ง) เราอยู่มือ [รอยืนยัน]',
+    vodka: 'เรา Vodka นะ (ข้อความรอแต่ง) เราอยู่มือ [รอยืนยัน]',
+    absinthe: 'เรา Absinthe นะ (ข้อความรอแต่ง) เราอยู่มือ [รอยืนยัน]',
+  },
 }

@@ -39,6 +39,14 @@ export function useEloTier(eloScore: number): TierInfo {
   return { tier, label, colorVar, gradient }
 }
 
+/** Same metadata as useEloTier(), looked up by tier name instead of score
+ *  (e.g. for TierInfoModal, which only knows which mascot was clicked). */
+export function tierMeta(tier: EloTier): TierInfo {
+  const match = TIERS.find((t) => t.tier === tier) ?? TIERS[TIERS.length - 1]
+  const { label, colorVar, gradient } = match
+  return { tier, label, colorVar, gradient }
+}
+
 /** Solid color, unless the tier has a rainbow gradient (Absinthe). */
 export function tierTextStyle(
   colorVar: string,
