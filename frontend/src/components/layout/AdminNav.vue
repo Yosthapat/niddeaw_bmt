@@ -15,6 +15,7 @@ const links = computed(() => [
   { to: '/admin/members', label: t('admin.nav.members') },
   { to: '/admin/matchmaking', label: t('admin.nav.matchmaking') },
   { to: '/admin/billing', label: t('admin.nav.billing') },
+  { to: '/admin/expenses', label: t('admin.nav.expenses') },
   { to: '/admin/revenue', label: t('admin.nav.revenue') },
   { to: '/admin/settings', label: t('admin.nav.settings') },
 ])

@@ -5,6 +5,7 @@ from app.config import get_settings
 from app.routers.admin import auth as admin_auth
 from app.routers.admin import billing as admin_billing
 from app.routers.admin import checkins as admin_checkins
+from app.routers.admin import expenses as admin_expenses
 from app.routers.admin import matchmaking as admin_matchmaking
 from app.routers.admin import players_admin
 from app.routers.admin import sessions as admin_sessions
@@ -35,6 +36,7 @@ app.include_router(players_admin.router)
 app.include_router(admin_settings.router)
 app.include_router(admin_matchmaking.router)
 app.include_router(admin_billing.router)
+app.include_router(admin_expenses.router)
 
 
 @app.get("/health")

@@ -1,9 +1,12 @@
 import { request } from './client'
 import type {
+  Admin,
   Billing,
   Checkin,
   ClubSettings,
   DailyRevenue,
+  Expense,
+  ExpenseCategory,
   LockedPair,
   LoginCredentials,
   LoginResponse,
@@ -11,11 +14,12 @@ import type {
   MatchmakingQueueResponse,
   MatchmakingSuggestionResponse,
   MatchWinner,
+  MonthlyExpenseSummary,
   Player,
   Session,
 } from '@/types'
 
-// Mirrors backend/app/routers/admin/{auth,sessions,checkins,matchmaking,billing,players_admin,settings}.py.
+// Mirrors backend/app/routers/admin/{auth,sessions,checkins,matchmaking,billing,expenses,players_admin,settings}.py.
 
 export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
   return request('/api/admin/auth/login', {
@@ -191,6 +195,63 @@ export async function uploadAvatar(playerId: string, file: File): Promise<Player
   const formData = new FormData()
   formData.append('file', file)
   return request(`/api/admin/players/${playerId}/avatar`, {
+    method: 'POST',
+    body: formData,
+  })
+}
+
+// Expenses
+export async function getExpenses(month?: string): Promise<Expense[]> {
+  return request(`/api/admin/expenses${month ? `?month=${month}` : ''}`)
+}
+
+export async function getExpenseSummary(): Promise<MonthlyExpenseSummary[]> {
+  return request('/api/admin/expenses/summary')
+}
+
+export async function getExpensePayers(): Promise<Admin[]> {
+  return request('/api/admin/expenses/payers')
+}
+
+export async function createExpense(expense: {
+  expense_date: string
+  category: ExpenseCategory
+  category_other?: string | null
+  amount: number
+  paid_by: string
+  note?: string | null
+}): Promise<Expense> {
+  return request('/api/admin/expenses', {
+    method: 'POST',
+    body: JSON.stringify(expense),
+  })
+}
+
+export async function updateExpense(
+  expenseId: string,
+  updates: Partial<{
+    expense_date: string
+    category: ExpenseCategory
+    category_other: string | null
+    amount: number
+    paid_by: string
+    note: string | null
+  }>,
+): Promise<Expense> {
+  return request(`/api/admin/expenses/${expenseId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+  })
+}
+
+export async function deleteExpense(expenseId: string): Promise<void> {
+  await request(`/api/admin/expenses/${expenseId}`, { method: 'DELETE' })
+}
+
+export async function uploadReceipt(expenseId: string, file: File): Promise<Expense> {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request(`/api/admin/expenses/${expenseId}/receipt`, {
     method: 'POST',
     body: formData,
   })
