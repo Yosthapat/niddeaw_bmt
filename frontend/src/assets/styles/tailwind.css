@@ -117,6 +117,25 @@ h3,
   background-color: var(--color-brand-pink);
 }
 
+/* Route transition (App.vue's <Transition name="page">) — a quick fade +
+   vertical slide between pages instead of an instant hard swap, so
+   navigating feels like moving through an app rather than reloading a
+   document. mode="out-in" finishes the leave before the enter starts. */
+.page-enter-active,
+.page-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
 /* v-reveal directive (useScrollReveal.ts): starts hidden/offset, then
    plays reveal-up once IntersectionObserver flags the element as visible.
    --reveal-delay is set per-element by the directive for staggered lists. */
@@ -190,6 +209,10 @@ h3,
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .page-enter-active,
+  .page-leave-active {
+    transition: none;
+  }
   .reveal-init {
     opacity: 1;
     transform: none;
