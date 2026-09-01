@@ -8,6 +8,7 @@ import { useI18n } from 'vue-i18n'
 import { tierMeta, tierTextStyle } from '@/composables/useEloTier'
 import { useTierInfoModal } from '@/composables/useTierInfoModal'
 import TierMascot from './TierMascot.vue'
+import TypewriterText from '@/components/common/TypewriterText.vue'
 
 const { t } = useI18n()
 const { activeTier, close } = useTierInfoModal()
@@ -49,7 +50,9 @@ onUnmounted(() => {
             ✕
           </button>
 
-          <TierMascot :tier="meta.tier" :size="140" class="mx-auto" />
+          <div class="mascot-bounce-in mx-auto w-fit">
+            <TierMascot :tier="meta.tier" :size="140" />
+          </div>
 
           <p
             class="mt-4 font-display text-2xl font-bold tracking-wide uppercase"
@@ -59,7 +62,9 @@ onUnmounted(() => {
             {{ meta.label }}
           </p>
 
-          <p class="mt-3 text-sm leading-relaxed whitespace-pre-line text-white/80">{{ blurb }}</p>
+          <p class="mt-3 min-h-32 text-sm leading-relaxed whitespace-pre-line text-white/80">
+            <TypewriterText :text="blurb" />
+          </p>
         </div>
       </div>
     </Transition>
