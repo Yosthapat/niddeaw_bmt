@@ -1,0 +1,23 @@
+name: Keep-alive ping
+
+# Render (backend) free tier sleeps after 15 min idle; Supabase (DB) free
+# tier auto-pauses the project after ~7 days with no activity. /health has
+# no DB dependency (see backend/app/main.py), so pinging only that keeps
+# Render awake but does nothing for Supabase. Hitting /api/players instead
+# forces a real DB query, which resets Supabase's inactivity clock too.
+#
+# Runs daily, well inside the 7-day pause window. `curl -f` fails the job
+# (and GitHub emails the repo owner) on any non-2xx response, so this also
+# doubles as a minimal uptime check.
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hit /api/players to keep Supabase + Render awake
+        run: curl -fsS --max-time 90 https://niddeaw-bmt.onrender.com/api/players -o /dev/null
