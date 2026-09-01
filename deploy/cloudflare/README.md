@@ -27,3 +27,15 @@ replaces the old `_redirects` `/* /index.html 200` trick — **do not** add
 a `frontend/public/_redirects` file back. Having both active at once
 causes a "Line 1: Infinite loop detected in this rule" deploy failure,
 since the two SPA-fallback mechanisms fight each other.
+
+## Node version
+
+`vite@8` requires Node `^20.19.0 || >=22.12.0` and fails outright on older
+runtimes. Every build since Cloudflare's default build-image Node version
+fell below that (all commits after `2c4d8a1`, silently — the app kept
+running on the last successful deploy while every push after it failed)
+broke because of this. `.nvmrc` (repo root and `frontend/`) plus
+`engines.node` in `frontend/package.json` now pin it explicitly; if builds
+ever fail again with a `vite requires Node.js` message, bump those two
+files' version rather than guessing at the dashboard's `NODE_VERSION`
+build variable.
