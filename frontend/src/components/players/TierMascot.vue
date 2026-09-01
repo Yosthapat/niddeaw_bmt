@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import type { EloTier } from '@/types'
+import { useTierInfoModal } from '@/composables/useTierInfoModal'
 
-withDefaults(defineProps<{ tier: EloTier; size?: number }>(), {
+const props = withDefaults(defineProps<{ tier: EloTier; size?: number; interactive?: boolean }>(), {
   size: 64,
+  interactive: true,
 })
+
+const { open } = useTierInfoModal()
 
 const labels: Record<EloTier, string> = {
   milk: 'Milk tier mascot',
@@ -18,7 +22,24 @@ const labels: Record<EloTier, string> = {
 </script>
 
 <template>
+  <button
+    v-if="interactive"
+    type="button"
+    class="hud-hover inline-block shrink-0 rounded-full transition-transform active:scale-95"
+    :aria-label="labels[tier]"
+    @click="open(props.tier)"
+  >
+    <img
+      :src="`/tiers/${tier}.webp`"
+      :alt="labels[tier]"
+      :width="size"
+      :height="size"
+      class="pointer-events-none block object-contain"
+      :style="{ width: `${size}px`, height: `${size}px` }"
+    />
+  </button>
   <img
+    v-else
     :src="`/tiers/${tier}.webp`"
     :alt="labels[tier]"
     :width="size"

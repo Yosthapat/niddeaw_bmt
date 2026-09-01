@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppHeader from '@/components/layout/AppHeader.vue'
+import TierInfoModal from '@/components/players/TierInfoModal.vue'
 </script>
 
 <template>
@@ -10,5 +11,6 @@ import AppHeader from '@/components/layout/AppHeader.vue'
         <component :is="Component" :key="route.path" />
       </Transition>
     </RouterView>
+    <TierInfoModal />
   </div>
 </template>

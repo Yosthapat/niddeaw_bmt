@@ -249,4 +249,26 @@ export default {
       logout: 'Log Out',
     },
   },
+  // TierInfoModal.vue — mascot flavor text. Skill-level letters (VB, BG-,
+  // BG, N-, N, S, P, C) per the club's own "มือ" grading scale, lowest to
+  // highest, matching the tier order (rising alcohol content).
+  tierInfo: {
+    close: 'Close',
+    milk:
+      "I'm Milk — the club's newest rookie, joined just last week. My hands still shake holding the racket, and I don't touch a drop of alcohol, but I haven't missed a single session yet. The seniors are starting to recognize my face. 🥛 Rank VB — where every legend starts.",
+    beer:
+      "I'm Beer — honestly not sure if I show up for the badminton or the drinks after. 😅 Still drop a lot of shuttles, but I've never skipped an invite. Ask me anywhere, I'm in. 🍺 Rank BG- — the easygoing regular every club needs.",
+    highball:
+      "I'm Highball — I mix well with any partner, any playstyle. Nobody says no when I'm up for doubles. Getting steadier by the week. 🥃 Rank BG — starting to actually read the game, not just flail around like day one.",
+    wine:
+      "I'm Wine — been around the club long enough to pick up a few things. I don't rush; I wait for the right moment, like a good vintage waiting to be ready. 🍷 Rank N- — some finesse now, not just raw effort.",
+    soju:
+      "I'm Soju — the club's favorite, first to reply whenever the group chat needs one more player. Call me to play, call me to drink, I'm there either way. Footwork's gotten light enough people can barely keep up. 🍶 Rank N — the one every team wants on their side.",
+    whisky:
+      "I'm Whisky — been through enough seasons to age into something steadier. Don't say much before a match, but my smashes make opponents back off on their own. 🥃 Rank S — the level where people start planning ahead just to face me.",
+    vodka:
+      "I'm Vodka — full proof, no mixer needed. Not much talk, just power. Whoever draws me as an opponent already knows it's going to be a long game. 🍸 Rank P — a name the club brings up with a little respect.",
+    absinthe:
+      "I'm Absinthe — the green legend everyone's heard of but almost nobody's actually played. Rarest, strongest — getting matched with me is basically an achievement unlock. 👑 National-team caliber. No rank letter needed.",
+  },
 }

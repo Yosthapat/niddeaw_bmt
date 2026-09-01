@@ -140,6 +140,7 @@ usePolling(refreshCheckins, 8000)
               v-if="playersStore.byId(c.player_id)"
               :tier="playersStore.byId(c.player_id)!.elo_level"
               :size="24"
+              :interactive="false"
             />
             <EloBadge v-if="playersStore.byId(c.player_id)" :elo-score="playersStore.byId(c.player_id)!.elo_score" />
             <span class="text-xs text-white/40">

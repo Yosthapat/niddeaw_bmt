@@ -220,7 +220,7 @@ onMounted(loadPlayers)
             :class="selectedTier === opt.tier ? 'border-brand-pink bg-brand-surface-raised' : 'border-brand-pink/20 bg-brand-black text-white/50'"
             @click="selectedTier = selectedTier === opt.tier ? null : opt.tier"
           >
-            <TierMascot :tier="opt.tier" :size="20" />
+            <TierMascot :tier="opt.tier" :size="20" :interactive="false" />
             <span :style="selectedTier === opt.tier ? tierTextStyle(opt.color, opt.gradient) : undefined">{{ opt.label }}</span>
           </button>
         </div>
@@ -270,7 +270,7 @@ onMounted(loadPlayers)
               <span v-if="p.instagram"> · IG {{ p.instagram }}</span>
             </p>
           </div>
-          <TierMascot :tier="p.elo_level" :size="28" />
+          <TierMascot :tier="p.elo_level" :size="28" :interactive="false" />
           <EloBadge :elo-score="p.elo_score" show-score />
           <button class="text-xs text-brand-pink underline" @click="startEdit(p)">{{ t('common.edit') }}</button>
           <button
@@ -301,7 +301,7 @@ onMounted(loadPlayers)
           <label class="flex items-center gap-2 rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm sm:col-span-2">
             <span class="shrink-0 text-white/50">{{ t('members.eloScore') }}</span>
             <input v-model.number="editForm.elo_score" type="number" class="w-24 bg-transparent text-center" />
-            <TierMascot :tier="eloTierFor(editForm.elo_score)" :size="24" class="shrink-0" />
+            <TierMascot :tier="eloTierFor(editForm.elo_score)" :size="24" class="shrink-0" :interactive="false" />
           </label>
           <div class="flex gap-2 sm:col-span-2">
             <button type="submit" :disabled="savingEdit" class="rounded-full bg-brand-pink px-4 py-1.5 text-sm font-semibold text-brand-black disabled:opacity-50">
