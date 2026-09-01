@@ -101,6 +101,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/admin/expenses',
+      name: 'admin-expenses',
+      component: () => import('../views/admin/ExpensesView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/admin/revenue',
       name: 'admin-revenue',
       component: () => import('../views/admin/RevenueView.vue'),
