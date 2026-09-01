@@ -6,6 +6,7 @@ import type { PlayerStats } from '@/types'
 import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
+import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 
 const PAGE_SIZE = 20
 
@@ -81,12 +82,14 @@ onMounted(async () => {
       />
     </div>
 
-    <p v-if="loading" class="mt-6 text-white/60">{{ t('common.loading') }}</p>
+    <div v-if="loading" class="mt-6 space-y-2">
+      <HudSkeletonBlock v-for="i in 8" :key="i" :delay="i * 60" class="h-12" />
+    </div>
     <p v-else-if="error" class="mt-6 text-status-error">{{ error }}</p>
     <p v-else-if="stats.length === 0" class="mt-6 text-white/60">{{ t('members.empty') }}</p>
     <p v-else-if="filteredStats.length === 0" class="mt-6 text-white/60">{{ t('members.noSearchResults') }}</p>
 
-    <div v-else class="hud-panel mt-6 overflow-x-auto border border-brand-pink/20 bg-brand-surface">
+    <div v-else v-reveal class="hud-panel mt-6 overflow-x-auto border border-brand-pink/20 bg-brand-surface">
       <table class="w-full min-w-[680px] text-left text-sm">
         <thead class="border-b border-brand-pink/20 text-xs font-semibold tracking-wider text-white/40 uppercase">
           <tr>
@@ -130,7 +133,7 @@ onMounted(async () => {
     <div v-if="!loading && hasMore && !search.trim()" class="mt-6 text-center">
       <button
         :disabled="loadingMore"
-        class="rounded-full border border-brand-pink/40 px-5 py-2 text-sm font-semibold text-brand-pink hover:bg-brand-pink hover:text-brand-black disabled:opacity-50"
+        class="hud-hover rounded-full border border-brand-pink/40 px-5 py-2 text-sm font-semibold text-brand-pink hover:bg-brand-pink hover:text-brand-black disabled:opacity-50"
         @click="loadMore"
       >
         {{ loadingMore ? t('common.loading') : t('matches.loadMore') }}

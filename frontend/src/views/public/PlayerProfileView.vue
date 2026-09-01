@@ -7,6 +7,7 @@ import type { PlayerProfile } from '@/types'
 import EloBadge from '@/components/players/EloBadge.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
+import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -43,11 +44,14 @@ watch(
       &larr; {{ t('profile.backToMembers') }}
     </RouterLink>
 
-    <p v-if="loading" class="mt-6 text-white/60">{{ t('common.loading') }}</p>
+    <div v-if="loading" class="mt-6 space-y-3">
+      <HudSkeletonBlock class="mx-auto h-44 w-44 sm:h-60 sm:w-60" />
+      <HudSkeletonBlock :delay="90" class="h-24" />
+    </div>
     <p v-else-if="error || !profile" class="mt-6 text-status-error">{{ error }}</p>
 
     <template v-else>
-      <div class="mt-6 flex flex-col items-center gap-6 sm:flex-row sm:items-center sm:justify-center">
+      <div v-reveal class="mt-6 flex flex-col items-center gap-6 sm:flex-row sm:items-center sm:justify-center">
         <div class="flex flex-col items-center gap-2 text-center">
           <PlayerAvatar :name="profile.player.nickname" :avatar-url="profile.player.avatar_url" size="xl" />
           <h1 class="mt-1 font-display text-2xl font-bold">{{ profile.player.nickname }}</h1>
@@ -85,7 +89,7 @@ watch(
         </div>
       </div>
 
-      <div class="mt-8 grid grid-cols-3 gap-2.5 sm:grid-cols-6">
+      <div v-reveal="1" class="mt-8 grid grid-cols-3 gap-2.5 sm:grid-cols-6">
         <div class="hud-panel border border-brand-pink/20 bg-brand-surface p-3 text-center">
           <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('common.game') }}</p>
           <p class="mt-1 font-display text-xl font-bold">{{ profile.games }}</p>
@@ -112,7 +116,7 @@ watch(
         </div>
       </div>
 
-      <section v-if="profile.nemesis" class="hud-panel mt-8 border border-brand-pink/20 bg-brand-surface p-4">
+      <section v-if="profile.nemesis" v-reveal="2" class="hud-panel mt-8 border border-brand-pink/20 bg-brand-surface p-4">
         <h2 class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">{{ t('profile.nemesis') }}</h2>
         <div class="mt-3 flex items-center gap-3">
           <PlayerAvatar
@@ -145,7 +149,7 @@ watch(
           <li v-for="p in profile.similar_players" :key="p.id">
             <RouterLink
               :to="`/members/${p.id}`"
-              class="hud-panel flex items-center gap-2 border border-brand-pink/20 bg-brand-surface px-3 py-1.5 hover:border-brand-pink/50"
+              class="hud-panel hud-hover flex items-center gap-2 border border-brand-pink/20 bg-brand-surface px-3 py-1.5 hover:border-brand-pink/50"
             >
               <PlayerAvatar :name="p.nickname" :avatar-url="p.avatar_url" size="sm" />
               <span class="text-sm font-medium text-white/80">{{ p.nickname }}</span>

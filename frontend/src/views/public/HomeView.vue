@@ -96,11 +96,11 @@ const sponsors = [
 
 <template>
   <main class="mx-auto max-w-4xl px-4 py-12 sm:py-20">
-    <div class="reveal">
+    <div v-reveal>
       <AdCarousel :images="ads" />
     </div>
 
-    <div class="reveal mt-10 flex flex-col items-center text-center sm:mt-12">
+    <div v-reveal="1" class="mt-10 flex flex-col items-center text-center sm:mt-12">
       <h1 class="font-display text-[clamp(2rem,7vw,3.75rem)] leading-none font-bold text-white">
         นิดเดียว<span class="text-brand-pink">BADMINTON</span>
       </h1>
@@ -111,12 +111,14 @@ const sponsors = [
       <div class="mt-6 flex flex-wrap items-center justify-center gap-3 text-xs font-semibold tracking-widest text-white/40 uppercase">
         <span v-for="tier in tiers" :key="tier.label" class="flex flex-col items-center gap-1">
           <TierMascot :tier="tier.tier" :size="40" />
-          <span :style="tierTextStyle(tier.color, tier.gradient)">{{ tier.label }}</span>
+          <span :class="{ 'tier-shimmer': tier.gradient }" :style="tierTextStyle(tier.color, tier.gradient)">{{
+            tier.label
+          }}</span>
         </span>
       </div>
     </div>
 
-    <section class="reveal hud-panel mt-8 border border-brand-pink/20 bg-brand-surface p-6 sm:mt-10">
+    <section v-reveal class="hud-panel mt-8 border border-brand-pink/20 bg-brand-surface p-6 sm:mt-10">
       <h2 class="text-center text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">{{ t('home.vibesTitle') }}</h2>
       <div class="mt-5 flex flex-wrap justify-center gap-x-6 gap-y-5 sm:gap-x-8">
         <div v-for="vibe in vibes" :key="vibe.label" class="flex w-16 flex-col items-center gap-2 text-center">
@@ -137,7 +139,7 @@ const sponsors = [
       </div>
     </section>
 
-    <section class="reveal hud-panel mt-8 border border-brand-pink/20 bg-brand-surface p-6 text-left sm:mt-10">
+    <section v-reveal class="hud-panel mt-8 border border-brand-pink/20 bg-brand-surface p-6 text-left sm:mt-10">
       <h2 class="font-display text-sm font-bold tracking-wide text-brand-pink uppercase">{{ t('home.contactTitle') }}</h2>
       <p class="mt-2 text-sm text-white/60">
         {{ t('home.contactBody') }}
@@ -149,7 +151,7 @@ const sponsors = [
           :href="social.href"
           target="_blank"
           rel="noopener noreferrer"
-          class="hud-panel inline-flex items-center gap-1.5 border border-brand-pink/25 bg-brand-black px-3 py-1.5 text-xs font-semibold text-white/80 transition-colors hover:border-brand-pink hover:text-brand-pink"
+          class="hud-panel hud-hover inline-flex items-center gap-1.5 border border-brand-pink/25 bg-brand-black px-3 py-1.5 text-xs font-semibold text-white/80 transition-colors hover:border-brand-pink hover:text-brand-pink"
         >
           <svg
             viewBox="0 0 24 24"
@@ -167,7 +169,7 @@ const sponsors = [
       </div>
     </section>
 
-    <section class="reveal sponsors mt-10 border-t border-b border-brand-pink/15 py-8 text-center sm:mt-12">
+    <section v-reveal class="mt-10 border-t border-b border-brand-pink/15 py-8 text-center sm:mt-12">
       <h2 class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">{{ t('home.sponsorsTitle') }}</h2>
       <div class="mt-6 flex flex-wrap items-center justify-center gap-x-12 gap-y-8">
         <img
@@ -181,32 +183,3 @@ const sponsors = [
     </section>
   </main>
 </template>
-
-<style scoped>
-.reveal {
-  animation: reveal-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-section.reveal {
-  animation-delay: 0.25s;
-}
-section.reveal.sponsors {
-  animation-delay: 0.3s;
-}
-
-@keyframes reveal-up {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .reveal {
-    animation: none;
-  }
-}
-</style>

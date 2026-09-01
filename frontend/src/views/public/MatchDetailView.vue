@@ -7,6 +7,7 @@ import type { MatchDetail } from '@/types'
 import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
+import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 
 const route = useRoute()
 const { t, locale } = useI18n()
@@ -72,11 +73,14 @@ watch(
       &larr; {{ t('matches.backToMatches') }}
     </RouterLink>
 
-    <p v-if="loading" class="mt-6 text-white/60">{{ t('common.loading') }}</p>
+    <div v-if="loading" class="mt-8 grid grid-cols-2 gap-4">
+      <HudSkeletonBlock class="h-64" />
+      <HudSkeletonBlock :delay="80" class="h-64" />
+    </div>
     <p v-else-if="error || !detail" class="mt-6 text-status-error">{{ error }}</p>
 
     <template v-else>
-      <div class="mt-6 text-center">
+      <div v-reveal class="mt-6 text-center">
         <p class="text-xs tracking-widest text-white/40 uppercase">
           {{ detail.match.type === 'double' ? t('matches.doubles') : t('matches.singles') }}
           · {{ dateLabel }}
@@ -88,6 +92,7 @@ watch(
 
       <div class="mt-8 grid grid-cols-2 gap-4">
         <div
+          v-reveal="1"
           class="hud-panel border p-4"
           :class="
             statusFor('team1') === 'win'
@@ -124,6 +129,7 @@ watch(
         </div>
 
         <div
+          v-reveal="2"
           class="hud-panel border p-4"
           :class="
             statusFor('team2') === 'win'
