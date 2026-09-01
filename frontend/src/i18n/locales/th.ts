@@ -235,6 +235,12 @@ export default {
     matchmakingDesc: 'จัดคู่ตาม ELO และบันทึกผลแมตช์',
     billingDesc: 'ปิด session, สร้าง PromptPay QR',
     settingsDesc: 'PromptPay ID, อัตราค่าหัวเริ่มต้น',
+    revenueExpenseChart: 'รายรับ-รายจ่ายรายเดือน',
+    revenue: 'รายรับ',
+    expense: 'รายจ่าย',
+    net: 'สุทธิ',
+    chartLoadFailed: 'โหลดกราฟไม่สำเร็จ',
+    chartEmpty: 'ยังไม่มีข้อมูลรายรับ/รายจ่าย',
   },
   admin: {
     nav: {

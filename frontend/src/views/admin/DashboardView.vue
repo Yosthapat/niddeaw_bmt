@@ -5,6 +5,7 @@ import { useSessionsStore } from '@/stores/sessions'
 import { usePlayersStore } from '@/stores/players'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import SessionPicker from '@/components/layout/SessionPicker.vue'
+import RevenueExpenseChart from '@/components/admin/RevenueExpenseChart.vue'
 
 const { t } = useI18n()
 const sessionsStore = useSessionsStore()
@@ -38,6 +39,10 @@ onMounted(() => {
         <p class="text-xs text-white/50">{{ t('dashboard.totalSessions') }}</p>
         <p class="mt-1 text-2xl font-bold">{{ sessionsStore.sessions.length }}</p>
       </div>
+    </div>
+
+    <div class="mt-6">
+      <RevenueExpenseChart />
     </div>
 
     <div class="mt-8 grid gap-3 sm:grid-cols-2">
