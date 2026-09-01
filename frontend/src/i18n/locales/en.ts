@@ -269,6 +269,6 @@ export default {
     vodka:
       "I'm Vodka — full proof, no mixer needed. Not much talk, just power. Whoever draws me as an opponent already knows it's going to be a long game. 🍸 Rank P — a name the club brings up with a little respect.",
     absinthe:
-      "I'm Absinthe — the green legend everyone's heard of but almost nobody's actually played. Rarest, strongest — getting matched with me is basically an achievement unlock. 👑 Rank C — the ceiling nobody's reached past yet.",
+      "I'm Absinthe — the green legend everyone's heard of but almost nobody's actually played. Rarest, strongest — getting matched with me is basically an achievement unlock. 👑 National-team caliber. No rank letter needed.",
   },
 }
