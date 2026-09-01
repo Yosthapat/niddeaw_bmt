@@ -249,17 +249,18 @@ export default {
       logout: 'Log Out',
     },
   },
-  // TierInfoModal.vue — draft copy, pending confirmation of the actual
-  // "มือ" skill-level label per tier before this ships.
+  // TierInfoModal.vue — mascot flavor text. Skill-level letters (VB, BG-,
+  // BG, N-, N, S, P, C) per the club's own "มือ" grading scale, lowest to
+  // highest, matching the tier order (rising alcohol content).
   tierInfo: {
     close: 'Close',
-    milk: "I'm Milk (blurb pending) I'm rank [TBD]",
-    beer: "I'm Beer (blurb pending) I'm rank [TBD]",
-    highball: "I'm Highball (blurb pending) I'm rank [TBD]",
-    wine: "I'm Wine (blurb pending) I'm rank [TBD]",
-    soju: "I'm Soju (blurb pending) I'm rank [TBD]",
-    whisky: "I'm Whisky (blurb pending) I'm rank [TBD]",
-    vodka: "I'm Vodka (blurb pending) I'm rank [TBD]",
-    absinthe: "I'm Absinthe (blurb pending) I'm rank [TBD]",
+    milk: "I'm Milk — haven't touched a drop of alcohol yet. Fresh off learning how to hold a racket, still thrilled just to hit the shuttle. 🥛 I'm rank VB.",
+    beer: "I'm Beer — easy to drink, easy on the court. No pressure here, just show up, swing, and sweat it out. 🍺 I'm rank BG-.",
+    highball: "I'm Highball — a little mixed, still smooth. Starting to find my rhythm, no longer fumbling like day one. 🥃 I'm rank BG.",
+    wine: "I'm Wine — got some finesse now. My swings have a bit of style, not just a beginner's guesswork anymore. 🍷 I'm rank N-.",
+    soju: "I'm Soju — everyone's favorite. My game's gotten steadier, hitting with more control these days. 🍶 I'm rank N.",
+    whisky: "I'm Whisky — stronger stuff, not for the faint-hearted. My smashes have teeth now, no fear of a real opponent. 🥃 I'm rank S.",
+    vodka: "I'm Vodka — high proof, not everyone can handle me. On court, I'm the one people watch out for. 🍸 I'm rank P.",
+    absinthe: "I'm Absinthe — the legend not everyone gets to taste. Rarest, strongest, top of the club. 👑 I'm rank C.",
   },
 }
