@@ -5,6 +5,7 @@ import { getLiveStatus, getPlayers } from '@/api/public'
 import type { LiveQueueResponse, Player } from '@/types'
 import { usePolling } from '@/composables/usePolling'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
+import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 
 const { t, locale } = useI18n()
 
@@ -39,8 +40,13 @@ async function refresh(): Promise<void> {
 }
 
 async function loadPlayers(): Promise<void> {
-  const stats = await getPlayers()
-  playersById.value = Object.fromEntries(stats.map((s) => [s.player.id, s.player]))
+  try {
+    const stats = await getPlayers()
+    playersById.value = Object.fromEntries(stats.map((s) => [s.player.id, s.player]))
+  } catch {
+    // Names/avatars just fall back to "?" (see nameOf/avatarOf) — refresh()
+    // below still drives the loading/error state for the page as a whole.
+  }
 }
 
 function formatSessionDate(isoDate: string): string {
@@ -56,10 +62,18 @@ usePolling(refresh, 7000)
 
 <template>
   <main class="mx-auto max-w-3xl px-4 py-8 sm:py-12">
-    <p class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">Live</p>
+    <div class="flex items-center gap-2">
+      <span v-if="live?.session_id" class="relative flex h-2 w-2">
+        <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-pink opacity-75" />
+        <span class="relative inline-flex h-2 w-2 rounded-full bg-brand-pink" />
+      </span>
+      <p class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">Live</p>
+    </div>
     <h1 class="font-display text-3xl font-bold text-white">{{ t('live.title') }}</h1>
 
-    <p v-if="loading" class="mt-6 text-white/60">{{ t('common.loading') }}</p>
+    <div v-if="loading" class="mt-6 space-y-3">
+      <HudSkeletonBlock v-for="i in 3" :key="i" :delay="i * 90" class="h-24" />
+    </div>
     <p v-else-if="error" class="mt-6 text-status-error">{{ error }}</p>
 
     <template v-else-if="!live?.session_id">
@@ -71,14 +85,15 @@ usePolling(refresh, 7000)
         {{ live.location }} · {{ formatSessionDate(live.session_date) }}
       </p>
 
-      <section class="mt-6">
+      <section v-reveal class="mt-6">
         <h2 class="text-sm font-semibold text-white/70">
           {{ t('live.inProgress') }} ({{ live.in_progress.length }})
         </h2>
         <ul class="mt-2 space-y-2">
           <li
-            v-for="m in live.in_progress"
+            v-for="(m, i) in live.in_progress"
             :key="m.match_id"
+            v-reveal="i"
             class="hud-panel border border-brand-pink/20 bg-brand-surface px-4 py-3"
           >
             <div class="flex items-center justify-between gap-3">
@@ -123,12 +138,13 @@ usePolling(refresh, 7000)
         </ul>
       </section>
 
-      <section class="mt-8">
+      <section v-reveal class="mt-8">
         <h2 class="text-sm font-semibold text-white/70">{{ t('live.upNext') }}</h2>
         <ul class="mt-2 space-y-2">
           <li
-            v-for="s in live.suggestions"
+            v-for="(s, i) in live.suggestions"
             :key="s.group_no"
+            v-reveal="i"
             class="hud-panel border border-brand-pink/20 bg-brand-surface px-4 py-3"
           >
             <div class="flex items-center justify-between gap-3">
@@ -173,12 +189,13 @@ usePolling(refresh, 7000)
         </ul>
       </section>
 
-      <section class="mt-8">
+      <section v-reveal class="mt-8">
         <h2 class="text-sm font-semibold text-white/70">{{ t('live.inQueue') }} ({{ live.waiting.length }})</h2>
         <ul class="mt-2 flex flex-wrap gap-2">
           <li
-            v-for="w in live.waiting"
+            v-for="(w, i) in live.waiting"
             :key="w.player_id"
+            v-reveal="i"
             class="flex items-center gap-2 rounded-full border border-brand-pink/25 bg-brand-surface px-3 py-1.5 text-sm"
           >
             <PlayerAvatar :name="nameOf(w.player_id)" :avatar-url="avatarOf(w.player_id)" size="sm" />

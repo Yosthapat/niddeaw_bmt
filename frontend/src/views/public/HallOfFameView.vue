@@ -6,6 +6,7 @@ import type { PlayerStats } from '@/types'
 import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
+import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 
 const { t } = useI18n()
 
@@ -30,7 +31,9 @@ onMounted(async () => {
     <h1 class="font-display text-3xl font-bold text-white">Hall of Fame</h1>
     <p class="mt-1 text-sm text-white/40">{{ t('hallOfFame.subtitle') }}</p>
 
-    <p v-if="loading" class="mt-6 text-white/60">{{ t('common.loading') }}</p>
+    <div v-if="loading" class="mt-6 grid gap-3 sm:grid-cols-2">
+      <HudSkeletonBlock v-for="i in 4" :key="i" :delay="i * 80" class="h-24" />
+    </div>
     <p v-else-if="error" class="mt-6 text-status-error">{{ error }}</p>
     <p v-else-if="stats.length === 0" class="mt-6 text-white/60">
       {{ t('hallOfFame.empty') }}
@@ -40,7 +43,8 @@ onMounted(async () => {
       <div
         v-for="(s, i) in stats"
         :key="s.player.id"
-        class="hud-panel flex items-center gap-3 border bg-brand-surface p-4"
+        v-reveal="i"
+        class="hud-panel hud-hover flex items-center gap-3 border bg-brand-surface p-4"
         :class="i === 0 ? 'border-brand-pink/70 bg-brand-pink/5' : 'border-brand-pink/15'"
       >
         <RouterLink :to="`/members/${s.player.id}`" class="flex flex-1 items-center gap-3 hover:opacity-80">

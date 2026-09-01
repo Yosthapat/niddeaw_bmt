@@ -116,3 +116,92 @@ h3,
 *::-webkit-scrollbar-thumb:hover {
   background-color: var(--color-brand-pink);
 }
+
+/* v-reveal directive (useScrollReveal.ts): starts hidden/offset, then
+   plays reveal-up once IntersectionObserver flags the element as visible.
+   --reveal-delay is set per-element by the directive for staggered lists. */
+.reveal-init {
+  opacity: 0;
+  transform: translateY(14px);
+}
+.reveal-init.is-revealed {
+  animation: reveal-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay, 0ms) both;
+}
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Gradient text/swatch shimmer for the Absinthe tier's rainbow treatment
+   (tierTextStyle()/tierSwatchStyle() in useEloTier.ts) — a static rainbow
+   gradient reads flat, animating background-position makes it catch light
+   like foil, matching its "rarest rank" status. */
+.tier-shimmer {
+  background-size: 200% auto;
+  animation: tier-shimmer 3s linear infinite;
+}
+@keyframes tier-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* Loading-state placeholder (HudSkeletonBlock.vue) — a soft pink sweep
+   across a hud-panel-shaped block instead of plain "กำลังโหลด..." text. */
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.skeleton-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgb(234 76 164 / 0.14), transparent);
+  background-size: 200% 100%;
+  animation: skeleton-sweep 1.6s ease-in-out infinite;
+}
+@keyframes skeleton-sweep {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* Shared hover lift + glow for clickable hud-panel cards/rows — lets pages
+   opt in with one class instead of repeating the same transition/shadow
+   pair on every card variant. */
+.hud-hover {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+.hud-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 24px -6px rgb(234 76 164 / 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-init {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+  .tier-shimmer {
+    animation: none;
+  }
+  .skeleton-shimmer::after {
+    animation: none;
+  }
+  .hud-hover:hover {
+    transform: none;
+  }
+}

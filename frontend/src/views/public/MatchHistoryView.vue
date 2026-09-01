@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { getMatches, getPlayers } from '@/api/public'
 import type { Match, Player } from '@/types'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
+import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 
 const PAGE_SIZE = 20
 
@@ -80,15 +81,18 @@ onMounted(async () => {
     <p class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">Match Log</p>
     <h1 class="font-display text-3xl font-bold text-white">{{ t('nav.matches') }}</h1>
 
-    <p v-if="loading" class="mt-6 text-white/60">{{ t('common.loading') }}</p>
+    <div v-if="loading" class="mt-6 space-y-3">
+      <HudSkeletonBlock v-for="i in 5" :key="i" :delay="i * 80" class="h-28" />
+    </div>
     <p v-else-if="error" class="mt-6 text-status-error">{{ error }}</p>
     <p v-else-if="sortedMatches.length === 0" class="mt-6 text-white/60">{{ t('matches.empty') }}</p>
 
     <ul v-else class="mt-6 space-y-3">
       <li
-        v-for="m in sortedMatches"
+        v-for="(m, i) in sortedMatches"
         :key="m.id"
-        class="hud-panel border border-brand-pink/15 bg-brand-surface transition-colors hover:border-brand-pink/40"
+        v-reveal="i"
+        class="hud-panel hud-hover border border-brand-pink/15 bg-brand-surface transition-colors hover:border-brand-pink/40"
       >
         <RouterLink :to="`/matches/${m.id}`" class="block px-4 py-3">
           <div class="flex items-center justify-between text-xs tracking-wide text-white/40 uppercase">
@@ -151,7 +155,7 @@ onMounted(async () => {
     <div v-if="!loading && hasMore" class="mt-6 text-center">
       <button
         :disabled="loadingMore"
-        class="rounded-full border border-brand-pink/40 px-5 py-2 text-sm font-semibold text-brand-pink hover:bg-brand-pink hover:text-brand-black disabled:opacity-50"
+        class="hud-hover rounded-full border border-brand-pink/40 px-5 py-2 text-sm font-semibold text-brand-pink hover:bg-brand-pink hover:text-brand-black disabled:opacity-50"
         @click="loadMore"
       >
         {{ loadingMore ? t('common.loading') : t('matches.loadMore') }}

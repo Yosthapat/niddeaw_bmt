@@ -6,6 +6,8 @@ import type { PlayerStats } from '@/types'
 import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
+import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
+import CountUp from '@/components/common/CountUp.vue'
 
 const { t } = useI18n()
 
@@ -56,7 +58,9 @@ const medalByRank = ['🥇', '🥈', '🥉']
       </div>
     </div>
 
-    <p v-if="loading" class="mt-6 text-white/60">{{ t('common.loading') }}</p>
+    <div v-if="loading" class="mt-6 space-y-2">
+      <HudSkeletonBlock v-for="i in 8" :key="i" :delay="i * 70" class="h-16" />
+    </div>
     <p v-else-if="error" class="mt-6 text-status-error">{{ error }}</p>
     <p v-else-if="stats.length === 0" class="mt-6 text-white/60">{{ t('ranking.empty') }}</p>
 
@@ -64,7 +68,8 @@ const medalByRank = ['🥇', '🥈', '🥉']
       <li
         v-for="(s, i) in stats"
         :key="s.player.id"
-        class="hud-panel flex items-center gap-3 border bg-brand-surface px-4 py-3"
+        v-reveal="i"
+        class="hud-panel hud-hover flex items-center gap-3 border bg-brand-surface px-4 py-3"
         :class="i === 0 ? 'border-brand-pink/70' : 'border-brand-pink/15'"
       >
         <span class="w-9 text-center font-display text-xl font-bold text-white/80">
@@ -74,12 +79,14 @@ const medalByRank = ['🥇', '🥈', '🥉']
           <PlayerAvatar :name="s.player.nickname" :avatar-url="s.player.avatar_url" size="sm" />
           <div>
             <p class="font-medium">{{ s.player.nickname }}</p>
-            <p class="text-xs text-white/40">{{ s.games }} {{ t('common.game') }} · {{ t('common.win') }} {{ s.wins }}</p>
+            <p class="text-xs text-white/40">
+              {{ s.games }} {{ t('common.game') }} · {{ t('common.win') }} <CountUp :value="s.wins" />
+            </p>
           </div>
         </RouterLink>
         <TierMascot :tier="s.player.elo_level" :size="28" class="hidden sm:block" />
         <EloBadge :elo-score="s.player.elo_score" show-score class="hidden sm:inline-flex" />
-        <span class="w-12 text-right font-display text-lg font-bold text-brand-pink">{{ s.points }}</span>
+        <CountUp :value="s.points" class="w-12 text-right font-display text-lg font-bold text-brand-pink" />
       </li>
     </ol>
   </main>
