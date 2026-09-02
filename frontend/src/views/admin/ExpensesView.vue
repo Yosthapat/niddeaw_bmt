@@ -90,6 +90,7 @@ const form = reactive({
   note: '',
 })
 const formFile = ref<File | null>(null)
+const formFileInput = ref<HTMLInputElement | null>(null)
 const saving = ref(false)
 const createError = ref<string | null>(null)
 
@@ -103,9 +104,14 @@ function resetForm(): void {
   form.category = 'court_fee'
   form.category_other = ''
   form.amount = ''
+  form.paid_by = ''
   form.note = ''
   formFile.value = null
-  // form.paid_by intentionally kept — same person often logs several in a row
+  // Clearing the ref alone doesn't clear the <input>'s own displayed
+  // filename — it's not v-model-bound (file inputs can't be), so the DOM
+  // element needs its value reset directly or "Choose File" keeps showing
+  // the last pick after a successful save.
+  if (formFileInput.value) formFileInput.value.value = ''
 }
 
 async function submitExpense(): Promise<void> {
@@ -315,7 +321,7 @@ async function saveEdit(expense: Expense): Promise<void> {
 
         <label class="col-span-2 flex flex-col gap-1 text-xs text-white/50 sm:col-span-3">
           {{ t('expenses.receipt') }}
-          <input type="file" accept="image/*" class="text-xs" @change="onFormFileSelected" />
+          <input ref="formFileInput" type="file" accept="image/*" class="text-xs" @change="onFormFileSelected" />
         </label>
       </div>
 
