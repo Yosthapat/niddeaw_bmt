@@ -10,6 +10,8 @@ export interface Expense {
   paid_by: string
   receipt_url: string | null
   note: string | null
+  is_paid: boolean
+  paid_at: string | null
   created_by: string
   created_at: string
 }

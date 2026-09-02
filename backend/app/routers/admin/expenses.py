@@ -91,6 +91,20 @@ def delete_expense(expense_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Expense not found")
 
 
+@router.post("/{expense_id}/pay", response_model=Expense)
+def mark_expense_paid(expense_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> Expense:
+    result = (
+        supabase.table("expenses")
+        .update({"is_paid": True, "paid_at": datetime.now(timezone.utc).isoformat()})
+        .eq("id", str(expense_id))
+        .execute()
+    )
+    result_rows = rows(result)
+    if not result_rows:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Expense not found")
+    return Expense.model_validate(result_rows[0])
+
+
 @router.post("/{expense_id}/receipt", response_model=Expense)
 async def upload_receipt(
     expense_id: UUID, file: UploadFile, supabase: SupabaseDep, admin: AdminDep

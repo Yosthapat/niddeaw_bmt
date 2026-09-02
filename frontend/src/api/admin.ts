@@ -248,6 +248,10 @@ export async function deleteExpense(expenseId: string): Promise<void> {
   await request(`/api/admin/expenses/${expenseId}`, { method: 'DELETE' })
 }
 
+export async function markExpensePaid(expenseId: string): Promise<Expense> {
+  return request(`/api/admin/expenses/${expenseId}/pay`, { method: 'POST' })
+}
+
 export async function uploadReceipt(expenseId: string, file: File): Promise<Expense> {
   const formData = new FormData()
   formData.append('file', file)

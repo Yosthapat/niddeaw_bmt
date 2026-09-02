@@ -151,9 +151,23 @@ async function submitExpense(): Promise<void> {
   }
 }
 
-// --- Row actions: delete, edit, replace receipt ---
+// --- Row actions: delete, edit, replace receipt, mark paid ---
 const rowError = ref<string | null>(null)
 const deletingId = ref<string | null>(null)
+const markingPaidId = ref<string | null>(null)
+
+async function markPaid(expense: Expense): Promise<void> {
+  markingPaidId.value = expense.id
+  rowError.value = null
+  try {
+    const updated = await adminApi.markExpensePaid(expense.id)
+    expenses.value = expenses.value.map((e) => (e.id === updated.id ? updated : e))
+  } catch (e) {
+    rowError.value = apiErrorMessage(e, t('expenses.markPaidFailed'))
+  } finally {
+    markingPaidId.value = null
+  }
+}
 
 async function removeExpense(expense: Expense): Promise<void> {
   if (!window.confirm(t('expenses.deleteConfirm'))) return
@@ -379,7 +393,24 @@ async function saveEdit(expense: Expense): Promise<void> {
               <p class="mt-0.5 text-xs text-white/50">{{ t('expenses.paidBy') }}: {{ payerName(e.paid_by) }}</p>
               <p v-if="e.note" class="mt-0.5 text-xs text-white/40">{{ e.note }}</p>
             </div>
-            <span class="shrink-0 font-bold text-brand-pink">฿{{ e.amount.toFixed(2) }}</span>
+            <div class="flex shrink-0 flex-col items-end gap-1.5">
+              <span class="font-bold text-brand-pink">฿{{ e.amount.toFixed(2) }}</span>
+              <span
+                v-if="e.is_paid"
+                class="rounded-full border border-status-success/40 px-2 py-0.5 text-[10px] font-semibold text-status-success"
+              >
+                {{ t('expenses.paidStamp') }}
+              </span>
+              <button
+                v-else
+                type="button"
+                :disabled="markingPaidId === e.id"
+                class="rounded-full border border-brand-pink/40 px-2 py-0.5 text-[10px] font-semibold text-brand-pink disabled:opacity-50"
+                @click="markPaid(e)"
+              >
+                {{ markingPaidId === e.id ? t('expenses.markingPaid') : t('expenses.markPaid') }}
+              </button>
+            </div>
           </div>
 
           <div class="mt-3 flex flex-wrap items-center gap-3 text-xs">

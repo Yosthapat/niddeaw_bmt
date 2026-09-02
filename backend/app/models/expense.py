@@ -34,6 +34,8 @@ class Expense(BaseModel):
     paid_by: UUID
     receipt_url: str | None = None
     note: str | None = None
+    is_paid: bool = False
+    paid_at: datetime | None = None
     created_by: UUID
     created_at: datetime
 

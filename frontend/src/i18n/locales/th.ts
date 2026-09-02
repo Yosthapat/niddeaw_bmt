@@ -291,6 +291,10 @@ export default {
     save: 'บันทึก',
     cancel: 'ยกเลิก',
     updateFailed: 'แก้ไขรายจ่ายไม่สำเร็จ',
+    markPaid: 'ทำจ่ายบิล',
+    markingPaid: 'กำลังบันทึก...',
+    paidStamp: 'จ่ายแล้ว',
+    markPaidFailed: 'บันทึกสถานะจ่ายบิลไม่สำเร็จ',
   },
   // TierInfoModal.vue — mascot flavor text. Skill-level letters (VB, BG-,
   // BG, N-, N, S, P, C) per the club's own "มือ" grading scale, lowest to
