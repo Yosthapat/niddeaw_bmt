@@ -11,6 +11,7 @@ export interface Player {
   dominant_hand: DominantHand | null
   tiktok: string | null
   instagram: string | null
+  quote: string | null
   is_active: boolean
   created_at: string
   member_seq: number

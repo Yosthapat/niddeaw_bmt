@@ -40,6 +40,7 @@ const newPlayer = reactive({
   dominant_hand: '' as HandOption,
   tiktok: '',
   instagram: '',
+  quote: '',
 })
 const selectedTier = ref<EloTier | null>(null)
 const newAvatarFile = ref<File | null>(null)
@@ -57,6 +58,7 @@ const editForm = reactive({
   dominant_hand: '' as HandOption,
   tiktok: '',
   instagram: '',
+  quote: '',
   elo_score: 0,
 })
 const uploadingAvatarId = ref<string | null>(null)
@@ -95,6 +97,7 @@ async function createPlayer(): Promise<void> {
       dominant_hand: newPlayer.dominant_hand || null,
       tiktok: newPlayer.tiktok.trim() || null,
       instagram: newPlayer.instagram.trim() || null,
+      quote: newPlayer.quote.trim() || null,
       elo_score: eloScore,
     })
 
@@ -112,6 +115,7 @@ async function createPlayer(): Promise<void> {
     newPlayer.dominant_hand = ''
     newPlayer.tiktok = ''
     newPlayer.instagram = ''
+    newPlayer.quote = ''
     selectedTier.value = null
     newAvatarFile.value = null
     if (!createError.value) creating.value = false
@@ -129,6 +133,7 @@ function startEdit(player: Player): void {
   editForm.dominant_hand = player.dominant_hand ?? ''
   editForm.tiktok = player.tiktok ?? ''
   editForm.instagram = player.instagram ?? ''
+  editForm.quote = player.quote ?? ''
   editForm.elo_score = player.elo_score
 }
 
@@ -145,6 +150,7 @@ async function saveEdit(player: Player): Promise<void> {
       dominant_hand: editForm.dominant_hand || null,
       tiktok: editForm.tiktok.trim() || null,
       instagram: editForm.instagram.trim() || null,
+      quote: editForm.quote.trim() || null,
       elo_score: editForm.elo_score,
     })
     players.value = players.value.map((p) => (p.id === updated.id ? updated : p))
@@ -208,6 +214,7 @@ onMounted(loadPlayers)
       </select>
       <input v-model="newPlayer.tiktok" placeholder="TikTok" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
       <input v-model="newPlayer.instagram" placeholder="Instagram" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
+      <input v-model="newPlayer.quote" :placeholder="t('members.quote')" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm sm:col-span-2" />
 
       <div class="sm:col-span-2">
         <p class="mb-1.5 text-xs text-white/40">{{ t('members.startingTierHint') }}</p>
@@ -269,6 +276,7 @@ onMounted(loadPlayers)
               <span v-if="p.tiktok"> · TikTok {{ p.tiktok }}</span>
               <span v-if="p.instagram"> · IG {{ p.instagram }}</span>
             </p>
+            <p v-if="p.quote" class="text-xs text-white/40 italic">"{{ p.quote }}"</p>
           </div>
           <TierMascot :tier="p.elo_level" :size="28" :interactive="false" />
           <EloBadge :elo-score="p.elo_score" show-score />
@@ -298,6 +306,7 @@ onMounted(loadPlayers)
           </select>
           <input v-model="editForm.tiktok" placeholder="TikTok" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
           <input v-model="editForm.instagram" placeholder="Instagram" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
+          <input v-model="editForm.quote" :placeholder="t('members.quote')" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm sm:col-span-2" />
           <label class="flex items-center gap-2 rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm sm:col-span-2">
             <span class="shrink-0 text-white/50">{{ t('members.eloScore') }}</span>
             <input v-model.number="editForm.elo_score" type="number" class="w-24 bg-transparent text-center" />

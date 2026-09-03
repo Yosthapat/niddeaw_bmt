@@ -67,6 +67,7 @@ export default {
     activate: 'เปิดใช้งาน',
     clickToChangePhoto: 'คลิกรูปเพื่อเปลี่ยนรูปโปรไฟล์',
     eloScore: 'คะแนน ELO',
+    quote: 'คำคม',
   },
   ranking: {
     allTime: 'All-time',

@@ -176,6 +176,7 @@ export async function createPlayer(player: {
   dominant_hand?: 'left' | 'right' | null
   tiktok?: string | null
   instagram?: string | null
+  quote?: string | null
   elo_score?: number | null
 }): Promise<Player> {
   return request('/api/admin/players', {
