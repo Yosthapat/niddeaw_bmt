@@ -10,11 +10,36 @@ from dataclasses import dataclass
 from itertools import combinations
 from uuid import UUID
 
+from app.models.player import EloTier
+from app.services.elo_service import get_tier
+
 FAIRNESS_LOOKBACK_ROUNDS = 3
 TEAMMATE_PENALTY = 3
 OPPONENT_PENALTY = 1
 FAIRNESS_WEIGHT = 20
 DEFAULT_MATCH_DURATION_MINUTES = 15.0
+
+TIER_ORDER: tuple[EloTier, ...] = ("milk", "beer", "highball", "wine", "soju", "whisky", "vodka", "absinthe")
+_TIER_RANK = {tier: rank for rank, tier in enumerate(TIER_ORDER)}
+
+MAX_TIER_SPAN = 2
+"""An auto-suggested group of 4 (not an admin-locked pair) never spans more
+than this many tiers between its highest- and lowest-ranked player — e.g.
+Highball + Wine (span 1) is fine, but Milk grouped with Highball and Wine
+(span 3) is the lopsided kind of match members were complaining about.
+Locked pairs are a deliberate admin override and stay exempt (see
+_complete_locked_pair) — the cap is only for the organic anchor-based
+grouping below."""
+
+
+def _tier_rank(score: int) -> int:
+    return _TIER_RANK[get_tier(score)]
+
+
+def _group_tier_span(group: tuple[UUID, ...], scores_by_id: dict[UUID, int]) -> int:
+    ranks = [_tier_rank(scores_by_id[pid]) for pid in group]
+    return max(ranks) - min(ranks)
+
 
 GROUP_SEARCH_WINDOW = 7
 """When forming a group of 4 around the highest-remaining-ELO player, how
@@ -123,18 +148,22 @@ def _best_group_from_pool(
     scores_by_id: dict[UUID, int],
     history: list[PairHistoryEntry],
     current_round: int,
-) -> tuple[tuple[UUID, ...], Split]:
-    """Tries every foursome of anchor + 3 players from pool (pool always has
-    at least 3, since it's only called when len(remaining) >= 4), returns
-    the group and its lowest-cost 2v2 split."""
+) -> tuple[tuple[UUID, ...], Split] | None:
+    """Tries every foursome of anchor + 3 players from pool whose tier span
+    (highest tier - lowest tier among the 4) stays within MAX_TIER_SPAN,
+    returning the lowest-cost group and its 2v2 split — or None if no
+    foursome in pool satisfies the tier cap."""
     best_group: tuple[UUID, ...] | None = None
     best_split: Split | None = None
     for trio in combinations(pool, 3):
         group = (anchor, *trio)
+        if _group_tier_span(group, scores_by_id) > MAX_TIER_SPAN:
+            continue
         split = _best_split_for_group(group, scores_by_id, history, current_round)
         if best_split is None or split.total_cost < best_split.total_cost:
             best_group, best_split = group, split
-    assert best_group is not None and best_split is not None
+    if best_group is None or best_split is None:
+        return None
     return best_group, best_split
 
 
@@ -208,14 +237,32 @@ def suggest_doubles_pairings(
         used = set(split.team1) | set(split.team2)
         remaining = [pid for pid in remaining if pid not in used]
 
+    tier_capped_waiting: list[UUID] = []
     while len(remaining) >= 4:
         anchor, *rest = remaining
         pool = rest[:GROUP_SEARCH_WINDOW]
-        group, split = _best_group_from_pool(anchor, pool, scores_by_id, history, current_round)
+        result = _best_group_from_pool(anchor, pool, scores_by_id, history, current_round)
+        if result is None:
+            # The closest-ELO window didn't contain a tier-eligible trio —
+            # widen to every remaining player within the tier cap before
+            # giving up on this anchor for the round.
+            anchor_rank = _tier_rank(scores_by_id[anchor])
+            tier_eligible = [
+                pid for pid in rest if abs(_tier_rank(scores_by_id[pid]) - anchor_rank) <= MAX_TIER_SPAN
+            ]
+            if len(tier_eligible) >= 3:
+                result = _best_group_from_pool(anchor, tier_eligible, scores_by_id, history, current_round)
+        if result is None:
+            # No tier-eligible foursome available yet — this player waits
+            # rather than getting matched across a lopsided tier gap.
+            tier_capped_waiting.append(anchor)
+            remaining = rest
+            continue
+        group, split = result
         splits.append(split)
         remaining = [pid for pid in remaining if pid not in group]
 
-    return splits, remaining
+    return splits, tier_capped_waiting + remaining
 
 
 def estimate_wait_minutes(queue_position: int, recent_durations_minutes: list[float]) -> float:

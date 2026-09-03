@@ -115,3 +115,43 @@ def test_locked_pair_waits_together_when_not_enough_others_checked_in() -> None:
 
     assert splits == []
     assert set(waiting) == {a, b, c}
+
+
+def test_wide_tier_gap_waits_instead_of_matching() -> None:
+    """Regression test for the "Wine+Milk vs Highball+Beer" report: a
+    foursome spanning 3 tiers (Milk to Wine) is exactly the ELO-balanced
+    split the old algorithm loved (avg 1100 vs avg 1100) — it's now
+    rejected outright and everyone waits rather than playing a lopsided
+    game."""
+    ids, players = _checked_in([1400, 800, 1200, 1000])  # wine, milk, highball, beer
+
+    splits, waiting = mm.suggest_doubles_pairings(players, history=[], current_round=1)
+
+    assert splits == []
+    assert set(waiting) == set(ids)
+
+
+def test_two_tier_gap_is_the_allowed_boundary() -> None:
+    """"Highball, Highball vs Wine, Beer" — a 2-tier span (Beer to Wine) —
+    is the user-confirmed OK case: it should still get matched."""
+    ids, players = _checked_in([1200, 1200, 1400, 1000])  # highball, highball, wine, beer
+
+    splits, waiting = mm.suggest_doubles_pairings(players, history=[], current_round=1)
+
+    assert waiting == []
+    assert len(splits) == 1
+    assert set(splits[0].team1) | set(splits[0].team2) == set(ids)
+
+
+def test_tier_incompatible_players_wait_while_compatible_ones_still_match() -> None:
+    """A player too far (tier-wise) from everyone else should wait rather
+    than drag tier-compatible players into a lopsided foursome with them —
+    and should still show up in the waiting list, not vanish."""
+    ids, players = _checked_in([2000, 800, 1450, 1400, 1350, 1300])
+    vodka, milk, wine1, wine2, wine3, wine4 = ids
+
+    splits, waiting = mm.suggest_doubles_pairings(players, history=[], current_round=1)
+
+    assert set(waiting) == {vodka, milk}
+    assert len(splits) == 1
+    assert set(splits[0].team1) | set(splits[0].team2) == {wine1, wine2, wine3, wine4}
