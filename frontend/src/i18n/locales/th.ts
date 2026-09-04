@@ -253,8 +253,16 @@ export default {
       expenses: 'รายจ่าย',
       revenue: 'ยอดรายรับ',
       settings: 'ตั้งค่า',
+      activityLog: 'Activity Log',
       logout: 'ออกจากระบบ',
     },
+  },
+  activityLog: {
+    title: 'Activity Log',
+    allAdmins: 'แอดมินทั้งหมด',
+    clearFilters: 'ล้างตัวกรอง',
+    loadFailed: 'โหลด activity log ไม่สำเร็จ',
+    empty: 'ยังไม่มีกิจกรรม',
   },
   expenses: {
     categoryLabels: {

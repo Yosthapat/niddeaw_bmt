@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
+from app.middleware.activity_log import AdminActivityLogMiddleware
+from app.routers.admin import activity_log as admin_activity_log
 from app.routers.admin import auth as admin_auth
 from app.routers.admin import billing as admin_billing
 from app.routers.admin import checkins as admin_checkins
@@ -15,6 +17,7 @@ from app.routers.public import hall_of_fame, live, matches, players, ranking
 app = FastAPI(title="นิดเดียว Badminton Club API")
 
 settings = get_settings()
+app.add_middleware(AdminActivityLogMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
@@ -37,6 +40,7 @@ app.include_router(admin_settings.router)
 app.include_router(admin_matchmaking.router)
 app.include_router(admin_billing.router)
 app.include_router(admin_expenses.router)
+app.include_router(admin_activity_log.router)
 
 
 @app.get("/health")

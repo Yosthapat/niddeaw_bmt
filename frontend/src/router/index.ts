@@ -118,6 +118,12 @@ const router = createRouter({
       component: () => import('../views/admin/SettingsView.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/admin/activity-log',
+      name: 'admin-activity-log',
+      component: () => import('../views/admin/ActivityLogView.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 
