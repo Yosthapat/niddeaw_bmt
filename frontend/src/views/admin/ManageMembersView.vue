@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
 import { ApiError } from '@/api/client'
 import { useEloTier, tierTextStyle } from '@/composables/useEloTier'
+import { compressImage } from '@/utils/imageCompression'
 import type { EloTier, Player } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
@@ -45,9 +46,10 @@ const newPlayer = reactive({
 const selectedTier = ref<EloTier | null>(null)
 const newAvatarFile = ref<File | null>(null)
 
-function onNewAvatarSelected(event: Event): void {
+async function onNewAvatarSelected(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement
-  newAvatarFile.value = input.files?.[0] ?? null
+  const file = input.files?.[0]
+  newAvatarFile.value = file ? await compressImage(file) : null
 }
 
 const editingId = ref<string | null>(null)
@@ -175,7 +177,7 @@ async function onAvatarSelected(event: Event, player: Player): Promise<void> {
   if (!file) return
   uploadingAvatarId.value = player.id
   try {
-    const updated = await adminApi.uploadAvatar(player.id, file)
+    const updated = await adminApi.uploadAvatar(player.id, await compressImage(file))
     players.value = players.value.map((p) => (p.id === updated.id ? updated : p))
   } finally {
     uploadingAvatarId.value = null
