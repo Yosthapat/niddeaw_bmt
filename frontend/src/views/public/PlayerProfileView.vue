@@ -54,6 +54,7 @@ watch(
         <div class="flex flex-col items-center gap-2 text-center">
           <PlayerAvatar :name="profile.player.nickname" :avatar-url="profile.player.avatar_url" size="xl" />
           <h1 class="mt-1 font-display text-2xl font-bold">{{ profile.player.nickname }}</h1>
+          <p class="text-xs tracking-widest text-white/40">{{ profile.player.member_code }}</p>
           <p v-if="profile.player.quote" class="max-w-xs text-sm text-white/50 italic">
             "{{ profile.player.quote }}"
           </p>
