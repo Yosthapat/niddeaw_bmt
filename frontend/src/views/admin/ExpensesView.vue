@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
 import { ApiError } from '@/api/client'
+import { compressImage } from '@/utils/imageCompression'
 import type { Admin, Expense, ExpenseCategory, MonthlyExpenseSummary } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 
@@ -94,9 +95,10 @@ const formFileInput = ref<HTMLInputElement | null>(null)
 const saving = ref(false)
 const createError = ref<string | null>(null)
 
-function onFormFileSelected(event: Event): void {
+async function onFormFileSelected(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement
-  formFile.value = input.files?.[0] ?? null
+  const file = input.files?.[0]
+  formFile.value = file ? await compressImage(file) : null
 }
 
 function resetForm(): void {
@@ -196,7 +198,7 @@ async function onRowReceiptSelected(event: Event, expense: Expense): Promise<voi
   if (!file) return
   rowError.value = null
   try {
-    const updated = await adminApi.uploadReceipt(expense.id, file)
+    const updated = await adminApi.uploadReceipt(expense.id, await compressImage(file))
     expenses.value = expenses.value.map((e) => (e.id === updated.id ? updated : e))
   } catch (e) {
     rowError.value = apiErrorMessage(e, t('expenses.receiptUploadFailed'))
