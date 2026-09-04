@@ -255,8 +255,16 @@ export default {
       expenses: 'Expenses',
       revenue: 'Revenue',
       settings: 'Settings',
+      activityLog: 'Activity Log',
       logout: 'Log Out',
     },
+  },
+  activityLog: {
+    title: 'Activity Log',
+    allAdmins: 'All admins',
+    clearFilters: 'Clear filters',
+    loadFailed: 'Failed to load activity log',
+    empty: 'No activity yet',
   },
   expenses: {
     categoryLabels: {

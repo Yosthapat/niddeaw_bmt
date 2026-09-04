@@ -18,6 +18,7 @@ const links = computed(() => [
   { to: '/admin/expenses', label: t('admin.nav.expenses') },
   { to: '/admin/revenue', label: t('admin.nav.revenue') },
   { to: '/admin/settings', label: t('admin.nav.settings') },
+  { to: '/admin/activity-log', label: t('admin.nav.activityLog') },
 ])
 
 function logout(): void {

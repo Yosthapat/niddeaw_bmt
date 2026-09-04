@@ -1,6 +1,7 @@
 import { request } from './client'
 import type {
   Admin,
+  AdminActivityLogEntry,
   Billing,
   Checkin,
   ClubSettings,
@@ -274,4 +275,19 @@ export async function updateClubSettings(
     method: 'PUT',
     body: JSON.stringify(settings),
   })
+}
+
+// Activity log
+export async function getActivityLog(
+  filters: { adminId?: string; date?: string } = {},
+): Promise<AdminActivityLogEntry[]> {
+  const params = new URLSearchParams()
+  if (filters.adminId) params.set('admin_id', filters.adminId)
+  if (filters.date) params.set('date', filters.date)
+  const query = params.toString()
+  return request(`/api/admin/activity-log${query ? `?${query}` : ''}`)
+}
+
+export async function getActivityLogAdmins(): Promise<Admin[]> {
+  return request('/api/admin/activity-log/admins')
 }
