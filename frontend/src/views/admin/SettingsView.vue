@@ -3,7 +3,8 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
 import { ApiError } from '@/api/client'
-import type { ClubSettings, PromptPayType } from '@/types'
+import { compressImage } from '@/utils/imageCompression'
+import type { ClubSettings, PaymentMethod, PromptPayType } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 
 const { t } = useI18n()
@@ -14,6 +15,25 @@ const loadError = ref<string | null>(null)
 const saving = ref(false)
 const saved = ref(false)
 const saveError = ref<string | null>(null)
+
+const uploadingQr = ref(false)
+const qrUploadError = ref<string | null>(null)
+
+async function onQrFileSelected(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file || !settings.value) return
+  uploadingQr.value = true
+  qrUploadError.value = null
+  try {
+    settings.value = await adminApi.uploadPaymentQr(await compressImage(file))
+  } catch (e) {
+    qrUploadError.value = apiErrorMessage(e, t('settings.qrUploadFailed'))
+  } finally {
+    uploadingQr.value = false
+    input.value = ''
+  }
+}
 
 function apiErrorMessage(e: unknown, fallback: string): string {
   if (e instanceof ApiError) {
@@ -52,6 +72,13 @@ const promptPayTypeOptions = computed<{ value: PromptPayType; label: string }[]>
   { value: 'national_id', label: t('settings.nationalId') },
   { value: 'ewallet', label: 'e-Wallet ID' },
 ])
+
+const paymentMethodOptions = computed<{ value: PaymentMethod; label: string }[]>(() => [
+  { value: 'promptpay', label: t('settings.paymentMethodPromptpay') },
+  { value: 'bank_account', label: t('settings.paymentMethodBankAccount') },
+  { value: 'bank_account_qr', label: t('settings.paymentMethodBankAccountQr') },
+  { value: 'uploaded_qr', label: t('settings.paymentMethodUploadedQr') },
+])
 </script>
 
 <template>
@@ -64,25 +91,79 @@ const promptPayTypeOptions = computed<{ value: PromptPayType; label: string }[]>
 
     <form v-else-if="settings" class="mt-6 flex flex-col gap-4" @submit.prevent="save">
       <label class="flex flex-col gap-1 text-sm">
-        PromptPay ID
-        <input
-          v-model="settings.promptpay_id"
-          :placeholder="t('settings.promptpayPlaceholder')"
-          class="rounded-lg border border-brand-pink/25 bg-brand-surface px-3 py-2 outline-none focus:border-brand-pink"
-        />
-      </label>
-
-      <label class="flex flex-col gap-1 text-sm">
-        {{ t('settings.promptpayType') }}
+        {{ t('settings.paymentMethod') }}
         <select
-          v-model="settings.promptpay_type"
+          v-model="settings.payment_method"
           class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2"
         >
-          <option v-for="opt in promptPayTypeOptions" :key="opt.value" :value="opt.value">
+          <option v-for="opt in paymentMethodOptions" :key="opt.value" :value="opt.value">
             {{ opt.label }}
           </option>
         </select>
       </label>
+
+      <template v-if="settings.payment_method === 'promptpay'">
+        <label class="flex flex-col gap-1 text-sm">
+          PromptPay ID
+          <input
+            v-model="settings.promptpay_id"
+            :placeholder="t('settings.promptpayPlaceholder')"
+            class="rounded-lg border border-brand-pink/25 bg-brand-surface px-3 py-2 outline-none focus:border-brand-pink"
+          />
+        </label>
+
+        <label class="flex flex-col gap-1 text-sm">
+          {{ t('settings.promptpayType') }}
+          <select
+            v-model="settings.promptpay_type"
+            class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2"
+          >
+            <option v-for="opt in promptPayTypeOptions" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
+        </label>
+      </template>
+
+      <template v-else-if="settings.payment_method === 'bank_account' || settings.payment_method === 'bank_account_qr'">
+        <label class="flex flex-col gap-1 text-sm">
+          {{ t('settings.bankName') }}
+          <input
+            v-model="settings.bank_name"
+            class="rounded-lg border border-brand-pink/25 bg-brand-surface px-3 py-2 outline-none focus:border-brand-pink"
+          />
+        </label>
+        <label class="flex flex-col gap-1 text-sm">
+          {{ t('settings.bankAccountNumber') }}
+          <input
+            v-model="settings.bank_account_number"
+            class="rounded-lg border border-brand-pink/25 bg-brand-surface px-3 py-2 outline-none focus:border-brand-pink"
+          />
+        </label>
+        <label class="flex flex-col gap-1 text-sm">
+          {{ t('settings.bankAccountName') }}
+          <input
+            v-model="settings.bank_account_name"
+            class="rounded-lg border border-brand-pink/25 bg-brand-surface px-3 py-2 outline-none focus:border-brand-pink"
+          />
+        </label>
+      </template>
+
+      <template v-else-if="settings.payment_method === 'uploaded_qr'">
+        <div class="flex flex-col gap-2 text-sm">
+          <img
+            v-if="settings.uploaded_qr_url"
+            :src="settings.uploaded_qr_url"
+            :alt="t('settings.currentQr')"
+            class="h-40 w-40 self-center rounded-lg bg-white p-2"
+          />
+          <label class="flex items-center gap-2 rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm text-white/60">
+            {{ settings.uploaded_qr_url ? t('settings.replaceQr') : t('settings.uploadQr') }}
+            <input type="file" accept="image/*" class="flex-1 text-xs" :disabled="uploadingQr" @change="onQrFileSelected" />
+          </label>
+          <p v-if="qrUploadError" class="text-sm text-status-error">{{ qrUploadError }}</p>
+        </div>
+      </template>
 
       <label class="flex flex-col gap-1 text-sm">
         {{ t('settings.defaultCourtFee') }}
