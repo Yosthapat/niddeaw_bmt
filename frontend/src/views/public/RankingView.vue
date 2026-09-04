@@ -31,6 +31,7 @@ async function load(): Promise<void> {
 watch(period, load, { immediate: true })
 
 const medalByRank = ['🥇', '🥈', '🥉']
+const rankBadgeClass = ['rank-badge-gold', 'rank-badge-silver', 'rank-badge-bronze']
 </script>
 
 <template>
@@ -70,9 +71,12 @@ const medalByRank = ['🥇', '🥈', '🥉']
         :key="s.player.id"
         v-reveal="i"
         class="hud-panel hud-hover flex items-center gap-3 border bg-brand-surface px-4 py-3"
-        :class="i === 0 ? 'border-brand-pink/70' : 'border-brand-pink/15'"
+        :class="i === 0 ? 'border-brand-pink/70 bg-gradient-to-r from-brand-pink/10 to-transparent' : 'border-brand-pink/15'"
       >
-        <span class="w-9 text-center font-display text-xl font-bold text-white/80">
+        <span
+          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-display text-sm font-bold"
+          :class="rankBadgeClass[i] ?? 'bg-brand-black text-white/70'"
+        >
           {{ medalByRank[i] ?? i + 1 }}
         </span>
         <RouterLink :to="`/members/${s.player.id}`" class="flex flex-1 items-center gap-3 hover:text-brand-pink">

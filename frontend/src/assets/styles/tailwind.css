@@ -245,7 +245,75 @@ h3,
   box-shadow: 0 0 24px -6px rgb(234 76 164 / 0.55);
 }
 
+/* HomeView.vue hero — a soft, slowly-drifting pink/purple blob sitting
+   behind the title so the hero doesn't read as flat text on black. Pure
+   CSS (no canvas/WebGL) since this has to stay light on club members'
+   older phones. Positioned by the caller; this just owns blur + motion. */
+.hero-aura {
+  position: absolute;
+  inset: -20%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(closest-side, rgb(234 76 164 / 0.35), transparent 70%),
+    radial-gradient(closest-side, rgb(157 91 244 / 0.25), transparent 70%) 70% 30% / 60% 60% no-repeat;
+  filter: blur(40px);
+  animation: hero-aura-drift 12s ease-in-out infinite alternate;
+}
+@keyframes hero-aura-drift {
+  from {
+    transform: translate(-2%, -2%) scale(1);
+  }
+  to {
+    transform: translate(2%, 2%) scale(1.08);
+  }
+}
+
+/* PlayerProfileView.vue avatar — a tier-colored glow ring behind the
+   avatar (color set per-instance via --glow-color), breathing gently
+   rather than sitting static. */
+.profile-glow {
+  position: absolute;
+  inset: -14%;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 999px;
+  background: var(--glow-color, var(--color-brand-pink));
+  opacity: 0.35;
+  filter: blur(28px);
+  animation: profile-glow-breathe 3.5s ease-in-out infinite;
+}
+@keyframes profile-glow-breathe {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(1.08);
+  }
+}
+
+/* RankingView.vue top-3 rank badges — small filled medal circles instead
+   of plain numerals, so the podium reads at a glance. */
+.rank-badge-gold {
+  background: linear-gradient(145deg, #ffe9a8, #d9a441);
+  color: #3a2600;
+}
+.rank-badge-silver {
+  background: linear-gradient(145deg, #f2f2f2, #a9a9a9);
+  color: #2b2b2b;
+}
+.rank-badge-bronze {
+  background: linear-gradient(145deg, #e3ad7a, #9a5a2e);
+  color: #2b1400;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .hero-aura,
+  .profile-glow {
+    animation: none;
+  }
   .page-enter-active,
   .page-leave-active,
   .tier-modal-enter-active,
