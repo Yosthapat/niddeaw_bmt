@@ -28,10 +28,26 @@ export interface DailyRevenue {
 }
 
 export type PromptPayType = 'phone' | 'national_id' | 'ewallet'
+export type PaymentMethod = 'promptpay' | 'bank_account' | 'bank_account_qr' | 'uploaded_qr'
 
 export interface ClubSettings {
+  payment_method: PaymentMethod
   promptpay_id: string
   promptpay_type: PromptPayType
+  bank_name: string | null
+  bank_account_number: string | null
+  bank_account_name: string | null
+  uploaded_qr_url: string | null
   default_court_fee_per_person: number
   default_shuttlecock_price_per_game: number
+}
+
+/** Mirrors backend app/routers/admin/billing.py PaymentInfoResponse. */
+export interface PaymentInfoResponse {
+  method: PaymentMethod
+  amount: number
+  data_uri: string | null
+  bank_name: string | null
+  bank_account_number: string | null
+  bank_account_name: string | null
 }

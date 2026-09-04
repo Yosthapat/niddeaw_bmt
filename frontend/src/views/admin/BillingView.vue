@@ -6,7 +6,7 @@ import { usePlayersStore } from '@/stores/players'
 import * as adminApi from '@/api/admin'
 import { ApiError } from '@/api/client'
 import { effectiveAmount } from '@/types'
-import type { Billing, Checkin } from '@/types'
+import type { Billing, Checkin, PaymentInfoResponse } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import SessionPicker from '@/components/layout/SessionPicker.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
@@ -19,7 +19,7 @@ const billings = ref<Billing[]>([])
 const checkins = ref<Checkin[]>([])
 const closing = ref(false)
 const billingPlayerId = ref<string | null>(null)
-const qrByBillingId = ref<Record<string, string>>({})
+const paymentInfoByBillingId = ref<Record<string, PaymentInfoResponse>>({})
 const editingAdjust = ref<Record<string, string>>({})
 const actionError = ref<string | null>(null)
 
@@ -112,14 +112,13 @@ async function togglePaid(billing: Billing): Promise<void> {
 }
 
 async function showQr(billing: Billing): Promise<void> {
-  if (qrByBillingId.value[billing.id]) {
-    delete qrByBillingId.value[billing.id]
+  if (paymentInfoByBillingId.value[billing.id]) {
+    delete paymentInfoByBillingId.value[billing.id]
     return
   }
   actionError.value = null
   try {
-    const { data_uri } = await adminApi.getBillingQrCode(billing.id)
-    qrByBillingId.value[billing.id] = data_uri
+    paymentInfoByBillingId.value[billing.id] = await adminApi.getBillingPaymentInfo(billing.id)
   } catch (e) {
     actionError.value = apiErrorMessage(e, t('billing.qrFailed'))
   }
@@ -218,16 +217,28 @@ onMounted(async () => {
             />
             <button class="text-brand-pink underline" @click="saveAdjust(b)">{{ t('billing.saveAdjustment') }}</button>
             <button class="text-brand-pink underline" @click="showQr(b)">
-              {{ qrByBillingId[b.id] ? t('billing.hideQr') : t('billing.showQr') }}
+              {{ paymentInfoByBillingId[b.id] ? t('billing.hideQr') : t('billing.showQr') }}
             </button>
           </div>
 
-          <img
-            v-if="qrByBillingId[b.id]"
-            :src="qrByBillingId[b.id]"
-            alt="PromptPay QR"
-            class="mx-auto mt-3 h-40 w-40 rounded-lg bg-white p-2"
-          />
+          <div v-if="paymentInfoByBillingId[b.id]" class="mt-3 flex flex-col items-center gap-2 text-center">
+            <img
+              v-if="paymentInfoByBillingId[b.id].data_uri"
+              :src="paymentInfoByBillingId[b.id].data_uri!"
+              alt="QR"
+              class="h-40 w-40 rounded-lg bg-white p-2"
+            />
+            <p v-if="paymentInfoByBillingId[b.id].bank_name" class="text-sm text-white/70">
+              {{ paymentInfoByBillingId[b.id].bank_name }} · {{ paymentInfoByBillingId[b.id].bank_account_number }}
+              <span v-if="paymentInfoByBillingId[b.id].bank_account_name">
+                ({{ paymentInfoByBillingId[b.id].bank_account_name }})
+              </span>
+            </p>
+            <p v-if="paymentInfoByBillingId[b.id].method !== 'promptpay'" class="text-sm">
+              <span class="text-white/40">{{ t('billing.amountToTransfer') }}:</span>
+              <span class="ml-1 font-bold text-brand-pink">฿{{ paymentInfoByBillingId[b.id].amount.toFixed(2) }}</span>
+            </p>
+          </div>
         </li>
       </ul>
     </template>

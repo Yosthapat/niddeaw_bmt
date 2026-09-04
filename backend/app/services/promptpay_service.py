@@ -8,6 +8,11 @@ implementation (MIT licensed, https://github.com/dtinth/promptpay-qr).
 This produces a *static-amount display QR* for the payer to scan and
 transfer manually — there is no live payment callback/webhook (see issue
 doc's explicit scope note: PromptPay QR is not a payment gateway here).
+
+generate_qr_data_uri() itself is payload-agnostic (just qrcode.make() +
+base64 PNG) — the billing router also reuses it to render a plain-text
+QR for the "bank_account_qr" payment method, which has no PromptPay
+payload or amount, just scannable account details.
 """
 
 import base64

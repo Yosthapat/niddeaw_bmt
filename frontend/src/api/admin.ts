@@ -16,6 +16,7 @@ import type {
   MatchmakingSuggestionResponse,
   MatchWinner,
   MonthlyExpenseSummary,
+  PaymentInfoResponse,
   Player,
   Session,
 } from '@/types'
@@ -162,8 +163,8 @@ export async function setBillingPaidStatus(
   })
 }
 
-export async function getBillingQrCode(billingId: string): Promise<{ data_uri: string }> {
-  return request(`/api/admin/billing/${billingId}/qr`)
+export async function getBillingPaymentInfo(billingId: string): Promise<PaymentInfoResponse> {
+  return request(`/api/admin/billing/${billingId}/payment-info`)
 }
 
 // Players (admin CRUD)
@@ -274,6 +275,15 @@ export async function updateClubSettings(
   return request('/api/admin/settings', {
     method: 'PUT',
     body: JSON.stringify(settings),
+  })
+}
+
+export async function uploadPaymentQr(file: File): Promise<ClubSettings> {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request('/api/admin/settings/qr', {
+    method: 'POST',
+    body: formData,
   })
 }
 
