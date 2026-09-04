@@ -268,17 +268,7 @@ onMounted(loadPlayers)
             <span v-if="uploadingAvatarId === p.id" class="absolute inset-0 flex items-center justify-center rounded-full bg-black/60 text-[10px]">...</span>
           </label>
           <div class="flex-1">
-            <p class="font-medium">
-              {{ p.nickname }}
-              <span class="text-xs text-white/40">{{ p.member_code }}</span>
-            </p>
-            <p class="text-xs text-white/50">
-              {{ p.line_id || '-' }}
-              <span v-if="p.dominant_hand"> · {{ p.dominant_hand === 'left' ? t('profile.leftHanded') : t('profile.rightHanded') }}</span>
-              <span v-if="p.tiktok"> · TikTok {{ p.tiktok }}</span>
-              <span v-if="p.instagram"> · IG {{ p.instagram }}</span>
-            </p>
-            <p v-if="p.quote" class="text-xs text-white/40 italic">"{{ p.quote }}"</p>
+            <p class="font-medium">{{ p.nickname }}</p>
           </div>
           <TierMascot :tier="p.elo_level" :size="28" :interactive="false" />
           <EloBadge :elo-score="p.elo_score" show-score />
