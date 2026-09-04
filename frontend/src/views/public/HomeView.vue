@@ -100,7 +100,8 @@ const sponsors = [
       <AdCarousel :images="ads" />
     </div>
 
-    <div v-reveal="1" class="mt-10 flex flex-col items-center text-center sm:mt-12">
+    <div v-reveal="1" class="relative mt-10 flex flex-col items-center text-center sm:mt-12">
+      <div class="hero-aura" aria-hidden="true" />
       <h1 class="font-display text-[clamp(2rem,7vw,3.75rem)] leading-none font-bold text-white">
         นิดเดียว<span class="text-brand-pink">BADMINTON</span>
       </h1>
