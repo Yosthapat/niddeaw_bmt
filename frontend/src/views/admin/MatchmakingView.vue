@@ -305,7 +305,7 @@ const pollControls = usePolling(refreshQueue, 7000)
           <li
             v-for="m in queue.in_progress"
             :key="m.match_id"
-            class="hud-panel border border-brand-pink/20 bg-brand-surface px-4 py-3"
+            class="hud-hover hud-panel border border-brand-pink/20 bg-brand-surface px-4 py-3"
           >
             <div class="flex items-center justify-between gap-3">
               <div class="flex flex-1 flex-col items-center gap-1.5">
@@ -377,7 +377,7 @@ const pollControls = usePolling(refreshQueue, 7000)
           <li
             v-for="m in queue.queued"
             :key="m.match_id"
-            class="hud-panel border border-brand-pink-dark/30 bg-brand-surface px-4 py-3 opacity-80"
+            class="hud-hover hud-panel border border-brand-pink-dark/30 bg-brand-surface px-4 py-3 opacity-80"
           >
             <div class="flex items-center justify-between gap-3">
               <span class="flex-1 text-center text-sm text-white/70">{{ m.team1_player_ids.map(nameOf).join(' & ') }}</span>
@@ -541,7 +541,7 @@ const pollControls = usePolling(refreshQueue, 7000)
           <li
             v-for="s in queue.suggestions"
             :key="s.group_no"
-            class="hud-panel border border-brand-pink/20 bg-brand-surface px-4 py-3"
+            class="hud-hover hud-panel border border-brand-pink/20 bg-brand-surface px-4 py-3"
           >
             <div v-if="editingGroup !== s.group_no">
               <div class="flex items-center justify-between gap-3">
