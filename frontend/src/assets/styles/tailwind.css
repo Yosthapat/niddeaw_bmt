@@ -231,6 +231,26 @@ h3,
   }
 }
 
+/* Site-wide button/link micro-interactions. Most buttons and links across
+   the app already change color/background/border on hover via Tailwind's
+   hover: utilities, but never opted into a transition, so the change was
+   an instant snap — this animates all of them for free, plus a quick
+   press-scale on buttons, with zero changes needed in any view or
+   component. */
+button,
+a {
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease,
+    transform 0.12s ease;
+}
+button:not(:disabled):active {
+  transform: scale(0.96);
+}
+
 /* Shared hover lift + glow for clickable hud-panel cards/rows — lets pages
    opt in with one class instead of repeating the same transition/shadow
    pair on every card variant. */
@@ -243,6 +263,17 @@ h3,
 .hud-hover:hover {
   transform: translateY(-2px);
   box-shadow: 0 0 24px -6px rgb(234 76 164 / 0.55);
+}
+
+/* AppHeader.vue's active-link indicator — a single shared bar whose
+   left/width are set from JS (measured against the active RouterLink),
+   so it slides to the new position instead of the old per-link v-if bar
+   teleporting on every navigation. */
+.nav-underline {
+  transition:
+    left 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    width 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.15s ease;
 }
 
 /* HomeView.vue hero — a soft, slowly-drifting pink/purple blob sitting
@@ -310,6 +341,16 @@ h3,
 }
 
 @media (prefers-reduced-motion: reduce) {
+  button,
+  a {
+    transition: none;
+  }
+  button:not(:disabled):active {
+    transform: none;
+  }
+  .nav-underline {
+    transition: none;
+  }
   .hero-aura,
   .profile-glow {
     animation: none;

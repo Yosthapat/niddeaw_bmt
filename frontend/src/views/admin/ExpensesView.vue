@@ -358,7 +358,7 @@ async function saveEdit(expense: Expense): Promise<void> {
     <p v-else-if="expenses.length === 0" class="mt-6 text-sm text-white/40">{{ t('expenses.noExpensesThisMonth') }}</p>
 
     <ul v-else class="mt-6 space-y-3">
-      <li v-for="e in expenses" :key="e.id" class="hud-panel border border-brand-pink/15 bg-brand-surface p-4">
+      <li v-for="e in expenses" :key="e.id" class="hud-hover hud-panel border border-brand-pink/15 bg-brand-surface p-4">
         <template v-if="editingId === e.id">
           <div class="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             <input v-model="editForm.expense_date" type="date" class="rounded border border-brand-pink-dark/40 bg-brand-black px-2 py-1.5 text-sm text-white" />
