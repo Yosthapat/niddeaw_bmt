@@ -18,6 +18,8 @@ function initials(name: string): string {
     v-if="avatarUrl"
     :src="avatarUrl"
     :alt="name"
+    loading="lazy"
+    decoding="async"
     class="hud-panel shrink-0 border border-brand-pink/40 object-cover"
     :class="{
       'h-8 w-8': size === 'sm',
