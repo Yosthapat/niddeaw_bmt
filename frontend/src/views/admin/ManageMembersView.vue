@@ -275,7 +275,7 @@ onMounted(loadPlayers)
       <li
         v-for="p in players"
         :key="p.id"
-        class="hud-panel border border-brand-pink/20 bg-brand-surface p-4"
+        class="hud-hover hud-panel border border-brand-pink/20 bg-brand-surface p-4"
         :class="{ 'opacity-50': !p.is_active }"
       >
         <div v-if="editingId !== p.id" class="flex items-center gap-3">

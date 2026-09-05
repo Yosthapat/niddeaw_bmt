@@ -168,7 +168,7 @@ onMounted(async () => {
           <li
             v-for="pid in unbilledAttendeeIds"
             :key="pid"
-            class="flex items-center gap-3 hud-panel border border-brand-pink/15 bg-brand-surface px-3 py-2"
+            class="hud-hover flex items-center gap-3 hud-panel border border-brand-pink/15 bg-brand-surface px-3 py-2"
           >
             <PlayerAvatar :name="nameOf(pid)" :avatar-url="avatarOf(pid)" size="sm" />
             <span class="flex-1 font-medium">{{ nameOf(pid) }}</span>
@@ -191,7 +191,7 @@ onMounted(async () => {
         <li
           v-for="b in billings"
           :key="b.id"
-          class="hud-panel border border-brand-pink/20 bg-brand-surface p-4"
+          class="hud-hover hud-panel border border-brand-pink/20 bg-brand-surface p-4"
         >
           <div class="flex items-center gap-3">
             <PlayerAvatar :name="nameOf(b.player_id)" :avatar-url="avatarOf(b.player_id)" size="sm" />

@@ -132,7 +132,7 @@ usePolling(refreshCheckins, 8000)
           <li
             v-for="c in activeCheckins"
             :key="c.id"
-            class="flex items-center gap-3 hud-panel border border-brand-pink/20 bg-brand-surface px-3 py-2"
+            class="hud-hover flex items-center gap-3 hud-panel border border-brand-pink/20 bg-brand-surface px-3 py-2"
           >
             <PlayerAvatar
               :name="playersStore.byId(c.player_id)?.nickname ?? '?'"
@@ -177,7 +177,7 @@ usePolling(refreshCheckins, 8000)
           <li
             v-for="p in filteredAvailablePlayers"
             :key="p.id"
-            class="flex items-center gap-3 hud-panel border border-brand-pink/20 bg-brand-surface px-3 py-2"
+            class="hud-hover flex items-center gap-3 hud-panel border border-brand-pink/20 bg-brand-surface px-3 py-2"
           >
             <PlayerAvatar :name="p.nickname" :avatar-url="p.avatar_url" size="sm" />
             <span class="flex-1">{{ p.nickname }}</span>
