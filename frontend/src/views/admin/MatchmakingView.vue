@@ -23,11 +23,19 @@ const cancelling = ref<string | null>(null)
 const cancelError = ref<string | null>(null)
 
 const editingGroup = ref<number | null>(null)
-const draftByGroup = ref<Record<number, { team1: string[]; team2: string[] }>>({})
+const draftByGroup = ref<Record<number, { team1: string[]; team2: string[]; queued: boolean; court: string }>>({})
 
 const creatingCustom = ref(false)
 const customConfirming = ref(false)
-const customDraft = ref<{ team1: string[]; team2: string[] }>({ team1: ['', ''], team2: ['', ''] })
+const customDraft = ref<{ team1: string[]; team2: string[]; queued: boolean; court: string }>({
+  team1: ['', ''],
+  team2: ['', ''],
+  queued: false,
+  court: '',
+})
+
+const startingId = ref<string | null>(null)
+const startError = ref<string | null>(null)
 
 const lockingPair = ref(false)
 const lockConfirming = ref(false)
@@ -128,7 +136,11 @@ async function unlockPair(lockId: string): Promise<void> {
   }
 }
 
-function availablePool(): { id: string; name: string }[] {
+// includeInProgress: also offer players currently mid-match — used only
+// when building a *queued* pairing, since those players will be free by
+// the time it's actually started. Players already reserved in another
+// queued match are still excluded either way (can't double-book them).
+function availablePool(includeInProgress = false): { id: string; name: string }[] {
   if (!queue.value) return []
   const ids = new Set<string>()
   for (const s of queue.value.suggestions) {
@@ -136,7 +148,26 @@ function availablePool(): { id: string; name: string }[] {
     for (const id of s.team2_player_ids) ids.add(id)
   }
   for (const w of queue.value.waiting) ids.add(w.player_id)
+  if (includeInProgress) {
+    for (const m of queue.value.in_progress) {
+      for (const id of m.team1_player_ids) ids.add(id)
+      for (const id of m.team2_player_ids) ids.add(id)
+    }
+  }
   return Array.from(ids).map((id) => ({ id, name: nameOf(id) }))
+}
+
+async function startQueuedMatch(matchId: string): Promise<void> {
+  startingId.value = matchId
+  startError.value = null
+  try {
+    await adminApi.startMatch(matchId)
+    await refreshQueue()
+  } catch (e) {
+    startError.value = apiErrorMessage(e, t('matchmaking.startFailed'))
+  } finally {
+    startingId.value = null
+  }
 }
 
 function draftHasDuplicate(groupNo: number): boolean {
@@ -151,6 +182,8 @@ function startEdit(s: PairingSuggestion): void {
   draftByGroup.value[s.group_no] = {
     team1: [...s.team1_player_ids],
     team2: [...s.team2_player_ids],
+    queued: false,
+    court: '',
   }
   pollControls.stop()
 }
@@ -177,6 +210,8 @@ async function confirmSuggestion(groupNo: number): Promise<void> {
       type: 'double',
       team1_player_ids: team1,
       team2_player_ids: team2,
+      status: draft?.queued ? 'queued' : 'in_progress',
+      court: draft?.court.trim() || null,
     })
     editingGroup.value = null
     delete draftByGroup.value[groupNo]
@@ -199,7 +234,7 @@ function customIsComplete(): boolean {
 }
 
 function startCustomMatch(): void {
-  customDraft.value = { team1: ['', ''], team2: ['', ''] }
+  customDraft.value = { team1: ['', ''], team2: ['', ''], queued: false, court: '' }
   creatingCustom.value = true
   pollControls.stop()
 }
@@ -220,6 +255,8 @@ async function confirmCustomMatch(): Promise<void> {
       type: 'double',
       team1_player_ids: customDraft.value.team1,
       team2_player_ids: customDraft.value.team2,
+      status: customDraft.value.queued ? 'queued' : 'in_progress',
+      court: customDraft.value.court.trim() || null,
     })
     creatingCustom.value = false
     pollControls.start()
@@ -233,9 +270,14 @@ async function confirmCustomMatch(): Promise<void> {
 
 watch(() => sessionsStore.currentSessionId, refreshQueue)
 
-onMounted(async () => {
-  await Promise.all([sessionsStore.refresh(), playersStore.ensureLoaded()])
-  await refreshQueue()
+onMounted(() => {
+  // Deliberately not awaited, and no explicit refreshQueue() call after:
+  // usePolling's own onMounted (registered below) already fires an
+  // immediate fetch once currentSessionId is set (the common case, since
+  // it's restored from localStorage before refresh() even resolves), and
+  // the watcher above covers the case where refresh() picks a new session.
+  sessionsStore.refresh()
+  playersStore.ensureLoaded()
 })
 
 const pollControls = usePolling(refreshQueue, 7000)
@@ -279,9 +321,12 @@ const pollControls = usePolling(refreshQueue, 7000)
                 <span class="text-center font-medium text-white/80">{{ m.team1_player_ids.map(nameOf).join(' & ') }}</span>
               </div>
 
-              <span class="hud-panel shrink-0 border border-brand-pink/20 bg-brand-black px-2.5 py-1 text-xs font-semibold text-white/50 uppercase">
-                {{ t('matches.inProgress') }}
-              </span>
+              <div class="flex shrink-0 flex-col items-center gap-1">
+                <span class="hud-panel border border-brand-pink/20 bg-brand-black px-2.5 py-1 text-xs font-semibold text-white/50 uppercase">
+                  {{ t('matches.inProgress') }}
+                </span>
+                <span v-if="m.court" class="text-xs text-white/40">{{ t('matchmaking.courtLabel') }} {{ m.court }}</span>
+              </div>
 
               <div class="flex flex-1 flex-col items-center gap-1.5">
                 <div class="flex gap-2">
@@ -322,6 +367,47 @@ const pollControls = usePolling(refreshQueue, 7000)
             </div>
           </li>
           <li v-if="queue.in_progress.length === 0" class="text-sm text-white/40">{{ t('matchmaking.noneInProgress') }}</li>
+        </ul>
+      </section>
+
+      <section v-if="queue.queued.length > 0" class="mt-8">
+        <h2 class="text-sm font-semibold text-white/70">{{ t('matchmaking.queuedNext') }} ({{ queue.queued.length }})</h2>
+        <p v-if="startError" class="mt-2 text-xs text-status-error">{{ startError }}</p>
+        <ul class="mt-2 space-y-2">
+          <li
+            v-for="m in queue.queued"
+            :key="m.match_id"
+            class="hud-panel border border-brand-pink-dark/30 bg-brand-surface px-4 py-3 opacity-80"
+          >
+            <div class="flex items-center justify-between gap-3">
+              <span class="flex-1 text-center text-sm text-white/70">{{ m.team1_player_ids.map(nameOf).join(' & ') }}</span>
+              <div class="flex shrink-0 flex-col items-center gap-1">
+                <span class="hud-panel border border-brand-pink-dark/30 bg-brand-black px-2.5 py-1 text-xs font-semibold text-white/40 uppercase">
+                  {{ t('matchmaking.queued') }}
+                </span>
+                <span v-if="m.court" class="text-xs text-white/40">{{ t('matchmaking.courtLabel') }} {{ m.court }}</span>
+              </div>
+              <span class="flex-1 text-center text-sm text-white/70">{{ m.team2_player_ids.map(nameOf).join(' & ') }}</span>
+            </div>
+            <div class="mt-2 flex items-center justify-center gap-2">
+              <button
+                :disabled="startingId === m.match_id"
+                class="rounded-full bg-brand-pink px-3 py-1 text-xs font-semibold text-brand-black disabled:opacity-50"
+                @click="startQueuedMatch(m.match_id)"
+              >
+                {{ startingId === m.match_id ? '...' : t('matchmaking.startMatch') }}
+              </button>
+              <button
+                :disabled="cancelling === m.match_id"
+                class="rounded-full border border-white/20 px-3 py-1 text-xs text-white/60 hover:border-status-error hover:text-status-error disabled:opacity-50"
+                @click="
+                  cancelMatch(m.match_id, m.team1_player_ids.map(nameOf).join(' & '), m.team2_player_ids.map(nameOf).join(' & '))
+                "
+              >
+                {{ cancelling === m.match_id ? t('matchmaking.cancelling') : t('matchmaking.cancelMatch') }}
+              </button>
+            </div>
+          </li>
         </ul>
       </section>
 
@@ -401,6 +487,10 @@ const pollControls = usePolling(refreshQueue, 7000)
         </div>
 
         <div v-if="creatingCustom" class="hud-panel mt-2 border border-brand-pink/20 bg-brand-surface px-4 py-3">
+          <label class="mb-2 flex items-center gap-2 text-xs text-white/60">
+            <input v-model="customDraft.queued" type="checkbox" />
+            {{ t('matchmaking.queueForLater') }}
+          </label>
           <div class="grid grid-cols-2 gap-3 text-xs">
             <div>
               <p class="mb-1 text-white/40">{{ t('matchmaking.team') }} 1</p>
@@ -411,7 +501,7 @@ const pollControls = usePolling(refreshQueue, 7000)
                 class="mb-1 w-full rounded border border-brand-pink/25 bg-brand-black px-2 py-1"
               >
                 <option value="" disabled>{{ t('matchmaking.pickPlayer') }}</option>
-                <option v-for="p in availablePool()" :key="p.id" :value="p.id">{{ p.name }}</option>
+                <option v-for="p in availablePool(customDraft.queued)" :key="p.id" :value="p.id">{{ p.name }}</option>
               </select>
             </div>
             <div>
@@ -423,10 +513,15 @@ const pollControls = usePolling(refreshQueue, 7000)
                 class="mb-1 w-full rounded border border-brand-pink/25 bg-brand-black px-2 py-1"
               >
                 <option value="" disabled>{{ t('matchmaking.pickPlayer') }}</option>
-                <option v-for="p in availablePool()" :key="p.id" :value="p.id">{{ p.name }}</option>
+                <option v-for="p in availablePool(customDraft.queued)" :key="p.id" :value="p.id">{{ p.name }}</option>
               </select>
             </div>
           </div>
+          <input
+            v-model="customDraft.court"
+            :placeholder="t('matchmaking.courtPlaceholder')"
+            class="mt-2 w-full rounded border border-brand-pink/25 bg-brand-black px-2 py-1 text-xs"
+          />
           <p v-if="customHasDuplicate()" class="mt-2 text-xs text-status-error">
             {{ t('matchmaking.duplicatePlayer') }}
           </p>
@@ -494,6 +589,10 @@ const pollControls = usePolling(refreshQueue, 7000)
             </div>
 
             <div v-else class="space-y-3">
+              <label class="flex items-center gap-2 text-xs text-white/60">
+                <input v-model="draftByGroup[s.group_no].queued" type="checkbox" />
+                {{ t('matchmaking.queueForLater') }}
+              </label>
               <div class="grid grid-cols-2 gap-3 text-xs">
                 <div>
                   <p class="mb-1 text-white/40">{{ t('matchmaking.team') }} 1</p>
@@ -503,7 +602,7 @@ const pollControls = usePolling(refreshQueue, 7000)
                     v-model="draftByGroup[s.group_no].team1[i]"
                     class="mb-1 w-full rounded border border-brand-pink/25 bg-brand-black px-2 py-1"
                   >
-                    <option v-for="p in availablePool()" :key="p.id" :value="p.id">{{ p.name }}</option>
+                    <option v-for="p in availablePool(draftByGroup[s.group_no]?.queued)" :key="p.id" :value="p.id">{{ p.name }}</option>
                   </select>
                 </div>
                 <div>
@@ -514,10 +613,15 @@ const pollControls = usePolling(refreshQueue, 7000)
                     v-model="draftByGroup[s.group_no].team2[i]"
                     class="mb-1 w-full rounded border border-brand-pink/25 bg-brand-black px-2 py-1"
                   >
-                    <option v-for="p in availablePool()" :key="p.id" :value="p.id">{{ p.name }}</option>
+                    <option v-for="p in availablePool(draftByGroup[s.group_no]?.queued)" :key="p.id" :value="p.id">{{ p.name }}</option>
                   </select>
                 </div>
               </div>
+              <input
+                v-model="draftByGroup[s.group_no].court"
+                :placeholder="t('matchmaking.courtPlaceholder')"
+                class="w-full rounded border border-brand-pink/25 bg-brand-black px-2 py-1 text-xs"
+              />
               <p v-if="draftHasDuplicate(s.group_no)" class="text-xs text-status-error">
                 {{ t('matchmaking.duplicatePlayer') }}
               </p>

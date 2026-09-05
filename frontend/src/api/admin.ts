@@ -93,6 +93,8 @@ export async function confirmMatch(match: {
   type: 'single' | 'double'
   team1_player_ids: string[]
   team2_player_ids: string[]
+  status?: 'queued' | 'in_progress'
+  court?: string | null
 }): Promise<Match> {
   return request('/api/admin/matchmaking/confirm', {
     method: 'POST',
@@ -109,6 +111,10 @@ export async function recordMatchResult(matchId: string, winner: MatchWinner): P
 
 export async function cancelMatch(matchId: string): Promise<void> {
   await request(`/api/admin/matchmaking/matches/${matchId}`, { method: 'DELETE' })
+}
+
+export async function startMatch(matchId: string): Promise<Match> {
+  return request(`/api/admin/matchmaking/matches/${matchId}/start`, { method: 'POST' })
 }
 
 export async function createLockedPair(

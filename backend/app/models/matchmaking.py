@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Self
+from typing import Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel, model_validator
@@ -45,6 +45,11 @@ class MatchmakingConfirmRequest(BaseModel):
     type: MatchType
     team1_player_ids: list[UUID]
     team2_player_ids: list[UUID]
+    status: Literal["queued", "in_progress"] = "in_progress"
+    """"queued" lets an admin pre-build the next pairing — including
+    players still mid-match — without starting it yet; promoted to
+    in_progress only via the separate /matches/{id}/start action."""
+    court: str | None = None
 
     @model_validator(mode="after")
     def _validate_team_sizes(self) -> Self:
@@ -66,6 +71,7 @@ class QueueEntry(BaseModel):
     team1_player_ids: list[UUID]
     team2_player_ids: list[UUID]
     status: MatchStatus
+    court: str | None = None
 
 
 class WaitingEntry(BaseModel):
@@ -76,6 +82,7 @@ class WaitingEntry(BaseModel):
 
 class MatchmakingQueueResponse(BaseModel):
     in_progress: list[QueueEntry]
+    queued: list[QueueEntry] = []
     suggestions: list[PairingSuggestion]
     waiting: list[WaitingEntry]
     avg_match_duration_minutes: float

@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from app.models.player import Player
 
 MatchType = Literal["single", "double"]
-MatchStatus = Literal["in_progress", "completed"]
+MatchStatus = Literal["queued", "in_progress", "completed"]
 Winner = Literal["team1", "team2", "draw"]
 
 SetScore = tuple[int, int]
@@ -30,6 +30,7 @@ class Match(BaseModel):
     sets: list[SetScore] | None = None
     winner: Winner | None = None
     status: MatchStatus
+    court: str | None = None
     created_at: datetime
     updated_at: datetime
 
