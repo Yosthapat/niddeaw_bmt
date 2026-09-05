@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSessionsStore } from '@/stores/sessions'
 import { getClubSettings } from '@/api/admin'
@@ -8,6 +8,7 @@ import { ApiError } from '@/api/client'
 const { t } = useI18n()
 const sessionsStore = useSessionsStore()
 const creating = ref(false)
+const closedSessions = computed(() => sessionsStore.sessions.filter((s) => s.status === 'closed'))
 
 const COURT_OPTIONS = ['KB badminton court โยธินพัฒนา', 'Guy badminton court']
 const CUSTOM_OPTION = '__custom__'
@@ -78,9 +79,12 @@ async function deleteCurrent(): Promise<void> {
       class="rounded-lg border border-brand-pink/25 bg-brand-black px-2 py-1 text-sm"
       @change="sessionsStore.setCurrentSession(($event.target as HTMLSelectElement).value || null)"
     >
-      <option v-for="s in sessionsStore.sessions" :key="s.id" :value="s.id">
-        {{ s.date }} · {{ s.location }} ({{ s.status }})
-      </option>
+      <optgroup v-if="sessionsStore.openSessions.length > 0" :label="t('session.openGroup')">
+        <option v-for="s in sessionsStore.openSessions" :key="s.id" :value="s.id">{{ s.date }} · {{ s.location }}</option>
+      </optgroup>
+      <optgroup v-if="closedSessions.length > 0" :label="t('session.closedGroup')">
+        <option v-for="s in closedSessions" :key="s.id" :value="s.id">{{ s.date }} · {{ s.location }}</option>
+      </optgroup>
     </select>
     <span v-else class="text-sm text-white/40">{{ t('session.none') }}</span>
 
