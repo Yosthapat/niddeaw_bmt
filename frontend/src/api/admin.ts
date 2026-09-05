@@ -194,6 +194,10 @@ export async function updatePlayer(playerId: string, player: Partial<Player>): P
   })
 }
 
+export async function deletePlayer(playerId: string): Promise<void> {
+  return request(`/api/admin/players/${playerId}`, { method: 'DELETE' })
+}
+
 export async function uploadAvatar(playerId: string, file: File): Promise<Player> {
   const formData = new FormData()
   formData.append('file', file)
