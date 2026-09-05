@@ -44,21 +44,18 @@ def get_ranking(
                 continue  # ranking only shows players who've played at least one match
             stats.append(_stats_from_record(player, record))
     else:
-        # "This year" isn't denormalized (bounded to ~1 year of matches
-        # rather than the club's whole history, so a live scan stays cheap).
+        # "This year" isn't denormalized, but is bounded to this year's
+        # matches at the query level (not fetched in full then filtered in
+        # Python) so it stays cheap regardless of the club's total history.
+        year_start = datetime(datetime.now(timezone.utc).year, 1, 1, tzinfo=timezone.utc)
         matches_result = (
             supabase.table("matches")
             .select("team1_player_ids, team2_player_ids, winner, created_at")
             .eq("status", "completed")
+            .gte("created_at", year_start.isoformat())
             .execute()
         )
-        current_year = datetime.now(timezone.utc).year
-        match_rows = [
-            row
-            for row in rows(matches_result)
-            if datetime.fromisoformat(str(row["created_at"])).year == current_year
-        ]
-        records = stats_service.build_player_records(match_rows)  # type: ignore[arg-type]
+        records = stats_service.build_player_records(rows(matches_result))  # type: ignore[arg-type]
         for player in players:
             record = records.get(player.id, stats_service.PlayerRecord())
             if record.games == 0:
