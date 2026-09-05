@@ -2,7 +2,7 @@ import type { Player } from './player'
 
 export type MatchType = 'single' | 'double'
 export type MatchWinner = 'team1' | 'team2' | 'draw'
-export type MatchStatus = 'in_progress' | 'completed'
+export type MatchStatus = 'queued' | 'in_progress' | 'completed'
 
 /** One game's score as [team1_points, team2_points]. */
 export type SetScore = [number, number]
@@ -16,6 +16,7 @@ export interface Match {
   sets: SetScore[] | null
   winner: MatchWinner | null
   status: MatchStatus
+  court: string | null
   created_at: string
   updated_at: string
 }

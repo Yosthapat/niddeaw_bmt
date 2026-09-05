@@ -72,12 +72,12 @@ def fetch_pairing_history(
     ]
 
 
-def players_in_progress(supabase: Client, session_id: UUID) -> set[UUID]:
+def _player_ids_by_status(supabase: Client, session_id: UUID, match_status: str) -> set[UUID]:
     result = (
         supabase.table("matches")
         .select("team1_player_ids, team2_player_ids")
         .eq("session_id", str(session_id))
-        .eq("status", "in_progress")
+        .eq("status", match_status)
         .execute()
     )
     ids: set[UUID] = set()
@@ -85,6 +85,14 @@ def players_in_progress(supabase: Client, session_id: UUID) -> set[UUID]:
         ids.update(UUID(pid) for pid in row["team1_player_ids"])
         ids.update(UUID(pid) for pid in row["team2_player_ids"])
     return ids
+
+
+def players_in_progress(supabase: Client, session_id: UUID) -> set[UUID]:
+    return _player_ids_by_status(supabase, session_id, "in_progress")
+
+
+def players_in_queued_matches(supabase: Client, session_id: UUID) -> set[UUID]:
+    return _player_ids_by_status(supabase, session_id, "queued")
 
 
 def current_round_no(supabase: Client, session_id: UUID) -> int:
@@ -109,15 +117,30 @@ def fetch_locked_pairs(supabase: Client, session_id: UUID) -> list[LockedPair]:
 
 
 def build_suggestions(
-    supabase: Client, session_id: UUID
+    supabase: Client,
+    session_id: UUID,
+    *,
+    committed_ids: set[UUID] | None = None,
+    locked_pairs_list: list[LockedPair] | None = None,
 ) -> tuple[list[PairingSuggestion], list[UUID]]:
-    in_progress_ids = players_in_progress(supabase, session_id)
-    checked_in = fetch_checked_in_players(supabase, session_id, in_progress_ids)
+    """`committed_ids`/`locked_pairs_list` let build_queue() pass in what it
+    already fetched instead of this function re-querying the same rows —
+    both fall back to fetching themselves when called standalone (e.g. from
+    the /suggest endpoint, which has no reason to call build_queue first).
+
+    `committed_ids` covers players in an in_progress OR queued match — a
+    queued match already has its next pairing decided, so those players
+    must not also be offered up for a fresh auto-suggestion."""
+    if committed_ids is None:
+        committed_ids = players_in_progress(supabase, session_id) | players_in_queued_matches(
+            supabase, session_id
+        )
+    checked_in = fetch_checked_in_players(supabase, session_id, committed_ids)
     history = fetch_pairing_history(supabase, session_id)
     current_round = current_round_no(supabase, session_id)
-    locked_pairs = tuple(
-        (lp.player_a_id, lp.player_b_id) for lp in fetch_locked_pairs(supabase, session_id)
-    )
+    if locked_pairs_list is None:
+        locked_pairs_list = fetch_locked_pairs(supabase, session_id)
+    locked_pairs = tuple((lp.player_a_id, lp.player_b_id) for lp in locked_pairs_list)
 
     splits, waiting = matchmaking_service.suggest_doubles_pairings(
         checked_in, history, current_round, locked_pairs
@@ -135,25 +158,39 @@ def build_suggestions(
     return suggestions, waiting
 
 
-def build_queue(supabase: Client, session_id: UUID) -> MatchmakingQueueResponse:
-    in_progress_result = (
+def _fetch_queue_entries(
+    supabase: Client, session_id: UUID, match_status: str
+) -> list[QueueEntry]:
+    result = (
         supabase.table("matches")
-        .select("id, team1_player_ids, team2_player_ids, status")
+        .select("id, team1_player_ids, team2_player_ids, status, court")
         .eq("session_id", str(session_id))
-        .eq("status", "in_progress")
+        .eq("status", match_status)
         .execute()
     )
-    in_progress = [
+    return [
         QueueEntry(
             match_id=UUID(row["id"]),
             team1_player_ids=[UUID(pid) for pid in row["team1_player_ids"]],
             team2_player_ids=[UUID(pid) for pid in row["team2_player_ids"]],
             status=row["status"],
+            court=row.get("court"),
         )
-        for row in rows(in_progress_result)
+        for row in rows(result)
     ]
 
-    suggestions, waiting_ids = build_suggestions(supabase, session_id)
+
+def build_queue(supabase: Client, session_id: UUID) -> MatchmakingQueueResponse:
+    in_progress = _fetch_queue_entries(supabase, session_id, "in_progress")
+    queued = _fetch_queue_entries(supabase, session_id, "queued")
+    committed_ids = {
+        pid for entry in (*in_progress, *queued) for pid in (*entry.team1_player_ids, *entry.team2_player_ids)
+    }
+    locked_pairs_list = fetch_locked_pairs(supabase, session_id)
+
+    suggestions, waiting_ids = build_suggestions(
+        supabase, session_id, committed_ids=committed_ids, locked_pairs_list=locked_pairs_list
+    )
 
     recent_result = (
         supabase.table("matches")
@@ -190,8 +227,9 @@ def build_queue(supabase: Client, session_id: UUID) -> MatchmakingQueueResponse:
 
     return MatchmakingQueueResponse(
         in_progress=in_progress,
+        queued=queued,
         suggestions=suggestions,
         waiting=waiting,
         avg_match_duration_minutes=avg_duration,
-        locked_pairs=fetch_locked_pairs(supabase, session_id),
+        locked_pairs=locked_pairs_list,
     )

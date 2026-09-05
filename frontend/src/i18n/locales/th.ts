@@ -187,6 +187,13 @@ export default {
     noLockedPairs: 'ยังไม่มีคู่ล็อค',
     lockFailed: 'ล็อคคู่ไม่สำเร็จ',
     unlockFailed: 'ปลดล็อคไม่สำเร็จ',
+    queuedNext: 'คิวถัดไป (รอเริ่ม)',
+    queued: 'รอ',
+    startMatch: 'เริ่มแข่ง',
+    startFailed: 'เริ่มแข่งไม่สำเร็จ',
+    queueForLater: 'ใส่คิวรอ (ยังไม่เริ่ม) — เลือกคนที่กำลังตีอยู่ได้',
+    courtLabel: 'คอร์ต',
+    courtPlaceholder: 'คอร์ต (ถ้ามี)',
   },
   matchRecord: {
     title: 'บันทึกผลแมตช์',

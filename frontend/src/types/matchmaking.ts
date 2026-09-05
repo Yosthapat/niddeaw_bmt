@@ -19,6 +19,7 @@ export interface QueueEntry {
   team1_player_ids: string[]
   team2_player_ids: string[]
   status: MatchStatus
+  court: string | null
 }
 
 export interface WaitingEntry {
@@ -37,6 +38,7 @@ export interface LockedPair {
 
 export interface MatchmakingQueueResponse {
   in_progress: QueueEntry[]
+  queued: QueueEntry[]
   suggestions: PairingSuggestion[]
   waiting: WaitingEntry[]
   avg_match_duration_minutes: number

@@ -189,6 +189,13 @@ export default {
     noLockedPairs: 'No locked pairs yet',
     lockFailed: 'Failed to lock pair',
     unlockFailed: 'Failed to unlock pair',
+    queuedNext: 'Queued (not started)',
+    queued: 'Queued',
+    startMatch: 'Start Match',
+    startFailed: 'Failed to start match',
+    queueForLater: "Queue for later (don't start yet) — can include players still playing",
+    courtLabel: 'Court',
+    courtPlaceholder: 'Court (optional)',
   },
   matchRecord: {
     title: 'Record Match Result',

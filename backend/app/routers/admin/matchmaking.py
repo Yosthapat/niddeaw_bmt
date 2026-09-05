@@ -66,6 +66,19 @@ def queue(session_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> Matchmaki
 
 @router.post("/confirm", response_model=Match, status_code=status.HTTP_201_CREATED)
 def confirm(payload: MatchmakingConfirmRequest, supabase: SupabaseDep, admin: AdminDep) -> Match:
+    submitted_ids = set(payload.team1_player_ids + payload.team2_player_ids)
+    queued_ids = queue_service.players_in_queued_matches(supabase, payload.session_id)
+    if payload.status == "in_progress":
+        in_progress_ids = queue_service.players_in_progress(supabase, payload.session_id)
+        conflict = submitted_ids & (in_progress_ids | queued_ids)
+    else:
+        conflict = submitted_ids & queued_ids
+    if conflict:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="ผู้เล่นบางคนถูกจับคู่ไว้ในแมตช์อื่นอยู่แล้ว",
+        )
+
     round_no = queue_service.current_round_no(supabase, payload.session_id)
     now = datetime.now(timezone.utc).isoformat()
 
@@ -74,7 +87,8 @@ def confirm(payload: MatchmakingConfirmRequest, supabase: SupabaseDep, admin: Ad
         "type": payload.type,
         "team1_player_ids": [str(pid) for pid in payload.team1_player_ids],
         "team2_player_ids": [str(pid) for pid in payload.team2_player_ids],
-        "status": "in_progress",
+        "status": payload.status,
+        "court": payload.court,
         "created_at": now,
         "updated_at": now,
     }
@@ -97,18 +111,52 @@ def confirm(payload: MatchmakingConfirmRequest, supabase: SupabaseDep, admin: Ad
 @router.delete("/matches/{match_id}", status_code=status.HTTP_204_NO_CONTENT)
 def cancel_match(match_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> None:
     """Cancels a mis-paired or no-longer-needed match — only while it's still
-    in_progress, so a completed match's result/ELO history can't be erased
-    by mistake. pairing_history rows cascade-delete with the match."""
+    queued or in_progress, so a completed match's result/ELO history can't
+    be erased by mistake. pairing_history rows cascade-delete with the
+    match."""
     match_result = supabase.table("matches").select("status").eq("id", str(match_id)).limit(1).execute()
     match_rows = rows(match_result)
     if not match_rows:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Match not found")
-    if match_rows[0]["status"] != "in_progress":
+    if match_rows[0]["status"] not in ("queued", "in_progress"):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Only an in-progress match can be cancelled",
+            detail="Only a queued or in-progress match can be cancelled",
         )
     supabase.table("matches").delete().eq("id", str(match_id)).execute()
+
+
+@router.post("/matches/{match_id}/start", response_model=Match)
+def start_match(match_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> Match:
+    """Manually promotes a queued match to in_progress — never automatic, so
+    the admin decides exactly when the court is actually free (a queued
+    match's players may still be finishing an earlier in_progress match)."""
+    match_result = supabase.table("matches").select("*").eq("id", str(match_id)).limit(1).execute()
+    match_rows = rows(match_result)
+    if not match_rows:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Match not found")
+    match_row = match_rows[0]
+    if match_row["status"] != "queued":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Only a queued match can be started"
+        )
+
+    session_id = UUID(match_row["session_id"])
+    player_ids = {UUID(pid) for pid in (*match_row["team1_player_ids"], *match_row["team2_player_ids"])}
+    still_playing = player_ids & queue_service.players_in_progress(supabase, session_id)
+    if still_playing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="ผู้เล่นบางคนยังแข่งอยู่ รอให้จบก่อนค่อยเริ่มคู่นี้",
+        )
+
+    updated = (
+        supabase.table("matches")
+        .update({"status": "in_progress", "updated_at": datetime.now(timezone.utc).isoformat()})
+        .eq("id", str(match_id))
+        .execute()
+    )
+    return Match.model_validate(rows(updated)[0])
 
 
 @router.post("/matches/{match_id}/result", response_model=Match)
