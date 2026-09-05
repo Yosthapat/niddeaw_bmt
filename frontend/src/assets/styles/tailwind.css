@@ -340,7 +340,27 @@ button:not(:disabled):active {
   color: #2b1400;
 }
 
+/* App.vue — a slim pink/purple gradient bookend at the foot of every
+   single page (rendered once, outside <RouterView>, the same way
+   AppHeader sits above it on every page). Same pink+purple duo as
+   .hero-aura, just as a flat band instead of a blurred glow — a closing
+   signature rather than a new color introduced to the palette. */
+.signature-stripe {
+  height: 6px;
+  background: linear-gradient(90deg, #ea4ca4, #9d5bf4 50%, #ea4ca4);
+  background-size: 200% auto;
+  animation: signature-stripe-drift 8s ease-in-out infinite;
+}
+@keyframes signature-stripe-drift {
+  50% {
+    background-position: 100% 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .signature-stripe {
+    animation: none;
+  }
   button,
   a {
     transition: none;

@@ -19,6 +19,7 @@ import TierInfoModal from '@/components/players/TierInfoModal.vue'
       </Transition>
       <component :is="Component" v-else :key="route.path" />
     </RouterView>
+    <div class="signature-stripe" aria-hidden="true" />
     <TierInfoModal />
   </div>
 </template>
