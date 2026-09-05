@@ -64,6 +64,8 @@ const editForm = reactive({
   elo_score: 0,
 })
 const uploadingAvatarId = ref<string | null>(null)
+const deletingId = ref<string | null>(null)
+const rowError = ref<string | null>(null)
 
 async function loadPlayers(): Promise<void> {
   loading.value = true
@@ -167,6 +169,20 @@ async function toggleActive(player: Player): Promise<void> {
   players.value = players.value.map((p) => (p.id === updated.id ? updated : p))
 }
 
+async function removePlayer(player: Player): Promise<void> {
+  if (!window.confirm(t('members.deleteConfirm'))) return
+  deletingId.value = player.id
+  rowError.value = null
+  try {
+    await adminApi.deletePlayer(player.id)
+    players.value = players.value.filter((p) => p.id !== player.id)
+  } catch (e) {
+    rowError.value = apiErrorMessage(e, t('members.deleteFailed'))
+  } finally {
+    deletingId.value = null
+  }
+}
+
 function eloTierFor(score: number): EloTier {
   return useEloTier(score).tier
 }
@@ -250,6 +266,7 @@ onMounted(loadPlayers)
       </div>
     </form>
 
+    <p v-if="rowError" class="mt-4 text-sm text-status-error">{{ rowError }}</p>
     <p v-if="loading" class="mt-6 text-white/60">{{ t('common.loading') }}</p>
     <p v-else-if="error" class="mt-6 text-status-error">{{ error }}</p>
     <p v-else-if="players.length === 0" class="mt-6 text-white/60">{{ t('members.empty') }}</p>
@@ -279,6 +296,13 @@ onMounted(loadPlayers)
             @click="toggleActive(p)"
           >
             {{ p.is_active ? t('members.deactivate') : t('members.activate') }}
+          </button>
+          <button
+            :disabled="deletingId === p.id"
+            class="rounded-full bg-status-error/20 px-3 py-1 text-xs font-semibold text-status-error disabled:opacity-50"
+            @click="removePlayer(p)"
+          >
+            {{ deletingId === p.id ? t('common.saving') : t('members.delete') }}
           </button>
         </div>
 

@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, UploadFile, status
+from supabase import Client
 
 from app.db_utils import rows
 from app.deps import AdminDep, SupabaseDep
@@ -11,6 +12,27 @@ router = APIRouter(prefix="/api/admin/players", tags=["admin-players"])
 
 AVATAR_BUCKET = "avatars"
 MAX_AVATAR_BYTES = 2 * 1024 * 1024  # 2MB — client resizes before upload; this is a hard backstop
+
+# Tables with a real FK on players(id) — matches.team1/2_player_ids are plain
+# uuid[] columns with no FK, so a deleted player just becomes an unresolvable
+# id in old match records (expected once they're gone), but these tables
+# would reject the delete outright, so check them first for a clear error
+# instead of a raw Postgres FK-violation message.
+_DEPENDENT_PLAYER_COLUMNS: list[tuple[str, str]] = [
+    ("checkins", "player_id"),
+    ("billings", "player_id"),
+    ("pairing_history", "player_a_id"),
+    ("pairing_history", "player_b_id"),
+    ("locked_pairs", "player_a_id"),
+    ("locked_pairs", "player_b_id"),
+]
+
+
+def _player_has_history(supabase: Client, player_id: str) -> bool:
+    return any(
+        rows(supabase.table(table).select("id").eq(column, player_id).limit(1).execute())
+        for table, column in _DEPENDENT_PLAYER_COLUMNS
+    )
 
 
 @router.get("", response_model=list[Player])
@@ -50,6 +72,25 @@ def update_player(
     if not result_rows:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Player not found")
     return Player.model_validate(result_rows[0])
+
+
+@router.delete("/{player_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_player(player_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> None:
+    """Hard delete — only allowed for a player with no match/checkin/billing
+    history, since those tables FK-reference players(id) with no cascade.
+    member_seq is never reused or shifted for the players left behind (see
+    db/migrations/0008_member_profile_fields.sql), so this never touches
+    anyone else's row. A player with real history should be deactivated
+    instead (PATCH is_active=false), which the admin UI already supports."""
+    pid = str(player_id)
+    if _player_has_history(supabase, pid):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="ลบไม่ได้ เนื่องจากมีประวัติการเช็คอิน/แข่ง/บิลผูกอยู่ — ปิดใช้งานแทน",
+        )
+    result = supabase.table("players").delete().eq("id", pid).execute()
+    if not rows(result):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Player not found")
 
 
 @router.post("/{player_id}/avatar", response_model=Player)
