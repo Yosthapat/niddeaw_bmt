@@ -21,12 +21,18 @@ const checkins = ref<Checkin[]>([])
 const newPlayerName = ref('')
 const addingPlayer = ref(false)
 const actionError = ref<string | null>(null)
+const search = ref('')
 
 const activeCheckins = computed(() => checkins.value.filter((c) => c.checkout_time === null))
 const activePlayerIds = computed(() => new Set(activeCheckins.value.map((c) => c.player_id)))
 const availablePlayers = computed(() =>
   playersStore.players.filter((p) => p.is_active && !activePlayerIds.value.has(p.id)),
 )
+const filteredAvailablePlayers = computed(() => {
+  const query = search.value.trim().toLowerCase()
+  if (!query) return availablePlayers.value
+  return availablePlayers.value.filter((p) => p.nickname.toLowerCase().includes(query))
+})
 
 function apiErrorMessage(e: unknown, fallback: string): string {
   if (e instanceof ApiError) {
@@ -158,10 +164,18 @@ usePolling(refreshCheckins, 8000)
       </section>
 
       <section class="mt-8">
-        <h2 class="text-sm font-semibold text-white/70">{{ t('checkin.notCheckedIn') }}</h2>
+        <div class="flex items-center justify-between gap-4">
+          <h2 class="text-sm font-semibold text-white/70">{{ t('checkin.notCheckedIn') }}</h2>
+          <input
+            v-model="search"
+            type="search"
+            :placeholder="t('checkin.searchPlaceholder')"
+            class="hud-panel w-full max-w-[14rem] border border-brand-pink/25 bg-brand-surface px-3 py-1.5 text-sm outline-none focus:border-brand-pink"
+          />
+        </div>
         <ul class="mt-2 grid gap-2 sm:grid-cols-2">
           <li
-            v-for="p in availablePlayers"
+            v-for="p in filteredAvailablePlayers"
             :key="p.id"
             class="flex items-center gap-3 hud-panel border border-brand-pink/20 bg-brand-surface px-3 py-2"
           >
@@ -173,6 +187,12 @@ usePolling(refreshCheckins, 8000)
             >
               {{ t('checkin.checkin') }}
             </button>
+          </li>
+          <li
+            v-if="filteredAvailablePlayers.length === 0 && search.trim()"
+            class="text-sm text-white/40 sm:col-span-2"
+          >
+            {{ t('checkin.noSearchResults') }}
           </li>
         </ul>
       </section>

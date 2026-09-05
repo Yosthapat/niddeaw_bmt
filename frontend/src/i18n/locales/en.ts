@@ -158,6 +158,8 @@ export default {
     checkinFailed: 'Check-in failed',
     checkoutFailed: 'Check-out failed',
     addFailed: 'Failed to add member',
+    searchPlaceholder: 'Search by name...',
+    noSearchResults: 'No members found',
   },
   matchmaking: {
     selectSessionFirst: 'Select or create a session first',

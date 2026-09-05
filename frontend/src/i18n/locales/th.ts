@@ -156,6 +156,8 @@ export default {
     checkinFailed: 'เช็คอินไม่สำเร็จ',
     checkoutFailed: 'เช็คเอาท์ไม่สำเร็จ',
     addFailed: 'เพิ่มสมาชิกไม่สำเร็จ',
+    searchPlaceholder: 'ค้นหาชื่อ...',
+    noSearchResults: 'ไม่พบสมาชิกที่ค้นหา',
   },
   matchmaking: {
     selectSessionFirst: 'เลือกหรือสร้าง session ก่อน',
