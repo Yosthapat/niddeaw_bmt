@@ -86,11 +86,19 @@ const socialLinks = [
 // cleanly straight against the dark background with no card/box needed —
 // same treatment bmbad.com uses for its sponsor strip.
 const sponsors = [
-  { name: 'Wasteland', src: '/sponsors/wasteland-mono.png' },
-  { name: 'Match Mellow', src: '/sponsors/match-mellow-mono.png' },
-  { name: 'Sawadee Natural Herbal Balm', src: '/sponsors/sawadee-mono.png' },
-  { name: 'Umore Made', src: '/sponsors/umore-made-mono.png' },
-  { name: 'The Players Club', src: '/sponsors/players-club-mono.png' },
+  { name: 'Wasteland', src: '/sponsors/wasteland-mono.png', href: 'https://www.instagram.com/wastelandbkk' },
+  { name: 'Match Mellow', src: '/sponsors/match-mellow-mono.png', href: 'https://www.instagram.com/match.mellowww' },
+  {
+    name: 'Sawadee Natural Herbal Balm',
+    src: '/sponsors/sawadee-mono.png',
+    href: 'https://www.instagram.com/sawadee_naturalherbalbalm',
+  },
+  { name: 'Umore Made', src: '/sponsors/umore-made-mono.png', href: 'https://www.instagram.com/umore.made' },
+  {
+    name: 'The Players Club',
+    src: '/sponsors/players-club-mono.png',
+    href: 'https://www.instagram.com/theplayersclubthailand',
+  },
 ]
 </script>
 
@@ -180,13 +188,19 @@ const sponsors = [
     <section v-reveal class="mt-10 border-t border-b border-brand-pink/15 py-8 text-center sm:mt-12">
       <h2 class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">{{ t('home.sponsorsTitle') }}</h2>
       <div class="mt-6 flex flex-wrap items-center justify-center gap-x-12 gap-y-8">
-        <img
-          v-for="sponsor in sponsors"
+        <a
+          v-for="(sponsor, i) in sponsors"
           :key="sponsor.name"
-          :src="sponsor.src"
-          :alt="sponsor.name"
-          class="h-24 w-auto object-contain opacity-80 transition-opacity hover:opacity-100 sm:h-28"
-        />
+          v-tilt
+          :href="sponsor.href"
+          target="_blank"
+          rel="noopener noreferrer"
+          :aria-label="sponsor.name"
+          class="sponsor-logo float-idle inline-block"
+          :style="{ '--float-delay': `${i * 0.3}s` }"
+        >
+          <img :src="sponsor.src" :alt="sponsor.name" class="h-24 w-auto object-contain sm:h-28" />
+        </a>
       </div>
     </section>
   </main>

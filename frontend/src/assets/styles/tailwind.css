@@ -269,7 +269,11 @@ button:not(:disabled):active {
     border-color 0.2s ease;
 }
 .hud-hover:hover {
-  transform: translateY(-2px);
+  /* !important: a few cards (Hall of Fame's #1, Ranking's top 3) also
+     carry .float-idle, whose running keyframe animation continuously
+     drives `transform` — without !important this hover lift would lose
+     to that animation every frame and silently never show. */
+  transform: translateY(-2px) !important;
   box-shadow: 0 0 24px -6px rgb(234 76 164 / 0.55);
 }
 
@@ -346,6 +350,28 @@ button:not(:disabled):active {
 .rank-badge-bronze {
   background: linear-gradient(145deg, #e3ad7a, #9a5a2e);
   color: #2b1400;
+}
+
+/* HomeView.vue sponsor strip — each logo links out to the sponsor's own
+   page, dimmed at rest (matches the mono-silhouette treatment) and
+   lifting into a pink glow on hover so the links read as clickable
+   instead of plain decoration. */
+.sponsor-logo {
+  display: inline-block;
+  opacity: 0.8;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease,
+    filter 0.2s ease;
+}
+.sponsor-logo:hover {
+  opacity: 1;
+  /* !important: this element also carries .float-idle, whose running
+     keyframe animation continuously drives `transform` — a normal-priority
+     rule here would lose to that animation every frame and the hover
+     scale would never actually show. */
+  transform: scale(1.08) !important;
+  filter: drop-shadow(0 0 12px rgb(234 76 164 / 0.5));
 }
 
 /* App.vue — a slim pink/purple gradient bookend at the foot of every
@@ -528,5 +554,12 @@ button:not(:disabled):active {
     filter: none;
     transform: none;
     animation: none;
+  }
+  .sponsor-logo {
+    transition: opacity 0.2s ease;
+  }
+  .sponsor-logo:hover {
+    transform: none;
+    filter: none;
   }
 }
