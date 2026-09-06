@@ -61,10 +61,14 @@ html {
   background-color: var(--color-brand-black);
 }
 
+/* No background-color here (html's above covers the canvas) — a solid
+   background on body would paint *over* AmbientBackground's negative
+   z-index blobs. Per CSS's stacking rules, a non-positioned ancestor's own
+   background always paints after (i.e. on top of) a negative z-index
+   descendant, regardless of DOM nesting — the classic gotcha. */
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: var(--color-brand-black);
   color: #ede5e9;
   font-family: var(--font-body);
 }
@@ -175,22 +179,26 @@ h3,
 
 /* v-reveal directive (useScrollReveal.ts): starts hidden/offset, then
    plays reveal-up once IntersectionObserver flags the element as visible.
-   --reveal-delay is set per-element by the directive for staggered lists. */
+   --reveal-delay is set per-element by the directive for staggered lists.
+   Scale + blur (not just translateY) reads as a more cinematic entrance. */
 .reveal-init {
   opacity: 0;
-  transform: translateY(14px);
+  transform: translateY(14px) scale(0.96);
+  filter: blur(4px);
 }
 .reveal-init.is-revealed {
-  animation: reveal-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay, 0ms) both;
+  animation: reveal-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay, 0ms) both;
 }
 @keyframes reveal-up {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(14px) scale(0.96);
+    filter: blur(4px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
+    filter: none;
   }
 }
 
@@ -357,6 +365,115 @@ button:not(:disabled):active {
   }
 }
 
+/* AmbientBackground.vue — three large blurred blobs drifting slowly behind
+   every public page, so the black backdrop never sits fully static even
+   when nothing on screen is polling/scrolling. Fixed + negative z-index +
+   pointer-events:none keeps it out of the way of clicks/scroll; pure CSS
+   (no canvas/WebGL) so it stays cheap on older phones. */
+.ambient-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -20;
+  overflow: hidden;
+  pointer-events: none;
+  /* Owns its own opaque backdrop instead of relying on body's — see the
+     comment on body's rule above for why that matters here. */
+  background-color: var(--color-brand-black);
+}
+.ambient-blob {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(60px);
+  opacity: 0.3;
+}
+.ambient-blob--a {
+  top: -15%;
+  left: -12%;
+  width: 55vmax;
+  height: 55vmax;
+  background: radial-gradient(closest-side, #ea4ca4, transparent 70%);
+  animation: ambient-drift-a 22s ease-in-out infinite alternate;
+}
+.ambient-blob--b {
+  right: -15%;
+  bottom: -18%;
+  width: 60vmax;
+  height: 60vmax;
+  background: radial-gradient(closest-side, #9d5bf4, transparent 70%);
+  animation: ambient-drift-b 26s ease-in-out infinite alternate;
+}
+.ambient-blob--c {
+  top: 35%;
+  left: 45%;
+  width: 42vmax;
+  height: 42vmax;
+  background: radial-gradient(closest-side, #4b3f9e, transparent 70%);
+  animation: ambient-drift-c 30s ease-in-out infinite alternate;
+}
+@keyframes ambient-drift-a {
+  to {
+    transform: translate(7%, 8%) scale(1.15);
+  }
+}
+@keyframes ambient-drift-b {
+  to {
+    transform: translate(-8%, -6%) scale(1.1);
+  }
+}
+@keyframes ambient-drift-c {
+  to {
+    transform: translate(-6%, 5%) scale(1.2);
+  }
+}
+
+/* Glassmorphism layer for public-page cards — stacks on top of .hud-panel
+   (which owns the clipped-corner shape) to add a frosted, translucent
+   surface instead of a flat opaque one, so cards read as floating above
+   the ambient background rather than sitting on it. */
+.glass-panel {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  background-color: rgb(24 14 19 / 0.55);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
+}
+
+/* Idle float — a gentle vertical bob for a handful of showcase elements
+   (hero mascots, podium rows, a profile avatar) so they read as
+   physically floating rather than glued to the page. Applied sparingly,
+   not on every card, so long lists don't turn into a seasick wall of
+   motion. --float-delay staggers multiple floaters out of phase. */
+.float-idle {
+  animation: float-idle-bob 5s ease-in-out infinite;
+  animation-delay: var(--float-delay, 0s);
+}
+@keyframes float-idle-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+/* StaggerHeading.vue — splits a heading into words, each fading/blurring
+   up into place with an incremental delay, instead of the whole title
+   popping in at once. --stagger-delay is set per-word by the component. */
+.stagger-word {
+  display: inline-block;
+  opacity: 0;
+  filter: blur(6px);
+  transform: translateY(14px);
+  animation: stagger-word-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) var(--stagger-delay, 0ms) both;
+}
+@keyframes stagger-word-in {
+  to {
+    opacity: 1;
+    filter: none;
+    transform: translateY(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .signature-stripe {
     animation: none;
@@ -386,6 +503,7 @@ button:not(:disabled):active {
   .reveal-init {
     opacity: 1;
     transform: none;
+    filter: none;
     animation: none;
   }
   .tier-shimmer {
@@ -399,5 +517,17 @@ button:not(:disabled):active {
   }
   .hud-hover:hover {
     transform: none;
+  }
+  .ambient-blob {
+    animation: none;
+  }
+  .float-idle {
+    animation: none;
+  }
+  .stagger-word {
+    opacity: 1;
+    filter: none;
+    transform: none;
+    animation: none;
   }
 }

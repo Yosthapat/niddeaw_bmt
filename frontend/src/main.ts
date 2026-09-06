@@ -4,6 +4,7 @@ import App from './App.vue'
 import router from './router'
 import i18n from './i18n'
 import { vReveal } from './composables/useScrollReveal'
+import { vTilt } from './composables/useTilt'
 import './assets/styles/tailwind.css'
 
 document.documentElement.lang = i18n.global.locale.value
@@ -14,5 +15,6 @@ app.use(createPinia())
 app.use(router)
 app.use(i18n)
 app.directive('reveal', vReveal)
+app.directive('tilt', vTilt)
 
 app.mount('#app')
