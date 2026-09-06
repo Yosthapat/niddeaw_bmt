@@ -40,16 +40,23 @@ export const useSessionsStore = defineStore('sessions', () => {
     const stillValid = sessions.value.some((s) => s.id === currentSessionId.value)
 
     // On the very first refresh after this store was created (i.e. the
-    // admin just opened/reloaded the app), a *closed* session persisted
-    // in localStorage from a previous day shouldn't come back as the
-    // default — it just sits there looking "still open" until the admin
-    // notices and switches manually. Bump to the newest open session (or
-    // none) instead. Once that initial pick is made, later refresh()
-    // calls (e.g. switching between admin tabs) leave a deliberately
-    // picked closed session alone, so reviewing an old session's billing
-    // still works without getting yanked back on every tab switch.
-    const isStale = !hasPickedInitialSession && currentSession.value?.status === 'closed'
-    if (!stillValid || isStale) {
+    // admin just opened/reloaded the app), a closed session persisted in
+    // localStorage should only keep sitting there as the default while
+    // there's still money to collect for it — once every attendee's bill
+    // is marked paid, it should clear out like nothing is selected, the
+    // same as before that first session of the day ever existed. A
+    // closed-but-not-fully-paid session stays "current" on purpose, so
+    // the admin keeps landing on it to finish collecting. Once that
+    // initial pick is made, later refresh() calls (e.g. switching between
+    // admin tabs) leave a deliberately picked closed session alone, so
+    // reviewing an old session's billing still works without getting
+    // yanked back on every tab switch.
+    let isSettled = false
+    if (!hasPickedInitialSession && currentSession.value?.status === 'closed') {
+      const billings = await adminApi.getBillings(currentSession.value.id)
+      isSettled = billings.every((b) => b.paid_status === 'paid')
+    }
+    if (!stillValid || isSettled) {
       setCurrentSession(openSessions.value[0]?.id ?? null)
     }
     hasPickedInitialSession = true
