@@ -67,8 +67,11 @@ export default {
     deactivate: 'Deactivate',
     activate: 'Activate',
     delete: 'Delete',
-    deleteConfirm: 'Permanently delete this member? This cannot be undone.',
+    deleteConfirm:
+      'Permanently delete this member? This cannot be undone. (If they have match/checkin/billing history, they will be deactivated instead.)',
     deleteFailed: 'Failed to delete',
+    deleteFallbackDeactivated:
+      '{name} has match/checkin/billing history and cannot be permanently deleted — deactivated instead.',
     clickToChangePhoto: 'Click photo to change it',
     eloScore: 'ELO Score',
     quote: 'Quote',
