@@ -13,6 +13,14 @@ export async function getPlayers(
   return request(`/api/players${query ? `?${query}` : ''}`)
 }
 
+export async function getPlayersByIds(ids: string[]): Promise<Player[]> {
+  if (ids.length === 0) return []
+  const params = new URLSearchParams()
+  for (const id of ids) params.append('ids', id)
+  const stats = await request<PlayerStats[]>(`/api/players?${params.toString()}`)
+  return stats.map((s) => s.player)
+}
+
 export async function getPlayer(playerId: string): Promise<Player> {
   return request(`/api/players/${playerId}`)
 }

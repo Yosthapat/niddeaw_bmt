@@ -35,11 +35,29 @@ def _to_stats(player: Player) -> PlayerStats:
 @router.get("", response_model=list[PlayerStats])
 def list_players(
     supabase: SupabaseDep,
+    ids: list[UUID] | None = Query(default=None),
     limit: int | None = Query(default=None, le=200),
     offset: int = Query(default=0, ge=0),
 ) -> list[PlayerStats]:
-    """Omit limit/offset to get the full active roster (used by other
-    views' name/avatar lookups). Pass both to paginate the member list."""
+    """Omit ids/limit/offset to get the full active roster (used by other
+    views' name/avatar lookups). Pass both limit and offset to paginate the
+    member list.
+
+    Pass `ids` instead to fetch exactly those players — deliberately not
+    filtered by is_active, unlike the full-roster path above, since a
+    caller resolving names for historical data (e.g. match history) needs
+    a since-deactivated player's name too, not just active ones. limit/
+    offset are ignored when ids is given."""
+    if ids is not None:
+        if not ids:
+            return []
+        players_result = (
+            supabase.table("players").select("*").in_("id", [str(pid) for pid in ids]).execute()
+        )
+        stats = [_to_stats(Player.model_validate(row)) for row in rows(players_result)]
+        stats.sort(key=lambda s: s.player.nickname.lower())
+        return stats
+
     players_result = supabase.table("players").select("*").eq("is_active", True).execute()
     stats = [_to_stats(Player.model_validate(row)) for row in rows(players_result)]
     # Alphabetical roster — points-based ranking lives on the separate
