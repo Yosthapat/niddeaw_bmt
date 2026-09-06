@@ -66,6 +66,7 @@ const editForm = reactive({
 const uploadingAvatarId = ref<string | null>(null)
 const deletingId = ref<string | null>(null)
 const rowError = ref<string | null>(null)
+const rowNotice = ref<string | null>(null)
 
 async function loadPlayers(): Promise<void> {
   loading.value = true
@@ -173,11 +174,22 @@ async function removePlayer(player: Player): Promise<void> {
   if (!window.confirm(t('members.deleteConfirm'))) return
   deletingId.value = player.id
   rowError.value = null
+  rowNotice.value = null
   try {
     await adminApi.deletePlayer(player.id)
     players.value = players.value.filter((p) => p.id !== player.id)
   } catch (e) {
-    rowError.value = apiErrorMessage(e, t('members.deleteFailed'))
+    if (e instanceof ApiError && e.status === 409) {
+      try {
+        const updated = await adminApi.updatePlayer(player.id, { is_active: false })
+        players.value = players.value.map((p) => (p.id === updated.id ? updated : p))
+        rowNotice.value = t('members.deleteFallbackDeactivated', { name: player.nickname })
+      } catch (e2) {
+        rowError.value = apiErrorMessage(e2, t('members.deleteFailed'))
+      }
+    } else {
+      rowError.value = apiErrorMessage(e, t('members.deleteFailed'))
+    }
   } finally {
     deletingId.value = null
   }
@@ -267,6 +279,7 @@ onMounted(loadPlayers)
     </form>
 
     <p v-if="rowError" class="mt-4 text-sm text-status-error">{{ rowError }}</p>
+    <p v-if="rowNotice" class="mt-4 text-sm text-status-success">{{ rowNotice }}</p>
     <p v-if="loading" class="mt-6 text-white/60">{{ t('common.loading') }}</p>
     <p v-else-if="error" class="mt-6 text-status-error">{{ error }}</p>
     <p v-else-if="players.length === 0" class="mt-6 text-white/60">{{ t('members.empty') }}</p>
