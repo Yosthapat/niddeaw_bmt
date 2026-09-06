@@ -145,12 +145,8 @@ onMounted(async () => {
     <p v-if="!sessionsStore.currentSessionId" class="mt-8 text-white/60">{{ t('billing.selectSessionFirst') }}</p>
 
     <template v-else>
-      <div class="mt-6 flex items-center justify-between">
-        <p class="text-sm text-white/60">
-          Status: <span class="font-semibold text-white">{{ sessionsStore.currentSession?.status }}</span>
-        </p>
+      <div v-if="sessionsStore.currentSession?.status === 'open'" class="mt-6 flex items-center justify-end">
         <button
-          v-if="sessionsStore.currentSession?.status === 'open'"
           :disabled="closing"
           class="rounded-full bg-brand-pink px-4 py-1.5 text-sm font-semibold text-brand-black disabled:opacity-50"
           @click="closeAndBill"

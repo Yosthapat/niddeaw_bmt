@@ -133,6 +133,8 @@ export default {
     none: 'ยังไม่มี session',
     openGroup: 'เปิดอยู่',
     closedGroup: 'ประวัติ (ปิดแล้ว)',
+    statusOpen: 'เปิดอยู่',
+    statusClosed: 'ปิดแล้ว',
     deleteThis: 'ลบ session นี้',
     deleting: 'กำลังลบ...',
     deleteConfirm: 'ลบ session {date} · {location} ถาวร?',

@@ -136,6 +136,8 @@ export default {
     none: 'No session yet',
     openGroup: 'Open',
     closedGroup: 'History (closed)',
+    statusOpen: 'Open',
+    statusClosed: 'Closed',
     deleteThis: 'Delete this session',
     deleting: 'Deleting...',
     deleteConfirm: 'Permanently delete session {date} · {location}?',
