@@ -88,6 +88,18 @@ async function deleteCurrent(): Promise<void> {
     </select>
     <span v-else class="text-sm text-white/40">{{ t('session.none') }}</span>
 
+    <span
+      v-if="sessionsStore.currentSession"
+      class="rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap"
+      :class="
+        sessionsStore.currentSession.status === 'open'
+          ? 'bg-status-success/20 text-status-success'
+          : 'bg-white/10 text-white/50'
+      "
+    >
+      ● {{ sessionsStore.currentSession.status === 'open' ? t('session.statusOpen') : t('session.statusClosed') }}
+    </span>
+
     <button
       v-if="sessionsStore.currentSession"
       :disabled="deleting"

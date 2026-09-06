@@ -67,8 +67,11 @@ export default {
     deactivate: 'Deactivate',
     activate: 'Activate',
     delete: 'Delete',
-    deleteConfirm: 'Permanently delete this member? This cannot be undone.',
+    deleteConfirm:
+      'Permanently delete this member? This cannot be undone. (If they have match/checkin/billing history, they will be deactivated instead.)',
     deleteFailed: 'Failed to delete',
+    deleteFallbackDeactivated:
+      '{name} has match/checkin/billing history and cannot be permanently deleted — deactivated instead.',
     clickToChangePhoto: 'Click photo to change it',
     eloScore: 'ELO Score',
     quote: 'Quote',
@@ -136,6 +139,8 @@ export default {
     none: 'No session yet',
     openGroup: 'Open',
     closedGroup: 'History (closed)',
+    statusOpen: 'Open',
+    statusClosed: 'Closed',
     deleteThis: 'Delete this session',
     deleting: 'Deleting...',
     deleteConfirm: 'Permanently delete session {date} · {location}?',

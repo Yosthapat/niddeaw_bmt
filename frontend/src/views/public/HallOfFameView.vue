@@ -7,6 +7,8 @@ import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
+import CountUp from '@/components/common/CountUp.vue'
+import StaggerHeading from '@/components/common/StaggerHeading.vue'
 
 const { t } = useI18n()
 
@@ -28,7 +30,7 @@ onMounted(async () => {
 <template>
   <main class="mx-auto max-w-3xl px-4 py-8 sm:py-12">
     <p class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">Legends</p>
-    <h1 class="font-display text-3xl font-bold text-white">Hall of Fame</h1>
+    <h1 class="font-display text-3xl font-bold text-white"><StaggerHeading text="Hall of Fame" /></h1>
     <p class="mt-1 text-sm text-white/40">{{ t('hallOfFame.subtitle') }}</p>
 
     <div v-if="loading" class="mt-6 grid gap-3 sm:grid-cols-2">
@@ -44,8 +46,9 @@ onMounted(async () => {
         v-for="(s, i) in stats"
         :key="s.player.id"
         v-reveal="i"
-        class="hud-panel hud-hover flex items-center gap-3 border bg-brand-surface p-4"
-        :class="i === 0 ? 'border-brand-pink/70 bg-brand-pink/5' : 'border-brand-pink/15'"
+        v-tilt="i === 0"
+        class="hud-panel glass-panel hud-hover flex items-center gap-3 border p-4"
+        :class="[i === 0 ? 'float-idle border-brand-pink/70 bg-brand-pink/5' : 'border-brand-pink/15']"
       >
         <RouterLink :to="`/members/${s.player.id}`" class="flex flex-1 items-center gap-3 hover:opacity-80">
           <PlayerAvatar :name="s.player.nickname" :avatar-url="s.player.avatar_url" size="lg" />
@@ -55,7 +58,8 @@ onMounted(async () => {
               {{ i === 0 ? '👑 ' : '' }}{{ s.player.nickname }}
             </p>
             <p class="text-xs text-white/40">
-              {{ s.games }} {{ t('common.game') }} · {{ s.points }} pts · Sc {{ s.score_percent.toFixed(0) }}%
+              <CountUp :value="s.games" /> {{ t('common.game') }} · <CountUp :value="s.points" /> pts · Sc
+              <CountUp :value="Math.round(s.score_percent)" />%
             </p>
             <EloBadge :elo-score="s.player.elo_score" show-score class="mt-1" />
           </div>

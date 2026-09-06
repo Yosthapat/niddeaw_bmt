@@ -1,10 +1,15 @@
 <script setup lang="ts">
+import { useRoute } from 'vue-router'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import TierInfoModal from '@/components/players/TierInfoModal.vue'
+import AmbientBackground from '@/components/common/AmbientBackground.vue'
+
+const route = useRoute()
 </script>
 
 <template>
-  <div class="min-h-screen bg-brand-black">
+  <div class="min-h-screen">
+    <AmbientBackground v-if="!route.path.startsWith('/admin')" />
     <AppHeader />
     <RouterView v-slot="{ Component, route }">
       <!-- Admin views render <AdminNav /> and <main> as two sibling root

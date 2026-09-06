@@ -9,6 +9,7 @@ import EloBadge from '@/components/players/EloBadge.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
+import CountUp from '@/components/common/CountUp.vue'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -53,7 +54,7 @@ watch(
     <template v-else>
       <div v-reveal class="mt-6 flex flex-col items-center gap-6 sm:flex-row sm:items-center sm:justify-center">
         <div class="flex flex-col items-center gap-2 text-center">
-          <div class="relative">
+          <div v-tilt class="relative float-idle">
             <div
               class="profile-glow"
               aria-hidden="true"
@@ -86,13 +87,13 @@ watch(
           >
             <span
               v-if="profile.player.tiktok"
-              class="hud-panel border border-brand-pink/20 bg-brand-surface px-2.5 py-1 text-xs text-white/70"
+              class="hud-panel glass-panel border border-brand-pink/20 px-2.5 py-1 text-xs text-white/70"
             >
               TikTok {{ profile.player.tiktok }}
             </span>
             <span
               v-if="profile.player.instagram"
-              class="hud-panel border border-brand-pink/20 bg-brand-surface px-2.5 py-1 text-xs text-white/70"
+              class="hud-panel glass-panel border border-brand-pink/20 px-2.5 py-1 text-xs text-white/70"
             >
               IG {{ profile.player.instagram }}
             </span>
@@ -101,33 +102,33 @@ watch(
       </div>
 
       <div v-reveal="1" class="mt-8 grid grid-cols-3 gap-2.5 sm:grid-cols-6">
-        <div class="hud-panel border border-brand-pink/20 bg-brand-surface p-3 text-center">
+        <div class="hud-panel glass-panel border border-brand-pink/20 p-3 text-center">
           <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('common.game') }}</p>
-          <p class="mt-1 font-display text-xl font-bold">{{ profile.games }}</p>
+          <p class="mt-1 font-display text-xl font-bold"><CountUp :value="profile.games" /></p>
         </div>
-        <div class="hud-panel border border-brand-pink/20 bg-brand-surface p-3 text-center">
+        <div class="hud-panel glass-panel border border-brand-pink/20 p-3 text-center">
           <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('common.win') }}</p>
-          <p class="mt-1 font-display text-xl font-bold text-status-success">{{ profile.wins }}</p>
+          <p class="mt-1 font-display text-xl font-bold text-status-success"><CountUp :value="profile.wins" /></p>
         </div>
-        <div class="hud-panel border border-brand-pink/20 bg-brand-surface p-3 text-center">
+        <div class="hud-panel glass-panel border border-brand-pink/20 p-3 text-center">
           <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('common.draw') }}</p>
-          <p class="mt-1 font-display text-xl font-bold text-white/70">{{ profile.draws }}</p>
+          <p class="mt-1 font-display text-xl font-bold text-white/70"><CountUp :value="profile.draws" /></p>
         </div>
-        <div class="hud-panel border border-brand-pink/20 bg-brand-surface p-3 text-center">
+        <div class="hud-panel glass-panel border border-brand-pink/20 p-3 text-center">
           <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('common.loss') }}</p>
-          <p class="mt-1 font-display text-xl font-bold text-status-error">{{ profile.losses }}</p>
+          <p class="mt-1 font-display text-xl font-bold text-status-error"><CountUp :value="profile.losses" /></p>
         </div>
-        <div class="hud-panel border border-brand-pink/40 bg-brand-surface p-3 text-center">
+        <div class="hud-panel glass-panel border border-brand-pink/40 p-3 text-center">
           <p class="text-xs tracking-wide text-white/40 uppercase">Pts</p>
-          <p class="mt-1 font-display text-xl font-bold text-brand-pink">{{ profile.points }}</p>
+          <p class="mt-1 font-display text-xl font-bold text-brand-pink"><CountUp :value="profile.points" /></p>
         </div>
-        <div class="hud-panel border border-brand-pink/20 bg-brand-surface p-3 text-center">
+        <div class="hud-panel glass-panel border border-brand-pink/20 p-3 text-center">
           <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('common.scorePercent') }}</p>
           <p class="mt-1 font-display text-xl font-bold">{{ profile.score_percent.toFixed(1) }}</p>
         </div>
       </div>
 
-      <section v-if="profile.nemesis" v-reveal="2" class="hud-panel mt-8 border border-brand-pink/20 bg-brand-surface p-4">
+      <section v-if="profile.nemesis" v-reveal="2" class="hud-panel glass-panel mt-8 border border-brand-pink/20 p-4">
         <h2 class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">{{ t('profile.nemesis') }}</h2>
         <div class="mt-3 flex items-center gap-3">
           <PlayerAvatar
@@ -160,7 +161,7 @@ watch(
           <li v-for="p in profile.similar_players" :key="p.id">
             <RouterLink
               :to="`/members/${p.id}`"
-              class="hud-panel hud-hover flex items-center gap-2 border border-brand-pink/20 bg-brand-surface px-3 py-1.5 hover:border-brand-pink/50"
+              class="hud-panel glass-panel hud-hover flex items-center gap-2 border border-brand-pink/20 px-3 py-1.5 hover:border-brand-pink/50"
             >
               <PlayerAvatar :name="p.nickname" :avatar-url="p.avatar_url" size="sm" />
               <span class="text-sm font-medium text-white/80">{{ p.nickname }}</span>

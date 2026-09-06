@@ -7,6 +7,7 @@ import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
+import StaggerHeading from '@/components/common/StaggerHeading.vue'
 
 const PAGE_SIZE = 20
 
@@ -72,7 +73,7 @@ onMounted(async () => {
     <div class="flex flex-wrap items-end justify-between gap-4">
       <div>
         <p class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">Roster</p>
-        <h1 class="font-display text-3xl font-bold text-white">{{ t('nav.members') }}</h1>
+        <h1 class="font-display text-3xl font-bold text-white"><StaggerHeading :text="t('nav.members')" /></h1>
       </div>
       <input
         v-model="search"
@@ -89,7 +90,7 @@ onMounted(async () => {
     <p v-else-if="stats.length === 0" class="mt-6 text-white/60">{{ t('members.empty') }}</p>
     <p v-else-if="filteredStats.length === 0" class="mt-6 text-white/60">{{ t('members.noSearchResults') }}</p>
 
-    <div v-else v-reveal class="hud-panel mt-6 overflow-x-auto border border-brand-pink/20 bg-brand-surface">
+    <div v-else v-reveal class="hud-panel glass-panel mt-6 overflow-x-auto border border-brand-pink/20">
       <table class="w-full min-w-[680px] text-left text-sm">
         <thead class="border-b border-brand-pink/20 text-xs font-semibold tracking-wider text-white/40 uppercase">
           <tr>
