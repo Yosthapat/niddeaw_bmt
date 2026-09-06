@@ -8,6 +8,7 @@ import TierMascot from '@/components/players/TierMascot.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 import CountUp from '@/components/common/CountUp.vue'
+import StaggerHeading from '@/components/common/StaggerHeading.vue'
 
 const { t } = useI18n()
 
@@ -39,7 +40,7 @@ const rankBadgeClass = ['rank-badge-gold', 'rank-badge-silver', 'rank-badge-bron
     <div class="flex flex-wrap items-end justify-between gap-4">
       <div>
         <p class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">Leaderboard</p>
-        <h1 class="font-display text-3xl font-bold text-white">{{ t('nav.ranking') }}</h1>
+        <h1 class="font-display text-3xl font-bold text-white"><StaggerHeading :text="t('nav.ranking')" /></h1>
       </div>
       <div class="hud-panel flex border border-brand-pink/25 bg-brand-surface p-1 text-sm">
         <button
@@ -70,8 +71,10 @@ const rankBadgeClass = ['rank-badge-gold', 'rank-badge-silver', 'rank-badge-bron
         v-for="(s, i) in stats"
         :key="s.player.id"
         v-reveal="i"
-        class="hud-panel hud-hover flex items-center gap-3 border bg-brand-surface px-4 py-3"
-        :class="i === 0 ? 'border-brand-pink/70 bg-gradient-to-r from-brand-pink/10 to-transparent' : 'border-brand-pink/15'"
+        v-tilt="i < 3"
+        class="hud-panel glass-panel hud-hover flex items-center gap-3 border px-4 py-3"
+        :class="[i < 3 ? 'float-idle' : '', i === 0 ? 'border-brand-pink/70 bg-gradient-to-r from-brand-pink/10 to-transparent' : 'border-brand-pink/15']"
+        :style="i < 3 ? { '--float-delay': `${i * 0.3}s` } : undefined"
       >
         <span
           class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-display text-sm font-bold"

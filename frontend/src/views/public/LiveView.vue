@@ -6,6 +6,8 @@ import type { LiveQueueResponse, Player } from '@/types'
 import { usePolling } from '@/composables/usePolling'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
+import CountUp from '@/components/common/CountUp.vue'
+import StaggerHeading from '@/components/common/StaggerHeading.vue'
 
 const { t, locale } = useI18n()
 
@@ -69,7 +71,7 @@ usePolling(refresh, 7000)
       </span>
       <p class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">Live</p>
     </div>
-    <h1 class="font-display text-3xl font-bold text-white">{{ t('live.title') }}</h1>
+    <h1 class="font-display text-3xl font-bold text-white"><StaggerHeading :text="t('live.title')" /></h1>
 
     <div v-if="loading" class="mt-6 space-y-3">
       <HudSkeletonBlock v-for="i in 3" :key="i" :delay="i * 90" class="h-24" />
@@ -87,14 +89,14 @@ usePolling(refresh, 7000)
 
       <section v-reveal class="mt-6">
         <h2 class="text-sm font-semibold text-white/70">
-          {{ t('live.inProgress') }} ({{ live.in_progress.length }})
+          {{ t('live.inProgress') }} (<CountUp :value="live.in_progress.length" :duration="300" />)
         </h2>
         <ul class="mt-2 space-y-2">
           <li
             v-for="(m, i) in live.in_progress"
             :key="m.match_id"
             v-reveal="i"
-            class="hud-panel border border-brand-pink/20 bg-brand-surface px-4 py-3"
+            class="hud-panel glass-panel border border-brand-pink/20 px-4 py-3"
           >
             <div class="flex items-center justify-between gap-3">
               <div class="flex flex-1 flex-col items-center gap-1.5">
@@ -145,7 +147,7 @@ usePolling(refresh, 7000)
             v-for="(s, i) in live.suggestions"
             :key="s.group_no"
             v-reveal="i"
-            class="hud-panel border border-brand-pink/20 bg-brand-surface px-4 py-3"
+            class="hud-panel glass-panel border border-brand-pink/20 px-4 py-3"
           >
             <div class="flex items-center justify-between gap-3">
               <div class="flex flex-1 flex-col items-center gap-1.5">
@@ -190,7 +192,9 @@ usePolling(refresh, 7000)
       </section>
 
       <section v-reveal class="mt-8">
-        <h2 class="text-sm font-semibold text-white/70">{{ t('live.inQueue') }} ({{ live.waiting.length }})</h2>
+        <h2 class="text-sm font-semibold text-white/70">
+          {{ t('live.inQueue') }} (<CountUp :value="live.waiting.length" :duration="300" />)
+        </h2>
         <ul class="mt-2 flex flex-wrap gap-2">
           <li
             v-for="(w, i) in live.waiting"

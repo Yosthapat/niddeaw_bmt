@@ -103,14 +103,21 @@ const sponsors = [
     <div v-reveal="1" class="relative mt-10 flex flex-col items-center text-center sm:mt-12">
       <div class="hero-aura" aria-hidden="true" />
       <h1 class="font-display text-[clamp(2rem,7vw,3.75rem)] leading-none font-bold text-white">
-        นิดเดียว<span class="text-brand-pink">BADMINTON</span>
+        <span class="stagger-word" style="--stagger-delay: 0ms">นิดเดียว</span
+        ><span class="stagger-word text-brand-pink" style="--stagger-delay: 120ms">BADMINTON</span>
       </h1>
       <p class="mt-4 max-w-md text-balance text-white/60">
         {{ t('home.tagline') }}
       </p>
 
       <div class="mt-6 flex flex-wrap items-center justify-center gap-3 text-xs font-semibold tracking-widest text-white/40 uppercase">
-        <span v-for="tier in tiers" :key="tier.label" class="flex flex-col items-center gap-1">
+        <span
+          v-for="(tier, i) in tiers"
+          :key="tier.label"
+          v-tilt
+          class="float-idle flex flex-col items-center gap-1"
+          :style="{ '--float-delay': `${i * 0.25}s` }"
+        >
           <TierMascot :tier="tier.tier" :size="40" />
           <span :class="{ 'tier-shimmer': tier.gradient }" :style="tierTextStyle(tier.color, tier.gradient)">{{
             tier.label
@@ -119,7 +126,7 @@ const sponsors = [
       </div>
     </div>
 
-    <section v-reveal class="hud-panel mt-8 border border-brand-pink/20 bg-brand-surface p-6 sm:mt-10">
+    <section v-reveal class="hud-panel glass-panel mt-8 border border-brand-pink/20 p-6 sm:mt-10">
       <h2 class="text-center text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">{{ t('home.vibesTitle') }}</h2>
       <div class="mt-5 flex flex-wrap justify-center gap-x-6 gap-y-5 sm:gap-x-8">
         <div v-for="vibe in vibes" :key="vibe.label" class="flex w-16 flex-col items-center gap-2 text-center">
@@ -140,7 +147,7 @@ const sponsors = [
       </div>
     </section>
 
-    <section v-reveal class="hud-panel mt-8 border border-brand-pink/20 bg-brand-surface p-6 text-left sm:mt-10">
+    <section v-reveal class="hud-panel glass-panel mt-8 border border-brand-pink/20 p-6 text-left sm:mt-10">
       <h2 class="font-display text-sm font-bold tracking-wide text-brand-pink uppercase">{{ t('home.contactTitle') }}</h2>
       <p class="mt-2 text-sm text-white/60">
         {{ t('home.contactBody') }}

@@ -92,12 +92,11 @@ watch(
       <div class="mt-8 grid grid-cols-2 gap-4">
         <div
           v-reveal="1"
-          class="hud-panel border p-4"
-          :class="
-            statusFor('team1') === 'win'
-              ? 'border-brand-pink bg-brand-surface'
-              : 'border-brand-pink/15 bg-brand-surface opacity-70'
-          "
+          v-tilt="statusFor('team1') === 'win'"
+          class="hud-panel glass-panel border p-4"
+          :class="[
+            statusFor('team1') === 'win' ? 'float-idle border-brand-pink' : 'border-brand-pink/15 opacity-70',
+          ]"
         >
           <div class="flex justify-center">
             <span class="stamp-badge" :class="`stamp-badge--${statusFor('team1') ?? 'pending'}`">
@@ -129,12 +128,11 @@ watch(
 
         <div
           v-reveal="2"
-          class="hud-panel border p-4"
-          :class="
-            statusFor('team2') === 'win'
-              ? 'border-brand-pink bg-brand-surface'
-              : 'border-brand-pink/15 bg-brand-surface opacity-70'
-          "
+          v-tilt="statusFor('team2') === 'win'"
+          class="hud-panel glass-panel border p-4"
+          :class="[
+            statusFor('team2') === 'win' ? 'float-idle border-brand-pink' : 'border-brand-pink/15 opacity-70',
+          ]"
         >
           <div class="flex justify-center">
             <span class="stamp-badge" :class="`stamp-badge--${statusFor('team2') ?? 'pending'}`">

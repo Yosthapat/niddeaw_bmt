@@ -5,6 +5,7 @@ import { getMatches, getPlayers } from '@/api/public'
 import type { Match, Player } from '@/types'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
+import StaggerHeading from '@/components/common/StaggerHeading.vue'
 
 const PAGE_SIZE = 20
 
@@ -79,7 +80,7 @@ onMounted(async () => {
 <template>
   <main class="mx-auto max-w-3xl px-4 py-8 sm:py-12">
     <p class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">Match Log</p>
-    <h1 class="font-display text-3xl font-bold text-white">{{ t('nav.matches') }}</h1>
+    <h1 class="font-display text-3xl font-bold text-white"><StaggerHeading :text="t('nav.matches')" /></h1>
 
     <div v-if="loading" class="mt-6 space-y-3">
       <HudSkeletonBlock v-for="i in 5" :key="i" :delay="i * 80" class="h-28" />
@@ -92,7 +93,7 @@ onMounted(async () => {
         v-for="(m, i) in sortedMatches"
         :key="m.id"
         v-reveal="i"
-        class="hud-panel hud-hover border border-brand-pink/15 bg-brand-surface transition-colors hover:border-brand-pink/40"
+        class="hud-panel glass-panel hud-hover border border-brand-pink/15 transition-colors hover:border-brand-pink/40"
       >
         <RouterLink :to="`/matches/${m.id}`" class="block px-4 py-3">
           <div class="flex items-center justify-between text-xs tracking-wide text-white/40 uppercase">
