@@ -140,6 +140,7 @@ export default {
     statusClosed: 'ปิดแล้ว',
     deleteThis: 'ลบ session นี้',
     deleting: 'กำลังลบ...',
+    deleteConfirmTitle: 'ยืนยันการลบ session',
     deleteConfirm: 'ลบ session {date} · {location} ถาวร?',
     deleteWarning: 'ข้อมูลเช็คอิน แมตช์ และบิลทั้งหมดของ session นี้จะหายไปด้วย — กู้คืนไม่ได้',
     deleteFailed: 'ลบ session ไม่สำเร็จ',

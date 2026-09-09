@@ -143,6 +143,7 @@ export default {
     statusClosed: 'Closed',
     deleteThis: 'Delete this session',
     deleting: 'Deleting...',
+    deleteConfirmTitle: 'Confirm session deletion',
     deleteConfirm: 'Permanently delete session {date} · {location}?',
     deleteWarning:
       'All check-ins, matches, and billing for this session will be lost — this cannot be undone.',
