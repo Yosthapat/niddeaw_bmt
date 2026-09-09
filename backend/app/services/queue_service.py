@@ -243,10 +243,13 @@ def build_queue(supabase: Client, session_id: UUID) -> MatchmakingQueueResponse:
     # that was already fetched above.
     checked_in = _fetch_players_by_ids(supabase, [pid for pid in checkin_ids if pid not in committed_ids])
 
+    # committed_ids isn't passed here: build_suggestions() only reads it as a
+    # fallback for computing checked_in itself, and checked_in (already
+    # filtered against committed_ids above) is always supplied — passing
+    # committed_ids too would just be a dead argument.
     suggestions, waiting_ids = build_suggestions(
         supabase,
         session_id,
-        committed_ids=committed_ids,
         locked_pairs_list=locked_pairs_list,
         history=history,
         current_round=current_round,
