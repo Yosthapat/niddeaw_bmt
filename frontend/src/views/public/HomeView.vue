@@ -85,18 +85,38 @@ const socialLinks = [
 // (RGB -> white, original alpha kept as the mask) so every logo reads
 // cleanly straight against the dark background with no card/box needed —
 // same treatment bmbad.com uses for its sponsor strip.
+// width/height are each file's real intrinsic size (not the ~96px display
+// size — object-contain scales it down) so the browser can reserve the
+// right aspect ratio before the bytes arrive instead of reflowing the
+// section into place once each logo finishes loading.
 const sponsors = [
-  { name: 'Wasteland', src: '/sponsors/wasteland-mono.png', href: 'https://www.instagram.com/wastelandbkk' },
-  { name: 'Match Mellow', src: '/sponsors/match-mellow-mono.png', href: 'https://www.instagram.com/match.mellowww' },
+  { name: 'Wasteland', src: '/sponsors/wasteland-mono.png', width: 499, height: 499, href: 'https://www.instagram.com/wastelandbkk' },
+  {
+    name: 'Match Mellow',
+    src: '/sponsors/match-mellow-mono.png',
+    width: 552,
+    height: 452,
+    href: 'https://www.instagram.com/match.mellowww',
+  },
   {
     name: 'Sawadee Natural Herbal Balm',
     src: '/sponsors/sawadee-mono.png',
+    width: 501,
+    height: 498,
     href: 'https://www.instagram.com/sawadee_naturalherbalbalm',
   },
-  { name: 'Umore Made', src: '/sponsors/umore-made-mono.png', href: 'https://www.instagram.com/umore.made' },
+  {
+    name: 'Umore Made',
+    src: '/sponsors/umore-made-mono.png',
+    width: 500,
+    height: 500,
+    href: 'https://www.instagram.com/umore.made',
+  },
   {
     name: 'The Players Club',
     src: '/sponsors/players-club-mono.png',
+    width: 500,
+    height: 500,
     href: 'https://www.instagram.com/theplayersclubthailand',
   },
 ]
@@ -199,7 +219,15 @@ const sponsors = [
           class="sponsor-logo float-idle inline-block"
           :style="{ '--float-delay': `${i * 0.3}s` }"
         >
-          <img :src="sponsor.src" :alt="sponsor.name" class="h-24 w-auto object-contain sm:h-28" />
+          <img
+            :src="sponsor.src"
+            :alt="sponsor.name"
+            :width="sponsor.width"
+            :height="sponsor.height"
+            loading="lazy"
+            decoding="async"
+            class="h-24 w-auto object-contain sm:h-28"
+          />
         </a>
       </div>
     </section>
