@@ -17,6 +17,8 @@ export interface Match {
   winner: MatchWinner | null
   status: MatchStatus
   court: string | null
+  elo_delta_team1: number | null
+  elo_delta_team2: number | null
   created_at: string
   updated_at: string
 }

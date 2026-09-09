@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from app.services import elo_service
 
 
@@ -42,3 +44,67 @@ def test_tier_boundaries() -> None:
     assert elo_service.get_tier(1900) == "vodka"
     assert elo_service.get_tier(2099) == "vodka"
     assert elo_service.get_tier(2100) == "absinthe"
+
+
+def test_reverse_match_results_undoes_a_single_completed_match() -> None:
+    winner, loser = uuid4(), uuid4()
+    players_by_id = {
+        winner: {"elo_score": 1002, "games": 1, "wins": 1, "draws": 0, "losses": 0},
+        loser: {"elo_score": 998, "games": 1, "wins": 0, "draws": 0, "losses": 1},
+    }
+    matches: list[elo_service.CompletedMatchRow] = [
+        {
+            "team1_player_ids": [str(winner)],
+            "team2_player_ids": [str(loser)],
+            "winner": "team1",
+            "elo_delta_team1": 2,
+            "elo_delta_team2": -2,
+        }
+    ]
+
+    result = elo_service.reverse_match_results(matches, players_by_id)  # type: ignore[arg-type]
+
+    assert result[winner] == {"elo_score": 1000, "games": 0, "wins": 0, "draws": 0, "losses": 0}
+    assert result[loser] == {"elo_score": 1000, "games": 0, "wins": 0, "draws": 0, "losses": 0}
+
+
+def test_reverse_match_results_skips_matches_missing_recorded_deltas() -> None:
+    """Matches recorded before elo_delta_team1/2 existed have no delta to
+    undo — leave the player's stats untouched rather than guessing."""
+    player = uuid4()
+    players_by_id = {player: {"elo_score": 1010, "games": 3, "wins": 2, "draws": 0, "losses": 1}}
+    matches: list[elo_service.CompletedMatchRow] = [
+        {
+            "team1_player_ids": [str(player)],
+            "team2_player_ids": [str(uuid4())],
+            "winner": "team1",
+            "elo_delta_team1": None,
+            "elo_delta_team2": None,
+        }
+    ]
+
+    result = elo_service.reverse_match_results(matches, players_by_id)  # type: ignore[arg-type]
+
+    assert result[player] == players_by_id[player]
+
+
+def test_reverse_match_results_never_goes_negative() -> None:
+    """Defensive floor — stats shouldn't already be inconsistent, but a
+    double-undo (e.g. re-running this on an already-reversed player)
+    should still not produce negative counters."""
+    player = uuid4()
+    players_by_id = {player: {"elo_score": 100, "games": 0, "wins": 0, "draws": 0, "losses": 0}}
+    matches: list[elo_service.CompletedMatchRow] = [
+        {
+            "team1_player_ids": [str(player)],
+            "team2_player_ids": [str(uuid4())],
+            "winner": "team1",
+            "elo_delta_team1": 2,
+            "elo_delta_team2": -2,
+        }
+    ]
+
+    result = elo_service.reverse_match_results(matches, players_by_id)  # type: ignore[arg-type]
+
+    assert result[player]["games"] == 0
+    assert result[player]["wins"] == 0
