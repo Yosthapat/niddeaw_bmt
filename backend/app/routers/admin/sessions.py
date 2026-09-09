@@ -79,6 +79,8 @@ def _reverse_completed_match_stats(session_id: UUID, supabase: SupabaseDep) -> N
         .execute()
     )
     players_by_id = {UUID(row["id"]): row for row in rows(players_result)}
+    if not players_by_id:
+        return
     reversed_stats = elo_service.reverse_match_results(completed_matches, players_by_id)  # type: ignore[arg-type]
 
     def _apply_reversal(pid: UUID) -> None:
