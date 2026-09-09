@@ -314,6 +314,15 @@ export async function deleteOtherIncome(incomeId: string): Promise<void> {
   await request(`/api/admin/income/${incomeId}`, { method: 'DELETE' })
 }
 
+export async function uploadOtherIncomeSlip(incomeId: string, file: File): Promise<OtherIncome> {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request(`/api/admin/income/${incomeId}/slip`, {
+    method: 'POST',
+    body: formData,
+  })
+}
+
 // Settings
 export async function getClubSettings(): Promise<ClubSettings> {
   return request('/api/admin/settings')

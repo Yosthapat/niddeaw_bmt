@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
 import { ApiError } from '@/api/client'
 import type { DailyRevenue, IncomeSource, OtherIncome } from '@/types'
+import { compressImage } from '@/utils/imageCompression'
 import AdminNav from '@/components/layout/AdminNav.vue'
 
 const { t, locale } = useI18n()
@@ -81,8 +82,16 @@ const incomeForm = reactive({
   amount: '',
   note: '',
 })
+const incomeFormFile = ref<File | null>(null)
+const incomeFormFileInput = ref<HTMLInputElement | null>(null)
 const savingIncome = ref(false)
 const createIncomeError = ref<string | null>(null)
+
+async function onIncomeFormFileSelected(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  incomeFormFile.value = file ? await compressImage(file) : null
+}
 
 function resetIncomeForm(): void {
   incomeForm.income_date = todayIso()
@@ -90,6 +99,12 @@ function resetIncomeForm(): void {
   incomeForm.source_name = ''
   incomeForm.amount = ''
   incomeForm.note = ''
+  incomeFormFile.value = null
+  // Clearing the ref alone doesn't clear the <input>'s own displayed
+  // filename — it's not v-model-bound (file inputs can't be), so the DOM
+  // element needs its value reset directly or "Choose File" keeps showing
+  // the last pick after a successful save.
+  if (incomeFormFileInput.value) incomeFormFileInput.value.value = ''
 }
 
 async function submitIncome(): Promise<void> {
@@ -105,13 +120,20 @@ async function submitIncome(): Promise<void> {
   }
   savingIncome.value = true
   try {
-    const created = await adminApi.createOtherIncome({
+    let created = await adminApi.createOtherIncome({
       income_date: incomeForm.income_date,
       source: incomeForm.source,
       source_name: incomeForm.source_name.trim(),
       amount,
       note: incomeForm.note.trim() || null,
     })
+    if (incomeFormFile.value) {
+      try {
+        created = await adminApi.uploadOtherIncomeSlip(created.id, incomeFormFile.value)
+      } catch {
+        incomeRowError.value = t('income.slipUploadFailed')
+      }
+    }
     otherIncome.value = [created, ...otherIncome.value]
     resetIncomeForm()
   } catch (e) {
@@ -182,6 +204,21 @@ async function removeIncome(income: OtherIncome): Promise<void> {
     incomeRowError.value = apiErrorMessage(e, t('income.deleteFailed'))
   } finally {
     deletingIncomeId.value = null
+  }
+}
+
+async function onRowSlipSelected(event: Event, income: OtherIncome): Promise<void> {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  incomeRowError.value = null
+  try {
+    const updated = await adminApi.uploadOtherIncomeSlip(income.id, await compressImage(file))
+    otherIncome.value = otherIncome.value.map((i) => (i.id === updated.id ? updated : i))
+  } catch (e) {
+    incomeRowError.value = apiErrorMessage(e, t('income.slipUploadFailed'))
+  } finally {
+    input.value = ''
   }
 }
 
@@ -281,6 +318,10 @@ onMounted(async () => {
             {{ t('income.note') }}
             <input v-model="incomeForm.note" type="text" class="rounded border border-brand-pink-dark/40 bg-brand-black px-2 py-1.5 text-sm text-white" />
           </label>
+          <label class="col-span-2 flex flex-col gap-1 text-xs text-white/50 sm:col-span-3">
+            {{ t('income.slip') }}
+            <input ref="incomeFormFileInput" type="file" accept="image/*" class="text-xs" @change="onIncomeFormFileSelected" />
+          </label>
         </div>
 
         <button
@@ -322,6 +363,9 @@ onMounted(async () => {
 
           <template v-else>
             <div class="flex items-start gap-3">
+              <a v-if="i.slip_url" :href="i.slip_url" target="_blank" rel="noopener noreferrer" class="shrink-0">
+                <img :src="i.slip_url" alt="" class="h-14 w-14 rounded border border-brand-pink/20 object-cover" />
+              </a>
               <div class="flex-1">
                 <div class="flex flex-wrap items-center gap-2">
                   <span class="rounded-full bg-brand-black px-2 py-0.5 text-[10px] font-semibold tracking-wide text-brand-pink/80 uppercase">
@@ -336,6 +380,10 @@ onMounted(async () => {
             </div>
             <div class="mt-3 flex flex-wrap items-center gap-3 text-xs">
               <button class="text-brand-pink underline" @click="startEditIncome(i)">{{ t('income.edit') }}</button>
+              <label class="cursor-pointer text-brand-pink underline">
+                {{ i.slip_url ? t('income.replaceSlip') : t('income.addSlip') }}
+                <input type="file" accept="image/*" class="hidden" @change="onRowSlipSelected($event, i)" />
+              </label>
               <button
                 :disabled="deletingIncomeId === i.id"
                 class="text-status-error underline disabled:opacity-50"
