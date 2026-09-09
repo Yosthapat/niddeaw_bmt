@@ -31,6 +31,8 @@ class Match(BaseModel):
     winner: Winner | None = None
     status: MatchStatus
     court: str | None = None
+    elo_delta_team1: int | None = None
+    elo_delta_team2: int | None = None
     created_at: datetime
     updated_at: datetime
 

@@ -223,6 +223,8 @@ def submit_result(
             {
                 "winner": winner,
                 "status": "completed",
+                "elo_delta_team1": delta_team1,
+                "elo_delta_team2": delta_team2,
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }
         )

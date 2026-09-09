@@ -5,6 +5,9 @@ Doubles teams are rated by the average of their two players' scores, and
 the resulting delta is applied identically to both teammates.
 """
 
+from typing import TypedDict
+from uuid import UUID
+
 from app.models.player import EloTier
 
 K_FACTOR = 4
@@ -71,3 +74,56 @@ def compute_deltas(
 
 def apply_delta(current_score: int, delta: int) -> int:
     return max(SCORE_FLOOR, current_score + delta)
+
+
+class CompletedMatchRow(TypedDict):
+    team1_player_ids: list[str]
+    team2_player_ids: list[str]
+    winner: str
+    elo_delta_team1: int | None
+    elo_delta_team2: int | None
+
+
+class PlayerStatRow(TypedDict):
+    elo_score: int
+    games: int
+    wins: int
+    draws: int
+    losses: int
+
+
+def reverse_match_results(
+    matches: list[CompletedMatchRow], players_by_id: dict[UUID, PlayerStatRow]
+) -> dict[UUID, PlayerStatRow]:
+    """Undoes the elo_score/games/wins/draws/losses effect a set of completed
+    matches had on their players — e.g. before deleting the session they
+    belong to, so a deleted (test) session doesn't leave stats permanently
+    skewed. Matches recorded before elo_delta_team1/2 existed (None) are
+    skipped since there's nothing to undo them by."""
+    updated: dict[UUID, PlayerStatRow] = {pid: dict(row) for pid, row in players_by_id.items()}  # type: ignore[misc]
+    for match in matches:
+        delta_team1, delta_team2 = match["elo_delta_team1"], match["elo_delta_team2"]
+        if delta_team1 is None or delta_team2 is None:
+            continue
+        winner = match["winner"]
+        team1_outcome = "win" if winner == "team1" else "draw" if winner == "draw" else "loss"
+        team2_outcome = "win" if winner == "team2" else "draw" if winner == "draw" else "loss"
+        for pid_str in match["team1_player_ids"]:
+            _undo_one(updated, UUID(pid_str), delta_team1, team1_outcome)
+        for pid_str in match["team2_player_ids"]:
+            _undo_one(updated, UUID(pid_str), delta_team2, team2_outcome)
+    return updated
+
+
+def _undo_one(updated: dict[UUID, PlayerStatRow], pid: UUID, delta: int, outcome: str) -> None:
+    row = updated.get(pid)
+    if row is None:
+        return
+    row["elo_score"] = apply_delta(row["elo_score"], -delta)
+    row["games"] = max(0, row["games"] - 1)
+    if outcome == "win":
+        row["wins"] = max(0, row["wins"] - 1)
+    elif outcome == "draw":
+        row["draws"] = max(0, row["draws"] - 1)
+    else:
+        row["losses"] = max(0, row["losses"] - 1)
