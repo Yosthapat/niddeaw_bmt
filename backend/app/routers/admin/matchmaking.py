@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
@@ -205,10 +206,16 @@ def submit_result(
 
     team1_outcome = "win" if winner == "team1" else "draw" if winner == "draw" else "loss"
     team2_outcome = "win" if winner == "team2" else "draw" if winner == "draw" else "loss"
-    for pid in team1_ids:
-        _apply_result(pid, delta_team1, team1_outcome)
-    for pid in team2_ids:
-        _apply_result(pid, delta_team2, team2_outcome)
+    # One .update() per player, each to a different row — fully independent,
+    # so run them concurrently instead of paying for N sequential Supabase
+    # round-trips on every match result (up to 4 for a doubles match).
+    per_player_updates = [(pid, delta_team1, team1_outcome) for pid in team1_ids] + [
+        (pid, delta_team2, team2_outcome) for pid in team2_ids
+    ]
+    with ThreadPoolExecutor(max_workers=len(per_player_updates)) as pool:
+        futures = [pool.submit(_apply_result, pid, delta, outcome) for pid, delta, outcome in per_player_updates]
+        for future in futures:
+            future.result()
 
     updated = (
         supabase.table("matches")

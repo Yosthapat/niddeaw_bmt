@@ -1,6 +1,9 @@
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
+from supabase import Client
 
 from app.db_utils import rows
 from app.deps import SupabaseDep
@@ -78,27 +81,50 @@ def get_player(player_id: UUID, supabase: SupabaseDep) -> Player:
     return Player.model_validate(player_rows[0])
 
 
-@router.get("/{player_id}/profile", response_model=PlayerProfile)
-def get_player_profile(player_id: UUID, supabase: SupabaseDep) -> PlayerProfile:
-    player_result = supabase.table("players").select("*").eq("id", str(player_id)).limit(1).execute()
-    player_rows = rows(player_result)
-    if not player_rows:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Player not found")
-    player = Player.model_validate(player_rows[0])
-    record = _record_for(player)
+def _fetch_player_rows(supabase: Client, player_id: UUID) -> list[dict[str, Any]]:
+    result = supabase.table("players").select("*").eq("id", str(player_id)).limit(1).execute()
+    return rows(result)
 
-    # Nemesis needs a per-opponent breakdown, which isn't denormalized —
-    # but this only needs to scan matches *this player* was in, not every
-    # completed match site-wide.
-    own_matches_result = (
+
+def _fetch_own_matches(supabase: Client, player_id: UUID) -> list[dict[str, Any]]:
+    """Matches this player was in — scans only their own history, not every
+    completed match site-wide, so the nemesis breakdown stays cheap."""
+    result = (
         supabase.table("matches")
         .select("team1_player_ids, team2_player_ids, winner")
         .eq("status", "completed")
         .or_(f"team1_player_ids.cs.{{{player_id}}},team2_player_ids.cs.{{{player_id}}}")
         .execute()
     )
-    own_matches = rows(own_matches_result)
+    return rows(result)
 
+
+def _fetch_active_player_rows(supabase: Client) -> list[dict[str, Any]]:
+    result = supabase.table("players").select("*").eq("is_active", True).execute()
+    return rows(result)
+
+
+@router.get("/{player_id}/profile", response_model=PlayerProfile)
+def get_player_profile(player_id: UUID, supabase: SupabaseDep) -> PlayerProfile:
+    # The player row, this player's own match history, and the active
+    # roster are independent of each other — fetch all three concurrently
+    # instead of one after another.
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        player_future = pool.submit(_fetch_player_rows, supabase, player_id)
+        own_matches_future = pool.submit(_fetch_own_matches, supabase, player_id)
+        active_players_future = pool.submit(_fetch_active_player_rows, supabase)
+
+        player_rows = player_future.result()
+        own_matches = own_matches_future.result()
+        active_player_rows = active_players_future.result()
+
+    if not player_rows:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Player not found")
+    player = Player.model_validate(player_rows[0])
+    record = _record_for(player)
+
+    # Nemesis needs a per-opponent breakdown of own_matches (fetched above)
+    # before it knows who to look up — stays sequential after that point.
     nemesis: NemesisInfo | None = None
     nemesis_result = stats_service.find_nemesis(player_id, own_matches)  # type: ignore[arg-type]
     if nemesis_result is not None:
@@ -116,8 +142,7 @@ def get_player_profile(player_id: UUID, supabase: SupabaseDep) -> PlayerProfile:
                 draws=nemesis_record.draws,
             )
 
-    active_players_result = supabase.table("players").select("*").eq("is_active", True).execute()
-    active_players = [Player.model_validate(row) for row in rows(active_players_result)]
+    active_players = [Player.model_validate(row) for row in active_player_rows]
     elo_rank = stats_service.elo_rank(player.elo_score, [p.elo_score for p in active_players])
     similar_ids = stats_service.nearest_by_elo(
         player.elo_score, player.id, [(p.id, p.elo_score) for p in active_players]

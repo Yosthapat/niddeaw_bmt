@@ -480,6 +480,18 @@ button:not(:disabled):active {
     transform: translateY(-6px);
   }
 }
+/* A few cards (Hall of Fame's #1, Ranking's top 3) carry both .float-idle
+   and v-reveal's .reveal-init.is-revealed, and both set the `animation`
+   shorthand on the same element — cascade picks one winner for the whole
+   property rather than merging them, and .reveal-init.is-revealed's higher
+   specificity (two classes) always beats .float-idle's one, permanently
+   freezing the bob the instant reveal-up finishes. This higher-specificity
+   override runs both animations together instead. */
+.reveal-init.is-revealed.float-idle {
+  animation:
+    reveal-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay, 0ms) both,
+    float-idle-bob 5s ease-in-out var(--float-delay, 0s) infinite;
+}
 
 /* StaggerHeading.vue — splits a heading into words, each fading/blurring
    up into place with an incremental delay, instead of the whole title
@@ -546,7 +558,8 @@ button:not(:disabled):active {
   .ambient-blob {
     animation: none;
   }
-  .float-idle {
+  .float-idle,
+  .reveal-init.is-revealed.float-idle {
     animation: none;
   }
   .stagger-word {
