@@ -9,6 +9,7 @@ from app.routers.admin import billing as admin_billing
 from app.routers.admin import checkins as admin_checkins
 from app.routers.admin import expenses as admin_expenses
 from app.routers.admin import matchmaking as admin_matchmaking
+from app.routers.admin import other_income as admin_other_income
 from app.routers.admin import players_admin
 from app.routers.admin import sessions as admin_sessions
 from app.routers.admin import settings as admin_settings
@@ -40,6 +41,7 @@ app.include_router(admin_settings.router)
 app.include_router(admin_matchmaking.router)
 app.include_router(admin_billing.router)
 app.include_router(admin_expenses.router)
+app.include_router(admin_other_income.router)
 app.include_router(admin_activity_log.router)
 
 

@@ -8,6 +8,7 @@ import type {
   DailyRevenue,
   Expense,
   ExpenseCategory,
+  IncomeSource,
   LockedPair,
   LoginCredentials,
   LoginResponse,
@@ -16,12 +17,13 @@ import type {
   MatchmakingSuggestionResponse,
   MatchWinner,
   MonthlyExpenseSummary,
+  OtherIncome,
   PaymentInfoResponse,
   Player,
   Session,
 } from '@/types'
 
-// Mirrors backend/app/routers/admin/{auth,sessions,checkins,matchmaking,billing,expenses,players_admin,settings}.py.
+// Mirrors backend/app/routers/admin/{auth,sessions,checkins,matchmaking,billing,expenses,other_income,players_admin,settings}.py.
 
 export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
   return request('/api/admin/auth/login', {
@@ -272,6 +274,44 @@ export async function uploadReceipt(expenseId: string, file: File): Promise<Expe
     method: 'POST',
     body: formData,
   })
+}
+
+// Other income (sponsor payments, investment injections, etc.)
+export async function getOtherIncome(): Promise<OtherIncome[]> {
+  return request('/api/admin/income')
+}
+
+export async function createOtherIncome(income: {
+  income_date: string
+  source: IncomeSource
+  source_name: string
+  amount: number
+  note?: string | null
+}): Promise<OtherIncome> {
+  return request('/api/admin/income', {
+    method: 'POST',
+    body: JSON.stringify(income),
+  })
+}
+
+export async function updateOtherIncome(
+  incomeId: string,
+  updates: Partial<{
+    income_date: string
+    source: IncomeSource
+    source_name: string
+    amount: number
+    note: string | null
+  }>,
+): Promise<OtherIncome> {
+  return request(`/api/admin/income/${incomeId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+  })
+}
+
+export async function deleteOtherIncome(incomeId: string): Promise<void> {
+  await request(`/api/admin/income/${incomeId}`, { method: 'DELETE' })
 }
 
 // Settings
