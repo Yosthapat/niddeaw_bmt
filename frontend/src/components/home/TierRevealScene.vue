@@ -243,14 +243,24 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   inset: 0;
   z-index: 60;
   opacity: 0;
+  /* visibility, not just opacity: an opacity:0 element still paints a
+     fully-transparent layer every frame, and this one covers the whole
+     viewport with a tier-colored background underneath (.wash/.flash) —
+     iOS Safari's dynamic toolbar tinting was reading that and getting
+     stuck on the last tier's color even after closing. visibility:hidden
+     removes it from painting entirely once the fade-out finishes (the
+     0s-duration/matching-delay transition below keeps the fade-out itself
+     looking the same as before). */
+  visibility: hidden;
   pointer-events: none;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s ease, visibility 0s linear 0.2s;
   overflow: hidden;
 }
 .reveal-stage.open {
   opacity: 1;
+  visibility: visible;
   pointer-events: auto;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.3s ease, visibility 0s linear 0s;
 }
 .reveal-stage.shake {
   animation: reveal-shake 0.32s cubic-bezier(0.36, 0.07, 0.19, 0.97);
