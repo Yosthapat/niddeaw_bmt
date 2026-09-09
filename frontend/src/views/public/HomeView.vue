@@ -240,7 +240,13 @@ const sponsors = [
         </a>
       </div>
     </section>
-  </main>
 
-  <TierRevealScene :tier="revealTier" @close="revealTier = null" />
+    <!-- Teleports its actual content to <body> on its own, but must stay a
+         child here (not a sibling of <main>) — App.vue's page <Transition>
+         needs this view to render as a single root node to track enter/leave
+         hooks; a second sibling root here makes it multi-root the same way
+         admin views are (see App.vue's comment), which leaves the page stuck
+         invisible mid-transition until a manual reload. -->
+    <TierRevealScene :tier="revealTier" @close="revealTier = null" />
+  </main>
 </template>
