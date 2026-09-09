@@ -6,7 +6,9 @@ duplicating the Supabase query chain. Unlike matchmaking_service.py, these
 functions do talk to Supabase directly.
 """
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from postgrest.types import CountMethod
@@ -25,9 +27,7 @@ from app.services import matchmaking_service
 RECENT_MATCHES_FOR_DURATION_AVG = 10
 
 
-def fetch_checked_in_players(
-    supabase: Client, session_id: UUID, exclude_ids: set[UUID]
-) -> list[matchmaking_service.CheckedInPlayer]:
+def _fetch_checkin_player_ids(supabase: Client, session_id: UUID) -> list[UUID]:
     checkins_result = (
         supabase.table("checkins")
         .select("player_id")
@@ -35,11 +35,14 @@ def fetch_checked_in_players(
         .is_("checkout_time", "null")
         .execute()
     )
-    player_ids = [UUID(row["player_id"]) for row in rows(checkins_result)]
-    player_ids = [pid for pid in player_ids if pid not in exclude_ids]
+    return [UUID(row["player_id"]) for row in rows(checkins_result)]
+
+
+def _fetch_players_by_ids(
+    supabase: Client, player_ids: list[UUID]
+) -> list[matchmaking_service.CheckedInPlayer]:
     if not player_ids:
         return []
-
     players_result = (
         supabase.table("players")
         .select("id, elo_score")
@@ -50,6 +53,13 @@ def fetch_checked_in_players(
         matchmaking_service.CheckedInPlayer(player_id=UUID(row["id"]), elo_score=row["elo_score"])
         for row in rows(players_result)
     ]
+
+
+def fetch_checked_in_players(
+    supabase: Client, session_id: UUID, exclude_ids: set[UUID]
+) -> list[matchmaking_service.CheckedInPlayer]:
+    player_ids = [pid for pid in _fetch_checkin_player_ids(supabase, session_id) if pid not in exclude_ids]
+    return _fetch_players_by_ids(supabase, player_ids)
 
 
 def fetch_pairing_history(
@@ -122,11 +132,15 @@ def build_suggestions(
     *,
     committed_ids: set[UUID] | None = None,
     locked_pairs_list: list[LockedPair] | None = None,
+    history: list[matchmaking_service.PairHistoryEntry] | None = None,
+    current_round: int | None = None,
+    checked_in: list[matchmaking_service.CheckedInPlayer] | None = None,
 ) -> tuple[list[PairingSuggestion], list[UUID]]:
-    """`committed_ids`/`locked_pairs_list` let build_queue() pass in what it
-    already fetched instead of this function re-querying the same rows —
-    both fall back to fetching themselves when called standalone (e.g. from
-    the /suggest endpoint, which has no reason to call build_queue first).
+    """Every keyword-only param lets build_queue() pass in what it already
+    fetched (in parallel) instead of this function re-querying the same
+    rows — all fall back to fetching themselves when called standalone
+    (e.g. from the /suggest endpoint, which has no reason to call
+    build_queue first).
 
     `committed_ids` covers players in an in_progress OR queued match — a
     queued match already has its next pairing decided, so those players
@@ -135,9 +149,12 @@ def build_suggestions(
         committed_ids = players_in_progress(supabase, session_id) | players_in_queued_matches(
             supabase, session_id
         )
-    checked_in = fetch_checked_in_players(supabase, session_id, committed_ids)
-    history = fetch_pairing_history(supabase, session_id)
-    current_round = current_round_no(supabase, session_id)
+    if checked_in is None:
+        checked_in = fetch_checked_in_players(supabase, session_id, committed_ids)
+    if history is None:
+        history = fetch_pairing_history(supabase, session_id)
+    if current_round is None:
+        current_round = current_round_no(supabase, session_id)
     if locked_pairs_list is None:
         locked_pairs_list = fetch_locked_pairs(supabase, session_id)
     locked_pairs = tuple((lp.player_a_id, lp.player_b_id) for lp in locked_pairs_list)
@@ -180,18 +197,7 @@ def _fetch_queue_entries(
     ]
 
 
-def build_queue(supabase: Client, session_id: UUID) -> MatchmakingQueueResponse:
-    in_progress = _fetch_queue_entries(supabase, session_id, "in_progress")
-    queued = _fetch_queue_entries(supabase, session_id, "queued")
-    committed_ids = {
-        pid for entry in (*in_progress, *queued) for pid in (*entry.team1_player_ids, *entry.team2_player_ids)
-    }
-    locked_pairs_list = fetch_locked_pairs(supabase, session_id)
-
-    suggestions, waiting_ids = build_suggestions(
-        supabase, session_id, committed_ids=committed_ids, locked_pairs_list=locked_pairs_list
-    )
-
+def _fetch_recent_completed(supabase: Client, session_id: UUID) -> list[dict[str, Any]]:
     recent_result = (
         supabase.table("matches")
         .select("created_at, updated_at")
@@ -201,13 +207,59 @@ def build_queue(supabase: Client, session_id: UUID) -> MatchmakingQueueResponse:
         .limit(RECENT_MATCHES_FOR_DURATION_AVG)
         .execute()
     )
+    return rows(recent_result)
+
+
+def build_queue(supabase: Client, session_id: UUID) -> MatchmakingQueueResponse:
+    # Polled every few seconds by both the admin matchmaking page and the
+    # public live page, so this endpoint's latency matters more than most.
+    # The seven queries below are all independent of each other and of
+    # anything player-checkin-related — fire them concurrently (each is
+    # its own Supabase network round-trip) instead of one after another,
+    # since supabase-py's Client is synchronous and has no built-in way to
+    # batch these into one request.
+    with ThreadPoolExecutor(max_workers=7) as pool:
+        in_progress_future = pool.submit(_fetch_queue_entries, supabase, session_id, "in_progress")
+        queued_future = pool.submit(_fetch_queue_entries, supabase, session_id, "queued")
+        locked_pairs_future = pool.submit(fetch_locked_pairs, supabase, session_id)
+        history_future = pool.submit(fetch_pairing_history, supabase, session_id)
+        round_no_future = pool.submit(current_round_no, supabase, session_id)
+        recent_future = pool.submit(_fetch_recent_completed, supabase, session_id)
+        checkin_ids_future = pool.submit(_fetch_checkin_player_ids, supabase, session_id)
+
+        in_progress = in_progress_future.result()
+        queued = queued_future.result()
+        locked_pairs_list = locked_pairs_future.result()
+        history = history_future.result()
+        current_round = round_no_future.result()
+        recent_rows = recent_future.result()
+        checkin_ids = checkin_ids_future.result()
+
+    committed_ids = {
+        pid for entry in (*in_progress, *queued) for pid in (*entry.team1_player_ids, *entry.team2_player_ids)
+    }
+    # The only query that has to wait on another (needs committed_ids, just
+    # computed above, to know who to exclude) — everything it needs besides
+    # that was already fetched above.
+    checked_in = _fetch_players_by_ids(supabase, [pid for pid in checkin_ids if pid not in committed_ids])
+
+    suggestions, waiting_ids = build_suggestions(
+        supabase,
+        session_id,
+        committed_ids=committed_ids,
+        locked_pairs_list=locked_pairs_list,
+        history=history,
+        current_round=current_round,
+        checked_in=checked_in,
+    )
+
     durations = [
         (
             datetime.fromisoformat(str(row["updated_at"]))
             - datetime.fromisoformat(str(row["created_at"]))
         ).total_seconds()
         / 60
-        for row in rows(recent_result)
+        for row in recent_rows
         if row.get("updated_at")
     ]
     avg_duration = (
