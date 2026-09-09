@@ -30,5 +30,6 @@ class OtherIncome(BaseModel):
     source_name: str
     amount: float
     note: str | None = None
+    slip_url: str | None = None
     created_by: UUID
     created_at: datetime

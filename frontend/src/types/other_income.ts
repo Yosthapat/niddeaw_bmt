@@ -8,6 +8,7 @@ export interface OtherIncome {
   source_name: string
   amount: number
   note: string | null
+  slip_url: string | null
   created_by: string
   created_at: string
 }
