@@ -1,14 +1,20 @@
 <script setup lang="ts">
 // Static club intro + contact — there's no backend-driven "club info" table
 // (out of scope per the issue doc), so this content is edited directly here.
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { EloTier } from '@/types'
 import TierMascot from '@/components/players/TierMascot.vue'
 import AdCarousel from '@/components/home/AdCarousel.vue'
+import TierRevealScene from '@/components/home/TierRevealScene.vue'
 import { tierTextStyle } from '@/composables/useEloTier'
 
 const { t } = useI18n()
+
+// The hero tier row opens this full-screen "impact" reveal instead of the
+// small shared TierInfoModal that every other TierMascot on the site still
+// uses — home is the one place that gets the cinematic treatment.
+const revealTier = ref<EloTier | null>(null)
 
 // Auto-rotating promo banner slot, up to 4 images — drop files into
 // frontend/public/ads/ and list them here.
@@ -139,18 +145,21 @@ const sponsors = [
       </p>
 
       <div class="mt-6 flex flex-wrap items-center justify-center gap-3 text-xs font-semibold tracking-widest text-white/40 uppercase">
-        <span
+        <button
           v-for="(tier, i) in tiers"
           :key="tier.label"
+          type="button"
           v-tilt
           class="float-idle flex flex-col items-center gap-1"
           :style="{ '--float-delay': `${i * 0.25}s` }"
+          :aria-label="`${tier.label} tier — เปิดฉากเต็มจอ`"
+          @click="revealTier = tier.tier"
         >
-          <TierMascot :tier="tier.tier" :size="40" />
+          <TierMascot :tier="tier.tier" :size="40" :interactive="false" />
           <span :class="{ 'tier-shimmer': tier.gradient }" :style="tierTextStyle(tier.color, tier.gradient)">{{
             tier.label
           }}</span>
-        </span>
+        </button>
       </div>
     </div>
 
@@ -232,4 +241,6 @@ const sponsors = [
       </div>
     </section>
   </main>
+
+  <TierRevealScene :tier="revealTier" @close="revealTier = null" />
 </template>
