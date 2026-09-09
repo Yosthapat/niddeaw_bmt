@@ -3,6 +3,8 @@ import { ref } from 'vue'
 export interface ConfirmOptions {
   title: string
   message: string
+  /** Defaults to the generic delete label — set it for anything that isn't a delete. */
+  confirmLabel?: string
   danger?: boolean
 }
 
@@ -22,6 +24,9 @@ export function useConfirmDialog() {
      * once the custom modal's confirm/cancel button (or Escape/backdrop) is
      * used. */
     confirm(options: ConfirmOptions): Promise<boolean> {
+      // Settle whatever is already open first — replacing `state` would
+      // otherwise drop its resolve and leave that caller awaiting forever.
+      state.value?.resolve(false)
       return new Promise((resolve) => {
         state.value = { ...options, resolve }
       })

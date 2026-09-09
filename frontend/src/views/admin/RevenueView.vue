@@ -87,10 +87,13 @@ const incomeFormFileInput = ref<HTMLInputElement | null>(null)
 const savingIncome = ref(false)
 const createIncomeError = ref<string | null>(null)
 
-async function onIncomeFormFileSelected(event: Event): Promise<void> {
+function onIncomeFormFileSelected(event: Event): void {
   const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  incomeFormFile.value = file ? await compressImage(file) : null
+  // Kept raw and compressed at submit time instead: compressing here lands
+  // asynchronously (seconds, for a phone photo) and could set the file back
+  // *after* resetIncomeForm() cleared it, silently attaching this slip to
+  // whichever entry is saved next.
+  incomeFormFile.value = input.files?.[0] ?? null
 }
 
 function resetIncomeForm(): void {
@@ -109,6 +112,7 @@ function resetIncomeForm(): void {
 
 async function submitIncome(): Promise<void> {
   createIncomeError.value = null
+  incomeRowError.value = null
   const amount = Number(incomeForm.amount)
   if (!amount || amount <= 0) {
     createIncomeError.value = t('income.amountRequired')
@@ -129,7 +133,8 @@ async function submitIncome(): Promise<void> {
     })
     if (incomeFormFile.value) {
       try {
-        created = await adminApi.uploadOtherIncomeSlip(created.id, incomeFormFile.value)
+        const slip = await compressImage(incomeFormFile.value)
+        created = await adminApi.uploadOtherIncomeSlip(created.id, slip)
       } catch {
         incomeRowError.value = t('income.slipUploadFailed')
       }
@@ -145,6 +150,7 @@ async function submitIncome(): Promise<void> {
 
 const incomeRowError = ref<string | null>(null)
 const deletingIncomeId = ref<string | null>(null)
+const uploadingSlipId = ref<string | null>(null)
 const editingIncomeId = ref<string | null>(null)
 const editIncomeForm = reactive({
   income_date: '',
@@ -212,12 +218,14 @@ async function onRowSlipSelected(event: Event, income: OtherIncome): Promise<voi
   const file = input.files?.[0]
   if (!file) return
   incomeRowError.value = null
+  uploadingSlipId.value = income.id
   try {
     const updated = await adminApi.uploadOtherIncomeSlip(income.id, await compressImage(file))
     otherIncome.value = otherIncome.value.map((i) => (i.id === updated.id ? updated : i))
   } catch (e) {
     incomeRowError.value = apiErrorMessage(e, t('income.slipUploadFailed'))
   } finally {
+    uploadingSlipId.value = null
     input.value = ''
   }
 }
@@ -380,9 +388,19 @@ onMounted(async () => {
             </div>
             <div class="mt-3 flex flex-wrap items-center gap-3 text-xs">
               <button class="text-brand-pink underline" @click="startEditIncome(i)">{{ t('income.edit') }}</button>
-              <label class="cursor-pointer text-brand-pink underline">
-                {{ i.slip_url ? t('income.replaceSlip') : t('income.addSlip') }}
-                <input type="file" accept="image/*" class="hidden" @change="onRowSlipSelected($event, i)" />
+              <label
+                class="cursor-pointer text-brand-pink underline"
+                :class="{ 'pointer-events-none opacity-50': uploadingSlipId === i.id }"
+              >
+                <template v-if="uploadingSlipId === i.id">{{ t('income.uploadingSlip') }}</template>
+                <template v-else>{{ i.slip_url ? t('income.replaceSlip') : t('income.addSlip') }}</template>
+                <input
+                  type="file"
+                  accept="image/*"
+                  class="hidden"
+                  :disabled="uploadingSlipId === i.id"
+                  @change="onRowSlipSelected($event, i)"
+                />
               </label>
               <button
                 :disabled="deletingIncomeId === i.id"

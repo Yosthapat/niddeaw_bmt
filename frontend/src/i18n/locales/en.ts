@@ -362,6 +362,7 @@ export default {
     slip: 'Slip photo',
     addSlip: 'Add slip',
     replaceSlip: 'Replace slip',
+    uploadingSlip: 'Uploading...',
     slipUploadFailed: 'Slip upload failed (income was still saved) — try attaching it again from the list below',
     addIncome: 'Save Income',
     saving: 'Saving...',
