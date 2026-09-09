@@ -4,9 +4,11 @@ import { useI18n } from 'vue-i18n'
 import { useSessionsStore } from '@/stores/sessions'
 import { getClubSettings } from '@/api/admin'
 import { ApiError } from '@/api/client'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
 
 const { t } = useI18n()
 const sessionsStore = useSessionsStore()
+const { confirm } = useConfirmDialog()
 const creating = ref(false)
 const closedSessions = computed(() => sessionsStore.sessions.filter((s) => s.status === 'closed'))
 
@@ -54,9 +56,11 @@ const deleting = ref(false)
 async function deleteCurrent(): Promise<void> {
   const session = sessionsStore.currentSession
   if (!session) return
-  const confirmed = window.confirm(
-    `${t('session.deleteConfirm', { date: session.date, location: session.location })}\n${t('session.deleteWarning')}`,
-  )
+  const confirmed = await confirm({
+    title: t('session.deleteConfirmTitle'),
+    message: `${t('session.deleteConfirm', { date: session.date, location: session.location })}\n${t('session.deleteWarning')}`,
+    danger: true,
+  })
   if (!confirmed) return
   deleting.value = true
   createError.value = null

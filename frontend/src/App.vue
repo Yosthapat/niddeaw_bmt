@@ -2,6 +2,7 @@
 import { useRoute } from 'vue-router'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import TierInfoModal from '@/components/players/TierInfoModal.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import AmbientBackground from '@/components/common/AmbientBackground.vue'
 
 const route = useRoute()
@@ -26,5 +27,6 @@ const route = useRoute()
     </RouterView>
     <div class="signature-stripe" aria-hidden="true" />
     <TierInfoModal />
+    <ConfirmDialog />
   </div>
 </template>

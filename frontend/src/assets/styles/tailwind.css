@@ -140,7 +140,8 @@ h3,
   transform: translateY(-10px);
 }
 
-/* TierInfoModal.vue — backdrop fades, panel fades + scales up from 95%. */
+/* Shared "modal" transition (TierInfoModal.vue, ConfirmDialog.vue) —
+   backdrop fades, panel fades + scales up from 95%. */
 .tier-modal-enter-active,
 .tier-modal-leave-active {
   transition: opacity 0.18s ease;
