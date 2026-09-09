@@ -56,6 +56,12 @@ def delete_income(income_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> No
 async def upload_slip(
     income_id: UUID, file: UploadFile, supabase: SupabaseDep, admin: AdminDep
 ) -> OtherIncome:
+    # Checked up front so a bad id fails before anything reaches storage —
+    # otherwise the upload lands and the 404 below orphans it in the bucket.
+    existing = supabase.table("other_income").select("id").eq("id", str(income_id)).limit(1).execute()
+    if not rows(existing):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Income entry not found")
+
     contents = await file.read()
     if len(contents) > MAX_SLIP_BYTES:
         raise HTTPException(
