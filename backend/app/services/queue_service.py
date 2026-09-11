@@ -82,14 +82,21 @@ def fetch_pairing_history(
     ]
 
 
-def _player_ids_by_status(supabase: Client, session_id: UUID, match_status: str) -> set[UUID]:
-    result = (
+def _player_ids_by_status(
+    supabase: Client,
+    session_id: UUID,
+    match_status: str,
+    exclude_match_id: UUID | None = None,
+) -> set[UUID]:
+    query = (
         supabase.table("matches")
         .select("team1_player_ids, team2_player_ids")
         .eq("session_id", str(session_id))
         .eq("status", match_status)
-        .execute()
     )
+    if exclude_match_id is not None:
+        query = query.neq("id", str(exclude_match_id))
+    result = query.execute()
     ids: set[UUID] = set()
     for row in rows(result):
         ids.update(UUID(pid) for pid in row["team1_player_ids"])
@@ -101,8 +108,13 @@ def players_in_progress(supabase: Client, session_id: UUID) -> set[UUID]:
     return _player_ids_by_status(supabase, session_id, "in_progress")
 
 
-def players_in_queued_matches(supabase: Client, session_id: UUID) -> set[UUID]:
-    return _player_ids_by_status(supabase, session_id, "queued")
+def players_in_queued_matches(
+    supabase: Client, session_id: UUID, exclude_match_id: UUID | None = None
+) -> set[UUID]:
+    """exclude_match_id skips one match's own players — editing a queued
+    pairing must not see the four players it is rearranging as "already
+    booked in another match"."""
+    return _player_ids_by_status(supabase, session_id, "queued", exclude_match_id)
 
 
 def current_round_no(supabase: Client, session_id: UUID) -> int:

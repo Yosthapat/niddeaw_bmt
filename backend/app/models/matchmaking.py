@@ -66,6 +66,27 @@ class MatchmakingConfirmRequest(BaseModel):
         return self
 
 
+class MatchmakingEditRequest(BaseModel):
+    """Amends an already-queued pairing in place. Deliberately has no
+    `status` and no `session_id` — both are read off the match being
+    edited, so an edit can never move a match to another session or start
+    it; starting stays the separate /matches/{id}/start action.
+
+    Team sizes aren't checked here: they depend on the match's own `type`,
+    which only the router knows once it has fetched the row."""
+
+    team1_player_ids: list[UUID]
+    team2_player_ids: list[UUID]
+    court: str | None = None
+
+    @model_validator(mode="after")
+    def _validate_no_duplicate_players(self) -> Self:
+        all_ids = self.team1_player_ids + self.team2_player_ids
+        if len(set(all_ids)) != len(all_ids):
+            raise ValueError("a player cannot appear more than once across team1/team2")
+        return self
+
+
 class QueueEntry(BaseModel):
     match_id: UUID
     team1_player_ids: list[UUID]

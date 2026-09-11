@@ -104,6 +104,19 @@ export async function confirmMatch(match: {
   })
 }
 
+/** Rewrites a still-queued pairing's players/court in place. The backend
+ * rejects anything that isn't queued, so this can't touch a match already on
+ * court or one whose result is banked. */
+export async function editQueuedMatch(
+  matchId: string,
+  pairing: { team1_player_ids: string[]; team2_player_ids: string[]; court?: string | null },
+): Promise<Match> {
+  return request(`/api/admin/matchmaking/matches/${matchId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(pairing),
+  })
+}
+
 export async function recordMatchResult(matchId: string, winner: MatchWinner): Promise<Match> {
   return request(`/api/admin/matchmaking/matches/${matchId}/result`, {
     method: 'POST',
