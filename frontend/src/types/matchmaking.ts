@@ -45,12 +45,14 @@ export interface MatchmakingQueueResponse {
   locked_pairs: LockedPair[]
 }
 
+/** Public view: carries the confirmed `queued` pairings where the admin
+ * response carries unconfirmed `suggestions`. */
 export interface LiveQueueResponse {
   session_id: string | null
   session_date: string | null
   location: string | null
   in_progress: QueueEntry[]
-  suggestions: PairingSuggestion[]
+  queued: QueueEntry[]
   waiting: WaitingEntry[]
   avg_match_duration_minutes: number
 }

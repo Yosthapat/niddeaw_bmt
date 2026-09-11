@@ -16,6 +16,7 @@ const sessionsStore = useSessionsStore()
 const playersStore = usePlayersStore()
 
 const queue = ref<MatchmakingQueueResponse | null>(null)
+const queueError = ref<string | null>(null)
 const confirming = ref<number | null>(null)
 const confirmError = ref<string | null>(null)
 
@@ -61,9 +62,21 @@ function avatarOf(playerId: string): string | undefined {
 async function refreshQueue(): Promise<void> {
   if (!sessionsStore.currentSessionId) {
     queue.value = null
+    queueError.value = null
     return
   }
-  queue.value = await adminApi.getMatchmakingQueue(sessionsStore.currentSessionId)
+  try {
+    queue.value = await adminApi.getMatchmakingQueue(sessionsStore.currentSessionId)
+    queueError.value = null
+  } catch (e) {
+    // Keep the last-known-good queue on screen when a single poll fails (a
+    // cold-starting backend, a flaky connection) — the next tick retries in
+    // 7s. Only the very first load has nothing to fall back on, and without
+    // this the page just stayed blank until that tick landed.
+    if (!queue.value) {
+      queueError.value = apiErrorMessage(e, t('matchmaking.loadFailed'))
+    }
+  }
 }
 
 async function cancelMatch(matchId: string, team1: string, team2: string): Promise<void> {
@@ -269,7 +282,17 @@ async function confirmCustomMatch(): Promise<void> {
   }
 }
 
-watch(() => sessionsStore.currentSessionId, refreshQueue)
+watch(
+  () => sessionsStore.currentSessionId,
+  () => {
+    // Drop the previous session's queue before refetching: refreshQueue now
+    // holds on to the last-known-good value across a failure, and that value
+    // belongs to the session we just switched away from.
+    queue.value = null
+    queueError.value = null
+    void refreshQueue()
+  },
+)
 
 onMounted(() => {
   // Deliberately not awaited, and no explicit refreshQueue() call after:
@@ -298,6 +321,8 @@ const pollControls = usePolling(refreshQueue, 7000)
     <p v-if="!sessionsStore.currentSessionId" class="mt-8 text-white/60">
       {{ t('matchmaking.selectSessionFirst') }}
     </p>
+
+    <p v-else-if="queueError" class="mt-8 text-sm text-status-error">{{ queueError }}</p>
 
     <template v-else-if="queue">
       <section class="mt-6">
@@ -381,14 +406,38 @@ const pollControls = usePolling(refreshQueue, 7000)
             class="hud-hover hud-panel border border-brand-pink-dark/30 bg-brand-surface px-4 py-3 opacity-80"
           >
             <div class="flex items-center justify-between gap-3">
-              <span class="flex-1 text-center text-sm text-white/70">{{ m.team1_player_ids.map(nameOf).join(' & ') }}</span>
+              <div class="flex flex-1 flex-col items-center gap-1.5">
+                <div class="flex gap-2">
+                  <PlayerAvatar
+                    v-for="pid in m.team1_player_ids"
+                    :key="pid"
+                    :name="nameOf(pid)"
+                    :avatar-url="avatarOf(pid)"
+                    size="md"
+                  />
+                </div>
+                <span class="text-center text-sm text-white/70">{{ m.team1_player_ids.map(nameOf).join(' & ') }}</span>
+              </div>
+
               <div class="flex shrink-0 flex-col items-center gap-1">
                 <span class="hud-panel border border-brand-pink-dark/30 bg-brand-black px-2.5 py-1 text-xs font-semibold text-white/40 uppercase">
                   {{ t('matchmaking.queued') }}
                 </span>
                 <span v-if="m.court" class="text-xs text-white/40">{{ t('matchmaking.courtLabel') }} {{ m.court }}</span>
               </div>
-              <span class="flex-1 text-center text-sm text-white/70">{{ m.team2_player_ids.map(nameOf).join(' & ') }}</span>
+
+              <div class="flex flex-1 flex-col items-center gap-1.5">
+                <div class="flex gap-2">
+                  <PlayerAvatar
+                    v-for="pid in m.team2_player_ids"
+                    :key="pid"
+                    :name="nameOf(pid)"
+                    :avatar-url="avatarOf(pid)"
+                    size="md"
+                  />
+                </div>
+                <span class="text-center text-sm text-white/70">{{ m.team2_player_ids.map(nameOf).join(' & ') }}</span>
+              </div>
             </div>
             <div class="mt-2 flex items-center justify-center gap-2">
               <button
@@ -652,5 +701,7 @@ const pollControls = usePolling(refreshQueue, 7000)
         </ul>
       </section>
     </template>
+
+    <p v-else class="mt-8 text-white/50">{{ t('common.loading') }}</p>
   </main>
 </template>

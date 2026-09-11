@@ -187,6 +187,7 @@ export default {
     waitingForPlayers: 'Waiting for 4 checked-in players to form a pair',
     inQueue: 'In Queue',
     confirmFailed: 'Failed to confirm pairing',
+    loadFailed: 'Failed to load the queue',
     cancelMatch: 'Cancel Match',
     cancelling: 'Cancelling...',
     cancelConfirm: 'Cancel match {team1} vs {team2}? Players will return to the waiting queue.',

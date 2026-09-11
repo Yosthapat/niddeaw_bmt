@@ -35,7 +35,23 @@ export const useSessionsStore = defineStore('sessions', () => {
     }
   }
 
-  async function refresh(): Promise<void> {
+  // Every admin view renders <SessionPicker />, and both the view and the
+  // picker kick off refresh() from their own onMounted — so each page load
+  // fired two overlapping GET /admin/sessions (plus, for a closed session,
+  // two GET /admin/billings), and the two ran the initial-session pick
+  // below independently. Sharing the in-flight promise collapses that back
+  // to one round-trip; the promise is cleared as soon as it settles, so a
+  // refresh() issued after a mutation still fetches fresh state.
+  let inFlight: Promise<void> | null = null
+
+  function refresh(): Promise<void> {
+    inFlight ??= runRefresh().finally(() => {
+      inFlight = null
+    })
+    return inFlight
+  }
+
+  async function runRefresh(): Promise<void> {
     sessions.value = await adminApi.getSessions()
     const stillValid = sessions.value.some((s) => s.id === currentSessionId.value)
 
