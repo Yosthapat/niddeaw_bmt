@@ -18,7 +18,7 @@ const revealTier = ref<EloTier | null>(null)
 
 // Auto-rotating promo banner slot, up to 4 images — drop files into
 // frontend/public/ads/ and list them here.
-const ads = ['/ads/cover-page.webp']
+const ads = ['/ads/friday-night.webp']
 
 // Ordered by rising alcohol content — matches elo_service.py's
 // _TIER_THRESHOLDS order. Absinthe's `gradient` gives it the rainbow

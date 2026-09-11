@@ -45,9 +45,13 @@ onUnmounted(stop)
 </script>
 
 <template>
+  <!-- The frame is pinned to the current banner's aspect ratio so it sits
+       flush with no letterboxing. Other ratios still render fine — the
+       images are object-contain, so an odd one gets bars rather than a
+       crop — but swapping the banner is a good moment to re-check this. -->
   <div
     v-if="images.length > 0"
-    class="hud-panel relative aspect-[1280/474] w-full overflow-hidden border border-brand-pink/20 bg-brand-black"
+    class="hud-panel relative aspect-[1812/750] w-full overflow-hidden border border-brand-pink/20 bg-brand-black"
   >
     <img
       v-for="(src, i) in images"
