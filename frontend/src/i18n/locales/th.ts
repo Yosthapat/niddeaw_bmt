@@ -183,6 +183,8 @@ export default {
     waitingForPlayers: 'รอผู้เล่นเช็คอินให้ครบ 4 คนเพื่อจัดคู่',
     inQueue: 'รอคิว',
     confirmFailed: 'ยืนยันคู่ไม่สำเร็จ',
+    saveEdit: 'บันทึกคู่',
+    editFailed: 'บันทึกคู่ที่แก้ไขไม่สำเร็จ',
     loadFailed: 'โหลดคิวไม่สำเร็จ',
     cancelMatch: 'ยกเลิกแมตช์',
     cancelling: 'กำลังยกเลิก...',

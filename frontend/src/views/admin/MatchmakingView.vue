@@ -6,7 +6,7 @@ import { usePlayersStore } from '@/stores/players'
 import * as adminApi from '@/api/admin'
 import { ApiError } from '@/api/client'
 import { usePolling } from '@/composables/usePolling'
-import type { MatchmakingQueueResponse, PairingSuggestion } from '@/types'
+import type { MatchmakingQueueResponse, PairingSuggestion, QueueEntry } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import SessionPicker from '@/components/layout/SessionPicker.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
@@ -36,6 +36,15 @@ const customDraft = ref<{ team1: string[]; team2: string[]; court: string }>({
 
 const startingId = ref<string | null>(null)
 const startError = ref<string | null>(null)
+
+const editingMatchId = ref<string | null>(null)
+const matchDraft = ref<{ team1: string[]; team2: string[]; court: string }>({
+  team1: [],
+  team2: [],
+  court: '',
+})
+const savingMatchId = ref<string | null>(null)
+const editError = ref<string | null>(null)
 
 const lockingPair = ref(false)
 const lockConfirming = ref(false)
@@ -166,6 +175,71 @@ function availablePool(): { id: string; name: string }[] {
     for (const id of m.team2_player_ids) ids.add(id)
   }
   return Array.from(ids).map((id) => ({ id, name: nameOf(id) }))
+}
+
+/** availablePool() hides everyone already booked into a queued match — which
+ * includes the four players of the match being edited. Add them back, or the
+ * selects would open on ids that aren't in their own option list and render
+ * blank. */
+function poolForMatch(m: QueueEntry): { id: string; name: string }[] {
+  const pool = availablePool()
+  const known = new Set(pool.map((p) => p.id))
+  for (const id of [...m.team1_player_ids, ...m.team2_player_ids]) {
+    if (!known.has(id)) {
+      known.add(id)
+      pool.push({ id, name: nameOf(id) })
+    }
+  }
+  return pool
+}
+
+function matchDraftHasDuplicate(): boolean {
+  const all = [...matchDraft.value.team1, ...matchDraft.value.team2]
+  return new Set(all).size !== all.length
+}
+
+function startEditMatch(m: QueueEntry): void {
+  editingMatchId.value = m.match_id
+  matchDraft.value = {
+    team1: [...m.team1_player_ids],
+    team2: [...m.team2_player_ids],
+    court: m.court ?? '',
+  }
+  editError.value = null
+  // The 7s poll replaces queue.value wholesale, which would blow the draft
+  // away mid-edit — same reason startEdit()/startCustomMatch() pause it.
+  pollControls.stop()
+}
+
+function cancelEditMatch(): void {
+  editingMatchId.value = null
+  editError.value = null
+  pollControls.start()
+}
+
+async function saveEditedMatch(matchId: string): Promise<void> {
+  if (matchDraftHasDuplicate()) return
+  savingMatchId.value = matchId
+  editError.value = null
+  try {
+    await adminApi.editQueuedMatch(matchId, {
+      team1_player_ids: matchDraft.value.team1,
+      team2_player_ids: matchDraft.value.team2,
+      court: matchDraft.value.court.trim() || null,
+    })
+  } catch (e) {
+    editError.value = apiErrorMessage(e, t('matchmaking.editFailed'))
+    savingMatchId.value = null
+    return
+  }
+  editingMatchId.value = null
+  savingMatchId.value = null
+  pollControls.start()
+  try {
+    await refreshQueue()
+  } catch {
+    // Edit already saved; the next poll tick will pick up the queue.
+  }
 }
 
 async function startQueuedMatch(matchId: string): Promise<void> {
@@ -405,57 +479,111 @@ const pollControls = usePolling(refreshQueue, 7000)
             :key="m.match_id"
             class="hud-hover hud-panel border border-brand-pink-dark/30 bg-brand-surface px-4 py-3 opacity-80"
           >
-            <div class="flex items-center justify-between gap-3">
-              <div class="flex flex-1 flex-col items-center gap-1.5">
-                <div class="flex gap-2">
-                  <PlayerAvatar
-                    v-for="pid in m.team1_player_ids"
-                    :key="pid"
-                    :name="nameOf(pid)"
-                    :avatar-url="avatarOf(pid)"
-                    size="md"
-                  />
+            <div v-if="editingMatchId !== m.match_id">
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex flex-1 flex-col items-center gap-1.5">
+                  <div class="flex gap-2">
+                    <PlayerAvatar
+                      v-for="pid in m.team1_player_ids"
+                      :key="pid"
+                      :name="nameOf(pid)"
+                      :avatar-url="avatarOf(pid)"
+                      size="md"
+                    />
+                  </div>
+                  <span class="text-center text-sm text-white/70">{{ m.team1_player_ids.map(nameOf).join(' & ') }}</span>
                 </div>
-                <span class="text-center text-sm text-white/70">{{ m.team1_player_ids.map(nameOf).join(' & ') }}</span>
-              </div>
 
-              <div class="flex shrink-0 flex-col items-center gap-1">
-                <span class="hud-panel border border-brand-pink-dark/30 bg-brand-black px-2.5 py-1 text-xs font-semibold text-white/40 uppercase">
-                  {{ t('matchmaking.queued') }}
-                </span>
-                <span v-if="m.court" class="text-xs text-white/40">{{ t('matchmaking.courtLabel') }} {{ m.court }}</span>
-              </div>
-
-              <div class="flex flex-1 flex-col items-center gap-1.5">
-                <div class="flex gap-2">
-                  <PlayerAvatar
-                    v-for="pid in m.team2_player_ids"
-                    :key="pid"
-                    :name="nameOf(pid)"
-                    :avatar-url="avatarOf(pid)"
-                    size="md"
-                  />
+                <div class="flex shrink-0 flex-col items-center gap-1">
+                  <span class="hud-panel border border-brand-pink-dark/30 bg-brand-black px-2.5 py-1 text-xs font-semibold text-white/40 uppercase">
+                    {{ t('matchmaking.queued') }}
+                  </span>
+                  <span v-if="m.court" class="text-xs text-white/40">{{ t('matchmaking.courtLabel') }} {{ m.court }}</span>
                 </div>
-                <span class="text-center text-sm text-white/70">{{ m.team2_player_ids.map(nameOf).join(' & ') }}</span>
+
+                <div class="flex flex-1 flex-col items-center gap-1.5">
+                  <div class="flex gap-2">
+                    <PlayerAvatar
+                      v-for="pid in m.team2_player_ids"
+                      :key="pid"
+                      :name="nameOf(pid)"
+                      :avatar-url="avatarOf(pid)"
+                      size="md"
+                    />
+                  </div>
+                  <span class="text-center text-sm text-white/70">{{ m.team2_player_ids.map(nameOf).join(' & ') }}</span>
+                </div>
+              </div>
+              <div class="mt-2 flex flex-wrap items-center justify-center gap-2">
+                <button
+                  :disabled="startingId === m.match_id"
+                  class="rounded-full bg-brand-pink px-3 py-1 text-xs font-semibold text-brand-black disabled:opacity-50"
+                  @click="startQueuedMatch(m.match_id)"
+                >
+                  {{ startingId === m.match_id ? '...' : t('matchmaking.startMatch') }}
+                </button>
+                <button
+                  class="rounded-full border border-white/20 px-3 py-1 text-xs text-white/60 hover:border-brand-pink hover:text-brand-pink"
+                  @click="startEditMatch(m)"
+                >
+                  {{ t('matchmaking.editPair') }}
+                </button>
+                <button
+                  :disabled="cancelling === m.match_id"
+                  class="rounded-full border border-white/20 px-3 py-1 text-xs text-white/60 hover:border-status-error hover:text-status-error disabled:opacity-50"
+                  @click="
+                    cancelMatch(m.match_id, m.team1_player_ids.map(nameOf).join(' & '), m.team2_player_ids.map(nameOf).join(' & '))
+                  "
+                >
+                  {{ cancelling === m.match_id ? t('matchmaking.cancelling') : t('matchmaking.cancelMatch') }}
+                </button>
               </div>
             </div>
-            <div class="mt-2 flex items-center justify-center gap-2">
-              <button
-                :disabled="startingId === m.match_id"
-                class="rounded-full bg-brand-pink px-3 py-1 text-xs font-semibold text-brand-black disabled:opacity-50"
-                @click="startQueuedMatch(m.match_id)"
-              >
-                {{ startingId === m.match_id ? '...' : t('matchmaking.startMatch') }}
-              </button>
-              <button
-                :disabled="cancelling === m.match_id"
-                class="rounded-full border border-white/20 px-3 py-1 text-xs text-white/60 hover:border-status-error hover:text-status-error disabled:opacity-50"
-                @click="
-                  cancelMatch(m.match_id, m.team1_player_ids.map(nameOf).join(' & '), m.team2_player_ids.map(nameOf).join(' & '))
-                "
-              >
-                {{ cancelling === m.match_id ? t('matchmaking.cancelling') : t('matchmaking.cancelMatch') }}
-              </button>
+
+            <div v-else class="space-y-3">
+              <div class="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <p class="mb-1 text-white/40">{{ t('matchmaking.team') }} 1</p>
+                  <select
+                    v-for="(_, i) in matchDraft.team1"
+                    :key="'m1-' + i"
+                    v-model="matchDraft.team1[i]"
+                    class="mb-1 w-full rounded border border-brand-pink/25 bg-brand-black px-2 py-1"
+                  >
+                    <option v-for="p in poolForMatch(m)" :key="p.id" :value="p.id">{{ p.name }}</option>
+                  </select>
+                </div>
+                <div>
+                  <p class="mb-1 text-white/40">{{ t('matchmaking.team') }} 2</p>
+                  <select
+                    v-for="(_, i) in matchDraft.team2"
+                    :key="'m2-' + i"
+                    v-model="matchDraft.team2[i]"
+                    class="mb-1 w-full rounded border border-brand-pink/25 bg-brand-black px-2 py-1"
+                  >
+                    <option v-for="p in poolForMatch(m)" :key="p.id" :value="p.id">{{ p.name }}</option>
+                  </select>
+                </div>
+              </div>
+              <input
+                v-model="matchDraft.court"
+                :placeholder="t('matchmaking.courtPlaceholder')"
+                class="w-full rounded border border-brand-pink/25 bg-brand-black px-2 py-1 text-xs"
+              />
+              <p v-if="matchDraftHasDuplicate()" class="text-xs text-status-error">
+                {{ t('matchmaking.duplicatePlayer') }}
+              </p>
+              <p v-if="editError" class="text-xs text-status-error">{{ editError }}</p>
+              <div class="flex gap-2">
+                <button
+                  :disabled="savingMatchId === m.match_id || matchDraftHasDuplicate()"
+                  class="rounded-full bg-brand-pink px-3 py-1 text-xs font-semibold text-brand-black disabled:opacity-50"
+                  @click="saveEditedMatch(m.match_id)"
+                >
+                  {{ savingMatchId === m.match_id ? '...' : t('matchmaking.saveEdit') }}
+                </button>
+                <button class="text-xs text-white/50" @click="cancelEditMatch">{{ t('common.cancel') }}</button>
+              </div>
             </div>
           </li>
         </ul>

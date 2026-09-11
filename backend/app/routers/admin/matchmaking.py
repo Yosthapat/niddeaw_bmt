@@ -7,11 +7,12 @@ from fastapi import APIRouter, HTTPException, status
 
 from app.db_utils import rows
 from app.deps import AdminDep, SupabaseDep
-from app.models.match import Match, MatchResultSubmit
+from app.models.match import TEAM_SIZE_BY_TYPE, Match, MatchResultSubmit
 from app.models.matchmaking import (
     LockedPair,
     LockedPairCreate,
     MatchmakingConfirmRequest,
+    MatchmakingEditRequest,
     MatchmakingQueueResponse,
     MatchmakingSuggestionResponse,
 )
@@ -107,6 +108,95 @@ def confirm(payload: MatchmakingConfirmRequest, supabase: SupabaseDep, admin: Ad
         supabase.table("pairing_history").insert(history_rows).execute()
 
     return Match.model_validate(match_result_rows[0])
+
+
+@router.patch("/matches/{match_id}", response_model=Match)
+def edit_queued_match(
+    match_id: UUID, payload: MatchmakingEditRequest, supabase: SupabaseDep, admin: AdminDep
+) -> Match:
+    """Rewrites a queued pairing's players/court in place. Only while it's
+    still queued: an in_progress match's players are already on court, and a
+    completed one's result and ELO are banked.
+
+    Edits in place rather than cancel-and-recreate so the match keeps its id
+    and its round_no — current_round_no() counts every match in the session,
+    so a delete-then-insert would shift the round number and quietly rewrite
+    what the fairness lookback sees."""
+    match_result = supabase.table("matches").select("*").eq("id", str(match_id)).limit(1).execute()
+    match_rows = rows(match_result)
+    if not match_rows:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Match not found")
+    match_row = match_rows[0]
+    if match_row["status"] != "queued":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Only a queued match can be edited"
+        )
+
+    expected = TEAM_SIZE_BY_TYPE[match_row["type"]]
+    if len(payload.team1_player_ids) != expected or len(payload.team2_player_ids) != expected:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"match type '{match_row['type']}' requires {expected} player(s) per team",
+        )
+
+    session_id = UUID(match_row["session_id"])
+    submitted_ids = set(payload.team1_player_ids + payload.team2_player_ids)
+    # Same rule confirm() applies to a queued match: a player still finishing
+    # an in_progress match is a valid pick for their *next* one, so only
+    # other queued matches can conflict.
+    conflict = submitted_ids & queue_service.players_in_queued_matches(
+        supabase, session_id, exclude_match_id=match_id
+    )
+    if conflict:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="ผู้เล่นบางคนถูกจับคู่ไว้ในแมตช์อื่นอยู่แล้ว",
+        )
+
+    updated = (
+        supabase.table("matches")
+        .update(
+            {
+                "team1_player_ids": [str(pid) for pid in payload.team1_player_ids],
+                "team2_player_ids": [str(pid) for pid in payload.team2_player_ids],
+                "court": payload.court,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+        .eq("id", str(match_id))
+        .execute()
+    )
+
+    # Keep the fairness lookback in step with who is actually paired now. The
+    # round_no is read back off the existing rows rather than recomputed:
+    # current_round_no() would hand back this match's round + 1. With no rows
+    # to read it from, leave the history alone — under-counting a pairing
+    # only weakens a future suggestion's penalty, while guessing a round
+    # number would misorder the lookback for every match after it.
+    history_result = (
+        supabase.table("pairing_history")
+        .select("round_no")
+        .eq("match_id", str(match_id))
+        .limit(1)
+        .execute()
+    )
+    existing_history = rows(history_result)
+    if existing_history:
+        round_no = existing_history[0]["round_no"]
+        # Delete first: Supabase REST has no transactions, and a crash
+        # part-way leaving this match with no history (a penalty that
+        # under-counts) beats one leaving both pairings counted.
+        supabase.table("pairing_history").delete().eq("match_id", str(match_id)).execute()
+        history_rows: list[dict[str, Any]] = matchmaking_service.build_pairing_history_rows(
+            tuple(payload.team1_player_ids), tuple(payload.team2_player_ids), round_no
+        )
+        for row in history_rows:
+            row["session_id"] = str(session_id)
+            row["match_id"] = str(match_id)
+        if history_rows:
+            supabase.table("pairing_history").insert(history_rows).execute()
+
+    return Match.model_validate(rows(updated)[0])
 
 
 @router.delete("/matches/{match_id}", status_code=status.HTTP_204_NO_CONTENT)
