@@ -23,14 +23,13 @@ const cancelling = ref<string | null>(null)
 const cancelError = ref<string | null>(null)
 
 const editingGroup = ref<number | null>(null)
-const draftByGroup = ref<Record<number, { team1: string[]; team2: string[]; queued: boolean; court: string }>>({})
+const draftByGroup = ref<Record<number, { team1: string[]; team2: string[]; court: string }>>({})
 
 const creatingCustom = ref(false)
 const customConfirming = ref(false)
-const customDraft = ref<{ team1: string[]; team2: string[]; queued: boolean; court: string }>({
+const customDraft = ref<{ team1: string[]; team2: string[]; court: string }>({
   team1: ['', ''],
   team2: ['', ''],
-  queued: false,
   court: '',
 })
 
@@ -136,11 +135,12 @@ async function unlockPair(lockId: string): Promise<void> {
   }
 }
 
-// includeInProgress: also offer players currently mid-match — used only
-// when building a *queued* pairing, since those players will be free by
-// the time it's actually started. Players already reserved in another
-// queued match are still excluded either way (can't double-book them).
-function availablePool(includeInProgress = false): { id: string; name: string }[] {
+// Every match a caller can build here (custom, locked pair, edited
+// suggestion) is created as "queued" — never started immediately — so a
+// player currently mid-match is still a valid pick for their *next* one.
+// Only players already reserved in a suggestion, the waiting list, or
+// another queued match are excluded (can't double-book those).
+function availablePool(): { id: string; name: string }[] {
   if (!queue.value) return []
   const ids = new Set<string>()
   for (const s of queue.value.suggestions) {
@@ -148,11 +148,9 @@ function availablePool(includeInProgress = false): { id: string; name: string }[
     for (const id of s.team2_player_ids) ids.add(id)
   }
   for (const w of queue.value.waiting) ids.add(w.player_id)
-  if (includeInProgress) {
-    for (const m of queue.value.in_progress) {
-      for (const id of m.team1_player_ids) ids.add(id)
-      for (const id of m.team2_player_ids) ids.add(id)
-    }
+  for (const m of queue.value.in_progress) {
+    for (const id of m.team1_player_ids) ids.add(id)
+    for (const id of m.team2_player_ids) ids.add(id)
   }
   return Array.from(ids).map((id) => ({ id, name: nameOf(id) }))
 }
@@ -182,7 +180,6 @@ function startEdit(s: PairingSuggestion): void {
   draftByGroup.value[s.group_no] = {
     team1: [...s.team1_player_ids],
     team2: [...s.team2_player_ids],
-    queued: false,
     court: '',
   }
   pollControls.stop()
@@ -205,12 +202,15 @@ async function confirmSuggestion(groupNo: number): Promise<void> {
   confirming.value = groupNo
   confirmError.value = null
   try {
+    // Always queued, never started immediately — confirming just books the
+    // pairing; the admin explicitly starts it (below, in "คิวถัดไป") once
+    // the court is actually free.
     await adminApi.confirmMatch({
       session_id: sessionsStore.currentSessionId,
       type: 'double',
       team1_player_ids: team1,
       team2_player_ids: team2,
-      status: draft?.queued ? 'queued' : 'in_progress',
+      status: 'queued',
       court: draft?.court.trim() || null,
     })
     editingGroup.value = null
@@ -234,7 +234,7 @@ function customIsComplete(): boolean {
 }
 
 function startCustomMatch(): void {
-  customDraft.value = { team1: ['', ''], team2: ['', ''], queued: false, court: '' }
+  customDraft.value = { team1: ['', ''], team2: ['', ''], court: '' }
   creatingCustom.value = true
   pollControls.stop()
 }
@@ -250,12 +250,13 @@ async function confirmCustomMatch(): Promise<void> {
   customConfirming.value = true
   confirmError.value = null
   try {
+    // Always queued — see confirmSuggestion() above for why.
     await adminApi.confirmMatch({
       session_id: sessionsStore.currentSessionId,
       type: 'double',
       team1_player_ids: customDraft.value.team1,
       team2_player_ids: customDraft.value.team2,
-      status: customDraft.value.queued ? 'queued' : 'in_progress',
+      status: 'queued',
       court: customDraft.value.court.trim() || null,
     })
     creatingCustom.value = false
@@ -485,12 +486,9 @@ const pollControls = usePolling(refreshQueue, 7000)
             {{ t('matchmaking.createCustom') }}
           </button>
         </div>
+        <p class="mt-1 text-xs text-white/40">{{ t('matchmaking.confirmGoesToQueueHint') }}</p>
 
         <div v-if="creatingCustom" class="hud-panel mt-2 border border-brand-pink/20 bg-brand-surface px-4 py-3">
-          <label class="mb-2 flex items-center gap-2 text-xs text-white/60">
-            <input v-model="customDraft.queued" type="checkbox" />
-            {{ t('matchmaking.queueForLater') }}
-          </label>
           <div class="grid grid-cols-2 gap-3 text-xs">
             <div>
               <p class="mb-1 text-white/40">{{ t('matchmaking.team') }} 1</p>
@@ -501,7 +499,7 @@ const pollControls = usePolling(refreshQueue, 7000)
                 class="mb-1 w-full rounded border border-brand-pink/25 bg-brand-black px-2 py-1"
               >
                 <option value="" disabled>{{ t('matchmaking.pickPlayer') }}</option>
-                <option v-for="p in availablePool(customDraft.queued)" :key="p.id" :value="p.id">{{ p.name }}</option>
+                <option v-for="p in availablePool()" :key="p.id" :value="p.id">{{ p.name }}</option>
               </select>
             </div>
             <div>
@@ -513,7 +511,7 @@ const pollControls = usePolling(refreshQueue, 7000)
                 class="mb-1 w-full rounded border border-brand-pink/25 bg-brand-black px-2 py-1"
               >
                 <option value="" disabled>{{ t('matchmaking.pickPlayer') }}</option>
-                <option v-for="p in availablePool(customDraft.queued)" :key="p.id" :value="p.id">{{ p.name }}</option>
+                <option v-for="p in availablePool()" :key="p.id" :value="p.id">{{ p.name }}</option>
               </select>
             </div>
           </div>
@@ -589,10 +587,6 @@ const pollControls = usePolling(refreshQueue, 7000)
             </div>
 
             <div v-else class="space-y-3">
-              <label class="flex items-center gap-2 text-xs text-white/60">
-                <input v-model="draftByGroup[s.group_no].queued" type="checkbox" />
-                {{ t('matchmaking.queueForLater') }}
-              </label>
               <div class="grid grid-cols-2 gap-3 text-xs">
                 <div>
                   <p class="mb-1 text-white/40">{{ t('matchmaking.team') }} 1</p>
@@ -602,7 +596,7 @@ const pollControls = usePolling(refreshQueue, 7000)
                     v-model="draftByGroup[s.group_no].team1[i]"
                     class="mb-1 w-full rounded border border-brand-pink/25 bg-brand-black px-2 py-1"
                   >
-                    <option v-for="p in availablePool(draftByGroup[s.group_no]?.queued)" :key="p.id" :value="p.id">{{ p.name }}</option>
+                    <option v-for="p in availablePool()" :key="p.id" :value="p.id">{{ p.name }}</option>
                   </select>
                 </div>
                 <div>
@@ -613,7 +607,7 @@ const pollControls = usePolling(refreshQueue, 7000)
                     v-model="draftByGroup[s.group_no].team2[i]"
                     class="mb-1 w-full rounded border border-brand-pink/25 bg-brand-black px-2 py-1"
                   >
-                    <option v-for="p in availablePool(draftByGroup[s.group_no]?.queued)" :key="p.id" :value="p.id">{{ p.name }}</option>
+                    <option v-for="p in availablePool()" :key="p.id" :value="p.id">{{ p.name }}</option>
                   </select>
                 </div>
               </div>
