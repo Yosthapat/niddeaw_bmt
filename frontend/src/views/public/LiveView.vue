@@ -141,11 +141,13 @@ usePolling(refresh, 7000)
       </section>
 
       <section v-reveal class="mt-8">
-        <h2 class="text-sm font-semibold text-white/70">{{ t('live.upNext') }}</h2>
+        <h2 class="text-sm font-semibold text-white/70">
+          {{ t('live.upNext') }} (<CountUp :value="live.queued.length" :duration="300" />)
+        </h2>
         <ul class="mt-2 space-y-2">
           <li
-            v-for="(s, i) in live.suggestions"
-            :key="s.group_no"
+            v-for="(m, i) in live.queued"
+            :key="m.match_id"
             v-reveal="i"
             class="hud-panel glass-panel border border-brand-pink/20 px-4 py-3"
           >
@@ -153,7 +155,7 @@ usePolling(refresh, 7000)
               <div class="flex flex-1 flex-col items-center gap-1.5">
                 <div class="flex gap-2">
                   <PlayerAvatar
-                    v-for="pid in s.team1_player_ids"
+                    v-for="pid in m.team1_player_ids"
                     :key="pid"
                     :name="nameOf(pid)"
                     :avatar-url="avatarOf(pid)"
@@ -161,18 +163,23 @@ usePolling(refresh, 7000)
                   />
                 </div>
                 <span class="text-center text-sm text-white/80">
-                  {{ s.team1_player_ids.map(nameOf).join(' & ') }}
+                  {{ m.team1_player_ids.map(nameOf).join(' & ') }}
                 </span>
               </div>
 
-              <span class="hud-panel shrink-0 border border-brand-pink/20 bg-brand-black px-2 py-0.5 text-xs font-semibold text-brand-pink/70 uppercase">
-                VS
-              </span>
+              <div class="flex shrink-0 flex-col items-center gap-1">
+                <span class="hud-panel border border-brand-pink/20 bg-brand-black px-2 py-0.5 text-xs font-semibold text-brand-pink/70 uppercase">
+                  VS
+                </span>
+                <span v-if="m.court" class="text-xs text-white/40">
+                  {{ t('matchmaking.courtLabel') }} {{ m.court }}
+                </span>
+              </div>
 
               <div class="flex flex-1 flex-col items-center gap-1.5">
                 <div class="flex gap-2">
                   <PlayerAvatar
-                    v-for="pid in s.team2_player_ids"
+                    v-for="pid in m.team2_player_ids"
                     :key="pid"
                     :name="nameOf(pid)"
                     :avatar-url="avatarOf(pid)"
@@ -180,12 +187,12 @@ usePolling(refresh, 7000)
                   />
                 </div>
                 <span class="text-center text-sm text-white/80">
-                  {{ s.team2_player_ids.map(nameOf).join(' & ') }}
+                  {{ m.team2_player_ids.map(nameOf).join(' & ') }}
                 </span>
               </div>
             </div>
           </li>
-          <li v-if="live.suggestions.length === 0" class="text-sm text-white/40">
+          <li v-if="live.queued.length === 0" class="text-sm text-white/40">
             {{ t('live.noneUpNext') }}
           </li>
         </ul>
