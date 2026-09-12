@@ -4,7 +4,9 @@ Points convention (BMBAD-style member list): win = 2 pts, draw = 1 pt, loss = 0 
 Avg = points / games. Sc(%) = win rate = wins / games * 100.
 """
 
+from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import date as DateType
 from typing import TypedDict
 from uuid import UUID
 
@@ -130,3 +132,23 @@ def nearest_by_elo(
     candidates = [(pid, score) for pid, score in players if pid != exclude_id]
     candidates.sort(key=lambda p: abs(p[1] - target_score))
     return [pid for pid, _ in candidates[:limit]]
+
+
+class SessionDateRow(TypedDict):
+    id: str
+    date: str
+
+
+def play_dates(
+    match_session_ids: Iterable[str], sessions: Iterable[SessionDateRow]
+) -> list[DateType]:
+    """Session dates that actually have at least one completed match, newest
+    first — the set of days a daily ranking can be built for.
+
+    Sessions with no completed match are dropped on purpose: they'd be days
+    the picker offers but that resolve to an empty leaderboard. Two sessions
+    on the same date collapse to one entry.
+    """
+    played = set(match_session_ids)
+    dates = {row["date"] for row in sessions if row["id"] in played}
+    return sorted((DateType.fromisoformat(d) for d in dates), reverse=True)

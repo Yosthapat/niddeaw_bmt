@@ -1,3 +1,4 @@
+from datetime import date
 from uuid import UUID, uuid4
 
 from app.services import stats_service
@@ -48,3 +49,25 @@ def test_find_nemesis_handles_draws() -> None:
     assert record.draws == 1
     assert record.wins == 0
     assert record.losses == 0
+
+
+def test_play_dates_keeps_only_sessions_that_have_matches() -> None:
+    sessions = [
+        {"id": "s1", "date": "2026-09-04"},
+        {"id": "s2", "date": "2026-09-11"},
+        {"id": "s3", "date": "2026-09-18"},  # created but nothing was played
+    ]
+    dates = stats_service.play_dates(["s2", "s1", "s2"], sessions)
+    assert dates == [date(2026, 9, 11), date(2026, 9, 4)]
+
+
+def test_play_dates_collapses_two_sessions_on_the_same_day() -> None:
+    sessions = [
+        {"id": "s1", "date": "2026-09-11"},
+        {"id": "s2", "date": "2026-09-11"},
+    ]
+    assert stats_service.play_dates(["s1", "s2"], sessions) == [date(2026, 9, 11)]
+
+
+def test_play_dates_is_empty_when_nothing_has_been_played() -> None:
+    assert stats_service.play_dates([], [{"id": "s1", "date": "2026-09-11"}]) == []

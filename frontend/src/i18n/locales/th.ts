@@ -76,6 +76,9 @@ export default {
   ranking: {
     allTime: 'All-time',
     thisYear: 'รายปี',
+    byDay: 'รายวัน',
+    pickDay: 'เลือกวันที่เล่น',
+    noPlayDays: 'ยังไม่มีวันไหนที่แข่งจบสักแมตช์',
     loadError: 'โหลดอันดับไม่สำเร็จ',
     empty: 'ยังไม่มีข้อมูลอันดับ',
   },

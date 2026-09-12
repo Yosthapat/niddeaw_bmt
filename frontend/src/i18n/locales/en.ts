@@ -79,6 +79,9 @@ export default {
   ranking: {
     allTime: 'All-time',
     thisYear: 'This Year',
+    byDay: 'By Day',
+    pickDay: 'Pick a play day',
+    noPlayDays: 'No day has a completed match yet',
     loadError: 'Failed to load ranking',
     empty: 'No ranking data yet',
   },
