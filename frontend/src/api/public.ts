@@ -29,8 +29,20 @@ export async function getPlayerProfile(playerId: string): Promise<PlayerProfile>
   return request(`/api/players/${playerId}/profile`)
 }
 
-export async function getRanking(period: 'year' | 'all' = 'all'): Promise<PlayerStats[]> {
-  return request(`/api/ranking?period=${period}`)
+export async function getRanking(
+  period: 'day' | 'year' | 'all' = 'all',
+  date?: string,
+): Promise<PlayerStats[]> {
+  // `date` applies to period="day" only; omitting it there lets the backend
+  // resolve the most recent day that has matches.
+  const query = date ? `?period=${period}&date=${date}` : `?period=${period}`
+  return request(`/api/ranking${query}`)
+}
+
+/** Session dates that have at least one completed match, newest first —
+ * every one is guaranteed to produce a non-empty daily ranking. */
+export async function getPlayDates(): Promise<string[]> {
+  return request('/api/ranking/days')
 }
 
 export async function getHallOfFame(limit = 10): Promise<PlayerStats[]> {
