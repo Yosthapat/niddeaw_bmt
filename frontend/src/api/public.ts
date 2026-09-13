@@ -1,7 +1,15 @@
 import { request } from './client'
-import type { LiveQueueResponse, Match, MatchDetail, Player, PlayerProfile, PlayerStats } from '@/types'
+import type {
+  LiveQueueResponse,
+  Match,
+  MatchDetail,
+  Player,
+  PlayerProfile,
+  PlayerStats,
+  Season,
+} from '@/types'
 
-// Mirrors backend/app/routers/public/{players,ranking,hall_of_fame,matches}.py.
+// Mirrors backend/app/routers/public/{players,ranking,hall_of_fame,matches,seasons}.py.
 
 export async function getPlayers(
   options: { limit?: number; offset?: number } = {},
@@ -27,6 +35,28 @@ export async function getPlayer(playerId: string): Promise<Player> {
 
 export async function getPlayerProfile(playerId: string): Promise<PlayerProfile> {
   return request(`/api/players/${playerId}/profile`)
+}
+
+/** Every season the club has played, oldest first — empty before the first
+ * session exists. A season is one calendar year; the definition is the
+ * backend's so a client can't disagree about which matches belong to it. */
+export async function getSeasons(): Promise<Season[]> {
+  return request('/api/seasons')
+}
+
+/** One member's completed matches, newest first. Omit `season` for their
+ * whole history. In-progress and queued matches aren't here — those come
+ * from getLiveStatus(), which the profile page polls separately. */
+export async function getPlayerMatches(
+  playerId: string,
+  options: { season?: number; limit?: number; offset?: number } = {},
+): Promise<Match[]> {
+  const params = new URLSearchParams()
+  if (options.season !== undefined) params.set('season', String(options.season))
+  if (options.limit !== undefined) params.set('limit', String(options.limit))
+  if (options.offset !== undefined) params.set('offset', String(options.offset))
+  const query = params.toString()
+  return request(`/api/players/${playerId}/matches${query ? `?${query}` : ''}`)
 }
 
 export async function getRanking(
