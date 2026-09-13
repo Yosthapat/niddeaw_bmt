@@ -4,13 +4,13 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { getMatches, getPlayersByIds } from '@/api/public'
 import type { Match, Player } from '@/types'
-import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
+import MatchRow from '@/components/matches/MatchRow.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 import StaggerHeading from '@/components/common/StaggerHeading.vue'
 
 const PAGE_SIZE = 20
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
@@ -30,31 +30,6 @@ const currentPage = computed(() => {
   const raw = Number(route.query.page)
   return Number.isInteger(raw) && raw >= 1 ? raw : 1
 })
-
-function playerOf(playerId: string): Player | undefined {
-  return playersById.value[playerId]
-}
-
-function nameOf(playerId: string): string {
-  const p = playerOf(playerId)
-  return p ? p.nickname : '?'
-}
-
-function setsLabel(match: Match): string {
-  if (!match.sets) return '-'
-  return match.sets.map(([a, b]) => `${a}-${b}`).join(', ')
-}
-
-function durationLabel(match: Match): string | null {
-  if (match.status !== 'completed') return null
-  const minutes = (new Date(match.updated_at).getTime() - new Date(match.created_at).getTime()) / 60000
-  if (!Number.isFinite(minutes) || minutes <= 0) return null
-  return `${minutes.toFixed(0)} ${t('matches.minutes')}`
-}
-
-function dateLabel(isoDate: string): string {
-  return new Date(isoDate).toLocaleString(locale.value === 'th' ? 'th-TH' : 'en-US')
-}
 
 async function loadPage(page: number): Promise<void> {
   loading.value = true
@@ -109,61 +84,7 @@ onMounted(() => loadPage(currentPage.value))
         v-reveal="i"
         class="hud-panel glass-panel hud-hover border border-brand-pink/15 transition-colors hover:border-brand-pink/40"
       >
-        <RouterLink :to="`/matches/${m.id}`" class="block px-4 py-3">
-          <div class="flex items-center justify-between text-xs tracking-wide text-white/40 uppercase">
-            <span>{{ m.type === 'double' ? t('matches.doubles') : t('matches.singles') }}</span>
-            <span class="flex items-center gap-2">
-              <span v-if="durationLabel(m)">{{ durationLabel(m) }} ·</span>
-              {{ dateLabel(m.created_at) }}
-            </span>
-          </div>
-
-          <div class="mt-3 flex items-center justify-between gap-3">
-            <div
-              class="flex flex-1 flex-col items-center gap-1.5"
-              :class="{ 'opacity-45 grayscale': m.winner === 'team2' }"
-            >
-              <div class="stamp-wrap relative flex gap-2">
-                <PlayerAvatar
-                  v-for="pid in m.team1_player_ids"
-                  :key="pid"
-                  :name="nameOf(pid)"
-                  :avatar-url="playerOf(pid)?.avatar_url"
-                  size="lg"
-                />
-                <span v-if="m.winner === 'team1'" class="stamp stamp--win">{{ t('matches.win') }}</span>
-                <span v-else-if="m.winner === 'draw'" class="stamp stamp--draw">{{ t('matches.draw') }}</span>
-              </div>
-              <span class="text-center text-sm font-medium" :class="m.winner === 'team1' ? 'text-brand-pink' : 'text-white/70'">
-                {{ m.team1_player_ids.map(nameOf).join(' & ') }}
-              </span>
-            </div>
-
-            <span class="hud-panel shrink-0 bg-brand-black px-2.5 py-1 font-mono text-sm text-white/80">
-              {{ setsLabel(m) }}
-            </span>
-
-            <div
-              class="flex flex-1 flex-col items-center gap-1.5"
-              :class="{ 'opacity-45 grayscale': m.winner === 'team1' }"
-            >
-              <div class="stamp-wrap relative flex gap-2">
-                <PlayerAvatar
-                  v-for="pid in m.team2_player_ids"
-                  :key="pid"
-                  :name="nameOf(pid)"
-                  :avatar-url="playerOf(pid)?.avatar_url"
-                  size="lg"
-                />
-                <span v-if="m.winner === 'team2'" class="stamp stamp--win">{{ t('matches.win') }}</span>
-                <span v-else-if="m.winner === 'draw'" class="stamp stamp--draw">{{ t('matches.draw') }}</span>
-              </div>
-              <span class="text-center text-sm font-medium" :class="m.winner === 'team2' ? 'text-brand-pink' : 'text-white/70'">
-                {{ m.team2_player_ids.map(nameOf).join(' & ') }}
-              </span>
-            </div>
-          </div>
-        </RouterLink>
+        <MatchRow :match="m" :players-by-id="playersById" />
       </li>
     </ul>
 
@@ -186,36 +107,3 @@ onMounted(() => loadPage(currentPage.value))
     </div>
   </main>
 </template>
-
-<style scoped>
-.stamp-wrap {
-  overflow: visible;
-}
-.stamp {
-  position: absolute;
-  top: -0.6rem;
-  left: 50%;
-  translate: -50% 0;
-  rotate: -10deg;
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 0.6rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 0.05rem 0.4rem;
-  border-radius: 0.25rem;
-  border-width: 2px;
-  border-style: solid;
-  background-color: var(--color-brand-black);
-  pointer-events: none;
-  white-space: nowrap;
-}
-.stamp--win {
-  color: var(--color-status-success);
-  border-color: var(--color-status-success);
-}
-.stamp--draw {
-  color: var(--color-tier-milk);
-  border-color: var(--color-tier-milk);
-}
-</style>
