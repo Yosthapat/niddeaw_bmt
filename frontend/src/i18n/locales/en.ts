@@ -299,6 +299,16 @@ export default {
     net: 'Net',
     chartLoadFailed: 'Failed to load chart',
     chartEmpty: 'No revenue/expense data yet',
+    balanceChart: 'Account balance',
+    balanceRemaining: 'Left in account',
+    balanceSpent: 'Spent',
+    balanceInflow: 'Total money in',
+    balanceFromDues: 'Session dues (collected)',
+    balanceFromFunding: 'Funding',
+    balanceOutflow: 'Expenses (reimbursed)',
+    balanceOverdrawn: 'Spending exceeds all money received',
+    balanceNote: 'Counts only money actually received and paid out — excludes uncollected dues and unreimbursed expenses',
+    balanceEmpty: 'No money received yet',
   },
   admin: {
     nav: {
