@@ -9,6 +9,9 @@
 // month-only, and a day view can't be derived from it. Bucketing those same
 // rows by month gives the identical figures the summary would have.
 //
+// The fetch itself lives in stores/finance.ts, shared with the balance
+// donut below so the dashboard asks for each feed once.
+//
 // Only buckets that actually have movement are plotted. The club plays once
 // or twice a week, so a calendar-strict day view would be mostly empty bars
 // with the real ones squeezed between them.
@@ -21,9 +24,9 @@
 // -> all checks pass (worst adjacent ΔE 26.8 CVD / 31.8 normal-vision).
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import * as adminApi from '@/api/admin'
+import { storeToRefs } from 'pinia'
 import { ApiError } from '@/api/client'
-import type { DailyRevenue, Expense } from '@/types'
+import { useFinanceStore } from '@/stores/finance'
 
 const { t } = useI18n()
 
@@ -39,10 +42,17 @@ type Period = 'day' | 'month' | 'year'
 const BARS_SHOWN: Record<Period, number> = { day: 14, month: 6, year: 20 }
 
 const period = ref<Period>('month')
-const loading = ref(true)
-const error = ref<string | null>(null)
-const dailyRevenue = ref<DailyRevenue[]>([])
-const expenses = ref<Expense[]>([])
+
+const finance = useFinanceStore()
+const { dailyRevenue, expenses, loading } = storeToRefs(finance)
+
+const error = computed(() => {
+  const e = finance.error
+  if (!e) return null
+  return e instanceof ApiError
+    ? `${t('dashboard.chartLoadFailed')} (${e.status})`
+    : t('dashboard.chartLoadFailed')
+})
 
 interface Bar {
   key: string
@@ -101,24 +111,7 @@ function setPeriod(next: Period): void {
   hovered.value = null
 }
 
-async function load(): Promise<void> {
-  loading.value = true
-  error.value = null
-  try {
-    const [daily, expenseList] = await Promise.all([
-      adminApi.getRevenue(),
-      adminApi.getExpenses(),
-    ])
-    dailyRevenue.value = daily
-    expenses.value = expenseList
-  } catch (e) {
-    error.value = e instanceof ApiError ? `${t('dashboard.chartLoadFailed')} (${e.status})` : t('dashboard.chartLoadFailed')
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(load)
+onMounted(finance.refresh)
 
 // --- Layout (hand-rolled SVG — no charting lib) ---
 const VIEW_W = 600

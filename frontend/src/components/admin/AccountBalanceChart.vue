@@ -19,10 +19,11 @@
 // paid out. Not the brand pink, which means "primary action" everywhere else.
 // Validated: node scripts/validate_palette.js "#3987e5,#d95926" --mode dark
 // -> all checks pass (worst adjacent ΔE 26.8 CVD / 31.8 normal-vision).
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import * as adminApi from '@/api/admin'
+import { storeToRefs } from 'pinia'
 import { ApiError } from '@/api/client'
+import { useFinanceStore } from '@/stores/finance'
 import CountUp from '@/components/common/CountUp.vue'
 
 const { t } = useI18n()
@@ -30,38 +31,31 @@ const { t } = useI18n()
 const REMAINING_COLOR = '#3987e5'
 const SPENT_COLOR = '#d95926'
 
-const loading = ref(true)
-const error = ref<string | null>(null)
-const dues = ref(0)
-const funding = ref(0)
-const spent = ref(0)
+// Shares one fetch with the bar chart above — see stores/finance.ts.
+const finance = useFinanceStore()
+const { dailyRevenue, expenses, otherIncome, loading } = storeToRefs(finance)
 
-async function load(): Promise<void> {
-  loading.value = true
-  error.value = null
-  try {
-    const [daily, expenseSummary, otherIncome] = await Promise.all([
-      adminApi.getRevenue(),
-      adminApi.getExpenseSummary(),
-      adminApi.getOtherIncome(),
-    ])
-    // All-time, not the last 6 months the bar chart shows: a balance is what
-    // has accumulated since the club started, so a window would just be a
-    // different number wearing the same label.
-    dues.value = daily.reduce((sum, d) => sum + d.paid_amount, 0)
-    funding.value = otherIncome.reduce((sum, i) => sum + i.amount, 0)
-    spent.value = expenseSummary.reduce((sum, e) => sum + e.paid_amount, 0)
-  } catch (e) {
-    error.value =
-      e instanceof ApiError
-        ? `${t('dashboard.chartLoadFailed')} (${e.status})`
-        : t('dashboard.chartLoadFailed')
-  } finally {
-    loading.value = false
-  }
-}
+const error = computed(() => {
+  const e = finance.error
+  if (!e) return null
+  return e instanceof ApiError
+    ? `${t('dashboard.chartLoadFailed')} (${e.status})`
+    : t('dashboard.chartLoadFailed')
+})
 
-onMounted(load)
+// All-time, not the window the bar chart shows: a balance is what has
+// accumulated since the club started, so a window would just be a different
+// number wearing the same label.
+const dues = computed(() => dailyRevenue.value.reduce((sum, d) => sum + d.paid_amount, 0))
+const funding = computed(() => otherIncome.value.reduce((sum, i) => sum + i.amount, 0))
+// Straight off the raw rows rather than /expenses/summary's paid_amount:
+// the bar chart already fetches these, and summing the same is_paid rows
+// here gives the same figure without a second request.
+const spent = computed(() =>
+  expenses.value.reduce((sum, e) => (e.is_paid ? sum + e.amount : sum), 0),
+)
+
+onMounted(finance.refresh)
 
 const inflow = computed(() => dues.value + funding.value)
 const balance = computed(() => inflow.value - spent.value)
