@@ -10,6 +10,8 @@ import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 import CountUp from '@/components/common/CountUp.vue'
+import PlayerLiveStatus from '@/components/players/PlayerLiveStatus.vue'
+import PlayerSeasonMatches from '@/components/players/PlayerSeasonMatches.vue'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -101,6 +103,11 @@ watch(
         </div>
       </div>
 
+      <!-- Keyed on the player id: this view swaps profiles by watching the
+           route param without remounting, so without a key these two would
+           keep the previous member's polled state and match pages. -->
+      <PlayerLiveStatus :key="`live-${profile.player.id}`" :player-id="profile.player.id" />
+
       <div v-reveal="1" class="mt-8 grid grid-cols-3 gap-2.5 sm:grid-cols-6">
         <div class="hud-panel glass-panel border border-brand-pink/20 p-3 text-center">
           <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('common.game') }}</p>
@@ -169,6 +176,8 @@ watch(
           </li>
         </ul>
       </section>
+
+      <PlayerSeasonMatches :key="`seasons-${profile.player.id}`" :player-id="profile.player.id" />
     </template>
   </main>
 </template>
