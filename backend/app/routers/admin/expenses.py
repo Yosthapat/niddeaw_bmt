@@ -35,7 +35,7 @@ def list_expenses(supabase: SupabaseDep, admin: AdminDep, month: str | None = No
 
 @router.get("/summary", response_model=list[MonthlyExpenseSummary])
 def get_monthly_summary(supabase: SupabaseDep, admin: AdminDep) -> list[MonthlyExpenseSummary]:
-    result = supabase.table("expenses").select("expense_date, category, amount").execute()
+    result = supabase.table("expenses").select("expense_date, category, amount, is_paid").execute()
     summary = expense_service.build_monthly_summary(rows(result))  # type: ignore[arg-type]
     return [MonthlyExpenseSummary.model_validate(vars(entry)) for entry in summary]
 

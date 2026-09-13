@@ -6,6 +6,7 @@ import { usePlayersStore } from '@/stores/players'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import SessionPicker from '@/components/layout/SessionPicker.vue'
 import RevenueExpenseChart from '@/components/admin/RevenueExpenseChart.vue'
+import AccountBalanceChart from '@/components/admin/AccountBalanceChart.vue'
 import CountUp from '@/components/common/CountUp.vue'
 
 const { t } = useI18n()
@@ -61,6 +62,10 @@ onMounted(() => {
 
     <div class="mt-6">
       <RevenueExpenseChart />
+    </div>
+
+    <div class="mt-6">
+      <AccountBalanceChart />
     </div>
 
     <div class="mt-8 grid gap-3 sm:grid-cols-2">

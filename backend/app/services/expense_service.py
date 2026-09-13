@@ -10,12 +10,18 @@ class ExpenseRow(TypedDict):
     expense_date: str
     category: str
     amount: float
+    is_paid: bool
 
 
 @dataclass
 class MonthlySummary:
     month: str
     total_amount: float = 0.0
+    paid_amount: float = 0.0
+    """The part already reimbursed to the admin who fronted it — money that
+    has actually left the club's account. `total_amount` includes expenses
+    still owed back, which are a liability, not a withdrawal. Mirrors
+    revenue_service.DailyRevenue's paid/unpaid split on the income side."""
     by_category: dict[str, float] = field(default_factory=dict)
     expense_count: int = 0
 
@@ -27,6 +33,8 @@ def build_monthly_summary(expenses: list[ExpenseRow]) -> list[MonthlySummary]:
         month = e["expense_date"][:7]  # "YYYY-MM-DD" -> "YYYY-MM"
         entry = summary.setdefault(month, MonthlySummary(month=month))
         entry.total_amount = round(entry.total_amount + e["amount"], 2)
+        if e["is_paid"]:
+            entry.paid_amount = round(entry.paid_amount + e["amount"], 2)
         entry.by_category[e["category"]] = round(
             entry.by_category.get(e["category"], 0.0) + e["amount"], 2
         )

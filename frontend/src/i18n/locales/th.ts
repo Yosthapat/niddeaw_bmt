@@ -295,6 +295,16 @@ export default {
     net: 'สุทธิ',
     chartLoadFailed: 'โหลดกราฟไม่สำเร็จ',
     chartEmpty: 'ยังไม่มีข้อมูลรายรับ/รายจ่าย',
+    balanceChart: 'ยอดสุทธิในบัญชี',
+    balanceRemaining: 'คงเหลือในบัญชี',
+    balanceSpent: 'จ่ายไปแล้ว',
+    balanceInflow: 'เงินเข้าทั้งหมด',
+    balanceFromDues: 'ค่าก๊วน (เก็บแล้ว)',
+    balanceFromFunding: 'เงินทุน',
+    balanceOutflow: 'รายจ่าย (จ่ายคืนแล้ว)',
+    balanceOverdrawn: 'จ่ายออกมากกว่าเงินที่เข้ามาทั้งหมด',
+    balanceNote: 'นับเฉพาะเงินที่รับ/จ่ายจริงแล้ว ไม่รวมค่าก๊วนที่ยังไม่เก็บและรายจ่ายที่ยังไม่จ่ายคืน',
+    balanceEmpty: 'ยังไม่มีเงินเข้าบัญชี',
   },
   admin: {
     nav: {

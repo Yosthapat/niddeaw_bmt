@@ -20,6 +20,10 @@ export interface Expense {
 export interface MonthlyExpenseSummary {
   month: string
   total_amount: number
+  /** The part already reimbursed to the admin who fronted it — money that has
+   * actually left the club's account. `total_amount` includes expenses still
+   * owed back, which are a liability, not a withdrawal. */
+  paid_amount: number
   by_category: Partial<Record<ExpenseCategory, number>>
   expense_count: number
 }

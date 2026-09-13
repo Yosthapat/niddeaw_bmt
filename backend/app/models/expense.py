@@ -45,5 +45,6 @@ class MonthlyExpenseSummary(BaseModel):
 
     month: str
     total_amount: float
+    paid_amount: float
     by_category: dict[str, float]
     expense_count: int

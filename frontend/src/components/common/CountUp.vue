@@ -3,9 +3,16 @@
 // popping into place — used for the flashier stat columns (Pts, Win) on
 // the ranking page. Renders as plain text so callers can style it exactly
 // like the static number it replaces.
+//
+// `format` runs on every tweened frame, so a money figure keeps its
+// thousands separator the whole way up instead of only once it lands.
+// Defaults to the bare number, which is what every existing caller wants.
 import { onMounted, ref, watch } from 'vue'
 
-const props = withDefaults(defineProps<{ value: number; duration?: number }>(), { duration: 700 })
+const props = withDefaults(
+  defineProps<{ value: number; duration?: number; format?: (value: number) => string }>(),
+  { duration: 700, format: (value: number) => String(value) },
+)
 
 const display = ref(0)
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -32,4 +39,4 @@ watch(
 )
 </script>
 
-<template><span>{{ display }}</span></template>
+<template><span>{{ props.format(display) }}</span></template>
