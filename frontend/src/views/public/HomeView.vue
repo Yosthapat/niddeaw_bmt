@@ -8,6 +8,7 @@ import type { EloTier } from '@/types'
 import TierMascot from '@/components/players/TierMascot.vue'
 import AdCarousel from '@/components/home/AdCarousel.vue'
 import ClubMatchCounter from '@/components/home/ClubMatchCounter.vue'
+import MemberMarquee from '@/components/home/MemberMarquee.vue'
 import TierRevealScene from '@/components/home/TierRevealScene.vue'
 import { tierTextStyle } from '@/composables/useEloTier'
 
@@ -133,8 +134,18 @@ const sponsors = [
 </script>
 
 <template>
-  <main class="mx-auto max-w-4xl px-4 py-12 sm:py-20">
-    <ClubMatchCounter />
+  <!-- Top padding is much smaller than the bottom: the marquee and tally
+       row is the first thing in here, and a symmetric py-12/py-20 left it
+       stranded 48px (80px on desktop) below the header with nothing in
+       between. The bottom keeps the original roomier padding, above the
+       footer. -->
+  <main class="mx-auto max-w-4xl px-4 pt-5 pb-12 sm:pt-8 sm:pb-20">
+    <!-- Marquee takes whatever width the counter leaves; min-w-0 lets it
+         actually shrink instead of forcing the row wider than the page. -->
+    <div class="mb-4 flex items-center gap-3 sm:mb-5">
+      <MemberMarquee class="flex-1" />
+      <ClubMatchCounter />
+    </div>
 
     <div v-reveal>
       <AdCarousel :images="ads" />
