@@ -14,6 +14,7 @@ import { useI18n } from 'vue-i18n'
 import { getPlayers } from '@/api/public'
 import type { Player } from '@/types'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
+import TierMascot from '@/components/players/TierMascot.vue'
 
 const { t } = useI18n()
 
@@ -21,9 +22,10 @@ const { t } = useI18n()
 // visible gap mid-loop, so the list repeats until there is enough to fill
 // one half before the halves are doubled.
 const MIN_ITEMS = 10
-// Per item rather than for the whole track, so the photos drift at the same
-// speed whether the club has twelve members or ninety.
-const SECONDS_PER_ITEM = 2.4
+// Per item rather than for the whole track, so the strip drifts at the same
+// speed whether the club has twelve members or ninety. Items carry a name
+// now, so they are wider than a bare photo and need proportionally longer.
+const SECONDS_PER_ITEM = 3.2
 
 const players = ref<Player[]>([])
 
@@ -51,15 +53,23 @@ onMounted(async () => {
 
 <template>
   <div v-if="track.length > 0" class="marquee min-w-0">
-    <ul class="marquee-track flex w-max items-center gap-2" :style="{ '--marquee-duration': duration }">
+    <ul class="marquee-track flex w-max items-start gap-3" :style="{ '--marquee-duration': duration }">
       <li v-for="(player, i) in track" :key="`${player.id}-${i}`">
         <RouterLink
           :to="`/members/${player.id}`"
-          class="block transition-opacity hover:opacity-100 focus-visible:opacity-100"
-          :aria-label="player.nickname"
+          class="flex flex-col items-center gap-1"
+          :aria-label="`${player.nickname} · ELO ${player.elo_score}`"
           :tabindex="i < half.length ? 0 : -1"
         >
           <PlayerAvatar :name="player.nickname" :avatar-url="player.avatar_url" size="md" />
+          <span class="flex items-center gap-1 text-[10px] leading-none whitespace-nowrap">
+            <!-- Not interactive here: its interactive form is a <button>,
+                 which cannot sit inside this link and would swallow the tap
+                 that should open the member's profile. -->
+            <TierMascot :tier="player.elo_level" :size="13" :interactive="false" />
+            <span class="font-semibold tabular-nums text-white/45">{{ player.elo_score }}</span>
+            <span class="font-medium text-white/75">{{ player.nickname }}</span>
+          </span>
         </RouterLink>
       </li>
     </ul>
