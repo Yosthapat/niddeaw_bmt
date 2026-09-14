@@ -137,7 +137,7 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
         <RouterLink
           :to="`/members/${player.id}`"
           class="flex flex-col items-center gap-1"
-          :aria-label="`${player.nickname} · ELO ${player.elo_score}`"
+          :aria-label="player.nickname"
           :tabindex="i < half.length ? 0 : -1"
         >
           <PlayerAvatar :name="player.nickname" :avatar-url="player.avatar_url" size="md" />
@@ -146,7 +146,6 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
                  which cannot sit inside this link and would swallow the tap
                  that should open the member's profile. -->
             <TierMascot :tier="player.elo_level" :size="13" :interactive="false" />
-            <span class="font-semibold tabular-nums text-white/45">{{ player.elo_score }}</span>
             <span class="font-medium text-white/75">{{ player.nickname }}</span>
           </span>
         </RouterLink>
