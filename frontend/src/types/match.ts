@@ -23,6 +23,11 @@ export interface Match {
   updated_at: string
 }
 
+/** Mirrors backend app/models/match.py MatchCount. */
+export interface MatchCount {
+  completed: number
+}
+
 /** A player's overall record, shown side-by-side with their match opponents. */
 export interface PlayerMatchStat {
   player: Player

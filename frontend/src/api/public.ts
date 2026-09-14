@@ -2,6 +2,7 @@ import { request } from './client'
 import type {
   LiveQueueResponse,
   Match,
+  MatchCount,
   MatchDetail,
   Player,
   PlayerProfile,
@@ -88,6 +89,12 @@ export async function getMatches(
   if (options.offset !== undefined) params.set('offset', String(options.offset))
   const query = params.toString()
   return request(`/api/matches${query ? `?${query}` : ''}`)
+}
+
+/** The club's all-time finished-match tally. Its own endpoint so the home
+ * page counter can poll it without pulling match rows. */
+export async function getMatchCount(): Promise<MatchCount> {
+  return request('/api/matches/count')
 }
 
 export async function getMatchDetail(matchId: string): Promise<MatchDetail> {

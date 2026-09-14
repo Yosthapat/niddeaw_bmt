@@ -27,6 +27,8 @@ export default {
     adminLogin: 'Admin Login',
   },
   home: {
+    clubMatchesLabel: 'ทั้งก๊วนตีไปแล้ว',
+    clubMatchesUnit: 'แมตช์',
     tagline: 'ก๊วนแบดสายมันส์ — เช็คอิน จัดคู่ตาม ELO คิดเงินอัตโนมัติ ไม่มีใครหนีสถิติไปได้',
     quickLinks: {
       membersDesc: 'สถิติทุกคนในก๊วน',

@@ -27,6 +27,8 @@ export default {
     adminLogin: 'Admin Login',
   },
   home: {
+    clubMatchesLabel: 'The club has played',
+    clubMatchesUnit: 'matches',
     tagline:
       'The fun-loving badminton club — check in, get matched by ELO, billing done automatically. Nobody escapes the stats.',
     quickLinks: {
