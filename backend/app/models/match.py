@@ -37,6 +37,15 @@ class Match(BaseModel):
     updated_at: datetime
 
 
+class MatchCount(BaseModel):
+    """How many matches the club has finished, all-time. Its own tiny
+    endpoint rather than a field on a bigger payload because the home page
+    polls it on its own and shouldn't drag a roster or a leaderboard along
+    every few seconds."""
+
+    completed: int
+
+
 class PlayerMatchStat(BaseModel):
     """A player's overall record, shown side-by-side with their match opponents."""
 

@@ -1,10 +1,11 @@
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
+from postgrest.types import CountMethod
 
 from app.db_utils import rows
 from app.deps import SupabaseDep
-from app.models.match import Match, MatchDetail, PlayerMatchStat
+from app.models.match import Match, MatchCount, MatchDetail, PlayerMatchStat
 from app.models.player import Player
 from app.services import stats_service
 
@@ -29,6 +30,29 @@ def list_matches(
         query = query.eq("session_id", str(session_id))
     result = query.execute()
     return [Match.model_validate(row) for row in rows(result)]
+
+
+@router.get("/count", response_model=MatchCount)
+def count_matches(supabase: SupabaseDep) -> MatchCount:
+    """The club's all-time finished-match tally, for the home page counter.
+
+    Asks Postgres to count rather than fetching rows and measuring them in
+    Python: `head=True` sends no body back at all, so the cost stays flat as
+    the club's history grows. Declared before /{match_id}/detail — literal
+    path, so no ambiguity either way, but keeping it above makes that
+    obvious to the next reader.
+
+    In-progress and queued matches are excluded: "how many have we played"
+    is asking about finished games, and a match that is mid-rally would make
+    the number tick up and back down again if it were cancelled.
+    """
+    result = (
+        supabase.table("matches")
+        .select("id", count=CountMethod.exact, head=True)
+        .eq("status", "completed")
+        .execute()
+    )
+    return MatchCount(completed=result.count or 0)
 
 
 @router.get("/{match_id}/detail", response_model=MatchDetail)

@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/auth'
 import type { EloTier } from '@/types'
 import TierMascot from '@/components/players/TierMascot.vue'
 import AdCarousel from '@/components/home/AdCarousel.vue'
+import ClubMatchCounter from '@/components/home/ClubMatchCounter.vue'
 import TierRevealScene from '@/components/home/TierRevealScene.vue'
 import { tierTextStyle } from '@/composables/useEloTier'
 
@@ -133,6 +134,8 @@ const sponsors = [
 
 <template>
   <main class="mx-auto max-w-4xl px-4 py-12 sm:py-20">
+    <ClubMatchCounter />
+
     <div v-reveal>
       <AdCarousel :images="ads" />
     </div>
