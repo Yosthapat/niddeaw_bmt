@@ -2,14 +2,18 @@
 // A marquee of member photos drifting leftward above the banner, each one a
 // link to that member's profile.
 //
-// Built as two identical halves translated by -50%: when the first half has
-// slid exactly its own width off to the left, the second is sitting where
-// the first started, so the loop restarts on an indistinguishable frame and
-// reads as endless.
+// Driven by scrollLeft rather than a CSS transform, because the strip is
+// also swipeable by hand: both the drift and the finger write the same
+// value, so they compose instead of fighting. A transform animation would
+// keep sliding the content out from under the reader's thumb.
+//
+// Built as two identical halves. Once scrollLeft passes the width of the
+// first half, subtracting that width lands on the identical pixel of the
+// second, so the loop is seamless and the strip never runs out.
 //
 // Loads once rather than polling like the counter beside it — the roster
 // changes when an admin adds a member, not during a session.
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getPlayers } from '@/api/public'
 import type { Player } from '@/types'
@@ -22,12 +26,15 @@ const { t } = useI18n()
 // visible gap mid-loop, so the list repeats until there is enough to fill
 // one half before the halves are doubled.
 const MIN_ITEMS = 10
-// Per item rather than for the whole track, so the strip drifts at the same
-// speed whether the club has twelve members or ninety. Items carry a name
-// now, so they are wider than a bare photo and need proportionally longer.
-const SECONDS_PER_ITEM = 3.2
+// In pixels per second, so the strip drifts at one readable pace no matter
+// how wide an item turns out with its caption, or how big the roster is.
+const PIXELS_PER_SECOND = 28
+// How long the drift stays out of the way after the reader last touched it.
+const RESUME_AFTER_MS = 1500
 
 const players = ref<Player[]>([])
+const strip = ref<HTMLElement | null>(null)
+const paused = ref(false)
 
 const half = computed<Player[]>(() => {
   const roster = players.value
@@ -37,7 +44,59 @@ const half = computed<Player[]>(() => {
   return filled
 })
 const track = computed(() => [...half.value, ...half.value])
-const duration = computed(() => `${(half.value.length * SECONDS_PER_ITEM).toFixed(1)}s`)
+
+let frame = 0
+let lastTime = 0
+let interactingUntil = 0
+// The drift's own position, kept as a float. Assigning sub-pixel deltas
+// straight to scrollLeft loses them to rounding — at this speed that is
+// ~0.45px a frame, and the strip creeps by a pixel or two a second instead
+// of drifting.
+let position = 0
+// Whether the last frame was the drift's. When it wasn't, position is
+// re-read from the element so the drift carries on from wherever the
+// reader left the strip rather than snapping back to its own idea of it.
+let driving = false
+
+/** Wraps scrollLeft back by one half whenever it runs past it. Runs for the
+ * finger as well as the drift, so swiping never hits the end of the track. */
+function wrap(el: HTMLElement): void {
+  const halfWidth = el.scrollWidth / 2
+  if (halfWidth > 0 && el.scrollLeft >= halfWidth) el.scrollLeft -= halfWidth
+}
+
+function step(now: number): void {
+  const el = strip.value
+  if (!el) return
+  const elapsed = lastTime === 0 ? 0 : now - lastTime
+  lastTime = now
+  // Clamped: a backgrounded tab resumes with a huge delta that would
+  // teleport the strip instead of continuing it.
+  const dt = Math.min(elapsed, 100) / 1000
+  if (!paused.value && now >= interactingUntil) {
+    if (!driving) {
+      position = el.scrollLeft
+      driving = true
+    }
+    position += PIXELS_PER_SECOND * dt
+    const halfWidth = el.scrollWidth / 2
+    if (halfWidth > 0 && position >= halfWidth) position -= halfWidth
+    el.scrollLeft = position
+  } else {
+    driving = false
+  }
+  frame = requestAnimationFrame(step)
+}
+
+/** Hand control over for a moment. Called on touch, drag and wheel rather
+ * than on scroll, so the drift's own scrolling doesn't read as input. */
+function noteInteraction(): void {
+  interactingUntil = performance.now() + RESUME_AFTER_MS
+}
+
+function onScroll(): void {
+  if (strip.value) wrap(strip.value)
+}
 
 onMounted(async () => {
   try {
@@ -47,13 +106,33 @@ onMounted(async () => {
   } catch {
     // Renders nothing. This sits above the banner as decoration with a
     // useful link in it — it must not put an error across the home page.
+    return
   }
+  // Same contract the rest of the site keeps (v-reveal, CountUp, the
+  // ambient blobs): no self-starting motion when the reader has asked for
+  // less of it. The strip stays swipeable either way.
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+  frame = requestAnimationFrame(step)
 })
+
+onBeforeUnmount(() => cancelAnimationFrame(frame))
 </script>
 
 <template>
-  <div v-if="track.length > 0" class="marquee min-w-0">
-    <ul class="marquee-track flex w-max items-start gap-3" :style="{ '--marquee-duration': duration }">
+  <div
+    v-if="track.length > 0"
+    ref="strip"
+    class="marquee min-w-0"
+    @pointerenter="paused = true"
+    @pointerleave="paused = false"
+    @focusin="paused = true"
+    @focusout="paused = false"
+    @pointerdown="noteInteraction"
+    @touchstart.passive="noteInteraction"
+    @wheel.passive="noteInteraction"
+    @scroll.passive="onScroll"
+  >
+    <ul class="flex w-max items-start gap-3">
       <li v-for="(player, i) in track" :key="`${player.id}-${i}`">
         <RouterLink
           :to="`/members/${player.id}`"
@@ -79,42 +158,24 @@ onMounted(async () => {
 
 <style scoped>
 .marquee {
-  overflow: hidden;
+  /* Scrollable by hand, with the bar itself hidden — the drifting content
+     already says it moves, and a scrollbar under the photos would read as
+     chrome on what is meant to be a quiet strip. */
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* Keeps a swipe that runs off the end of the strip from being handed to
+     the page as a back-navigation gesture. */
+  overscroll-behavior-x: contain;
+  /* The drift writes scrollLeft every frame; smooth scrolling would try to
+     animate each of those and fight it. */
+  scroll-behavior: auto;
   /* Feathered ends so photos slide out of view instead of being chopped
      against a hard edge. */
   -webkit-mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent);
   mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent);
 }
 
-.marquee-track {
-  animation: marquee-drift var(--marquee-duration, 40s) linear infinite;
-}
-
-/* Hovering holds it still so a photo can actually be aimed at and clicked. */
-.marquee:hover .marquee-track,
-.marquee:focus-within .marquee-track {
-  animation-play-state: paused;
-}
-
-@keyframes marquee-drift {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
-}
-
-/* Same contract the rest of the site keeps (v-reveal, CountUp, the ambient
-   blobs): no drifting motion when the reader has asked for less of it. The
-   strip becomes an ordinary scrollable row instead of freezing on whichever
-   faces happened to be visible. */
-@media (prefers-reduced-motion: reduce) {
-  .marquee {
-    overflow-x: auto;
-  }
-  .marquee-track {
-    animation: none;
-  }
+.marquee::-webkit-scrollbar {
+  display: none;
 }
 </style>
