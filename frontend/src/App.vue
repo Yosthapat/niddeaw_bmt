@@ -9,7 +9,17 @@ const route = useRoute()
 </script>
 
 <template>
-  <div class="min-h-screen">
+  <!-- overflow-x: clip, not hidden: `clip` doesn't create a scroll
+       container, so AppHeader's `position: sticky` still sticks to the
+       viewport. `hidden` here would silently kill it.
+
+       It exists because decorative glows are positioned to bleed past the
+       content box — HomeView's .hero-aura sits at inset:-20% and pushed the
+       home page's scrollWidth to 448 in a 400px viewport, letting the whole
+       page be dragged sideways on a phone. Only the off-screen part is
+       clipped, so nothing that was ever visible changes. Browsers without
+       `overflow: clip` just ignore the line and behave as before. -->
+  <div class="min-h-screen overflow-x-clip">
     <AmbientBackground v-if="!route.path.startsWith('/admin')" />
     <AppHeader />
     <RouterView v-slot="{ Component, route }">
