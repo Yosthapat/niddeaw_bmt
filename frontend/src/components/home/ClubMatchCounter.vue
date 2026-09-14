@@ -40,10 +40,13 @@ usePolling(refresh, 15000)
 <template>
   <!-- Hidden until there is something to report: a club with no recorded
        matches yet shouldn't lead its home page with a zero. -->
-  <div v-if="total !== null && total > 0" class="mb-4 flex justify-end sm:mb-5">
-    <div
-      class="hud-panel glass-panel hud-hover flex items-center gap-3 border border-brand-pink/25 px-3.5 py-2 transition-colors hover:border-brand-pink/50"
-    >
+  <!-- No margin or alignment of its own: HomeView places this in a row
+       beside the member marquee, and owning the spacing here would fight
+       that layout. -->
+  <div
+    v-if="total !== null && total > 0"
+    class="hud-panel glass-panel hud-hover flex shrink-0 items-center gap-3 border border-brand-pink/25 px-3.5 py-2 transition-colors hover:border-brand-pink/50"
+  >
       <!-- Own-drawn shuttlecock glyph, same line-icon language as the
            contact and vibe rows further down the page. -->
       <svg
@@ -80,7 +83,6 @@ usePolling(refresh, 15000)
           </span>
           {{ t('home.clubMatchesLabel') }}
         </p>
-      </div>
     </div>
   </div>
 </template>

@@ -8,6 +8,7 @@ import type { EloTier } from '@/types'
 import TierMascot from '@/components/players/TierMascot.vue'
 import AdCarousel from '@/components/home/AdCarousel.vue'
 import ClubMatchCounter from '@/components/home/ClubMatchCounter.vue'
+import MemberMarquee from '@/components/home/MemberMarquee.vue'
 import TierRevealScene from '@/components/home/TierRevealScene.vue'
 import { tierTextStyle } from '@/composables/useEloTier'
 
@@ -134,7 +135,12 @@ const sponsors = [
 
 <template>
   <main class="mx-auto max-w-4xl px-4 py-12 sm:py-20">
-    <ClubMatchCounter />
+    <!-- Marquee takes whatever width the counter leaves; min-w-0 lets it
+         actually shrink instead of forcing the row wider than the page. -->
+    <div class="mb-4 flex items-center gap-3 sm:mb-5">
+      <MemberMarquee class="flex-1" />
+      <ClubMatchCounter />
+    </div>
 
     <div v-reveal>
       <AdCarousel :images="ads" />
