@@ -3,6 +3,7 @@
 // (out of scope per the issue doc), so this content is edited directly here.
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useAuthStore } from '@/stores/auth'
 import type { EloTier } from '@/types'
 import TierMascot from '@/components/players/TierMascot.vue'
 import AdCarousel from '@/components/home/AdCarousel.vue'
@@ -10,6 +11,8 @@ import TierRevealScene from '@/components/home/TierRevealScene.vue'
 import { tierTextStyle } from '@/composables/useEloTier'
 
 const { t } = useI18n()
+// Moved off the header: see the comment in AppHeader.vue.
+const authStore = useAuthStore()
 
 // The hero tier row opens this full-screen "impact" reveal instead of the
 // small shared TierInfoModal that every other TierMascot on the site still
@@ -211,6 +214,23 @@ const sponsors = [
           </svg>
           {{ social.label }}
         </a>
+      </div>
+
+      <!-- Kept inside the contact panel but set apart by the rule: it is
+           the same "who runs this" corner of the page, while staying
+           visually unlike the LINE/TikTok buttons above so nobody taps it
+           expecting to reach a human. -->
+      <div class="mt-5 border-t border-brand-pink/15 pt-4">
+        <RouterLink
+          :to="authStore.isAuthenticated ? '/admin' : '/admin/login'"
+          class="hud-hover inline-flex items-center gap-2 text-xs font-semibold tracking-wide text-white/40 uppercase transition-colors hover:text-brand-pink"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5">
+            <rect x="5" y="11" width="14" height="9" rx="1.5" />
+            <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+          </svg>
+          {{ authStore.isAuthenticated ? t('nav.admin') : t('nav.adminLogin') }}
+        </RouterLink>
       </div>
     </section>
 
