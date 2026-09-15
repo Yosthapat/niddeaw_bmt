@@ -1,4 +1,4 @@
-import { request } from './client'
+import { ApiError, request } from './client'
 import type {
   Admin,
   AdminActivityLogEntry,
@@ -25,11 +25,41 @@ import type {
 
 // Mirrors backend/app/routers/admin/{auth,sessions,checkins,matchmaking,billing,expenses,other_income,players_admin,settings}.py.
 
+// Render's free tier sleeps after 15 minutes idle (see
+// .github/workflows/keep-alive.yml) and can take the better part of a
+// minute to wake, so a slow login is normal rather than broken. Without a
+// cap, though, a backend that is actually down leaves the request hanging
+// until the browser gives up minutes later, which reads as a frozen page.
+// 90s matches the budget the keep-alive workflow already allows it.
+export const LOGIN_TIMEOUT_MS = 90_000
+
 export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
-  return request('/api/admin/auth/login', {
-    method: 'POST',
-    body: JSON.stringify(credentials),
-  })
+  // AbortController rather than AbortSignal.timeout(): plenty of members
+  // reach this site through LINE's in-app webview, and the same
+  // old-browser caution that keeps the palette on hex instead of oklch()
+  // applies here — AbortSignal.timeout() throws outright where it is
+  // missing, which would break login rather than time it out.
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), LOGIN_TIMEOUT_MS)
+  try {
+    return await request<LoginResponse>('/api/admin/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+      signal: controller.signal,
+    })
+  } catch (e) {
+    // Asking the controller rather than sniffing the rejection: what an
+    // aborted fetch rejects with varies by engine (DOMException here, a
+    // plain Error there), and `aborted` is the same fact without the
+    // guesswork. Rethrown as an ApiError so the view keeps one error shape
+    // to read, the same way it already reads 401 apart from everything else.
+    if (controller.signal.aborted) {
+      throw new ApiError(408, 'login timed out')
+    }
+    throw e
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 // Sessions
