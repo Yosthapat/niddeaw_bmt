@@ -124,6 +124,15 @@ const router = createRouter({
       component: () => import('../views/admin/ActivityLogView.vue'),
       meta: { requiresAuth: true },
     },
+
+    // Last, so it only catches what nothing above matched. Without it an
+    // unknown path matched no route at all and <RouterView> rendered
+    // nothing — a blank page under the header, with no way back.
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('../views/public/NotFoundView.vue'),
+    },
   ],
 })
 
