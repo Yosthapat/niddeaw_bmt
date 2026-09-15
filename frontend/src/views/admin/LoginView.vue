@@ -18,10 +18,12 @@ import { useAuthStore } from '@/stores/auth'
 // state covers the first moment; the overlay only takes over once the
 // wait is real.
 const OVERLAY_AFTER_MS = 300
-// Past this the honest caption changes: it isn't "logging in" any more,
-// it's waiting for the server to boot, and saying so is the difference
-// between a slow page and a broken one.
-const WAKING_AFTER_MS = 8000
+// Past this the caption stops claiming to be mid-login and admits the
+// wait is longer than usual. What it must not do is explain why: the
+// admin can't act on how the backend is hosted, and telling them the
+// server was asleep only makes the club's site sound rickety. Saying
+// "still working, nothing is stuck" is the part that actually helps.
+const SLOW_AFTER_MS = 8000
 const TIMEOUT_SECONDS = Math.round(LOGIN_TIMEOUT_MS / 1000)
 
 const { t } = useI18n()
@@ -33,7 +35,7 @@ const elapsedMs = ref(0)
 const error = ref<string | null>(null)
 
 const elapsed = computed(() => Math.floor(elapsedMs.value / 1000))
-const waking = computed(() => elapsedMs.value >= WAKING_AFTER_MS)
+const slow = computed(() => elapsedMs.value >= SLOW_AFTER_MS)
 // Honest because the wait really does end at LOGIN_TIMEOUT_MS: the bar is
 // how much of that budget is spent, not a guess at how far along a request
 // of unknown length is.
@@ -200,10 +202,10 @@ async function submit(): Promise<void> {
             </div>
 
             <p class="mt-5 font-display text-base font-bold text-white">
-              {{ waking ? t('login.waking') : t('login.loggingIn') }}
+              {{ slow ? t('login.stillWorking') : t('login.loggingIn') }}
             </p>
-            <p v-if="waking" class="mt-2 text-xs leading-relaxed text-white/55">
-              {{ t('login.wakingHint') }}
+            <p v-if="slow" class="mt-2 text-xs leading-relaxed text-white/55">
+              {{ t('login.stillWorkingHint') }}
             </p>
 
             <!-- The proof that nothing is stuck. Everything else on this
