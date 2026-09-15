@@ -144,6 +144,10 @@ export default {
     noSeasonMatches: 'No matches in this season yet',
     matchesLoadError: 'Failed to load matches',
   },
+  notFound: {
+    title: "This page isn't here",
+    message: 'The link may be mistyped, or the page has moved. Try one of these instead.',
+  },
   login: {
     title: 'Admin Login',
     subtitle: 'Club organisers only',
