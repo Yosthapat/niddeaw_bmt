@@ -90,6 +90,12 @@ async function submit(): Promise<void> {
       error.value = t('login.invalidCredentials')
     } else if (e instanceof ApiError && e.status === 408) {
       error.value = t('login.timedOut', { seconds: TIMEOUT_SECONDS })
+    } else if (e instanceof ApiError && e.status === 429) {
+      // Without its own branch this would fall through to "login failed",
+      // which would read as a broken site rather than as a lockout that
+      // ends by itself — and the admin would keep retrying into it.
+      const seconds = e.retryAfterSeconds ?? 15 * 60
+      error.value = t('login.tooManyAttempts', { minutes: Math.max(1, Math.ceil(seconds / 60)) })
     } else {
       error.value = t('login.failed')
     }

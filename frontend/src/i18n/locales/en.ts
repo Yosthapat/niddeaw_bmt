@@ -161,6 +161,7 @@ export default {
       'This one is taking a little longer than usual. Nothing has frozen; it will finish on its own.',
     elapsed: '{seconds}s elapsed',
     timedOut: "Couldn't connect within {seconds} seconds. Please try again.",
+    tooManyAttempts: 'Too many failed attempts. Try again in {minutes} minutes.',
     submit: 'Log In',
   },
   session: {

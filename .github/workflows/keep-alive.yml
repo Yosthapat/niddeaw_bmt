@@ -6,13 +6,32 @@ name: Keep-alive ping
 # Render awake but does nothing for Supabase. Hitting /api/players instead
 # forces a real DB query, which resets Supabase's inactivity clock too.
 #
-# Runs daily, well inside the 7-day pause window. `curl -f` fails the job
-# (and GitHub emails the repo owner) on any non-2xx response, so this also
-# doubles as a minimal uptime check.
+# Two schedules, for two different jobs:
+#
+# 1. Daily, well inside Supabase's 7-day pause window. `curl -f` fails the
+#    job (and GitHub emails the repo owner) on any non-2xx response, so
+#    this also doubles as a minimal uptime check.
+#
+# 2. Every 10 minutes on Friday evening, which is when the club plays.
+#    Render drops the service after 15 minutes idle, so without this the
+#    first person to open the site each week — a member looking at the
+#    ranking as often as the admin logging in — waits out a cold start of
+#    the better part of a minute. Ten-minute pings keep it up throughout.
+#    Cron is UTC: Friday 12:00–17:59 UTC is 19:00 Friday to 00:59 Saturday
+#    in Thailand (UTC+7), so play from 20:00 is covered with a warm-up
+#    before it and room to run late after. All six hours fall inside
+#    Friday UTC, so the day-of-week needs no shift.
+#
+# This reduces cold starts rather than removing them: GitHub's scheduled
+# runs drift by several minutes when the service is busy and can be skipped
+# outright, and Actions disables schedules on a repo with no activity for
+# 60 days. The login screen still handles a cold start gracefully for the
+# times it slips through.
 
 on:
   schedule:
     - cron: "17 4 * * *"
+    - cron: "*/10 12-17 * * 5"
   workflow_dispatch: {}
 
 jobs:

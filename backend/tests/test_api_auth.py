@@ -227,3 +227,28 @@ def test_a_spoofed_forwarded_for_does_not_buy_a_fresh_budget(
     # A brand-new left-hand value, same real peer on the right.
     response = client.post(LOGIN, json=bad, headers={"X-Forwarded-For": "10.0.0.99, 203.0.113.9"})
     assert response.status_code == 429
+
+
+def test_retry_after_is_exposed_to_the_browser(
+    client: TestClient, supabase_rows: dict[str, list[dict[str, Any]]]
+) -> None:
+    """The frontend is cross-origin (Cloudflare Pages -> Render), and a
+    browser hides every non-safelisted response header from JS.
+    Retry-After is not safelisted, so without it named in expose_headers
+    the login screen cannot read how long a lockout lasts and can only
+    guess — which is how this was found.
+
+    Asserted on a real response rather than the preflight: Starlette puts
+    Access-Control-Expose-Headers on the actual response only.
+    """
+    supabase_rows["admins"] = [ADMIN_ROW]
+    bad = {"username": "boss", "password": "nope"}
+    origin = {"Origin": "http://localhost:5173"}
+    for _ in range(login_throttle.MAX_FAILURES):
+        client.post(LOGIN, json=bad, headers=origin)
+
+    blocked = client.post(LOGIN, json=bad, headers=origin)
+    assert blocked.status_code == 429
+    assert "Retry-After" in blocked.headers
+    exposed = blocked.headers.get("access-control-expose-headers", "")
+    assert "retry-after" in exposed.lower()

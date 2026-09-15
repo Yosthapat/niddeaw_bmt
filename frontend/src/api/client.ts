@@ -5,12 +5,25 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string
 
 export class ApiError extends Error {
   readonly status: number
+  /** Seconds the server asked us to wait, from its Retry-After header.
+   * Only ever set on a 429 — null everywhere else. */
+  readonly retryAfterSeconds: number | null
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, retryAfterSeconds: number | null = null) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.retryAfterSeconds = retryAfterSeconds
   }
+}
+
+/** Retry-After as a whole number of seconds, or null if absent or in the
+ * HTTP-date form the backend doesn't use. */
+function retryAfter(response: Response): number | null {
+  const raw = response.headers.get('Retry-After')
+  if (raw === null) return null
+  const seconds = Number(raw)
+  return Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : null
 }
 
 /**
@@ -54,7 +67,7 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
       }
     }
     const body = await response.text()
-    throw new ApiError(response.status, body || response.statusText)
+    throw new ApiError(response.status, body || response.statusText, retryAfter(response))
   }
 
   if (response.status === 204) {
