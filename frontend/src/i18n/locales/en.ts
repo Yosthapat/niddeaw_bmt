@@ -145,9 +145,18 @@ export default {
     matchesLoadError: 'Failed to load matches',
   },
   login: {
+    title: 'Admin Login',
+    subtitle: 'Club organisers only',
+    username: 'Username',
+    password: 'Password',
     invalidCredentials: 'Incorrect username or password',
     failed: 'Login failed',
     loggingIn: 'Logging in...',
+    waking: 'Waking the server up',
+    wakingHint:
+      'The server sleeps when nobody is using it — the first request of the day can take up to a minute. It has not frozen.',
+    elapsed: '{seconds}s elapsed',
+    timedOut: "The server didn't answer within {seconds} seconds. Please try again.",
     submit: 'Log In',
   },
   session: {
