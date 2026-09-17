@@ -25,6 +25,12 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # The frontend is served from Cloudflare Pages and this API from
+    # Render, so every call is cross-origin — and a browser hides all but
+    # the CORS-safelisted response headers from JS. Retry-After is not on
+    # that list, so without naming it here the login screen cannot read
+    # how long a 429 lockout lasts and can only guess.
+    expose_headers=["Retry-After"],
 )
 
 app.include_router(players.router)
