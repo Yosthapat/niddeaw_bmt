@@ -204,6 +204,8 @@ export default {
   matchmaking: {
     selectSessionFirst: 'Select or create a session first',
     inProgress: 'In Progress',
+    badgePlaying: 'Playing',
+    badgeWaiting: 'Waiting',
     recordResult: 'Record Result',
     noneInProgress: 'No matches in progress',
     nextSuggestion: 'Next Suggested Pairing',

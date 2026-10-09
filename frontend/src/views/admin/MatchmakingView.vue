@@ -405,8 +405,23 @@ const pollControls = usePolling(refreshQueue, 7000)
           <li
             v-for="m in queue.in_progress"
             :key="m.match_id"
-            class="hud-hover hud-panel border border-brand-pink/20 bg-brand-surface px-4 py-3"
+            class="hud-hover hud-panel border border-status-success/55 bg-brand-surface px-4 py-3"
           >
+            <!-- Colour is the fast signal; the words are the reliable one.
+                 Green and red are the pair colour-blind readers confuse most
+                 (roughly one man in twelve), so neither card is left leaning
+                 on hue alone. The filled, pulsing dot here against the
+                 hollow ring on a waiting card is a third cue that survives
+                 with the colour taken away entirely. -->
+            <span
+              class="mb-2 inline-flex items-center gap-1.5 rounded-full border border-status-success/40 bg-status-success/10 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-status-success uppercase"
+            >
+              <span class="relative flex h-1.5 w-1.5">
+                <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-status-success opacity-75" />
+                <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-status-success" />
+              </span>
+              {{ t('matchmaking.badgePlaying') }}
+            </span>
             <div class="flex items-center justify-between gap-3">
               <div class="flex flex-1 flex-col items-center gap-1.5">
                 <div class="flex gap-2">
@@ -477,9 +492,18 @@ const pollControls = usePolling(refreshQueue, 7000)
           <li
             v-for="m in queue.queued"
             :key="m.match_id"
-            class="hud-hover hud-panel border border-brand-pink-dark/30 bg-brand-surface px-4 py-3 opacity-80"
+            class="hud-hover hud-panel border border-status-error/55 bg-brand-surface px-4 py-3"
           >
             <div v-if="editingMatchId !== m.match_id">
+              <span
+                class="mb-2 inline-flex items-center gap-1.5 rounded-full border border-status-error/40 bg-status-error/10 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-status-error uppercase"
+              >
+                <!-- Hollow, and still: the shape alone separates it from a
+                     playing card for a reader who cannot tell the two
+                     borders apart. -->
+                <span class="h-1.5 w-1.5 rounded-full border border-status-error" />
+                {{ t('matchmaking.badgeWaiting') }}
+              </span>
               <div class="flex items-center justify-between gap-3">
                 <div class="flex flex-1 flex-col items-center gap-1.5">
                   <div class="flex gap-2">
