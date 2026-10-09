@@ -199,6 +199,8 @@ export default {
   matchmaking: {
     selectSessionFirst: 'เลือกหรือสร้าง session ก่อน',
     inProgress: 'กำลังแข่ง',
+    badgePlaying: 'กำลังแข่ง',
+    badgeWaiting: 'รอเริ่ม',
     recordResult: 'บันทึกผล',
     noneInProgress: 'ไม่มีแมตช์ที่กำลังแข่ง',
     nextSuggestion: 'แนะนำคู่ถัดไป',
