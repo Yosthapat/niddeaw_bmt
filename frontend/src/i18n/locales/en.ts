@@ -95,8 +95,7 @@ export default {
   matches: {
     matchNo: 'Match #{n}',
     minutes: 'min',
-    doubles: 'Doubles',
-    singles: 'Singles',
+    typeLabel: 'Match',
     empty: 'No match results yet',
     loadError: 'Failed to load match results',
     loadMoreError: 'Failed to load more matches',

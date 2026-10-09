@@ -58,7 +58,11 @@ function dateLabel(isoDate: string): string {
           class="hud-panel shrink-0 border border-brand-pink/30 bg-brand-black px-1.5 py-0.5 font-mono text-[11px] font-semibold text-brand-pink/80"
           :title="t('matches.matchNo', { n: match.match_no })"
         >#{{ match.match_no }}</span>
-        {{ match.type === 'double' ? t('matches.doubles') : t('matches.singles') }}
+        <!-- No doubles/singles split any more: the club only plays
+             doubles, and the admin UI can only create type="double".
+             A legacy singles row, if the database still holds one,
+             reads "แมท" like everything else. -->
+        {{ t('matches.typeLabel') }}
       </span>
       <span class="flex items-center gap-2">
         <span v-if="durationLabel(match)">{{ durationLabel(match) }} ·</span>

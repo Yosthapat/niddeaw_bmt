@@ -87,7 +87,7 @@ watch(
           #{{ detail.match.match_no }}
         </p>
         <p class="mt-1 text-xs tracking-widest text-white/40 uppercase">
-          {{ detail.match.type === 'double' ? t('matches.doubles') : t('matches.singles') }}
+          {{ t('matches.typeLabel') }}
           · {{ dateLabel }}
           <span v-if="durationLabel"> · {{ durationLabel }}</span>
         </p>
