@@ -20,6 +20,7 @@ export interface QueueEntry {
   team2_player_ids: string[]
   status: MatchStatus
   court: string | null
+  match_no: number | null
 }
 
 export interface WaitingEntry {

@@ -80,7 +80,13 @@ watch(
 
     <template v-else>
       <div v-reveal class="mt-6 text-center">
-        <p class="text-xs tracking-widest text-white/40 uppercase">
+        <p
+          v-if="typeof detail.match.match_no === 'number'"
+          class="font-mono text-sm font-semibold text-brand-pink/80"
+        >
+          #{{ detail.match.match_no }}
+        </p>
+        <p class="mt-1 text-xs tracking-widest text-white/40 uppercase">
           {{ detail.match.type === 'double' ? t('matches.doubles') : t('matches.singles') }}
           · {{ dateLabel }}
           <span v-if="durationLabel"> · {{ durationLabel }}</span>

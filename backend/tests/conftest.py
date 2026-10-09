@@ -55,9 +55,18 @@ class FakeQuery:
 
 class FakeSupabase:
     def __init__(self, tables: dict[str, list[dict[str, Any]]] | None = None) -> None:
-        self.tables = tables or {}
+        # `tables if ... is not None`, never `tables or {}`: an empty dict is
+        # falsy, so `or` would quietly swap in a fresh one and break the
+        # reference a test relies on when it loads rows after construction.
+        self.tables = tables if tables is not None else {}
+        # Which relations were actually asked for, in order. Lets a test
+        # assert that a read goes to the matches_numbered view rather than
+        # the matches table — a distinction the response body alone cannot
+        # show once the fake serves the same rows for either name.
+        self.requested: list[str] = []
 
     def table(self, name: str) -> FakeQuery:
+        self.requested.append(name)
         return FakeQuery(self.tables.get(name, []))
 
 
@@ -80,6 +89,17 @@ def client() -> Iterator[TestClient]:
 def supabase_rows() -> Iterator[dict[str, list[dict[str, Any]]]]:
     """Load rows per table, then call the API through `client`."""
     tables: dict[str, list[dict[str, Any]]] = {}
-    app.dependency_overrides[get_supabase] = lambda: FakeSupabase(tables)
+    fake = FakeSupabase(tables)
+    app.dependency_overrides[get_supabase] = lambda: fake
     yield tables
     app.dependency_overrides.pop(get_supabase, None)
+
+
+@pytest.fixture
+def supabase_spy(supabase_rows: dict[str, list[dict[str, Any]]]) -> FakeSupabase:
+    """The same fake the request will use, so a test can read back which
+    relations it touched."""
+    override = app.dependency_overrides[get_supabase]
+    fake = override()
+    assert isinstance(fake, FakeSupabase)
+    return fake

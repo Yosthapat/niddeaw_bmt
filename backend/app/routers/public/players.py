@@ -11,6 +11,12 @@ from app.models.match import Match
 from app.models.player import NemesisInfo, Player, PlayerProfile, PlayerStats
 from app.services import season_service, stats_service
 
+# Reads that show a match number go through the matches_numbered view
+# (db/migrations/0025) rather than the table: the number is a rank over the
+# club's whole history, which Postgres computes with a window function and
+# PostgREST cannot express. Writes still target "matches".
+MATCHES_VIEW = "matches_numbered"
+
 router = APIRouter(prefix="/api/players", tags=["public-players"])
 
 
@@ -116,7 +122,7 @@ def _fetch_own_matches(
     if session_ids is not None and not session_ids:
         return []
     query = (
-        supabase.table("matches")
+        supabase.table(MATCHES_VIEW)
         .select(columns)
         .eq("status", "completed")
         .or_(f"team1_player_ids.cs.{{{player_id}}},team2_player_ids.cs.{{{player_id}}}")

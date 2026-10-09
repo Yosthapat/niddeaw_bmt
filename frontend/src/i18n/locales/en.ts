@@ -93,6 +93,7 @@ export default {
     empty: "No one has played 5 games yet — play a lot and get your spot here!",
   },
   matches: {
+    matchNo: 'Match #{n}',
     minutes: 'min',
     doubles: 'Doubles',
     singles: 'Singles',

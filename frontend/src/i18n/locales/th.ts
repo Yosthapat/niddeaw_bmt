@@ -90,6 +90,7 @@ export default {
     empty: 'ยังไม่มีใครเล่นครบ 5 เกม — เล่นเยอะๆ แล้วมาอยู่ตรงนี้กัน!',
   },
   matches: {
+    matchNo: 'แมตช์ที่ {n}',
     minutes: 'นาที',
     doubles: 'คู่',
     singles: 'เดี่ยว',

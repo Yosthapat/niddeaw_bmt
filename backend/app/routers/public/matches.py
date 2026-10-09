@@ -9,6 +9,12 @@ from app.models.match import Match, MatchCount, MatchDetail, PlayerMatchStat
 from app.models.player import Player
 from app.services import stats_service
 
+# Reads that show a match number go through the matches_numbered view
+# (db/migrations/0025) rather than the table: the number is a rank over the
+# club's whole history, which Postgres computes with a window function and
+# PostgREST cannot express. Writes still target "matches".
+MATCHES_VIEW = "matches_numbered"
+
 router = APIRouter(prefix="/api/matches", tags=["public-matches"])
 
 
@@ -20,7 +26,7 @@ def list_matches(
     offset: int = Query(default=0, ge=0),
 ) -> list[Match]:
     query = (
-        supabase.table("matches")
+        supabase.table(MATCHES_VIEW)
         .select("*")
         .eq("status", "completed")
         .order("created_at", desc=True)
@@ -57,7 +63,7 @@ def count_matches(supabase: SupabaseDep) -> MatchCount:
 
 @router.get("/{match_id}/detail", response_model=MatchDetail)
 def get_match_detail(match_id: UUID, supabase: SupabaseDep) -> MatchDetail:
-    match_result = supabase.table("matches").select("*").eq("id", str(match_id)).limit(1).execute()
+    match_result = supabase.table(MATCHES_VIEW).select("*").eq("id", str(match_id)).limit(1).execute()
     match_rows = rows(match_result)
     if not match_rows:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Match not found")

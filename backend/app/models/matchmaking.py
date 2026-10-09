@@ -93,6 +93,7 @@ class QueueEntry(BaseModel):
     team2_player_ids: list[UUID]
     status: MatchStatus
     court: str | None = None
+    match_no: int | None = None
 
 
 class WaitingEntry(BaseModel):

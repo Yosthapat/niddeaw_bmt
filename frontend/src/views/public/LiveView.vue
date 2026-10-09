@@ -114,9 +114,14 @@ usePolling(refresh, 7000)
                 </span>
               </div>
 
-              <span class="hud-panel shrink-0 border border-brand-pink/20 bg-brand-black px-2.5 py-1 text-xs font-semibold text-white/50 uppercase">
-                {{ t('live.playing') }}
-              </span>
+              <div class="flex shrink-0 flex-col items-center gap-1">
+                <span class="hud-panel border border-brand-pink/20 bg-brand-black px-2.5 py-1 text-xs font-semibold text-white/50 uppercase">
+                  {{ t('live.playing') }}
+                </span>
+                <span v-if="typeof m.match_no === 'number'" class="font-mono text-xs text-white/40">
+                  #{{ m.match_no }}
+                </span>
+              </div>
 
               <div class="flex flex-1 flex-col items-center gap-1.5">
                 <div class="flex gap-2">
@@ -170,6 +175,9 @@ usePolling(refresh, 7000)
               <div class="flex shrink-0 flex-col items-center gap-1">
                 <span class="hud-panel border border-brand-pink/20 bg-brand-black px-2 py-0.5 text-xs font-semibold text-brand-pink/70 uppercase">
                   VS
+                </span>
+                <span v-if="typeof m.match_no === 'number'" class="font-mono text-xs text-white/40">
+                  #{{ m.match_no }}
                 </span>
                 <span v-if="m.court" class="text-xs text-white/40">
                   {{ t('matchmaking.courtLabel') }} {{ m.court }}
