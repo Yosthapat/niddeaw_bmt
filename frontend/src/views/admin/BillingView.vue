@@ -45,6 +45,24 @@ const unbilledAttendeeIds = computed(() => {
   return [...attendeeIds].filter((id) => !billedIds.has(id))
 })
 
+// One box filters both lists: on a busy night the person at the table says
+// their name, and the admin should not have to know whether they have been
+// billed yet to find them. The counts in the headings stay the full ones,
+// so a search never looks like people went missing.
+const search = ref('')
+const matchesSearch = (playerId: string): boolean => {
+  const query = search.value.trim().toLowerCase()
+  return !query || nameOf(playerId).toLowerCase().includes(query)
+}
+const visibleUnbilledIds = computed(() => unbilledAttendeeIds.value.filter(matchesSearch))
+const visibleBillings = computed(() => billings.value.filter((b) => matchesSearch(b.player_id)))
+const noSearchResults = computed(
+  () =>
+    search.value.trim() !== '' &&
+    visibleUnbilledIds.value.length === 0 &&
+    visibleBillings.value.length === 0,
+)
+
 async function refreshBillings(): Promise<void> {
   if (!sessionsStore.currentSessionId) {
     billings.value = []
@@ -145,6 +163,12 @@ onMounted(async () => {
     <p v-if="!sessionsStore.currentSessionId" class="mt-8 text-white/60">{{ t('billing.selectSessionFirst') }}</p>
 
     <template v-else>
+      <input
+        v-model="search"
+        type="search"
+        :placeholder="t('billing.searchPlaceholder')"
+        class="hud-panel mt-4 w-full border border-brand-pink/25 bg-brand-surface px-3 py-2 text-sm outline-none focus:border-brand-pink"
+      />
       <div v-if="sessionsStore.currentSession?.status === 'open'" class="mt-6 flex items-center justify-end">
         <button
           :disabled="closing"
@@ -155,14 +179,14 @@ onMounted(async () => {
         </button>
       </div>
 
-      <section v-if="unbilledAttendeeIds.length > 0" class="mt-6">
+      <section v-if="visibleUnbilledIds.length > 0" class="mt-6">
         <h2 class="text-sm font-semibold text-white/70">{{ t('billing.unbilled') }} ({{ unbilledAttendeeIds.length }})</h2>
         <p class="mt-1 text-xs text-white/40">
           {{ t('billing.unbilledHint') }}
         </p>
         <ul class="mt-2 space-y-2">
           <li
-            v-for="pid in unbilledAttendeeIds"
+            v-for="pid in visibleUnbilledIds"
             :key="pid"
             class="hud-hover flex items-center gap-3 hud-panel border border-brand-pink/15 bg-brand-surface px-3 py-2"
           >
@@ -179,13 +203,16 @@ onMounted(async () => {
         </ul>
       </section>
 
-      <p v-if="billings.length === 0" class="mt-6 text-sm text-white/40">
+      <p v-if="noSearchResults" class="mt-6 text-sm text-white/40">
+        {{ t('billing.noSearchResults') }}
+      </p>
+      <p v-else-if="billings.length === 0" class="mt-6 text-sm text-white/40">
         {{ t('billing.noBills') }}
       </p>
 
-      <ul v-else class="mt-6 space-y-3">
+      <ul v-else-if="visibleBillings.length > 0" class="mt-6 space-y-3">
         <li
-          v-for="b in billings"
+          v-for="b in visibleBillings"
           :key="b.id"
           class="hud-hover hud-panel border border-brand-pink/20 bg-brand-surface p-4"
         >

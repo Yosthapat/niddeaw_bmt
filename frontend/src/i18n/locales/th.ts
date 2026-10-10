@@ -250,6 +250,8 @@ export default {
     failed: 'บันทึกผลไม่สำเร็จ',
   },
   billing: {
+    searchPlaceholder: 'ค้นหาชื่อ...',
+    noSearchResults: 'ไม่พบชื่อที่ค้นหาใน session นี้',
     selectSessionFirst: 'เลือกหรือสร้าง session ก่อน',
     closing: 'กำลังปิด...',
     closeAndBill: 'ปิด Session และคิดเงิน',
