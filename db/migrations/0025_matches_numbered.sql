@@ -37,3 +37,14 @@ from matches m;
 
 revoke all on matches_numbered from anon, authenticated;
 grant select on matches_numbered to service_role;
+
+-- Already ran an earlier draft of this file, the one that was just
+-- `create view matches_numbered as select ...` with nothing after it? The
+-- view is there but outside the RLS fence. These three statements bring it
+-- up to the state above without dropping it (verified on Postgres 16:
+-- before them anon reads all 5 rows through the view, after them anon is
+-- denied and service_role still reads all 5):
+--
+--     alter view matches_numbered set (security_invoker = true);
+--     revoke all on matches_numbered from anon, authenticated;
+--     grant select on matches_numbered to service_role;
