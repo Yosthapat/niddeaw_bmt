@@ -193,7 +193,7 @@ const net = computed(() => totalRevenue.value - totalExpense.value)
           v-for="p in (['day', 'month', 'year'] as const)"
           :key="p"
           type="button"
-          class="px-3 py-1 font-semibold transition-colors"
+          class="tap px-3 font-semibold transition-colors"
           :class="period === p ? 'bg-brand-pink text-brand-black' : 'text-white/50 hover:text-white'"
           @click="setPeriod(p)"
         >

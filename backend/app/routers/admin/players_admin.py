@@ -7,11 +7,17 @@ from app.db_utils import rows
 from app.deps import AdminDep, SupabaseDep
 from app.models.player import Player, PlayerCreate, PlayerUpdate
 from app.services.elo_service import SCORE_FLOOR, STARTING_SCORE, get_tier
+from app.services.image_service import avatar_jpeg, avatar_path, storage_path_from_url
 
 router = APIRouter(prefix="/api/admin/players", tags=["admin-players"])
 
 AVATAR_BUCKET = "avatars"
 MAX_AVATAR_BYTES = 2 * 1024 * 1024  # 2MB — client resizes before upload; this is a hard backstop
+
+# A year. Safe only because the stored name is a hash of the bytes
+# (image_service.avatar_path), so a new photo is a new URL and nothing has
+# to expire for the change to show.
+AVATAR_CACHE_SECONDS = "31536000"
 
 # Tables with a real FK on players(id) — matches.team1/2_player_ids are plain
 # uuid[] columns with no FK, so a deleted player just becomes an unresolvable
@@ -108,12 +114,35 @@ async def upload_avatar(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported image type"
         )
-    storage_path = f"{player_id}.{extension}"
 
+    # Whatever arrives, what gets stored is an avatar-sized JPEG. Doing it
+    # here rather than trusting the browser means the bucket cannot fill up
+    # with full-size photos from an older build, a retried request, or
+    # anything that isn't the web app.
+    try:
+        contents = avatar_jpeg(contents)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported image type"
+        ) from None
+
+    previous = (
+        supabase.table("players").select("avatar_url").eq("id", str(player_id)).limit(1).execute()
+    )
+    previous_rows = rows(previous)
+    if not previous_rows:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Player not found")
+    previous_url = previous_rows[0].get("avatar_url")
+
+    storage_path = avatar_path(str(player_id), contents)
     supabase.storage.from_(AVATAR_BUCKET).upload(
         storage_path,
         contents,
-        {"content-type": file.content_type or "image/jpeg", "upsert": "true"},
+        {
+            "content-type": "image/jpeg",
+            "cache-control": AVATAR_CACHE_SECONDS,
+            "upsert": "true",
+        },
     )
     public_url = supabase.storage.from_(AVATAR_BUCKET).get_public_url(storage_path)
 
@@ -126,4 +155,16 @@ async def upload_avatar(
     result_rows = rows(result)
     if not result_rows:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Player not found")
+
+    # The old file is now unreferenced. Deleted last and without ceremony:
+    # the player already has their new photo, so a failure here costs a few
+    # KB of storage, not the upload.
+    if previous_url:
+        stale = storage_path_from_url(previous_url, AVATAR_BUCKET)
+        if stale and stale != storage_path:
+            try:
+                supabase.storage.from_(AVATAR_BUCKET).remove([stale])
+            except Exception:  # noqa: BLE001 - best effort, never fails the upload
+                pass
+
     return Player.model_validate(result_rows[0])

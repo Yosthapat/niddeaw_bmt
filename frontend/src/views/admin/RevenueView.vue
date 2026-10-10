@@ -84,6 +84,9 @@ const incomeForm = reactive({
   amount: '',
   note: '',
 })
+// Behind a button, like every other "add" on the admin side: this page is
+// read for its totals far more often than a sponsor payment is entered.
+const addingIncome = ref(false)
 const incomeFormFile = ref<File | null>(null)
 const incomeFormFileInput = ref<HTMLInputElement | null>(null)
 const savingIncome = ref(false)
@@ -143,6 +146,7 @@ async function submitIncome(): Promise<void> {
     }
     otherIncome.value = [created, ...otherIncome.value]
     resetIncomeForm()
+    addingIncome.value = false
   } catch (e) {
     createIncomeError.value = apiErrorMessage(e, t('income.createFailed'))
   } finally {
@@ -301,7 +305,16 @@ onMounted(async () => {
     <section class="mt-10">
       <h2 class="text-sm font-semibold text-white/70">{{ t('revenue.otherIncomeTitle') }}</h2>
 
-      <div class="hud-panel mt-3 border border-brand-pink/20 bg-brand-surface p-4">
+      <button
+        v-if="!addingIncome"
+        type="button"
+        class="hud-hover mt-3 w-full rounded-full border border-brand-pink/40 px-4 py-2.5 text-sm font-semibold text-brand-pink"
+        @click="addingIncome = true"
+      >
+        + {{ t('income.addTitle') }}
+      </button>
+
+      <div v-else class="hud-panel mt-3 border border-brand-pink/20 bg-brand-surface p-4">
         <h3 class="text-sm font-semibold text-white/70">{{ t('income.addTitle') }}</h3>
         <p v-if="createIncomeError" class="mt-2 text-sm text-status-error">{{ createIncomeError }}</p>
 
@@ -330,18 +343,26 @@ onMounted(async () => {
           </label>
           <label class="col-span-2 flex flex-col gap-1 text-xs text-white/50 sm:col-span-3">
             {{ t('income.slip') }}
-            <input ref="incomeFormFileInput" type="file" accept="image/*" class="text-xs" @change="onIncomeFormFileSelected" />
+            <span class="hud-panel cursor-pointer border border-brand-pink/30 bg-brand-black px-3 py-2 text-sm text-brand-pink">
+              {{ incomeFormFile ? incomeFormFile.name : t('common.chooseFile') }}
+              <input ref="incomeFormFileInput" type="file" accept="image/*" class="hidden" @change="onIncomeFormFileSelected" />
+            </span>
           </label>
         </div>
 
-        <button
-          type="button"
-          :disabled="savingIncome"
-          class="mt-4 rounded-full bg-brand-pink px-4 py-1.5 text-sm font-semibold text-brand-black disabled:opacity-50"
-          @click="submitIncome"
-        >
-          {{ savingIncome ? t('income.saving') : t('income.addIncome') }}
-        </button>
+        <div class="mt-4 flex items-center gap-3">
+          <button
+            type="button"
+            :disabled="savingIncome"
+            class="rounded-full bg-brand-pink px-4 py-1.5 text-sm font-semibold text-brand-black disabled:opacity-50"
+            @click="submitIncome"
+          >
+            {{ savingIncome ? t('income.saving') : t('income.addIncome') }}
+          </button>
+          <button type="button" class="text-sm text-white/50" @click="addingIncome = false">
+            {{ t('common.cancel') }}
+          </button>
+        </div>
       </div>
 
       <p v-if="incomeRowError" class="mt-4 text-sm text-status-error">{{ incomeRowError }}</p>
@@ -362,10 +383,10 @@ onMounted(async () => {
               <input v-model="editIncomeForm.note" type="text" :placeholder="t('income.note')" class="col-span-2 rounded border border-brand-pink-dark/40 bg-brand-black px-2 py-1.5 text-sm text-white sm:col-span-3" />
             </div>
             <div class="mt-3 flex gap-2">
-              <button :disabled="savingIncomeEdit" class="rounded-full bg-brand-pink px-3 py-1 text-xs font-semibold text-brand-black disabled:opacity-50" @click="saveIncomeEdit(i)">
+              <button :disabled="savingIncomeEdit" class="tap rounded-full bg-brand-pink px-3 text-xs font-semibold text-brand-black disabled:opacity-50" @click="saveIncomeEdit(i)">
                 {{ t('income.save') }}
               </button>
-              <button class="rounded-full border border-white/20 px-3 py-1 text-xs text-white/60" @click="editingIncomeId = null">
+              <button class="tap rounded-full border border-white/20 px-3 text-xs text-white/60" @click="editingIncomeId = null">
                 {{ t('income.cancel') }}
               </button>
             </div>
@@ -388,10 +409,10 @@ onMounted(async () => {
               </div>
               <span class="shrink-0 font-bold text-brand-pink">฿{{ i.amount.toFixed(2) }}</span>
             </div>
-            <div class="mt-3 flex flex-wrap items-center gap-3 text-xs">
-              <button class="text-brand-pink underline" @click="startEditIncome(i)">{{ t('income.edit') }}</button>
+            <div class="mt-3 flex items-center gap-2">
+              <button class="min-h-10 rounded-full border border-brand-pink/40 px-4 text-xs font-semibold text-brand-pink" @click="startEditIncome(i)">{{ t('income.edit') }}</button>
               <label
-                class="cursor-pointer text-brand-pink underline"
+                class="min-h-10 rounded-full border border-brand-pink/40 px-4 text-xs font-semibold text-brand-pink flex cursor-pointer items-center"
                 :class="{ 'pointer-events-none opacity-50': uploadingSlipId === i.id }"
               >
                 <template v-if="uploadingSlipId === i.id">{{ t('income.uploadingSlip') }}</template>
@@ -406,7 +427,7 @@ onMounted(async () => {
               </label>
               <button
                 :disabled="deletingIncomeId === i.id"
-                class="text-status-error underline disabled:opacity-50"
+                class="ml-auto min-h-10 rounded-full bg-status-error/20 px-4 text-xs font-semibold text-status-error disabled:opacity-50"
                 @click="removeIncome(i)"
               >
                 {{ t('common.delete') }}

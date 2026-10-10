@@ -53,6 +53,38 @@ class FakeQuery:
         return FakeResult(self._rows)
 
 
+class FakeBucket:
+    """Records what was stored and what was thrown away.
+
+    The avatar endpoint's job is now as much about *how* it stores a file
+    (resized, content-addressed, cached for a year) as that it stores one,
+    and none of that shows in the response body — so the fake keeps the
+    calls for a test to read back.
+    """
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.uploaded: list[tuple[str, bytes, dict[str, str]]] = []
+        self.removed: list[list[str]] = []
+
+    def upload(self, path: str, file: bytes, file_options: dict[str, str] | None = None) -> None:
+        self.uploaded.append((path, file, file_options or {}))
+
+    def get_public_url(self, path: str) -> str:
+        return f"https://fake.supabase.co/storage/v1/object/public/{self.name}/{path}"
+
+    def remove(self, paths: list[str]) -> None:
+        self.removed.append(paths)
+
+
+class FakeStorage:
+    def __init__(self) -> None:
+        self.buckets: dict[str, FakeBucket] = {}
+
+    def from_(self, name: str) -> FakeBucket:
+        return self.buckets.setdefault(name, FakeBucket(name))
+
+
 class FakeSupabase:
     def __init__(self, tables: dict[str, list[dict[str, Any]]] | None = None) -> None:
         # `tables if ... is not None`, never `tables or {}`: an empty dict is
@@ -64,6 +96,7 @@ class FakeSupabase:
         # the matches table — a distinction the response body alone cannot
         # show once the fake serves the same rows for either name.
         self.requested: list[str] = []
+        self.storage = FakeStorage()
 
     def table(self, name: str) -> FakeQuery:
         self.requested.append(name)

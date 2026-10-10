@@ -9,6 +9,7 @@ export default {
     points: 'Points',
     avg: 'Avg',
     scorePercent: 'Sc(%)',
+    chooseFile: 'Choose an image',
     save: 'Save',
     cancel: 'Cancel',
     edit: 'Edit',
@@ -53,6 +54,7 @@ export default {
   },
   members: {
     searchPlaceholder: 'Search members...',
+    listTitle: 'All members',
     loadError: 'Failed to load member data',
     empty: 'No members yet',
     noSearchResults: 'No members found',

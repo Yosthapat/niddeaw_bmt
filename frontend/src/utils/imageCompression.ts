@@ -6,6 +6,11 @@
 
 const MAX_DIMENSION = 1600
 const JPEG_QUALITY = 0.8
+
+// An avatar is drawn at most 240 CSS px across, so 480 covers a retina
+// phone with nothing to spare. Receipts keep the 1600 default: the point
+// of a receipt photo is reading the small print back off it.
+export const AVATAR_DIMENSION = 480
 const SKIP_BELOW_BYTES = 500 * 1024
 
 function withJpegExtension(filename: string): string {
@@ -19,10 +24,12 @@ function withJpegExtension(filename: string): string {
  * small, or the browser can't decode it (e.g. an exotic format) — the
  * backend's own extension/size checks are still the final word.
  */
-export async function compressImage(file: File): Promise<File> {
-  if (!file.type.startsWith('image/') || file.size <= SKIP_BELOW_BYTES) {
-    return file
-  }
+export async function compressImage(file: File, maxDimension = MAX_DIMENSION): Promise<File> {
+  // A small file still needs resizing when the cap is small — a 300KB
+  // 1600px photo is under the skip threshold and three times too wide for
+  // an avatar.
+  if (!file.type.startsWith('image/')) return file
+  if (file.size <= SKIP_BELOW_BYTES && maxDimension >= MAX_DIMENSION) return file
 
   let bitmap: ImageBitmap
   try {
@@ -32,7 +39,7 @@ export async function compressImage(file: File): Promise<File> {
   }
 
   try {
-    const scale = Math.min(1, MAX_DIMENSION / Math.max(bitmap.width, bitmap.height))
+    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height))
     const width = Math.round(bitmap.width * scale)
     const height = Math.round(bitmap.height * scale)
 

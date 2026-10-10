@@ -260,6 +260,19 @@ button:not(:disabled):active {
   transform: scale(0.96);
 }
 
+/* A finger's worth of button. The admin screens are driven one-handed on a
+   phone at the side of a court, and a control that is 24px tall is a miss
+   waiting to happen — the more so where the neighbouring control cancels a
+   match or deletes a member. One class rather than a size on every call
+   site, so the floor is the same everywhere and visibly so in the markup.
+   Padding still decides the width; this only refuses to go under 40px. */
+.tap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+}
+
 /* Shared hover lift + glow for clickable hud-panel cards/rows — lets pages
    opt in with one class instead of repeating the same transition/shadow
    pair on every card variant. */
