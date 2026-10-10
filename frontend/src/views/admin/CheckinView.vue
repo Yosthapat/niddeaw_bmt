@@ -158,7 +158,7 @@ usePolling(refreshCheckins, 8000)
           type="button"
           role="tab"
           :aria-selected="visibleTab === option.id"
-          class="hud-hover rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors"
+          class="tap hud-hover rounded-full border px-4 text-sm font-semibold transition-colors"
           :class="
             visibleTab === option.id
               ? 'border-brand-pink bg-brand-pink text-brand-black'
@@ -200,7 +200,7 @@ usePolling(refreshCheckins, 8000)
             </span>
             <button
               v-if="!sessionClosed"
-              class="rounded-full border border-brand-pink px-3 py-1 text-xs text-brand-pink hover:bg-brand-pink hover:text-brand-black"
+              class="tap rounded-full border border-brand-pink px-3 text-xs text-brand-pink hover:bg-brand-pink hover:text-brand-black"
               @click="doCheckout(c.id)"
             >
               {{ t('checkin.checkout') }}
@@ -223,7 +223,7 @@ usePolling(refreshCheckins, 8000)
             <PlayerAvatar :name="p.nickname" :avatar-url="p.avatar_url" size="sm" />
             <span class="flex-1">{{ p.nickname }}</span>
             <button
-              class="rounded-full bg-brand-pink px-3 py-1 text-xs font-semibold text-brand-black"
+              class="tap rounded-full bg-brand-pink px-3 text-xs font-semibold text-brand-black"
               @click="doCheckin(p.id)"
             >
               {{ t('checkin.checkin') }}
@@ -256,7 +256,7 @@ usePolling(refreshCheckins, 8000)
         <button
           v-else
           type="button"
-          class="hud-hover mt-3 rounded-full border border-brand-pink/40 px-4 py-1.5 text-sm font-semibold text-brand-pink hover:border-brand-pink"
+          class="tap hud-hover mt-3 rounded-full border border-brand-pink/40 px-4 text-sm font-semibold text-brand-pink hover:border-brand-pink"
           @click="addingPlayer = true"
         >
           {{ t('checkin.addMember') }}

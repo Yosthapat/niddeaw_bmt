@@ -506,13 +506,13 @@ const pollControls = usePolling(refreshQueue, 7000)
                     team2: m.team2_player_ids.join(','),
                   },
                 }"
-                class="rounded-full bg-brand-pink px-3 py-1 text-xs font-semibold text-brand-black"
+                class="tap rounded-full bg-brand-pink px-3 text-xs font-semibold text-brand-black"
               >
                 {{ t('matchmaking.recordResult') }}
               </RouterLink>
               <button
                 :disabled="cancelling === m.match_id"
-                class="rounded-full border border-white/20 px-3 py-1 text-xs text-white/60 hover:border-status-error hover:text-status-error disabled:opacity-50"
+                class="tap rounded-full border border-white/20 px-3 text-xs text-white/60 hover:border-status-error hover:text-status-error disabled:opacity-50"
                 @click="
                   cancelMatch(m.match_id, m.team1_player_ids.map(nameOf).join(' & '), m.team2_player_ids.map(nameOf).join(' & '))
                 "
@@ -586,20 +586,20 @@ const pollControls = usePolling(refreshQueue, 7000)
               <div class="mt-2 flex flex-wrap items-center justify-center gap-2">
                 <button
                   :disabled="startingId === m.match_id"
-                  class="rounded-full bg-brand-pink px-3 py-1 text-xs font-semibold text-brand-black disabled:opacity-50"
+                  class="tap rounded-full bg-brand-pink px-3 text-xs font-semibold text-brand-black disabled:opacity-50"
                   @click="startQueuedMatch(m.match_id)"
                 >
                   {{ startingId === m.match_id ? '...' : t('matchmaking.startMatch') }}
                 </button>
                 <button
-                  class="rounded-full border border-white/20 px-3 py-1 text-xs text-white/60 hover:border-brand-pink hover:text-brand-pink"
+                  class="tap rounded-full border border-white/20 px-3 text-xs text-white/60 hover:border-brand-pink hover:text-brand-pink"
                   @click="startEditMatch(m)"
                 >
                   {{ t('matchmaking.editPair') }}
                 </button>
                 <button
                   :disabled="cancelling === m.match_id"
-                  class="rounded-full border border-white/20 px-3 py-1 text-xs text-white/60 hover:border-status-error hover:text-status-error disabled:opacity-50"
+                  class="tap rounded-full border border-white/20 px-3 text-xs text-white/60 hover:border-status-error hover:text-status-error disabled:opacity-50"
                   @click="
                     cancelMatch(m.match_id, m.team1_player_ids.map(nameOf).join(' & '), m.team2_player_ids.map(nameOf).join(' & '))
                   "
@@ -646,7 +646,7 @@ const pollControls = usePolling(refreshQueue, 7000)
               <div class="flex gap-2">
                 <button
                   :disabled="savingMatchId === m.match_id || matchDraftHasDuplicate()"
-                  class="rounded-full bg-brand-pink px-3 py-1 text-xs font-semibold text-brand-black disabled:opacity-50"
+                  class="tap rounded-full bg-brand-pink px-3 text-xs font-semibold text-brand-black disabled:opacity-50"
                   @click="saveEditedMatch(m.match_id)"
                 >
                   {{ savingMatchId === m.match_id ? '...' : t('matchmaking.saveEdit') }}
@@ -666,7 +666,7 @@ const pollControls = usePolling(refreshQueue, 7000)
           <li v-for="m in playedMatches" :key="m.id">
             <RouterLink
               :to="`/matches/${m.id}`"
-              class="hud-hover hud-panel flex items-center gap-2 border border-brand-pink/15 bg-brand-surface px-3 py-2 text-sm hover:border-brand-pink/40"
+              class="hud-hover hud-panel flex min-h-10 items-center gap-2 border border-brand-pink/15 bg-brand-surface px-3 py-2 text-sm hover:border-brand-pink/40"
             >
               <span v-if="typeof m.match_no === 'number'" class="font-mono text-xs text-brand-pink/70">
                 #{{ m.match_no }}
@@ -698,7 +698,7 @@ const pollControls = usePolling(refreshQueue, 7000)
           </h2>
           <button
             v-if="!lockingPair"
-            class="rounded-full border border-brand-pink/40 px-3 py-1 text-xs text-brand-pink hover:bg-brand-pink hover:text-brand-black"
+            class="tap rounded-full border border-brand-pink/40 px-3 text-xs text-brand-pink hover:bg-brand-pink hover:text-brand-black"
             @click="startLockPair"
           >
             {{ t('matchmaking.lockPair') }}
@@ -722,7 +722,7 @@ const pollControls = usePolling(refreshQueue, 7000)
           <div class="mt-3 flex gap-2">
             <button
               :disabled="lockConfirming || !lockDraftIsValid()"
-              class="rounded-full bg-brand-pink px-3 py-1 text-xs font-semibold text-brand-black disabled:opacity-50"
+              class="tap rounded-full bg-brand-pink px-3 text-xs font-semibold text-brand-black disabled:opacity-50"
               @click="confirmLockPair"
             >
               {{ lockConfirming ? '...' : t('matchmaking.confirm') }}
@@ -759,7 +759,7 @@ const pollControls = usePolling(refreshQueue, 7000)
           <h2 class="text-sm font-semibold text-white/70">{{ t('matchmaking.nextSuggestion') }}</h2>
           <button
             v-if="!creatingCustom"
-            class="rounded-full border border-brand-pink/40 px-3 py-1 text-xs text-brand-pink hover:bg-brand-pink hover:text-brand-black"
+            class="tap rounded-full border border-brand-pink/40 px-3 text-xs text-brand-pink hover:bg-brand-pink hover:text-brand-black"
             @click="startCustomMatch"
           >
             {{ t('matchmaking.createCustom') }}
@@ -805,7 +805,7 @@ const pollControls = usePolling(refreshQueue, 7000)
           <div class="mt-3 flex gap-2">
             <button
               :disabled="customConfirming || !customIsComplete() || customHasDuplicate()"
-              class="rounded-full bg-brand-pink px-3 py-1 text-xs font-semibold text-brand-black disabled:opacity-50"
+              class="tap rounded-full bg-brand-pink px-3 text-xs font-semibold text-brand-black disabled:opacity-50"
               @click="confirmCustomMatch"
             >
               {{ customConfirming ? '...' : t('matchmaking.confirm') }}
@@ -850,14 +850,14 @@ const pollControls = usePolling(refreshQueue, 7000)
               </div>
               <div class="mt-2 flex items-center justify-center gap-2">
                 <button
-                  class="rounded-full border border-white/20 px-3 py-1 text-xs text-white/60 hover:border-brand-pink hover:text-brand-pink"
+                  class="tap rounded-full border border-white/20 px-3 text-xs text-white/60 hover:border-brand-pink hover:text-brand-pink"
                   @click="startEdit(s)"
                 >
                   {{ t('matchmaking.editPair') }}
                 </button>
                 <button
                   :disabled="confirming === s.group_no"
-                  class="rounded-full border border-brand-pink px-3 py-1 text-xs text-brand-pink hover:bg-brand-pink hover:text-brand-black disabled:opacity-50"
+                  class="tap rounded-full border border-brand-pink px-3 text-xs text-brand-pink hover:bg-brand-pink hover:text-brand-black disabled:opacity-50"
                   @click="confirmSuggestion(s.group_no)"
                 >
                   {{ confirming === s.group_no ? '...' : t('matchmaking.confirm') }}
@@ -901,7 +901,7 @@ const pollControls = usePolling(refreshQueue, 7000)
               <div class="flex gap-2">
                 <button
                   :disabled="confirming === s.group_no || draftHasDuplicate(s.group_no)"
-                  class="rounded-full bg-brand-pink px-3 py-1 text-xs font-semibold text-brand-black disabled:opacity-50"
+                  class="tap rounded-full bg-brand-pink px-3 text-xs font-semibold text-brand-black disabled:opacity-50"
                   @click="confirmSuggestion(s.group_no)"
                 >
                   {{ confirming === s.group_no ? '...' : t('matchmaking.confirmEdited') }}

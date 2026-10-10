@@ -113,7 +113,7 @@ async function deleteCurrent(): Promise<void> {
     <button
       v-if="allowDelete && sessionsStore.currentSession"
       :disabled="deleting"
-      class="rounded-full border border-status-error/50 px-3 py-1 text-xs text-status-error hover:bg-status-error/10 disabled:opacity-50"
+      class="tap rounded-full border border-status-error/50 px-3 text-xs text-status-error hover:bg-status-error/10 disabled:opacity-50"
       @click="deleteCurrent"
     >
       {{ deleting ? t('session.deleting') : t('session.deleteThis') }}
@@ -121,7 +121,7 @@ async function deleteCurrent(): Promise<void> {
 
     <button
       v-if="!creating"
-      class="rounded-full bg-brand-pink px-3 py-1 text-sm font-semibold text-brand-black"
+      class="tap rounded-full bg-brand-pink px-3 text-sm font-semibold text-brand-black"
       @click="creating = true"
     >
       + {{ t('session.createToday') }}
@@ -156,7 +156,7 @@ async function deleteCurrent(): Promise<void> {
         :title="t('session.shuttlecockPriceTitle')"
         class="w-24 rounded-lg border border-brand-pink/25 bg-brand-black px-2 py-1 text-sm"
       />
-      <button class="rounded-full bg-brand-pink px-3 py-1 text-sm font-semibold text-brand-black" @click="createToday">
+      <button class="tap rounded-full bg-brand-pink px-3 text-sm font-semibold text-brand-black" @click="createToday">
         {{ t('common.save') }}
       </button>
       <button class="text-sm text-white/50" @click="creating = false">{{ t('common.cancel') }}</button>

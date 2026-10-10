@@ -207,7 +207,7 @@ onMounted(async () => {
             <span class="flex-1 font-medium">{{ nameOf(pid) }}</span>
             <button
               :disabled="billingPlayerId === pid"
-              class="rounded-full border border-brand-pink px-3 py-1 text-xs text-brand-pink hover:bg-brand-pink hover:text-brand-black disabled:opacity-50"
+              class="tap rounded-full border border-brand-pink px-3 text-xs text-brand-pink hover:bg-brand-pink hover:text-brand-black disabled:opacity-50"
               @click="billOnePlayer(pid)"
             >
               {{ billingPlayerId === pid ? '...' : t('billing.billThisPlayer') }}
@@ -250,7 +250,7 @@ onMounted(async () => {
             <span class="text-xs text-white/40">{{ b.game_count }} {{ t('common.game') }}</span>
             <span class="font-bold text-brand-pink">฿{{ effectiveAmount(b).toFixed(2) }}</span>
             <button
-              class="rounded-full px-3 py-1 text-xs font-semibold"
+              class="tap rounded-full px-3 text-xs font-semibold"
               :class="b.paid_status === 'paid' ? 'bg-status-success/20 text-status-success' : 'bg-white/10 text-white/60'"
               @click="togglePaid(b)"
             >
@@ -266,8 +266,8 @@ onMounted(async () => {
               :placeholder="b.amount_adjusted?.toString() ?? t('billing.adjustAmount')"
               class="w-24 rounded border border-brand-pink-dark/40 bg-brand-black px-2 py-0.5"
             />
-            <button class="text-brand-pink underline" @click="saveAdjust(b)">{{ t('billing.saveAdjustment') }}</button>
-            <button class="text-brand-pink underline" @click="showQr(b)">
+            <button class="tap px-1 text-brand-pink underline" @click="saveAdjust(b)">{{ t('billing.saveAdjustment') }}</button>
+            <button class="tap px-1 text-brand-pink underline" @click="showQr(b)">
               {{ paymentInfoByBillingId[b.id] ? t('billing.hideQr') : t('billing.showQr') }}
             </button>
           </div>

@@ -92,6 +92,10 @@ const form = reactive({
   paid_by: '',
   note: '',
 })
+// The form used to sit open in the middle of the screen, about 700px of
+// fields between the month's total and the expenses themselves, on a page
+// that is read far more often than it is written to.
+const adding = ref(false)
 const formFile = ref<File | null>(null)
 const formFileInput = ref<HTMLInputElement | null>(null)
 const saving = ref(false)
@@ -154,6 +158,7 @@ async function submitExpense(): Promise<void> {
         : expenses.value
     await loadSummaryAndPayers()
     resetForm()
+    adding.value = false
   } catch (e) {
     createError.value = apiErrorMessage(e, t('expenses.createFailed'))
   } finally {
@@ -274,9 +279,9 @@ async function saveEdit(expense: Expense): Promise<void> {
     <!-- This month summary -->
     <section class="hud-panel mt-4 border border-brand-pink/20 bg-brand-surface p-4">
       <div class="flex items-center justify-between gap-2">
-        <button type="button" class="px-2 text-white/50 hover:text-white" @click="shiftMonth(-1)">←</button>
+        <button type="button" class="tap px-3 text-white/50 hover:text-white" @click="shiftMonth(-1)">←</button>
         <input v-model="selectedMonth" type="month" class="rounded border border-brand-pink-dark/40 bg-brand-black px-2 py-1 text-sm" />
-        <button type="button" class="px-2 text-white/50 hover:text-white" @click="shiftMonth(1)">→</button>
+        <button type="button" class="tap px-3 text-white/50 hover:text-white" @click="shiftMonth(1)">→</button>
       </div>
 
       <div class="mt-3 flex items-center justify-between">
@@ -297,7 +302,16 @@ async function saveEdit(expense: Expense): Promise<void> {
     </section>
 
     <!-- Add expense -->
-    <section class="hud-panel mt-6 border border-brand-pink/20 bg-brand-surface p-4">
+    <button
+      v-if="!adding"
+      type="button"
+      class="hud-hover mt-6 w-full rounded-full border border-brand-pink/40 px-4 py-2.5 text-sm font-semibold text-brand-pink"
+      @click="adding = true"
+    >
+      + {{ t('expenses.addTitle') }}
+    </button>
+
+    <section v-else class="hud-panel mt-6 border border-brand-pink/20 bg-brand-surface p-4">
       <h2 class="text-sm font-semibold text-white/70">{{ t('expenses.addTitle') }}</h2>
       <p v-if="createError" class="mt-2 text-sm text-status-error">{{ createError }}</p>
 
@@ -339,18 +353,26 @@ async function saveEdit(expense: Expense): Promise<void> {
 
         <label class="col-span-2 flex flex-col gap-1 text-xs text-white/50 sm:col-span-3">
           {{ t('expenses.receipt') }}
-          <input ref="formFileInput" type="file" accept="image/*" class="text-xs" @change="onFormFileSelected" />
+          <span class="hud-panel cursor-pointer border border-brand-pink/30 bg-brand-black px-3 py-2 text-sm text-brand-pink">
+            {{ formFile ? formFile.name : t('common.chooseFile') }}
+            <input ref="formFileInput" type="file" accept="image/*" class="hidden" @change="onFormFileSelected" />
+          </span>
         </label>
       </div>
 
-      <button
-        type="button"
-        :disabled="saving || !form.paid_by"
-        class="mt-4 rounded-full bg-brand-pink px-4 py-1.5 text-sm font-semibold text-brand-black disabled:opacity-50"
-        @click="submitExpense"
-      >
-        {{ saving ? t('expenses.saving') : t('expenses.addExpense') }}
-      </button>
+      <div class="mt-4 flex items-center gap-3">
+        <button
+          type="button"
+          :disabled="saving || !form.paid_by"
+          class="rounded-full bg-brand-pink px-4 py-1.5 text-sm font-semibold text-brand-black disabled:opacity-50"
+          @click="submitExpense"
+        >
+          {{ saving ? t('expenses.saving') : t('expenses.addExpense') }}
+        </button>
+        <button type="button" class="text-sm text-white/50" @click="adding = false">
+          {{ t('common.cancel') }}
+        </button>
+      </div>
     </section>
 
     <!-- List -->
@@ -381,10 +403,10 @@ async function saveEdit(expense: Expense): Promise<void> {
             <input v-model="editForm.note" type="text" :placeholder="t('expenses.note')" class="col-span-2 rounded border border-brand-pink-dark/40 bg-brand-black px-2 py-1.5 text-sm text-white" />
           </div>
           <div class="mt-3 flex gap-2">
-            <button :disabled="savingEdit" class="rounded-full bg-brand-pink px-3 py-1 text-xs font-semibold text-brand-black disabled:opacity-50" @click="saveEdit(e)">
+            <button :disabled="savingEdit" class="tap rounded-full bg-brand-pink px-3 text-xs font-semibold text-brand-black disabled:opacity-50" @click="saveEdit(e)">
               {{ t('expenses.save') }}
             </button>
-            <button class="rounded-full border border-white/20 px-3 py-1 text-xs text-white/60" @click="editingId = null">
+            <button class="tap rounded-full border border-white/20 px-3 text-xs text-white/60" @click="editingId = null">
               {{ t('expenses.cancel') }}
             </button>
           </div>
@@ -415,7 +437,7 @@ async function saveEdit(expense: Expense): Promise<void> {
                 v-else
                 type="button"
                 :disabled="markingPaidId === e.id"
-                class="rounded-full border border-brand-pink/40 px-2 py-0.5 text-[10px] font-semibold text-brand-pink disabled:opacity-50"
+                class="tap rounded-full border border-brand-pink/40 px-3 text-[10px] font-semibold text-brand-pink disabled:opacity-50"
                 @click="markPaid(e)"
               >
                 {{ markingPaidId === e.id ? t('expenses.markingPaid') : t('expenses.markPaid') }}
@@ -423,15 +445,15 @@ async function saveEdit(expense: Expense): Promise<void> {
             </div>
           </div>
 
-          <div class="mt-3 flex flex-wrap items-center gap-3 text-xs">
-            <button class="text-brand-pink underline" @click="startEdit(e)">{{ t('expenses.edit') }}</button>
-            <label class="cursor-pointer text-brand-pink underline">
+          <div class="mt-3 flex items-center gap-2">
+            <button class="min-h-10 rounded-full border border-brand-pink/40 px-4 text-xs font-semibold text-brand-pink" @click="startEdit(e)">{{ t('expenses.edit') }}</button>
+            <label class="min-h-10 rounded-full border border-brand-pink/40 px-4 text-xs font-semibold text-brand-pink flex cursor-pointer items-center">
               {{ e.receipt_url ? t('expenses.replaceReceipt') : t('expenses.addReceipt') }}
               <input type="file" accept="image/*" class="hidden" @change="onRowReceiptSelected($event, e)" />
             </label>
             <button
               :disabled="deletingId === e.id"
-              class="text-status-error underline disabled:opacity-50"
+              class="ml-auto min-h-10 rounded-full bg-status-error/20 px-4 text-xs font-semibold text-status-error disabled:opacity-50"
               @click="removeExpense(e)"
             >
               {{ t('common.delete') }}
@@ -448,7 +470,7 @@ async function saveEdit(expense: Expense): Promise<void> {
         <li v-for="s in summary" :key="s.month">
           <button
             type="button"
-            class="hud-panel flex w-full items-center justify-between border px-3 py-2 text-sm"
+            class="hud-panel flex min-h-10 w-full items-center justify-between border px-3 py-2 text-sm"
             :class="s.month === selectedMonth ? 'border-brand-pink/60 bg-brand-surface-raised' : 'border-brand-pink/10 bg-brand-surface text-white/60'"
             @click="selectedMonth = s.month"
           >

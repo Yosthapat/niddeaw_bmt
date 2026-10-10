@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
@@ -18,6 +18,17 @@ const { confirm } = useConfirmDialog()
 const players = ref<Player[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
+
+// Sixteen members and growing, every one a row with three buttons: finding
+// one by scrolling is the slowest thing on this screen. The count in the
+// heading stays the club's, so a search narrows the list without ever
+// changing what the screen claims the club has.
+const search = ref('')
+const visiblePlayers = computed(() => {
+  const query = search.value.trim().toLowerCase()
+  if (!query) return players.value
+  return players.value.filter((p) => p.nickname.toLowerCase().includes(query))
+})
 
 // Representative starting score per tier — matches the boundaries in
 // backend/app/services/elo_service.py's get_tier() thresholds.
@@ -225,7 +236,7 @@ onMounted(loadPlayers)
       <h1 class="text-2xl font-bold text-brand-pink">{{ t('admin.nav.members') }}</h1>
       <button
         v-if="!creating"
-        class="rounded-full bg-brand-pink px-3 py-1.5 text-sm font-semibold text-brand-black"
+        class="tap rounded-full bg-brand-pink px-3 text-sm font-semibold text-brand-black"
         @click="creating = true"
       >
         + {{ t('members.addNew') }}
@@ -280,45 +291,66 @@ onMounted(loadPlayers)
       </div>
     </form>
 
+    <input
+      v-model="search"
+      type="search"
+      :placeholder="t('members.searchPlaceholder')"
+      class="hud-panel mt-4 w-full border border-brand-pink/25 bg-brand-surface px-3 py-2 text-sm outline-none focus:border-brand-pink"
+    />
+
     <p v-if="rowError" class="mt-4 text-sm text-status-error">{{ rowError }}</p>
     <p v-if="rowNotice" class="mt-4 text-sm text-status-success">{{ rowNotice }}</p>
     <p v-if="loading" class="mt-6 text-white/60">{{ t('common.loading') }}</p>
     <p v-else-if="error" class="mt-6 text-status-error">{{ error }}</p>
     <p v-else-if="players.length === 0" class="mt-6 text-white/60">{{ t('members.empty') }}</p>
 
-    <ul v-else class="mt-6 space-y-3">
+    <template v-else>
+    <h2 class="mt-6 text-sm font-semibold text-white/70">
+      {{ t('members.listTitle') }} ({{ players.length }})
+    </h2>
+    <p v-if="visiblePlayers.length === 0" class="mt-2 text-sm text-white/40">
+      {{ t('members.noSearchResults') }}
+    </p>
+    <ul class="mt-2 space-y-3">
       <li
-        v-for="p in players"
+        v-for="p in visiblePlayers"
         :key="p.id"
         class="hud-hover hud-panel border border-brand-pink/20 bg-brand-surface p-4"
         :class="{ 'opacity-50': !p.is_active }"
       >
-        <div v-if="editingId !== p.id" class="flex items-center gap-3">
-          <label class="relative cursor-pointer">
-            <PlayerAvatar :name="p.nickname" :avatar-url="p.avatar_url" size="md" />
-            <input type="file" accept="image/*" class="hidden" @change="onAvatarSelected($event, p)" />
-            <span v-if="uploadingAvatarId === p.id" class="absolute inset-0 flex items-center justify-center rounded-full bg-black/60 text-[10px]">...</span>
-          </label>
-          <div class="flex-1">
-            <p class="font-medium">{{ p.nickname }}</p>
+        <div v-if="editingId !== p.id">
+          <div class="flex items-center gap-3">
+            <label class="relative cursor-pointer">
+              <PlayerAvatar :name="p.nickname" :avatar-url="p.avatar_url" size="md" />
+              <input type="file" accept="image/*" class="hidden" @change="onAvatarSelected($event, p)" />
+              <span v-if="uploadingAvatarId === p.id" class="absolute inset-0 flex items-center justify-center rounded-full bg-black/60 text-[10px]">...</span>
+            </label>
+            <p class="min-w-0 flex-1 truncate font-medium">{{ p.nickname }}</p>
+            <TierMascot :tier="p.elo_level" :size="28" :interactive="false" />
+            <EloBadge :elo-score="p.elo_score" show-score />
           </div>
-          <TierMascot :tier="p.elo_level" :size="28" :interactive="false" />
-          <EloBadge :elo-score="p.elo_score" show-score />
-          <button class="text-xs text-brand-pink underline" @click="startEdit(p)">{{ t('common.edit') }}</button>
-          <button
-            class="rounded-full px-3 py-1 text-xs font-semibold"
-            :class="p.is_active ? 'bg-white/10 text-white/60' : 'bg-status-success/20 text-status-success'"
-            @click="toggleActive(p)"
-          >
-            {{ p.is_active ? t('members.deactivate') : t('members.activate') }}
-          </button>
-          <button
-            :disabled="deletingId === p.id"
-            class="rounded-full bg-status-error/20 px-3 py-1 text-xs font-semibold text-status-error disabled:opacity-50"
-            @click="removePlayer(p)"
-          >
-            {{ deletingId === p.id ? t('common.saving') : t('members.delete') }}
-          </button>
+          <div class="mt-2 flex items-center gap-2">
+            <button
+              class="min-h-10 flex-1 rounded-full border border-brand-pink/40 px-3 text-xs font-semibold text-brand-pink"
+              @click="startEdit(p)"
+            >
+              {{ t('common.edit') }}
+            </button>
+            <button
+              class="min-h-10 flex-1 rounded-full px-3 text-xs font-semibold"
+              :class="p.is_active ? 'bg-white/10 text-white/60' : 'bg-status-success/20 text-status-success'"
+              @click="toggleActive(p)"
+            >
+              {{ p.is_active ? t('members.deactivate') : t('members.activate') }}
+            </button>
+            <button
+              :disabled="deletingId === p.id"
+              class="ml-auto min-h-10 rounded-full bg-status-error/20 px-4 text-xs font-semibold text-status-error disabled:opacity-50"
+              @click="removePlayer(p)"
+            >
+              {{ deletingId === p.id ? t('common.saving') : t('members.delete') }}
+            </button>
+          </div>
         </div>
 
         <form v-else class="grid gap-2 sm:grid-cols-2" @submit.prevent="saveEdit(p)">
@@ -352,5 +384,6 @@ onMounted(loadPlayers)
         </form>
       </li>
     </ul>
+    </template>
   </main>
 </template>

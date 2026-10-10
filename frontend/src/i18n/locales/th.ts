@@ -9,6 +9,7 @@ export default {
     points: 'คะแนน',
     avg: 'เฉลี่ย',
     scorePercent: 'Sc(%)',
+    chooseFile: 'เลือกไฟล์รูป',
     save: 'บันทึก',
     cancel: 'ยกเลิก',
     edit: 'แก้ไข',
@@ -52,6 +53,7 @@ export default {
   },
   members: {
     searchPlaceholder: 'ค้นหาสมาชิก...',
+    listTitle: 'รายชื่อสมาชิก',
     loadError: 'โหลดข้อมูลสมาชิกไม่สำเร็จ',
     empty: 'ยังไม่มีสมาชิก',
     noSearchResults: 'ไม่พบสมาชิกที่ค้นหา',
