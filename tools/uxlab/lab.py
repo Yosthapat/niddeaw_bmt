@@ -121,12 +121,12 @@ def seed() -> MiniSupabase:
         {"id": str(uuid.uuid4()), "expense_date": datetime.now().date().isoformat(),
          "category": "shuttlecock", "custom_category": None, "amount": 580.0,
          "paid_by": pid[0], "note": "ลูกแบด 1 โหล", "receipt_url": None,
-         "is_paid": False, "paid_at": None, "created_at": _iso(50)}
+         "is_paid": False, "paid_at": None, "created_by": ADMIN_ID, "created_at": _iso(50)}
     ]
     db.tables["other_income"] = [
         {"id": str(uuid.uuid4()), "income_date": datetime.now().date().isoformat(),
          "source": "sponsor", "source_name": "ร้านลูกแบดนิดเดียว", "amount": 1000.0,
-         "note": None, "slip_url": None, "created_at": _iso(40)}
+         "note": None, "slip_url": None, "created_by": ADMIN_ID, "created_at": _iso(40)}
     ]
     for table in ("locked_pairs", "pairing_history", "admin_activity_log"):
         db.tables.setdefault(table, [])

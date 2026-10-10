@@ -38,8 +38,19 @@ const sessionClosed = computed(() => sessionsStore.currentSession?.status === 'c
 type CheckinTab = 'pending' | 'in'
 const tab = ref<CheckinTab>('pending')
 const visibleTab = computed<CheckinTab>(() => (sessionClosed.value ? 'in' : tab.value))
-const activeCheckins = computed(() => checkins.value.filter((c) => c.checkout_time === null))
-const activePlayerIds = computed(() => new Set(activeCheckins.value.map((c) => c.player_id)))
+const matchesSearch = (playerId: string): boolean => {
+  const query = search.value.trim().toLowerCase()
+  if (!query) return true
+  return (playersStore.byId(playerId)?.nickname ?? '').toLowerCase().includes(query)
+}
+const activeCheckins = computed(() =>
+  checkins.value.filter((c) => c.checkout_time === null && matchesSearch(c.player_id)),
+)
+// The tab counts and "who is still out" are about the session, so they
+// read the unfiltered list — a search narrows what is listed, never what
+// the headings claim is there.
+const allActiveCheckins = computed(() => checkins.value.filter((c) => c.checkout_time === null))
+const activePlayerIds = computed(() => new Set(allActiveCheckins.value.map((c) => c.player_id)))
 const availablePlayers = computed(() =>
   playersStore.players.filter((p) => p.is_active && !activePlayerIds.value.has(p.id)),
 )
@@ -125,33 +136,23 @@ usePolling(refreshCheckins, 8000)
       <p class="mt-1 text-xs text-white/60">{{ t('checkin.sessionClosedHint') }}</p>
     </div>
 
-    <section class="mt-6">
-      <div class="flex items-center justify-between">
-        <h2 class="text-sm font-semibold text-white/70">{{ t('checkin.allMembers') }}</h2>
-      </div>
-      <div v-if="addingPlayer && !sessionClosed" class="mt-2 flex gap-2">
-        <input
-          v-model="newPlayerName"
-          :placeholder="t('checkin.newMemberName')"
-          class="flex-1 rounded-lg border border-brand-pink/25 bg-brand-black px-2 py-1 text-sm"
-        />
-        <button class="rounded-full bg-brand-pink px-3 py-1 text-sm font-semibold text-brand-black" @click="quickAddPlayer">
-          {{ t('common.save') }}
-        </button>
-        <button class="text-sm text-white/50" @click="addingPlayer = false">{{ t('common.cancel') }}</button>
-      </div>
-    </section>
-
     <p v-if="!sessionsStore.currentSessionId" class="mt-8 text-white/60">
       {{ t('checkin.selectSessionFirst') }}
     </p>
 
     <template v-else>
-      <div v-if="!sessionClosed" class="mt-8 flex gap-2" role="tablist">
+      <input
+        v-model="search"
+        type="search"
+        :placeholder="t('checkin.searchPlaceholder')"
+        class="hud-panel mt-4 w-full border border-brand-pink/25 bg-brand-surface px-3 py-2 text-sm outline-none focus:border-brand-pink"
+      />
+
+      <div v-if="!sessionClosed" class="mt-4 flex gap-2" role="tablist">
         <button
           v-for="option in [
             { id: 'pending' as CheckinTab, label: t('checkin.notCheckedIn'), count: availablePlayers.length },
-            { id: 'in' as CheckinTab, label: t('checkin.checkingIn'), count: activeCheckins.length },
+            { id: 'in' as CheckinTab, label: t('checkin.checkingIn'), count: allActiveCheckins.length },
           ]"
           :key="option.id"
           type="button"
@@ -205,20 +206,14 @@ usePolling(refreshCheckins, 8000)
               {{ t('checkin.checkout') }}
             </button>
           </li>
-          <li v-if="activeCheckins.length === 0" class="text-sm text-white/40">{{ t('checkin.noneCheckedIn') }}</li>
+          <li v-if="activeCheckins.length === 0" class="text-sm text-white/40">
+            {{ search.trim() ? t('checkin.noSearchResults') : t('checkin.noneCheckedIn') }}
+          </li>
         </ul>
       </section>
 
       <section v-show="visibleTab === 'pending' && !sessionClosed" class="mt-6">
-        <div class="flex items-center justify-between gap-4">
-          <h2 class="sr-only">{{ t('checkin.notCheckedIn') }}</h2>
-          <input
-            v-model="search"
-            type="search"
-            :placeholder="t('checkin.searchPlaceholder')"
-            class="hud-panel w-full max-w-[14rem] border border-brand-pink/25 bg-brand-surface px-3 py-1.5 text-sm outline-none focus:border-brand-pink"
-          />
-        </div>
+        <h2 class="sr-only">{{ t('checkin.notCheckedIn') }}</h2>
         <ul class="mt-2 grid gap-2 sm:grid-cols-2">
           <li
             v-for="p in filteredAvailablePlayers"
@@ -235,12 +230,37 @@ usePolling(refreshCheckins, 8000)
             </button>
           </li>
           <li
-            v-if="filteredAvailablePlayers.length === 0 && search.trim()"
+            v-if="filteredAvailablePlayers.length === 0"
             class="text-sm text-white/40 sm:col-span-2"
           >
-            {{ t('checkin.noSearchResults') }}
+            {{ search.trim() ? t('checkin.noSearchResults') : t('checkin.everyoneCheckedIn') }}
           </li>
         </ul>
+
+        <div v-if="addingPlayer" class="mt-3 flex gap-2">
+          <input
+            v-model="newPlayerName"
+            :placeholder="t('checkin.newMemberName')"
+            class="flex-1 rounded-lg border border-brand-pink/25 bg-brand-black px-2 py-1 text-sm"
+          />
+          <button
+            class="rounded-full bg-brand-pink px-3 py-1 text-sm font-semibold text-brand-black"
+            @click="quickAddPlayer"
+          >
+            {{ t('common.save') }}
+          </button>
+          <button class="text-sm text-white/50" @click="addingPlayer = false">
+            {{ t('common.cancel') }}
+          </button>
+        </div>
+        <button
+          v-else
+          type="button"
+          class="hud-hover mt-3 rounded-full border border-brand-pink/40 px-4 py-1.5 text-sm font-semibold text-brand-pink hover:border-brand-pink"
+          @click="addingPlayer = true"
+        >
+          {{ t('checkin.addMember') }}
+        </button>
       </section>
     </template>
   </main>

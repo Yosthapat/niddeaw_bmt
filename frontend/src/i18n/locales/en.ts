@@ -189,7 +189,8 @@ export default {
   checkin: {
     sessionClosed: 'This session is closed (already billed) — no more check-ins',
     sessionClosedHint: 'To start tonight\'s session, press "+ Create today\'s session" above',
-    allMembers: 'All Members',
+    addMember: '+ New member',
+    everyoneCheckedIn: 'Everyone is checked in',
     newMemberName: 'New member name',
     selectSessionFirst: 'Select or create a session before checking in',
     checkingIn: 'Checked In',
@@ -204,6 +205,8 @@ export default {
     noSearchResults: 'No members found',
   },
   matchmaking: {
+    playedToday: 'Finished tonight',
+    fixResult: 'Fix ›',
     everyoneInAMatch: 'Only {n} free right now — the next pairing waits for a match to finish',
     selectSessionFirst: 'Select or create a session first',
     inProgress: 'In Progress',
@@ -317,13 +320,10 @@ export default {
     currentQr: 'Current QR',
   },
   dashboard: {
+    title: 'Admin Dashboard',
     totalMembers: 'Total Members',
     openSessions: 'Open Sessions',
     totalSessions: 'Total Sessions',
-    checkinDesc: 'Manage player check-in / checkout on court',
-    matchmakingDesc: 'Match by ELO and record results',
-    billingDesc: 'Close session, generate PromptPay QR',
-    settingsDesc: 'PromptPay ID, default rates',
     revenueExpenseChart: 'Revenue vs. expenses',
     period: {
       day: 'Daily',
