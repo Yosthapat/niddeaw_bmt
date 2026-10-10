@@ -15,6 +15,7 @@ dependencies = [
     "bcrypt>=4.1",
     "qrcode[pil]>=8.0",
     "python-multipart>=0.0.12",
+    "pillow>=11.0",
 ]
 requires-python = "==3.13.*"
 readme = "README.md"
