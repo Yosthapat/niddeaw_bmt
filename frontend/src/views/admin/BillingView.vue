@@ -56,6 +56,19 @@ const matchesSearch = (playerId: string): boolean => {
 }
 const visibleUnbilledIds = computed(() => unbilledAttendeeIds.value.filter(matchesSearch))
 const visibleBillings = computed(() => billings.value.filter((b) => matchesSearch(b.player_id)))
+// The one number the person collecting money wants, on the screen where
+// they are collecting it — it lived on the revenue page, a navigation away
+// from the table they are standing at.
+const totals = computed(() => {
+  const paid = billings.value
+    .filter((b) => b.paid_status === 'paid')
+    .reduce((sum, b) => sum + effectiveAmount(b), 0)
+  const due = billings.value
+    .filter((b) => b.paid_status !== 'paid')
+    .reduce((sum, b) => sum + effectiveAmount(b), 0)
+  return { paid, due, total: paid + due }
+})
+
 const noSearchResults = computed(
   () =>
     search.value.trim() !== '' &&
@@ -169,10 +182,10 @@ onMounted(async () => {
         :placeholder="t('billing.searchPlaceholder')"
         class="hud-panel mt-4 w-full border border-brand-pink/25 bg-brand-surface px-3 py-2 text-sm outline-none focus:border-brand-pink"
       />
-      <div v-if="sessionsStore.currentSession?.status === 'open'" class="mt-6 flex items-center justify-end">
+      <div v-if="sessionsStore.currentSession?.status === 'open'" class="mt-6">
         <button
           :disabled="closing"
-          class="rounded-full bg-brand-pink px-4 py-1.5 text-sm font-semibold text-brand-black disabled:opacity-50"
+          class="w-full rounded-full bg-brand-pink px-4 py-2.5 text-sm font-semibold text-brand-black disabled:opacity-50"
           @click="closeAndBill"
         >
           {{ closing ? t('billing.closing') : t('billing.closeAndBill') }}
@@ -203,6 +216,21 @@ onMounted(async () => {
         </ul>
       </section>
 
+      <section v-if="billings.length > 0" class="mt-8">
+        <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <h2 class="text-sm font-semibold text-white/70">
+            {{ t('billing.billed') }} ({{ billings.length }})
+          </h2>
+          <p class="text-sm">
+            <span class="text-white/40">{{ t('billing.collected') }}</span>
+            <span class="ml-1 font-semibold text-status-success">฿{{ totals.paid.toFixed(2) }}</span>
+            <span class="mx-1.5 text-white/20">·</span>
+            <span class="text-white/40">{{ t('billing.outstanding') }}</span>
+            <span class="ml-1 font-semibold text-brand-pink">฿{{ totals.due.toFixed(2) }}</span>
+          </p>
+        </div>
+      </section>
+
       <p v-if="noSearchResults" class="mt-6 text-sm text-white/40">
         {{ t('billing.noSearchResults') }}
       </p>
@@ -210,7 +238,7 @@ onMounted(async () => {
         {{ t('billing.noBills') }}
       </p>
 
-      <ul v-else-if="visibleBillings.length > 0" class="mt-6 space-y-3">
+      <ul v-else-if="visibleBillings.length > 0" class="mt-3 space-y-3">
         <li
           v-for="b in visibleBillings"
           :key="b.id"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSessionsStore } from '@/stores/sessions'
 import { usePlayersStore } from '@/stores/players'
@@ -383,6 +383,18 @@ onMounted(() => {
   // the watcher above covers the case where refresh() picks a new session.
   sessionsStore.refresh()
   playersStore.ensureLoaded()
+})
+
+// Why there is nothing to suggest. "Wait for four to check in" was shown
+// whenever the list came back empty, including the usual case on a busy
+// night: everyone is already on a court. An admin who believes it goes
+// looking for players who are standing right there.
+const noSuggestionsReason = computed(() => {
+  if (!queue.value) return t('matchmaking.waitingForPlayers')
+  const free = queue.value.waiting.length
+  const playing = queue.value.in_progress.length + queue.value.queued.length
+  if (free < 4 && playing > 0) return t('matchmaking.everyoneInAMatch', { n: free })
+  return t('matchmaking.waitingForPlayers')
 })
 
 const pollControls = usePolling(refreshQueue, 7000)
@@ -850,7 +862,7 @@ const pollControls = usePolling(refreshQueue, 7000)
             </div>
           </li>
           <li v-if="queue.suggestions.length === 0" class="text-sm text-white/40">
-            {{ t('matchmaking.waitingForPlayers') }}
+            {{ noSuggestionsReason }}
           </li>
         </ul>
       </section>

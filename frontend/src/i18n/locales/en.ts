@@ -204,6 +204,7 @@ export default {
     noSearchResults: 'No members found',
   },
   matchmaking: {
+    everyoneInAMatch: 'Only {n} free right now — the next pairing waits for a match to finish',
     selectSessionFirst: 'Select or create a session first',
     inProgress: 'In Progress',
     badgePlaying: 'Playing',
@@ -254,6 +255,9 @@ export default {
     failed: 'Failed to submit result',
   },
   billing: {
+    billed: 'Billed',
+    collected: 'Collected',
+    outstanding: 'Outstanding',
     searchPlaceholder: 'Search name...',
     noSearchResults: 'Nobody in this session matches that name',
     selectSessionFirst: 'Select or create a session first',

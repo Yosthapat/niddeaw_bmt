@@ -200,6 +200,7 @@ export default {
     noSearchResults: 'ไม่พบสมาชิกที่ค้นหา',
   },
   matchmaking: {
+    everyoneInAMatch: 'คนว่างเหลือ {n} คน — รอแมตช์ที่กำลังแข่งจบก่อน ถึงจะจัดคู่ถัดไปได้',
     selectSessionFirst: 'เลือกหรือสร้าง session ก่อน',
     inProgress: 'กำลังแข่ง',
     badgePlaying: 'กำลังแข่ง',
@@ -250,6 +251,9 @@ export default {
     failed: 'บันทึกผลไม่สำเร็จ',
   },
   billing: {
+    billed: 'บิลแล้ว',
+    collected: 'เก็บแล้ว',
+    outstanding: 'ค้าง',
     searchPlaceholder: 'ค้นหาชื่อ...',
     noSearchResults: 'ไม่พบชื่อที่ค้นหาใน session นี้',
     selectSessionFirst: 'เลือกหรือสร้าง session ก่อน',
