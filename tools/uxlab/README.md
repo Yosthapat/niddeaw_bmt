@@ -27,8 +27,9 @@ python tools/uxlab/shoot.py --width 1280 --height 900 --out /tmp/ux-desktop
 `lab.py` needs the backend's own environment (`backend/.venv`); `shoot.py`
 needs `playwright` and a Chromium (`UXLAB_CHROMIUM` to point at one).
 
-`GET /__uxlab/state` returns every table, so a check can assert on what was
-stored rather than only on what was drawn.
+`GET /__uxlab/state` returns every table (under `tables`, and at the top
+level too) plus `storage_files`, each stored object's size — so a check can
+assert on what was stored rather than only on what was drawn.
 
 ## Rebuilding for production afterwards
 

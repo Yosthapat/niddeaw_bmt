@@ -66,6 +66,13 @@ class FakeBucket:
         self.name = name
         self.uploaded: list[tuple[str, bytes, dict[str, str]]] = []
         self.removed: list[list[str]] = []
+        # What the bucket already holds, for the maintenance pass to read.
+        self.objects: dict[str, bytes] = {}
+
+    def download(self, path: str) -> bytes:
+        if path not in self.objects:
+            raise FileNotFoundError(path)
+        return self.objects[path]
 
     def upload(self, path: str, file: bytes, file_options: dict[str, str] | None = None) -> None:
         self.uploaded.append((path, file, file_options or {}))

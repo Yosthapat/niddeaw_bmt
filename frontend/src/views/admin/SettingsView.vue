@@ -19,6 +19,31 @@ const saveError = ref<string | null>(null)
 const uploadingQr = ref(false)
 const qrUploadError = ref<string | null>(null)
 
+// Photos uploaded before the API started resizing them are still stored at
+// up to 1600px, where 480 is the biggest the site ever draws. This is the
+// one-off that fixes them, from a phone, without anyone handling a key.
+const shrinkReport = ref<adminApi.AvatarShrinkReport | null>(null)
+const shrinking = ref(false)
+const shrinkError = ref<string | null>(null)
+
+async function runShrink(apply: boolean): Promise<void> {
+  shrinking.value = true
+  shrinkError.value = null
+  try {
+    shrinkReport.value = await adminApi.shrinkAvatars(apply)
+  } catch (e) {
+    shrinkError.value = apiErrorMessage(e, t('settings.shrinkFailed'))
+  } finally {
+    shrinking.value = false
+  }
+}
+
+function kb(bytes: number): string {
+  return bytes < 1024 * 1024
+    ? `${Math.round(bytes / 1024)} KB`
+    : `${(bytes / 1048576).toFixed(1)} MB`
+}
+
 async function onQrFileSelected(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
@@ -196,5 +221,72 @@ const paymentMethodOptions = computed<{ value: PaymentMethod; label: string }[]>
         {{ saving ? t('common.saving') : t('settings.saveSettings') }}
       </button>
     </form>
+
+    <section v-if="!loading && !loadError" class="mt-10">
+      <h2 class="text-sm font-semibold text-white/70">{{ t('settings.shrinkTitle') }}</h2>
+      <p class="mt-1 text-xs text-white/50">{{ t('settings.shrinkHint') }}</p>
+
+      <button
+        type="button"
+        :disabled="shrinking"
+        class="tap hud-hover mt-3 w-full rounded-full border border-brand-pink/40 px-4 text-sm font-semibold text-brand-pink disabled:opacity-50"
+        @click="runShrink(false)"
+      >
+        {{ shrinking ? t('common.loading') : t('settings.shrinkCheck') }}
+      </button>
+
+      <p v-if="shrinkError" class="mt-3 text-sm text-status-error">{{ shrinkError }}</p>
+
+      <div v-if="shrinkReport" class="hud-panel mt-3 border border-brand-pink/20 bg-brand-surface p-4">
+        <p v-if="shrinkReport.rows.length === 0" class="text-sm text-white/50">
+          {{ t('settings.shrinkNoPhotos') }}
+        </p>
+        <template v-else>
+          <ul class="space-y-1.5 text-sm">
+            <li
+              v-for="row in shrinkReport.rows"
+              :key="row.player_id"
+              class="flex items-center gap-2"
+            >
+              <span class="min-w-0 flex-1 truncate">{{ row.nickname }}</span>
+              <span v-if="row.status === 'failed'" class="shrink-0 text-xs text-status-error">
+                {{ row.detail }}
+              </span>
+              <span v-else-if="row.status === 'already'" class="shrink-0 text-xs text-white/40">
+                {{ t('settings.shrinkAlready') }}
+              </span>
+              <span v-else class="shrink-0 font-mono text-xs">
+                <span class="text-white/40">{{ kb(row.before_bytes) }}</span>
+                <span class="text-white/30"> → </span>
+                <span class="text-status-success">{{ kb(row.after_bytes) }}</span>
+              </span>
+            </li>
+          </ul>
+
+          <p class="mt-3 border-t border-white/10 pt-3 text-sm">
+            {{ t('settings.shrinkTotal') }}
+            <span class="font-mono text-white/50">{{ kb(shrinkReport.before_total) }}</span>
+            <span class="text-white/30"> → </span>
+            <span class="font-mono font-semibold text-status-success">
+              {{ kb(shrinkReport.after_total) }}
+            </span>
+          </p>
+
+          <p v-if="shrinkReport.applied" class="mt-3 text-sm text-status-success">
+            {{ t('settings.shrinkDone', { n: shrinkReport.shrunk }) }}
+          </p>
+          <button
+            v-else-if="shrinkReport.shrunk > 0"
+            type="button"
+            :disabled="shrinking"
+            class="tap mt-3 w-full rounded-full bg-brand-pink px-4 text-sm font-semibold text-brand-black disabled:opacity-50"
+            @click="runShrink(true)"
+          >
+            {{ shrinking ? t('common.saving') : t('settings.shrinkApply', { n: shrinkReport.shrunk }) }}
+          </button>
+          <p v-else class="mt-3 text-sm text-white/50">{{ t('settings.shrinkNothingToDo') }}</p>
+        </template>
+      </div>
+    </section>
   </main>
 </template>

@@ -5,8 +5,10 @@ from supabase import Client
 
 from app.db_utils import rows
 from app.deps import AdminDep, SupabaseDep
+from app.models.maintenance import AvatarShrinkReport
 from app.models.player import Player, PlayerCreate, PlayerUpdate
 from app.services.elo_service import SCORE_FLOOR, STARTING_SCORE, get_tier
+from app.services.avatar_maintenance import shrink_all
 from app.services.image_service import avatar_jpeg, avatar_path, storage_path_from_url
 
 router = APIRouter(prefix="/api/admin/players", tags=["admin-players"])
@@ -97,6 +99,20 @@ def delete_player(player_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> No
     result = supabase.table("players").delete().eq("id", pid).execute()
     if not rows(result):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Player not found")
+
+
+@router.post("/avatars/shrink", response_model=AvatarShrinkReport)
+def shrink_avatars(supabase: SupabaseDep, admin: AdminDep, apply: bool = False) -> AvatarShrinkReport:
+    """Re-encode the avatars stored before the upload endpoint resized them.
+
+    Declared ahead of /{player_id}/avatar for readability; they cannot
+    collide anyway, since player_id is a UUID and "avatars" is not one.
+
+    Defaults to a dry run so the screen can show what it would save before
+    anything is written, and is safe to run again: a photo already at its
+    final size is left alone.
+    """
+    return shrink_all(supabase, apply=apply)
 
 
 @router.post("/{player_id}/avatar", response_model=Player)

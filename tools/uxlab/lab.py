@@ -44,6 +44,21 @@ NAMES = ["บอล", "เจมส์", "ฟ้า", "ต้น", "อุ้ม
 TIERS = ["beer", "beer", "soju", "soju", "highball", "milk", "beer", "soju"]
 
 
+def _seed_oversized_avatars(db: "MiniSupabase", players: list) -> None:
+    """Two 1600px photos in the bucket, the way the club's own look today."""
+    import io
+
+    from PIL import Image
+
+    for n, player in enumerate(players):
+        image = Image.new("RGB", (1600, 1600), (180 - n * 40, 40 + n * 60, 120))
+        buf = io.BytesIO()
+        image.save(buf, format="JPEG", quality=92)
+        path = f"{player['id']}.jpg"
+        db.storage.from_("avatars").upload(path, buf.getvalue())
+        player["avatar_url"] = db.storage.from_("avatars").get_public_url(path)
+
+
 def _iso(minutes_ago: int) -> str:
     return (datetime.now(timezone.utc) - timedelta(minutes=minutes_ago)).isoformat()
 
@@ -128,6 +143,8 @@ def seed() -> MiniSupabase:
          "source": "sponsor", "source_name": "ร้านลูกแบดนิดเดียว", "amount": 1000.0,
          "note": None, "slip_url": None, "created_by": ADMIN_ID, "created_at": _iso(40)}
     ]
+    _seed_oversized_avatars(db, players[:2])
+
     for table in ("locked_pairs", "pairing_history", "admin_activity_log"):
         db.tables.setdefault(table, [])
     return db
@@ -144,8 +161,19 @@ activity_log_mw.get_supabase_client = lambda: DB  # type: ignore[assignment]
 @app.get("/__uxlab/state")
 def _state() -> dict[str, object]:
     """What the server believes, so a check can assert on stored data rather
-    than only on what was drawn."""
-    return {name: rows for name, rows in DB.tables.items()}
+    than only on what was drawn.
+
+    `storage_files` carries each stored object's size, which is how a check
+    on the avatar-shrinking pass can see that the bucket actually got
+    smaller rather than trusting the screen's own arithmetic.
+    """
+    return {
+        "tables": {name: rows for name, rows in DB.tables.items()},
+        "storage_files": dict(DB.storage_files),
+        # The tables were at the top level before this; kept there so an
+        # older check still reads.
+        **{name: rows for name, rows in DB.tables.items()},
+    }
 
 
 if __name__ == "__main__":

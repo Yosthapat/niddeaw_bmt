@@ -413,3 +413,30 @@ export async function getActivityLog(
 export async function getActivityLogAdmins(): Promise<Admin[]> {
   return request('/api/admin/activity-log/admins')
 }
+
+// Avatar maintenance
+export interface AvatarShrinkRow {
+  player_id: string
+  nickname: string
+  before_bytes: number
+  after_bytes: number
+  status: 'shrunk' | 'already' | 'failed'
+  detail: string | null
+}
+
+export interface AvatarShrinkReport {
+  applied: boolean
+  rows: AvatarShrinkRow[]
+  before_total: number
+  after_total: number
+  shrunk: number
+  already: number
+  failed: number
+}
+
+/** Without `apply` nothing is written and the report is a forecast. */
+export async function shrinkAvatars(apply = false): Promise<AvatarShrinkReport> {
+  return request(`/api/admin/players/avatars/shrink${apply ? '?apply=true' : ''}`, {
+    method: 'POST',
+  })
+}

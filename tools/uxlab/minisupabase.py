@@ -258,14 +258,35 @@ class Query:
 
 
 class _Bucket:
+    """Holds the bytes, not just their length.
+
+    Enough for the avatar-maintenance pass, which reads a stored photo back
+    and re-encodes it, and for a test to assert on what was written. The
+    public URL copies Supabase's real shape, so the code that recovers an
+    object path from a URL is exercised rather than bypassed.
+    """
+
     def __init__(self, db: "MiniSupabase", name: str) -> None:
         self._db, self._name = db, name
 
     def upload(self, path: str, contents: bytes, options: Row | None = None) -> None:
+        self._db.storage_objects[f"{self._name}/{path}"] = contents
         self._db.storage_files[f"{self._name}/{path}"] = len(contents)
 
+    def download(self, path: str) -> bytes:
+        key = f"{self._name}/{path}"
+        if key not in self._db.storage_objects:
+            raise FileNotFoundError(key)
+        return self._db.storage_objects[key]
+
+    def remove(self, paths: list[str]) -> None:
+        for path in paths:
+            key = f"{self._name}/{path}"
+            self._db.storage_objects.pop(key, None)
+            self._db.storage_files.pop(key, None)
+
     def get_public_url(self, path: str) -> str:
-        return f"http://storage.test/{self._name}/{path}"
+        return f"http://storage.test/storage/v1/object/public/{self._name}/{path}"
 
 
 class _Storage:
@@ -280,6 +301,7 @@ class MiniSupabase:
     def __init__(self, tables: dict[str, list[Row]] | None = None) -> None:
         self.tables: dict[str, list[Row]] = tables if tables is not None else {}
         self.storage_files: dict[str, int] = {}
+        self.storage_objects: dict[str, bytes] = {}
         self.storage = _Storage(self)
         self.log: list[tuple[str, str]] = []
 
