@@ -2,12 +2,14 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { ApiError } from '@/api/client'
 import { compressImage } from '@/utils/imageCompression'
 import type { Admin, Expense, ExpenseCategory, MonthlyExpenseSummary } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 
 const { t, locale } = useI18n()
+const { confirm } = useConfirmDialog()
 
 const CATEGORIES: ExpenseCategory[] = ['court_fee', 'shuttlecock', 'jersey', 'other']
 
@@ -178,7 +180,7 @@ async function markPaid(expense: Expense): Promise<void> {
 }
 
 async function removeExpense(expense: Expense): Promise<void> {
-  if (!window.confirm(t('expenses.deleteConfirm'))) return
+  if (!(await confirm({ title: t('common.delete'), message: t('expenses.deleteConfirm'), danger: true }))) return
   deletingId.value = expense.id
   rowError.value = null
   try {

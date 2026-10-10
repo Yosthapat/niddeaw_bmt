@@ -187,6 +187,8 @@ export default {
     shuttlecockPriceTitle: 'Shuttlecock cost per game (THB)',
   },
   checkin: {
+    sessionClosed: 'This session is closed (already billed) — no more check-ins',
+    sessionClosedHint: 'To start tonight\'s session, press "+ Create today\'s session" above',
     allMembers: 'All Members',
     newMemberName: 'New member name',
     selectSessionFirst: 'Select or create a session before checking in',

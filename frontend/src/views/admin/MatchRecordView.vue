@@ -31,7 +31,12 @@ async function submit(winner: MatchWinner): Promise<void> {
   error.value = null
   try {
     await adminApi.recordMatchResult(matchId.value, winner)
-    router.push('/admin/matchmaking')
+    // replace, not push: this screen's URL carries the match in its query
+    // string and holds live "who won" buttons, so leaving it in history
+    // puts a second, duplicate submission one Back tap away. The backend
+    // refuses a result for a match that is already completed, but the
+    // admin should never meet that error in the first place.
+    router.replace('/admin/matchmaking')
   } catch (e) {
     error.value = e instanceof ApiError ? `${t('matchRecord.failed')} (${e.status}: ${e.message})` : t('matchRecord.failed')
   } finally {

@@ -17,6 +17,7 @@ from app.models.matchmaking import (
     MatchmakingSuggestionResponse,
 )
 from app.services import elo_service, matchmaking_service, queue_service
+from app.services.session_state import ensure_session_open
 
 router = APIRouter(prefix="/api/admin/matchmaking", tags=["admin-matchmaking"])
 
@@ -68,6 +69,9 @@ def queue(session_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> Matchmaki
 
 @router.post("/confirm", response_model=Match, status_code=status.HTTP_201_CREATED)
 def confirm(payload: MatchmakingConfirmRequest, supabase: SupabaseDep, admin: AdminDep) -> Match:
+    # Same reason as check-in: a match created after the session was billed
+    # changes nobody's shuttlecock count.
+    ensure_session_open(supabase, payload.session_id)
     submitted_ids = set(payload.team1_player_ids + payload.team2_player_ids)
     queued_ids = queue_service.players_in_queued_matches(supabase, payload.session_id)
     if payload.status == "in_progress":
@@ -259,6 +263,18 @@ def submit_result(
     if not match_rows:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Match not found")
     match_row = match_rows[0]
+    # Recording a result applies ELO and bumps every player's games/wins, so
+    # doing it twice moves the whole club's ratings by double. The record
+    # screen is a plain URL with the match in its query string, so the
+    # browser's own Back button lands right back on live buttons — this is
+    # the only thing standing between that and a silently wrong ladder.
+    # A match still queued can be recorded: it just means the admin opened
+    # the result screen before pressing "เริ่มแข่ง".
+    if match_row["status"] == "completed":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="แมตช์นี้บันทึกผลไปแล้ว",
+        )
 
     team1_ids = [UUID(pid) for pid in match_row["team1_player_ids"]]
     team2_ids = [UUID(pid) for pid in match_row["team2_player_ids"]]
