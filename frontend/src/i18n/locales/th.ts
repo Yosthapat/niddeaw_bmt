@@ -239,6 +239,11 @@ export default {
     courtPlaceholder: 'คอร์ต (ถ้ามี)',
   },
   matchRecord: {
+    editResult: 'แก้ผลแมตช์',
+    editResultHint: 'กดผิดทีม? เลือกผลที่ถูกต้อง — ELO กับสถิติจะถูกคำนวณใหม่ให้',
+    editing: 'กำลังแก้...',
+    editFailed: 'แก้ผลไม่สำเร็จ',
+    edited: 'แก้ผลเรียบร้อย',
     title: 'บันทึกผลแมตช์',
     notFound: 'ไม่พบแมตช์ — กลับไปหน้า',
     wins: 'ชนะ',

@@ -154,6 +154,16 @@ export async function recordMatchResult(matchId: string, winner: MatchWinner): P
   })
 }
 
+/** Corrects a result recorded for the wrong team. The backend reverses the
+ * old outcome before applying the new one, so ELO and win/loss counts end
+ * up where the right button would have put them. */
+export async function editMatchResult(matchId: string, winner: MatchWinner): Promise<Match> {
+  return request(`/api/admin/matchmaking/matches/${matchId}/result`, {
+    method: 'PATCH',
+    body: JSON.stringify({ winner }),
+  })
+}
+
 export async function cancelMatch(matchId: string): Promise<void> {
   await request(`/api/admin/matchmaking/matches/${matchId}`, { method: 'DELETE' })
 }
