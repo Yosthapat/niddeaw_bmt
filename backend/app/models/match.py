@@ -35,6 +35,11 @@ class Match(BaseModel):
     elo_delta_team2: int | None = None
     created_at: datetime
     updated_at: datetime
+    # The club-wide running number, from the matches_numbered view. None on a
+    # row that came straight back from an insert or update, which reads the
+    # table and so has no rank to report; every list the UI numbers is read
+    # through the view.
+    match_no: int | None = None
 
 
 class MatchCount(BaseModel):

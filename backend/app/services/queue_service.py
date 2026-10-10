@@ -191,8 +191,11 @@ def _fetch_queue_entries(
     supabase: Client, session_id: UUID, match_status: str
 ) -> list[QueueEntry]:
     result = (
-        supabase.table("matches")
-        .select("id, team1_player_ids, team2_player_ids, status, court")
+        # The numbered view, not the table: these cards show the match number
+        # and PostgREST has no window function to compute it. See
+        # db/migrations/0025_matches_numbered.sql.
+        supabase.table("matches_numbered")
+        .select("id, team1_player_ids, team2_player_ids, status, court, match_no")
         .eq("session_id", str(session_id))
         .eq("status", match_status)
         .execute()
@@ -204,6 +207,7 @@ def _fetch_queue_entries(
             team2_player_ids=[UUID(pid) for pid in row["team2_player_ids"]],
             status=row["status"],
             court=row.get("court"),
+            match_no=row.get("match_no"),
         )
         for row in rows(result)
     ]

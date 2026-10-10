@@ -429,6 +429,11 @@ const pollControls = usePolling(refreshQueue, 7000)
               </span>
               {{ t('matchmaking.badgePlaying') }}
             </span>
+            <span
+              v-if="typeof m.match_no === 'number'"
+              class="mb-2 ml-2 font-mono text-[11px] font-semibold text-white/45"
+              :title="t('matches.matchNo', { n: m.match_no })"
+            >#{{ m.match_no }}</span>
             <div class="flex items-center justify-between gap-3">
               <div class="flex flex-1 flex-col items-center gap-1.5">
                 <div class="flex gap-2">
@@ -511,6 +516,11 @@ const pollControls = usePolling(refreshQueue, 7000)
                 <span class="h-1.5 w-1.5 rounded-full border border-status-error" />
                 {{ t('matchmaking.badgeWaiting') }}
               </span>
+              <span
+                v-if="typeof m.match_no === 'number'"
+                class="mb-2 ml-2 font-mono text-[11px] font-semibold text-white/45"
+                :title="t('matches.matchNo', { n: m.match_no })"
+              >#{{ m.match_no }}</span>
               <div class="flex items-center justify-between gap-3">
                 <div class="flex flex-1 flex-col items-center gap-1.5">
                   <div class="flex gap-2">

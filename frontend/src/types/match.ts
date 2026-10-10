@@ -17,6 +17,9 @@ export interface Match {
   winner: MatchWinner | null
   status: MatchStatus
   court: string | null
+  /** The club-wide running number, counted oldest-first. Null on a match
+   * returned straight from a write, which has no rank to report. */
+  match_no: number | null
   elo_delta_team1: number | null
   elo_delta_team2: number | null
   created_at: string

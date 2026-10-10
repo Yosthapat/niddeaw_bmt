@@ -45,7 +45,25 @@ function dateLabel(isoDate: string): string {
 <template>
   <RouterLink :to="`/matches/${match.id}`" class="block px-4 py-3">
     <div class="flex items-center justify-between text-xs tracking-wide text-white/40 uppercase">
-      <span>{{ match.type === 'double' ? t('matches.doubles') : t('matches.singles') }}</span>
+      <span class="flex items-center gap-2">
+        <!-- Leads the row: the number is how people refer to a match out
+             loud, so it should be the first thing read, not a detail
+             hidden among the metadata.
+             typeof, not !== null: a backend older than the numbered view
+             leaves the key out entirely, and `undefined !== null` would
+             render "#undefined" through a deploy where the frontend lands
+             first. -->
+        <span
+          v-if="typeof match.match_no === 'number'"
+          class="hud-panel shrink-0 border border-brand-pink/30 bg-brand-black px-1.5 py-0.5 font-mono text-[11px] font-semibold text-brand-pink/80"
+          :title="t('matches.matchNo', { n: match.match_no })"
+        >#{{ match.match_no }}</span>
+        <!-- No doubles/singles split any more: the club only plays
+             doubles, and the admin UI can only create type="double".
+             A legacy singles row, if the database still holds one,
+             reads "แมท" like everything else. -->
+        {{ t('matches.typeLabel') }}
+      </span>
       <span class="flex items-center gap-2">
         <span v-if="durationLabel(match)">{{ durationLabel(match) }} ·</span>
         {{ dateLabel(match.created_at) }}
