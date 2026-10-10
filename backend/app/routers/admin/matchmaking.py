@@ -4,10 +4,11 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
+from supabase import Client
 
 from app.db_utils import rows
 from app.deps import AdminDep, SupabaseDep
-from app.models.match import TEAM_SIZE_BY_TYPE, Match, MatchResultSubmit
+from app.models.match import TEAM_SIZE_BY_TYPE, Match, MatchResultSubmit, Winner
 from app.models.matchmaking import (
     LockedPair,
     LockedPairCreate,
@@ -254,75 +255,68 @@ def start_match(match_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> Match
     return Match.model_validate(rows(updated)[0])
 
 
-@router.post("/matches/{match_id}/result", response_model=Match)
-def submit_result(
-    match_id: UUID, payload: MatchResultSubmit, supabase: SupabaseDep, admin: AdminDep
-) -> Match:
-    match_result = supabase.table("matches").select("*").eq("id", str(match_id)).limit(1).execute()
-    match_rows = rows(match_result)
-    if not match_rows:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Match not found")
-    match_row = match_rows[0]
-    # Recording a result applies ELO and bumps every player's games/wins, so
-    # doing it twice moves the whole club's ratings by double. The record
-    # screen is a plain URL with the match in its query string, so the
-    # browser's own Back button lands right back on live buttons — this is
-    # the only thing standing between that and a silently wrong ladder.
-    # A match still queued can be recorded: it just means the admin opened
-    # the result screen before pressing "เริ่มแข่ง".
-    if match_row["status"] == "completed":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="แมตช์นี้บันทึกผลไปแล้ว",
-        )
-
-    team1_ids = [UUID(pid) for pid in match_row["team1_player_ids"]]
-    team2_ids = [UUID(pid) for pid in match_row["team2_player_ids"]]
-    winner = payload.winner
-
-    all_ids = team1_ids + team2_ids
-    players_result = (
+def _player_stats(supabase: Client, player_ids: list[UUID]) -> dict[UUID, elo_service.PlayerStatRow]:
+    result = (
         supabase.table("players")
         .select("id, elo_score, games, wins, draws, losses")
-        .in_("id", [str(pid) for pid in all_ids])
+        .in_("id", [str(pid) for pid in player_ids])
         .execute()
     )
-    players_by_id = {UUID(row["id"]): row for row in rows(players_result)}
-    scores_by_id: dict[UUID, int] = {pid: row["elo_score"] for pid, row in players_by_id.items()}
+    return {
+        UUID(row["id"]): {
+            "elo_score": row["elo_score"],
+            "games": row["games"],
+            "wins": row["wins"],
+            "draws": row["draws"],
+            "losses": row["losses"],
+        }
+        for row in rows(result)
+    }
 
-    delta_team1, delta_team2 = elo_service.compute_deltas(
-        [scores_by_id[pid] for pid in team1_ids],
-        [scores_by_id[pid] for pid in team2_ids],
-        winner,
-    )
 
-    def _apply_result(pid: UUID, delta: int, outcome: str) -> None:
-        row = players_by_id[pid]
-        new_score = elo_service.apply_delta(row["elo_score"], delta)
+def _write_player_stats(supabase: Client, stats: dict[UUID, elo_service.PlayerStatRow]) -> None:
+    """One update per player, each to a different row — fully independent, so
+    run them concurrently instead of paying for N sequential Supabase
+    round-trips on every match result (up to 4 for a doubles match)."""
+    if not stats:
+        return
+
+    def write(pid: UUID, row: elo_service.PlayerStatRow) -> None:
         supabase.table("players").update(
             {
-                "elo_score": new_score,
-                "elo_level": elo_service.get_tier(new_score),
-                "games": row["games"] + 1,
-                "wins": row["wins"] + (1 if outcome == "win" else 0),
-                "draws": row["draws"] + (1 if outcome == "draw" else 0),
-                "losses": row["losses"] + (1 if outcome == "loss" else 0),
+                "elo_score": row["elo_score"],
+                "elo_level": elo_service.get_tier(row["elo_score"]),
+                "games": row["games"],
+                "wins": row["wins"],
+                "draws": row["draws"],
+                "losses": row["losses"],
             }
         ).eq("id", str(pid)).execute()
 
-    team1_outcome = "win" if winner == "team1" else "draw" if winner == "draw" else "loss"
-    team2_outcome = "win" if winner == "team2" else "draw" if winner == "draw" else "loss"
-    # One .update() per player, each to a different row — fully independent,
-    # so run them concurrently instead of paying for N sequential Supabase
-    # round-trips on every match result (up to 4 for a doubles match).
-    per_player_updates = [(pid, delta_team1, team1_outcome) for pid in team1_ids] + [
-        (pid, delta_team2, team2_outcome) for pid in team2_ids
-    ]
-    with ThreadPoolExecutor(max_workers=len(per_player_updates)) as pool:
-        futures = [pool.submit(_apply_result, pid, delta, outcome) for pid, delta, outcome in per_player_updates]
+    with ThreadPoolExecutor(max_workers=len(stats)) as pool:
+        futures = [pool.submit(write, pid, row) for pid, row in stats.items()]
         for future in futures:
             future.result()
 
+
+def _team_ids(match_row: dict[str, Any]) -> tuple[list[UUID], list[UUID]]:
+    return (
+        [UUID(pid) for pid in match_row["team1_player_ids"]],
+        [UUID(pid) for pid in match_row["team2_player_ids"]],
+    )
+
+
+def _load_match(supabase: Client, match_id: UUID) -> dict[str, Any]:
+    result = supabase.table("matches").select("*").eq("id", str(match_id)).limit(1).execute()
+    match_rows = rows(result)
+    if not match_rows:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Match not found")
+    return match_rows[0]
+
+
+def _save_result(
+    supabase: Client, match_id: UUID, winner: Winner, delta_team1: int, delta_team2: int
+) -> Match:
     updated = (
         supabase.table("matches")
         .update(
@@ -338,3 +332,85 @@ def submit_result(
         .execute()
     )
     return Match.model_validate(rows(updated)[0])
+
+
+@router.post("/matches/{match_id}/result", response_model=Match)
+def submit_result(
+    match_id: UUID, payload: MatchResultSubmit, supabase: SupabaseDep, admin: AdminDep
+) -> Match:
+    match_row = _load_match(supabase, match_id)
+    # Recording a result applies ELO and bumps every player's games/wins, so
+    # doing it twice moves the whole club's ratings by double. The record
+    # screen is a plain URL with the match in its query string, so the
+    # browser's own Back button lands right back on live buttons — this is
+    # the only thing standing between that and a silently wrong ladder.
+    # A match still queued can be recorded: it just means the admin opened
+    # the result screen before pressing "เริ่มแข่ง". A result recorded for
+    # the wrong team is corrected with PATCH below, never by sending this
+    # a second time.
+    if match_row["status"] == "completed":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="แมตช์นี้บันทึกผลไปแล้ว",
+        )
+
+    team1_ids, team2_ids = _team_ids(match_row)
+    updated_stats, delta_team1, delta_team2 = elo_service.apply_match_result(
+        _player_stats(supabase, team1_ids + team2_ids), team1_ids, team2_ids, payload.winner
+    )
+    _write_player_stats(supabase, updated_stats)
+    return _save_result(supabase, match_id, payload.winner, delta_team1, delta_team2)
+
+
+@router.patch("/matches/{match_id}/result", response_model=Match)
+def edit_result(
+    match_id: UUID, payload: MatchResultSubmit, supabase: SupabaseDep, admin: AdminDep
+) -> Match:
+    """Corrects a result recorded for the wrong team.
+
+    The old outcome is reversed and the new one applied on top, so the
+    players' ELO and win/loss counts land where they would have been had
+    the right button been pressed in the first place. The new deltas are
+    recomputed from the reversed ratings rather than mirrored, because a
+    draw and a win are not the same size of move.
+
+    A closed session's matches can be fixed too: a bill is the court fee
+    plus the shuttlecock price times the games that player appeared in, so
+    which side won changes nobody's total. The mistake is usually noticed
+    after the night is packed up, which is exactly when the session is
+    closed.
+
+    Only a match whose deltas were stored (everything since 0023) —
+    without them there is nothing to reverse by, and guessing would
+    quietly skew the ladder.
+    """
+    match_row = _load_match(supabase, match_id)
+    if match_row["status"] != "completed":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="แมตช์นี้ยังไม่ได้บันทึกผล",
+        )
+    if match_row["elo_delta_team1"] is None or match_row["elo_delta_team2"] is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="แมตช์นี้บันทึกไว้ก่อนระบบเก็บค่า ELO แก้ผลย้อนหลังไม่ได้",
+        )
+    if match_row["winner"] == payload.winner:
+        return Match.model_validate(match_row)
+
+    team1_ids, team2_ids = _team_ids(match_row)
+    before: elo_service.CompletedMatchRow = {
+        "team1_player_ids": match_row["team1_player_ids"],
+        "team2_player_ids": match_row["team2_player_ids"],
+        "winner": match_row["winner"],
+        "elo_delta_team1": match_row["elo_delta_team1"],
+        "elo_delta_team2": match_row["elo_delta_team2"],
+    }
+    reversed_stats = elo_service.reverse_match_results(
+        [before], _player_stats(supabase, team1_ids + team2_ids)
+    )
+    updated_stats, delta_team1, delta_team2 = elo_service.apply_match_result(
+        reversed_stats, team1_ids, team2_ids, payload.winner
+    )
+    _write_player_stats(supabase, updated_stats)
+    return _save_result(supabase, match_id, payload.winner, delta_team1, delta_team2)

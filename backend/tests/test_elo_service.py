@@ -1,6 +1,9 @@
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from app.services import elo_service
+
+TEAM1 = [uuid4(), uuid4()]
+TEAM2 = [uuid4(), uuid4()]
 
 
 def test_equal_ratings_win_gains_half_k() -> None:
@@ -108,3 +111,40 @@ def test_reverse_match_results_never_goes_negative() -> None:
 
     assert result[player]["games"] == 0
     assert result[player]["wins"] == 0
+
+
+def test_fixing_a_result_lands_where_the_right_button_would_have() -> None:
+    """The point of the edit: after correcting a mis-tapped result, every
+    player's rating and record must match what recording it correctly in
+    the first place would have produced — not merely "close"."""
+    start: dict[UUID, elo_service.PlayerStatRow] = {
+        pid: {"elo_score": score, "games": 3, "wins": 1, "draws": 1, "losses": 1}
+        for pid, score in zip(TEAM1 + TEAM2, (1200, 1150, 980, 1040))
+    }
+
+    wrong, delta1, delta2 = elo_service.apply_match_result(start, TEAM1, TEAM2, "team1")
+    as_recorded: elo_service.CompletedMatchRow = {
+        "team1_player_ids": [str(pid) for pid in TEAM1],
+        "team2_player_ids": [str(pid) for pid in TEAM2],
+        "winner": "team1",
+        "elo_delta_team1": delta1,
+        "elo_delta_team2": delta2,
+    }
+    corrected, _, _ = elo_service.apply_match_result(
+        elo_service.reverse_match_results([as_recorded], wrong), TEAM1, TEAM2, "team2"
+    )
+
+    straight_to_team2, _, _ = elo_service.apply_match_result(start, TEAM1, TEAM2, "team2")
+    assert corrected == straight_to_team2
+
+
+def test_a_draw_corrected_to_a_win_is_not_just_the_mirror_of_the_draw() -> None:
+    """Why the edit recomputes rather than flipping the stored delta: the
+    size of the move depends on the outcome, not only its direction."""
+    start: dict[UUID, elo_service.PlayerStatRow] = {
+        pid: {"elo_score": score, "games": 0, "wins": 0, "draws": 0, "losses": 0}
+        for pid, score in zip(TEAM1 + TEAM2, (1400, 1400, 1000, 1000))
+    }
+    _, draw_delta, _ = elo_service.apply_match_result(start, TEAM1, TEAM2, "draw")
+    _, win_delta, _ = elo_service.apply_match_result(start, TEAM1, TEAM2, "team1")
+    assert draw_delta != win_delta

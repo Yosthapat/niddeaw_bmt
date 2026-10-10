@@ -8,7 +8,7 @@ from app.db_utils import rows
 from app.deps import AdminDep, SupabaseDep
 from app.models.billing import Billing, BillingAdjust, BillingMarkPaid, DailyRevenue
 from app.models.club_settings import PaymentMethod
-from app.services import billing_service, promptpay_service, revenue_service
+from app.services import billing_service, promptpay_service, queue_service, revenue_service
 
 router = APIRouter(prefix="/api/admin/billing", tags=["admin-billing"])
 
@@ -114,7 +114,13 @@ def bill_player(
 ) -> Billing:
     """Bills a single attendee immediately, independent of session status —
     e.g. they checked out early and shouldn't have to wait for everyone
-    else to finish. Doesn't touch the session's status or other players."""
+    else to finish. Checks them out as part of it, since being billed is
+    how a night ends for them; the admin doesn't have to remember a second
+    button. Doesn't touch the session's status or other players.
+
+    Refused while they still have a match outstanding, queued or on court:
+    the bill counts completed games, so charging now would miss the games
+    they are about to play and the club would be short."""
     session_result = (
         supabase.table("sessions").select("*").eq("id", str(session_id)).limit(1).execute()
     )
@@ -123,6 +129,15 @@ def bill_player(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
     court_fee_per_person = session_rows[0]["court_fee_per_person"]
     shuttlecock_price_per_game = session_rows[0]["shuttlecock_price_per_game"]
+
+    unfinished = queue_service.players_in_progress(
+        supabase, session_id
+    ) | queue_service.players_in_queued_matches(supabase, session_id)
+    if player_id in unfinished:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="คนนี้ยังมีแมตช์ที่ยังไม่จบ (กำลังแข่ง/รอเริ่ม) — บันทึกผลหรือยกเลิกแมตช์ก่อน",
+        )
 
     matches_result = (
         supabase.table("matches")
@@ -136,6 +151,13 @@ def bill_player(
         game_count, court_fee_per_person, shuttlecock_price_per_game
     )
 
+    now_iso = datetime.now(timezone.utc).isoformat()
+    # Billing them ends their night, so close the check-in too — the same
+    # thing close_session_and_bill() does for everyone at once.
+    supabase.table("checkins").update({"checkout_time": now_iso}).eq(
+        "session_id", str(session_id)
+    ).eq("player_id", str(player_id)).is_("checkout_time", "null").execute()
+
     result = (
         supabase.table("billings")
         .upsert(
@@ -144,7 +166,7 @@ def bill_player(
                 "player_id": str(player_id),
                 "game_count": game_count,
                 "amount_calc": amount_calc,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": now_iso,
             },
             on_conflict="session_id,player_id",
         )

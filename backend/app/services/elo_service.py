@@ -115,6 +115,50 @@ def reverse_match_results(
     return updated
 
 
+def apply_match_result(
+    players_by_id: dict[UUID, PlayerStatRow],
+    team1_ids: list[UUID],
+    team2_ids: list[UUID],
+    winner: str,
+) -> tuple[dict[UUID, PlayerStatRow], int, int]:
+    """Applies one match's outcome to the players' stats, and reports the two
+    deltas it used so the caller can store them on the match.
+
+    Pure, and the exact inverse of reverse_match_results() — recording a
+    result and then undoing it leaves the stats where they started. That
+    matters for editing a result: the edit reverses the old outcome through
+    one function and lays the new one down through this one, so the two can
+    never drift apart into a correction that doesn't quite cancel.
+    """
+    updated: dict[UUID, PlayerStatRow] = {pid: dict(row) for pid, row in players_by_id.items()}  # type: ignore[misc]
+    delta_team1, delta_team2 = compute_deltas(
+        [updated[pid]["elo_score"] for pid in team1_ids],
+        [updated[pid]["elo_score"] for pid in team2_ids],
+        winner,
+    )
+    team1_outcome = "win" if winner == "team1" else "draw" if winner == "draw" else "loss"
+    team2_outcome = "win" if winner == "team2" else "draw" if winner == "draw" else "loss"
+    for pid in team1_ids:
+        _apply_one(updated, pid, delta_team1, team1_outcome)
+    for pid in team2_ids:
+        _apply_one(updated, pid, delta_team2, team2_outcome)
+    return updated, delta_team1, delta_team2
+
+
+def _apply_one(updated: dict[UUID, PlayerStatRow], pid: UUID, delta: int, outcome: str) -> None:
+    row = updated.get(pid)
+    if row is None:
+        return
+    row["elo_score"] = apply_delta(row["elo_score"], delta)
+    row["games"] += 1
+    if outcome == "win":
+        row["wins"] += 1
+    elif outcome == "draw":
+        row["draws"] += 1
+    else:
+        row["losses"] += 1
+
+
 def _undo_one(updated: dict[UUID, PlayerStatRow], pid: UUID, delta: int, outcome: str) -> None:
     row = updated.get(pid)
     if row is None:
