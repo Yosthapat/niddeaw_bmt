@@ -29,6 +29,15 @@ const search = ref('')
 // carrying on the easy mistake — so here the screen goes read-only and
 // says why, rather than letting the tap fail against the API.
 const sessionClosed = computed(() => sessionsStore.currentSession?.status === 'closed')
+
+// Two tabs rather than two stacked lists: on a phone the "not checked in
+// yet" list starts below a screenful of people already in, so the list the
+// admin taps through at the door was the one they had to scroll to find.
+// Checking someone in does not switch tab — they simply leave this list —
+// because the next thing the admin does is check in the next person.
+type CheckinTab = 'pending' | 'in'
+const tab = ref<CheckinTab>('pending')
+const visibleTab = computed<CheckinTab>(() => (sessionClosed.value ? 'in' : tab.value))
 const activeCheckins = computed(() => checkins.value.filter((c) => c.checkout_time === null))
 const activePlayerIds = computed(() => new Set(activeCheckins.value.map((c) => c.player_id)))
 const availablePlayers = computed(() =>
@@ -138,8 +147,30 @@ usePolling(refreshCheckins, 8000)
     </p>
 
     <template v-else>
-      <section class="mt-8">
-        <h2 class="text-sm font-semibold text-white/70">
+      <div v-if="!sessionClosed" class="mt-8 flex gap-2" role="tablist">
+        <button
+          v-for="option in [
+            { id: 'pending' as CheckinTab, label: t('checkin.notCheckedIn'), count: availablePlayers.length },
+            { id: 'in' as CheckinTab, label: t('checkin.checkingIn'), count: activeCheckins.length },
+          ]"
+          :key="option.id"
+          type="button"
+          role="tab"
+          :aria-selected="visibleTab === option.id"
+          class="hud-hover rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors"
+          :class="
+            visibleTab === option.id
+              ? 'border-brand-pink bg-brand-pink text-brand-black'
+              : 'border-brand-pink/30 text-brand-pink hover:border-brand-pink/60'
+          "
+          @click="tab = option.id"
+        >
+          {{ option.label }} ({{ option.count }})
+        </button>
+      </div>
+
+      <section v-show="visibleTab === 'in'" class="mt-6">
+        <h2 class="sr-only">
           {{ t('checkin.checkingIn') }} ({{ activeCheckins.length }})
         </h2>
         <ul class="mt-2 space-y-2">
@@ -178,9 +209,9 @@ usePolling(refreshCheckins, 8000)
         </ul>
       </section>
 
-      <section v-if="!sessionClosed" class="mt-8">
+      <section v-show="visibleTab === 'pending' && !sessionClosed" class="mt-6">
         <div class="flex items-center justify-between gap-4">
-          <h2 class="text-sm font-semibold text-white/70">{{ t('checkin.notCheckedIn') }}</h2>
+          <h2 class="sr-only">{{ t('checkin.notCheckedIn') }}</h2>
           <input
             v-model="search"
             type="search"
