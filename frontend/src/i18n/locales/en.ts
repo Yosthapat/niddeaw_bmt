@@ -254,6 +254,8 @@ export default {
     failed: 'Failed to submit result',
   },
   billing: {
+    searchPlaceholder: 'Search name...',
+    noSearchResults: 'Nobody in this session matches that name',
     selectSessionFirst: 'Select or create a session first',
     closing: 'Closing...',
     closeAndBill: 'Close Session & Bill',
