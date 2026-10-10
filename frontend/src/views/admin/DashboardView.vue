@@ -25,7 +25,7 @@ onMounted(() => {
     <h1 class="text-2xl font-bold text-brand-pink">Admin Dashboard</h1>
 
     <div class="mt-4">
-      <SessionPicker />
+      <SessionPicker allow-delete />
     </div>
 
     <div class="mt-6 grid gap-3 sm:grid-cols-3">

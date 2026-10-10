@@ -6,6 +6,12 @@ import { getClubSettings } from '@/api/admin'
 import { ApiError } from '@/api/client'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 
+// "ลบ session นี้" wipes a whole night's check-ins, matches and bills, and
+// it used to sit a thumb's width from "+ สร้าง session วันนี้" on every
+// admin screen. It belongs where someone goes deliberately to manage
+// sessions, so only the dashboard asks for it.
+withDefaults(defineProps<{ allowDelete?: boolean }>(), { allowDelete: false })
+
 const { t } = useI18n()
 const sessionsStore = useSessionsStore()
 const { confirm } = useConfirmDialog()
@@ -105,7 +111,7 @@ async function deleteCurrent(): Promise<void> {
     </span>
 
     <button
-      v-if="sessionsStore.currentSession"
+      v-if="allowDelete && sessionsStore.currentSession"
       :disabled="deleting"
       class="rounded-full border border-status-error/50 px-3 py-1 text-xs text-status-error hover:bg-status-error/10 disabled:opacity-50"
       @click="deleteCurrent"
