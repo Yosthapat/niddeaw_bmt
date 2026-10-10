@@ -374,10 +374,15 @@ def edit_result(
     recomputed from the reversed ratings rather than mirrored, because a
     draw and a win are not the same size of move.
 
-    Only inside an open session: once a session is closed, its matches are
-    the record its bills were raised from. And only for a match whose
-    deltas were stored (everything since 0023) — without them there is
-    nothing to reverse by, and guessing would quietly skew the ladder.
+    A closed session's matches can be fixed too: a bill is the court fee
+    plus the shuttlecock price times the games that player appeared in, so
+    which side won changes nobody's total. The mistake is usually noticed
+    after the night is packed up, which is exactly when the session is
+    closed.
+
+    Only a match whose deltas were stored (everything since 0023) —
+    without them there is nothing to reverse by, and guessing would
+    quietly skew the ladder.
     """
     match_row = _load_match(supabase, match_id)
     if match_row["status"] != "completed":
@@ -385,7 +390,6 @@ def edit_result(
             status_code=status.HTTP_409_CONFLICT,
             detail="แมตช์นี้ยังไม่ได้บันทึกผล",
         )
-    ensure_session_open(supabase, UUID(match_row["session_id"]))
     if match_row["elo_delta_team1"] is None or match_row["elo_delta_team2"] is None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

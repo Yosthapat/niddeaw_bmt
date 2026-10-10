@@ -198,10 +198,13 @@ def test_correcting_to_the_same_winner_changes_nothing(
     assert response.json()["winner"] == "team1"
 
 
-def test_a_result_cannot_be_corrected_once_the_session_is_closed(
+def test_a_result_can_be_corrected_after_the_session_was_closed(
     client: TestClient, supabase_rows: dict[str, list[dict[str, Any]]]
 ) -> None:
-    """Closed means billed, and the bills were raised from these matches."""
+    """The wrong tap is usually noticed after the night is packed up. A bill
+    is the court fee plus shuttlecocks times games played, so which side won
+    changes nobody's total — only the ladder, which is the thing being
+    fixed."""
     supabase_rows["sessions"] = [session_row("closed")]
     supabase_rows["matches"] = [completed_match()]
     supabase_rows["players"] = player_rows()
@@ -210,7 +213,7 @@ def test_a_result_cannot_be_corrected_once_the_session_is_closed(
         json={"winner": "team2"},
         headers=auth(),
     )
-    assert response.status_code == 409
+    assert response.status_code == 200
 
 
 def test_a_match_recorded_before_elo_deltas_existed_cannot_be_corrected(
