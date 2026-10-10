@@ -3,7 +3,10 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { getMatchDetail } from '@/api/public'
-import type { MatchDetail } from '@/types'
+import * as adminApi from '@/api/admin'
+import { ApiError } from '@/api/client'
+import { useAuthStore } from '@/stores/auth'
+import type { MatchDetail, MatchWinner } from '@/types'
 import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
@@ -11,9 +14,46 @@ import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 
 const route = useRoute()
 const { t, locale } = useI18n()
+const authStore = useAuthStore()
 const detail = ref<MatchDetail | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
+
+// The fix-up lives here rather than on the matchmaking screen because by
+// the time anyone notices the wrong team was tapped, the match has left
+// the queue — this page is where they end up looking at it. Only an
+// admin sees it, and the backend refuses once the session is closed.
+const editing = ref(false)
+const editError = ref<string | null>(null)
+const editDone = ref(false)
+const editOpen = ref(false)
+const canEdit = computed(() => authStore.isAuthenticated && detail.value?.match.status === 'completed')
+
+function teamLabel(side: 'team1' | 'team2'): string {
+  const stats = side === 'team1' ? detail.value?.team1 : detail.value?.team2
+  return (stats ?? []).map((s) => s.player.nickname).join(' & ')
+}
+
+async function fixResult(winner: MatchWinner): Promise<void> {
+  const match = detail.value?.match
+  if (!match || editing.value) return
+  editing.value = true
+  editError.value = null
+  editDone.value = false
+  try {
+    await adminApi.editMatchResult(match.id, winner)
+    // Re-fetch rather than patch in place: the players' ELO, tiers and
+    // win/loss counts on this page all moved too.
+    detail.value = await getMatchDetail(match.id)
+    editDone.value = true
+    editOpen.value = false
+  } catch (e) {
+    editError.value =
+      e instanceof ApiError ? `${t('matchRecord.editFailed')} (${e.status}: ${e.message})` : t('matchRecord.editFailed')
+  } finally {
+    editing.value = false
+  }
+}
 
 function statusFor(side: 'team1' | 'team2'): 'win' | 'loss' | 'draw' | null {
   const winner = detail.value?.match.winner
@@ -168,6 +208,47 @@ watch(
           </div>
         </div>
       </div>
+
+      <section v-if="canEdit" class="mt-10 border-t border-brand-pink/15 pt-6">
+        <button
+          v-if="!editOpen"
+          type="button"
+          class="hud-hover rounded-full border border-brand-pink/40 px-4 py-1.5 text-sm font-semibold text-brand-pink hover:bg-brand-pink hover:text-brand-black"
+          @click="editOpen = true"
+        >
+          {{ t('matchRecord.editResult') }}
+        </button>
+        <template v-else>
+          <p class="text-sm text-white/60">{{ t('matchRecord.editResultHint') }}</p>
+          <div class="mt-3 space-y-2">
+            <button
+              v-for="option in [
+                { winner: 'team1' as MatchWinner, label: `${teamLabel('team1')} ${t('matchRecord.wins')}` },
+                { winner: 'draw' as MatchWinner, label: t('common.draw') },
+                { winner: 'team2' as MatchWinner, label: `${teamLabel('team2')} ${t('matchRecord.wins')}` },
+              ]"
+              :key="option.winner"
+              type="button"
+              :disabled="editing"
+              class="hud-hover w-full rounded-lg border px-3 py-2.5 text-sm font-semibold disabled:opacity-50"
+              :class="
+                detail.match.winner === option.winner
+                  ? 'border-brand-pink bg-brand-pink/15 text-brand-pink'
+                  : 'border-brand-pink/25 bg-brand-surface text-white/80 hover:border-brand-pink'
+              "
+              @click="fixResult(option.winner)"
+            >
+              {{ option.label }}
+            </button>
+          </div>
+          <button type="button" class="mt-3 text-sm text-white/50" @click="editOpen = false">
+            {{ t('common.cancel') }}
+          </button>
+        </template>
+        <p v-if="editing" class="mt-3 text-sm text-white/50">{{ t('matchRecord.editing') }}</p>
+        <p v-if="editError" class="mt-3 text-sm text-status-error">{{ editError }}</p>
+        <p v-if="editDone" class="mt-3 text-sm text-status-success">{{ t('matchRecord.edited') }}</p>
+      </section>
     </template>
   </main>
 </template>

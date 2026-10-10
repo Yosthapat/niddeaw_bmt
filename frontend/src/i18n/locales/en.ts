@@ -243,6 +243,11 @@ export default {
     courtPlaceholder: 'Court (optional)',
   },
   matchRecord: {
+    editResult: 'Fix result',
+    editResultHint: 'Tapped the wrong team? Pick the right outcome — ELO and stats are recalculated',
+    editing: 'Saving...',
+    editFailed: 'Could not fix the result',
+    edited: 'Result fixed',
     title: 'Record Match Result',
     notFound: 'Match not found — back to',
     wins: 'Wins',
