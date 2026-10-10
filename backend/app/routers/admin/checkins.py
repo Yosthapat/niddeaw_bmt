@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, status
 from app.db_utils import rows
 from app.deps import AdminDep, SupabaseDep
 from app.models.checkin import Checkin, CheckinCreate
+from app.services.session_state import ensure_session_open
 
 router = APIRouter(prefix="/api/admin/checkins", tags=["admin-checkins"])
 
@@ -23,6 +24,9 @@ def list_checkins(
 
 @router.post("", response_model=Checkin, status_code=status.HTTP_201_CREATED)
 def check_in(payload: CheckinCreate, supabase: SupabaseDep, admin: AdminDep) -> Checkin:
+    # A closed session has already been billed, so a check-in added now
+    # would be a player on the court with no bill.
+    ensure_session_open(supabase, payload.session_id)
     row = {
         "session_id": str(payload.session_id),
         "player_id": str(payload.player_id),

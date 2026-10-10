@@ -182,6 +182,8 @@ export default {
     shuttlecockPriceTitle: 'ค่าลูกแบดต่อเกม (บาท)',
   },
   checkin: {
+    sessionClosed: 'Session นี้ปิดไปแล้ว (คิดเงินเรียบร้อย) — เช็คอินเพิ่มไม่ได้',
+    sessionClosedHint: 'ถ้าจะเริ่มก๊วนใหม่ ให้กด "+ สร้าง session วันนี้" ด้านบน',
     allMembers: 'สมาชิกทั้งหมด',
     newMemberName: 'ชื่อสมาชิกใหม่',
     selectSessionFirst: 'เลือกหรือสร้าง session ก่อนเช็คอิน',
