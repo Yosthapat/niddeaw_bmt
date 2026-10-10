@@ -4,10 +4,11 @@ import { useI18n } from 'vue-i18n'
 import { useSessionsStore } from '@/stores/sessions'
 import { usePlayersStore } from '@/stores/players'
 import * as adminApi from '@/api/admin'
+import { getMatches } from '@/api/public'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { ApiError } from '@/api/client'
 import { usePolling } from '@/composables/usePolling'
-import type { MatchmakingQueueResponse, PairingSuggestion, QueueEntry } from '@/types'
+import type { Match, MatchmakingQueueResponse, PairingSuggestion, QueueEntry } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import SessionPicker from '@/components/layout/SessionPicker.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
@@ -70,14 +71,29 @@ function avatarOf(playerId: string): string | undefined {
   return playersStore.byId(playerId)?.avatar_url ?? undefined
 }
 
+// Tonight's finished matches. The admin had nowhere to see them: a result
+// tapped for the wrong team could only be reached through the public match
+// log, four taps away, which is also where it was noticed in the first
+// place. Fetched alongside the queue so it stays current as results land.
+const playedMatches = ref<Match[]>([])
+
 async function refreshQueue(): Promise<void> {
   if (!sessionsStore.currentSessionId) {
     queue.value = null
+    playedMatches.value = []
     queueError.value = null
     return
   }
   try {
-    queue.value = await adminApi.getMatchmakingQueue(sessionsStore.currentSessionId)
+    const sessionId = sessionsStore.currentSessionId
+    const [nextQueue, played] = await Promise.all([
+      adminApi.getMatchmakingQueue(sessionId),
+      // A quiet failure here costs the finished list, not the queue the
+      // admin is actually working in.
+      getMatches({ sessionId, limit: 50 }).catch(() => playedMatches.value),
+    ])
+    playedMatches.value = played
+    queue.value = nextQueue
     queueError.value = null
   } catch (e) {
     // Keep the last-known-good queue on screen when a single poll fails (a
@@ -403,7 +419,7 @@ const pollControls = usePolling(refreshQueue, 7000)
 <template>
   <AdminNav />
   <main class="mx-auto max-w-4xl px-4 py-6">
-    <h1 class="text-2xl font-bold text-brand-pink">{{ t('admin.nav.matchmaking') }} (Matchmaking)</h1>
+    <h1 class="text-2xl font-bold text-brand-pink">{{ t('admin.nav.matchmaking') }}</h1>
     <div class="mt-4">
       <SessionPicker />
     </div>
@@ -638,6 +654,39 @@ const pollControls = usePolling(refreshQueue, 7000)
                 <button class="text-xs text-white/50" @click="cancelEditMatch">{{ t('common.cancel') }}</button>
               </div>
             </div>
+          </li>
+        </ul>
+      </section>
+
+      <section v-if="playedMatches.length > 0" class="mt-8">
+        <h2 class="text-sm font-semibold text-white/70">
+          {{ t('matchmaking.playedToday') }} ({{ playedMatches.length }})
+        </h2>
+        <ul class="mt-2 space-y-2">
+          <li v-for="m in playedMatches" :key="m.id">
+            <RouterLink
+              :to="`/matches/${m.id}`"
+              class="hud-hover hud-panel flex items-center gap-2 border border-brand-pink/15 bg-brand-surface px-3 py-2 text-sm hover:border-brand-pink/40"
+            >
+              <span v-if="typeof m.match_no === 'number'" class="font-mono text-xs text-brand-pink/70">
+                #{{ m.match_no }}
+              </span>
+              <span class="flex-1 truncate" :class="m.winner === 'team1' ? 'text-white' : 'text-white/50'">
+                {{ m.team1_player_ids.map(nameOf).join(' & ') }}
+              </span>
+              <span
+                class="shrink-0 text-xs"
+                :class="m.winner === 'draw' ? 'text-white/60' : 'text-white/30'"
+              >
+                {{ m.winner === 'draw' ? t('common.draw') : 'vs' }}
+              </span>
+              <span class="flex-1 truncate text-right" :class="m.winner === 'team2' ? 'text-white' : 'text-white/50'">
+                {{ m.team2_player_ids.map(nameOf).join(' & ') }}
+              </span>
+              <span class="shrink-0 text-xs font-semibold text-brand-pink/70">
+                {{ t('matchmaking.fixResult') }}
+              </span>
+            </RouterLink>
           </li>
         </ul>
       </section>

@@ -185,7 +185,8 @@ export default {
   checkin: {
     sessionClosed: 'Session นี้ปิดไปแล้ว (คิดเงินเรียบร้อย) — เช็คอินเพิ่มไม่ได้',
     sessionClosedHint: 'ถ้าจะเริ่มก๊วนใหม่ ให้กด "+ สร้าง session วันนี้" ด้านบน',
-    allMembers: 'สมาชิกทั้งหมด',
+    addMember: '+ เพิ่มสมาชิกใหม่',
+    everyoneCheckedIn: 'ทุกคนเช็คอินครบแล้ว',
     newMemberName: 'ชื่อสมาชิกใหม่',
     selectSessionFirst: 'เลือกหรือสร้าง session ก่อนเช็คอิน',
     checkingIn: 'กำลังเช็คอิน',
@@ -200,6 +201,8 @@ export default {
     noSearchResults: 'ไม่พบสมาชิกที่ค้นหา',
   },
   matchmaking: {
+    playedToday: 'แมตช์ที่จบแล้ววันนี้',
+    fixResult: 'แก้ผล ›',
     everyoneInAMatch: 'คนว่างเหลือ {n} คน — รอแมตช์ที่กำลังแข่งจบก่อน ถึงจะจัดคู่ถัดไปได้',
     selectSessionFirst: 'เลือกหรือสร้าง session ก่อน',
     inProgress: 'กำลังแข่ง',
@@ -313,13 +316,10 @@ export default {
     currentQr: 'QR ปัจจุบัน',
   },
   dashboard: {
+    title: 'หน้าหลัก',
     totalMembers: 'สมาชิกทั้งหมด',
     openSessions: 'Session ที่เปิดอยู่',
     totalSessions: 'Session ทั้งหมด',
-    checkinDesc: 'จัดการเช็คอิน-เอาท์ผู้เล่นในสนาม',
-    matchmakingDesc: 'จัดคู่ตาม ELO และบันทึกผลแมตช์',
-    billingDesc: 'ปิด session, สร้าง PromptPay QR',
-    settingsDesc: 'PromptPay ID, อัตราค่าหัวเริ่มต้น',
     revenueExpenseChart: 'รายรับ-รายจ่าย',
     period: {
       day: 'รายวัน',
@@ -345,20 +345,20 @@ export default {
   },
   admin: {
     nav: {
-      dashboard: 'Dashboard',
-      checkin: 'Check-in',
+      dashboard: 'หน้าหลัก',
+      checkin: 'เช็คอิน',
       members: 'จัดการสมาชิก',
       matchmaking: 'จับคู่',
       billing: 'คิดเงิน',
       expenses: 'รายจ่าย',
       revenue: 'ยอดรายรับ',
       settings: 'ตั้งค่า',
-      activityLog: 'Activity Log',
+      activityLog: 'ประวัติการใช้งาน',
       logout: 'ออกจากระบบ',
     },
   },
   activityLog: {
-    title: 'Activity Log',
+    title: 'ประวัติการใช้งาน',
     allAdmins: 'แอดมินทั้งหมด',
     clearFilters: 'ล้างตัวกรอง',
     loadFailed: 'โหลด activity log ไม่สำเร็จ',
