@@ -23,6 +23,12 @@ const addingPlayer = ref(false)
 const actionError = ref<string | null>(null)
 const search = ref('')
 
+// Closing a session is what bills everyone, so anything added afterwards
+// is a player on court with no bill. The picker deliberately lists closed
+// sessions (old nights are worth looking at), which makes picking one and
+// carrying on the easy mistake — so here the screen goes read-only and
+// says why, rather than letting the tap fail against the API.
+const sessionClosed = computed(() => sessionsStore.currentSession?.status === 'closed')
 const activeCheckins = computed(() => checkins.value.filter((c) => c.checkout_time === null))
 const activePlayerIds = computed(() => new Set(activeCheckins.value.map((c) => c.player_id)))
 const availablePlayers = computed(() =>
@@ -102,11 +108,19 @@ usePolling(refreshCheckins, 8000)
 
     <p v-if="actionError" class="mt-4 text-sm text-status-error">{{ actionError }}</p>
 
+    <div
+      v-if="sessionClosed"
+      class="hud-panel mt-4 border border-status-error/40 bg-status-error/10 px-4 py-3"
+    >
+      <p class="text-sm font-semibold text-status-error">{{ t('checkin.sessionClosed') }}</p>
+      <p class="mt-1 text-xs text-white/60">{{ t('checkin.sessionClosedHint') }}</p>
+    </div>
+
     <section class="mt-6">
       <div class="flex items-center justify-between">
         <h2 class="text-sm font-semibold text-white/70">{{ t('checkin.allMembers') }}</h2>
       </div>
-      <div v-if="addingPlayer" class="mt-2 flex gap-2">
+      <div v-if="addingPlayer && !sessionClosed" class="mt-2 flex gap-2">
         <input
           v-model="newPlayerName"
           :placeholder="t('checkin.newMemberName')"
@@ -153,6 +167,7 @@ usePolling(refreshCheckins, 8000)
               {{ new Date(c.checkin_time).toLocaleTimeString(locale === 'th' ? 'th-TH' : 'en-US', { hour: '2-digit', minute: '2-digit' }) }}
             </span>
             <button
+              v-if="!sessionClosed"
               class="rounded-full border border-brand-pink px-3 py-1 text-xs text-brand-pink hover:bg-brand-pink hover:text-brand-black"
               @click="doCheckout(c.id)"
             >
@@ -163,7 +178,7 @@ usePolling(refreshCheckins, 8000)
         </ul>
       </section>
 
-      <section class="mt-8">
+      <section v-if="!sessionClosed" class="mt-8">
         <div class="flex items-center justify-between gap-4">
           <h2 class="text-sm font-semibold text-white/70">{{ t('checkin.notCheckedIn') }}</h2>
           <input

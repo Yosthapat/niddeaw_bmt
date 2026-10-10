@@ -2,12 +2,14 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { ApiError } from '@/api/client'
 import type { DailyRevenue, IncomeSource, OtherIncome } from '@/types'
 import { compressImage } from '@/utils/imageCompression'
 import AdminNav from '@/components/layout/AdminNav.vue'
 
 const { t, locale } = useI18n()
+const { confirm } = useConfirmDialog()
 
 const SOURCES: IncomeSource[] = ['sponsor', 'investment', 'other']
 
@@ -200,7 +202,7 @@ async function saveIncomeEdit(income: OtherIncome): Promise<void> {
 }
 
 async function removeIncome(income: OtherIncome): Promise<void> {
-  if (!window.confirm(t('income.deleteConfirm'))) return
+  if (!(await confirm({ title: t('common.delete'), message: t('income.deleteConfirm'), danger: true }))) return
   deletingIncomeId.value = income.id
   incomeRowError.value = null
   try {

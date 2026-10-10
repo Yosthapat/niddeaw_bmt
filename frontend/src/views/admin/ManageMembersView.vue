@@ -2,6 +2,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { ApiError } from '@/api/client'
 import { useEloTier, tierTextStyle } from '@/composables/useEloTier'
 import { compressImage } from '@/utils/imageCompression'
@@ -12,6 +13,7 @@ import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 
 const { t } = useI18n()
+const { confirm } = useConfirmDialog()
 
 const players = ref<Player[]>([])
 const loading = ref(true)
@@ -171,7 +173,7 @@ async function toggleActive(player: Player): Promise<void> {
 }
 
 async function removePlayer(player: Player): Promise<void> {
-  if (!window.confirm(t('members.deleteConfirm'))) return
+  if (!(await confirm({ title: t('members.delete'), message: t('members.deleteConfirm'), danger: true }))) return
   deletingId.value = player.id
   rowError.value = null
   rowNotice.value = null

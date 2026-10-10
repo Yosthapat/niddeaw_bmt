@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useSessionsStore } from '@/stores/sessions'
 import { usePlayersStore } from '@/stores/players'
 import * as adminApi from '@/api/admin'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { ApiError } from '@/api/client'
 import { usePolling } from '@/composables/usePolling'
 import type { MatchmakingQueueResponse, PairingSuggestion, QueueEntry } from '@/types'
@@ -12,6 +13,7 @@ import SessionPicker from '@/components/layout/SessionPicker.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 
 const { t } = useI18n()
+const { confirm } = useConfirmDialog()
 const sessionsStore = useSessionsStore()
 const playersStore = usePlayersStore()
 
@@ -89,7 +91,12 @@ async function refreshQueue(): Promise<void> {
 }
 
 async function cancelMatch(matchId: string, team1: string, team2: string): Promise<void> {
-  const confirmed = window.confirm(t('matchmaking.cancelConfirm', { team1, team2 }))
+  const confirmed = await confirm({
+    title: t('matchmaking.cancelMatch'),
+    message: t('matchmaking.cancelConfirm', { team1, team2 }),
+    confirmLabel: t('matchmaking.cancelMatch'),
+    danger: true,
+  })
   if (!confirmed) return
   cancelling.value = matchId
   cancelError.value = null
