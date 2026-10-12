@@ -99,3 +99,19 @@ class PlayerProfile(BaseModel):
     elo_rank: int
     total_ranked_players: int
     similar_players: list[Player] = []
+
+
+class PlayerCount(BaseModel):
+    """How many members the club has on its books right now.
+
+    Counts the active roster — the same set the members page lists and the
+    home page's photo strip scrolls — so the number and the faces beside it
+    agree. Someone deactivated has left the club; counting them would make
+    the figure drift from everything else on the page.
+
+    Its own endpoint, counted by Postgres rather than measured off a
+    fetched roster, so the home page can show it without pulling every
+    member's stats to do it.
+    """
+
+    active: int

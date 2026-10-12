@@ -40,11 +40,16 @@ class FakeQuery:
     service layer's job and are tested there, against the real logic.
     """
 
-    def __init__(self, rows: list[dict[str, Any]]) -> None:
+    def __init__(self, rows: list[dict[str, Any]], calls: list[tuple[str, Any, Any]] | None = None) -> None:
         self._rows = rows
+        # Every builder call, in order. The fake does not apply filters, so
+        # a count or a list it returns cannot show whether one was asked
+        # for — this is how a test pins down that e.g. is_active was.
+        self.calls: list[tuple[str, Any, Any]] = [] if calls is None else calls
 
     def __getattr__(self, name: str) -> Any:
         def builder(*args: Any, **kwargs: Any) -> "FakeQuery":
+            self.calls.append((name, args, kwargs))
             return self
 
         return builder
@@ -104,11 +109,14 @@ class FakeSupabase:
         # the matches table — a distinction the response body alone cannot
         # show once the fake serves the same rows for either name.
         self.requested: list[str] = []
+        # Shared by every FakeQuery this fake hands out, so a test can read
+        # back what the request asked for without holding the query object.
+        self.calls: list[tuple[str, Any, Any]] = []
         self.storage = FakeStorage()
 
     def table(self, name: str) -> FakeQuery:
         self.requested.append(name)
-        return FakeQuery(self.tables.get(name, []))
+        return FakeQuery(self.tables.get(name, []), self.calls)
 
 
 @pytest.fixture(autouse=True)

@@ -30,6 +30,7 @@ export default {
   home: {
     memberMarqueeLabel: 'Club members',
     clubMatchesLabel: 'Matches played',
+    clubMembersLabel: 'Members',
     tagline:
       'The fun-loving badminton club — check in, get matched by ELO, billing done automatically. Nobody escapes the stats.',
     quickLinks: {

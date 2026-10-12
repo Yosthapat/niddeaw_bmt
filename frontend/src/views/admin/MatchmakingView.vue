@@ -77,6 +77,18 @@ function avatarOf(playerId: string): string | undefined {
 // place. Fetched alongside the queue so it stays current as results land.
 const playedMatches = ref<Match[]>([])
 
+// Collapsed to its heading by default, and the choice is remembered — the
+// same idiom as the home page's club tally, and as the locale preference:
+// anything but the stored word reads false, so a first-time admin gets the
+// default and everyone else gets back whatever they last chose.
+const PLAYED_STORAGE_KEY = 'niddeaw-matchmaking-played'
+const playedOpen = ref(localStorage.getItem(PLAYED_STORAGE_KEY) === 'open')
+
+function togglePlayed(): void {
+  playedOpen.value = !playedOpen.value
+  localStorage.setItem(PLAYED_STORAGE_KEY, playedOpen.value ? 'open' : 'closed')
+}
+
 async function refreshQueue(): Promise<void> {
   if (!sessionsStore.currentSessionId) {
     queue.value = null
@@ -659,10 +671,33 @@ const pollControls = usePolling(refreshQueue, 7000)
       </section>
 
       <section v-if="playedMatches.length > 0" class="mt-8">
-        <h2 class="text-sm font-semibold text-white/70">
+        <!-- Shut by default. This is the only list on the screen that is
+             not work in hand: the admin opens it when a result was tapped
+             for the wrong team, which is rare, and the rest of the night
+             it would push the queue down the page for nothing. The count
+             in the heading is the part that is worth seeing at a glance. -->
+        <button
+          type="button"
+          class="tap flex w-full items-center gap-2 text-left text-sm font-semibold text-white/70"
+          :aria-expanded="playedOpen"
+          @click="togglePlayed"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="h-4 w-4 shrink-0 transition-transform duration-200"
+            :class="playedOpen ? 'rotate-90' : ''"
+            aria-hidden="true"
+          >
+            <path d="m9 6 6 6-6 6" />
+          </svg>
           {{ t('matchmaking.playedToday') }} ({{ playedMatches.length }})
-        </h2>
-        <ul class="mt-2 space-y-2">
+        </button>
+        <ul v-show="playedOpen" class="mt-2 space-y-2">
           <li v-for="m in playedMatches" :key="m.id">
             <RouterLink
               :to="`/matches/${m.id}`"

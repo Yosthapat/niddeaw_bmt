@@ -3,12 +3,13 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
+from postgrest.types import CountMethod
 from supabase import Client
 
 from app.db_utils import rows
 from app.deps import SupabaseDep
 from app.models.match import Match
-from app.models.player import NemesisInfo, Player, PlayerProfile, PlayerStats
+from app.models.player import NemesisInfo, Player, PlayerCount, PlayerProfile, PlayerStats
 from app.services import season_service, stats_service
 
 # Reads that show a match number go through the matches_numbered view
@@ -77,6 +78,25 @@ def list_players(
     if limit is None:
         return stats
     return stats[offset : offset + limit]
+
+
+@router.get("/count", response_model=PlayerCount)
+def count_players(supabase: SupabaseDep) -> PlayerCount:
+    """The active roster's size, for the home page's club tally.
+
+    Declared above /{player_id}: a literal path and a path parameter both
+    match "/count", and the one declared first wins.
+
+    `head=True` sends no rows back at all, so this stays flat as the club
+    grows — the whole reason it isn't measured by fetching the roster.
+    """
+    result = (
+        supabase.table("players")
+        .select("id", count=CountMethod.exact, head=True)
+        .eq("is_active", True)
+        .execute()
+    )
+    return PlayerCount(active=result.count or 0)
 
 
 @router.get("/{player_id}", response_model=Player)
