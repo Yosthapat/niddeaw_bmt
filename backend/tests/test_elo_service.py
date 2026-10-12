@@ -71,9 +71,11 @@ def test_reverse_match_results_undoes_a_single_completed_match() -> None:
     assert result[loser] == {"elo_score": 1000, "games": 0, "wins": 0, "draws": 0, "losses": 0}
 
 
-def test_reverse_match_results_skips_matches_missing_recorded_deltas() -> None:
-    """Matches recorded before elo_delta_team1/2 existed have no delta to
-    undo — leave the player's stats untouched rather than guessing."""
+def test_reverse_match_results_still_takes_the_game_off_without_a_recorded_delta() -> None:
+    """A match recorded before elo_delta_team1/2 existed has no rating move
+    to undo — but it still happened, and if it is being deleted it stops
+    counting. Leaving the game on the counter is how a profile ends up
+    claiming more games than the club has matches for."""
     player = uuid4()
     players_by_id = {player: {"elo_score": 1010, "games": 3, "wins": 2, "draws": 0, "losses": 1}}
     matches: list[elo_service.CompletedMatchRow] = [
@@ -88,7 +90,13 @@ def test_reverse_match_results_skips_matches_missing_recorded_deltas() -> None:
 
     result = elo_service.reverse_match_results(matches, players_by_id)  # type: ignore[arg-type]
 
-    assert result[player] == players_by_id[player]
+    assert result[player] == {
+        "elo_score": 1010,  # untouched: there is no delta to undo it by
+        "games": 2,
+        "wins": 1,
+        "draws": 0,
+        "losses": 1,
+    }
 
 
 def test_reverse_match_results_never_goes_negative() -> None:
