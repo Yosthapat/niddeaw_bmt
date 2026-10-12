@@ -14,9 +14,9 @@
 // ten minutes at the very least, so a faster poll would only double the
 // request rate on the most-visited page of the site to show the same
 // number.
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { getMatchCount } from '@/api/public'
+import { getMatchCount, getPlayerCount } from '@/api/public'
 import { usePolling } from '@/composables/usePolling'
 import CountUp from '@/components/common/CountUp.vue'
 
@@ -27,6 +27,11 @@ const EXPANDED_STORAGE_KEY = 'niddeaw-club-counter'
 // null = not known yet. Kept distinct from 0 so a slow first response
 // shows nothing rather than briefly claiming the club has played none.
 const total = ref<number | null>(null)
+
+// How many people are in the club. Read once rather than polled: a member
+// joins every few weeks, where the match tally moves every few minutes on
+// a Friday, and this sits on the most-visited page of the site.
+const members = ref<number | null>(null)
 
 // Same idiom as the locale preference in i18n/index.ts: anything but the
 // stored word reads false, so a first-time reader gets the collapsed
@@ -52,7 +57,17 @@ async function refresh(): Promise<void> {
   }
 }
 
+async function loadMembers(): Promise<void> {
+  try {
+    members.value = (await getPlayerCount()).active
+  } catch {
+    // Same reasoning as the tally: this is a flourish above the banner,
+    // and the match count alone still reads fine without it.
+  }
+}
+
 usePolling(refresh, 15000)
+onMounted(loadMembers)
 </script>
 
 <template>
@@ -67,7 +82,11 @@ usePolling(refresh, 15000)
     class="hud-panel glass-panel hud-hover counter flex shrink-0 cursor-pointer items-center border border-brand-pink/25 hover:border-brand-pink/50"
     :class="expanded ? 'gap-3 px-3.5 py-2' : 'gap-2 px-2.5 py-1.5'"
     :aria-expanded="expanded"
-    :aria-label="`${formatCount(total)} ${t('home.clubMatchesLabel')}`"
+    :aria-label="
+      members === null
+        ? `${formatCount(total)} ${t('home.clubMatchesLabel')}`
+        : `${formatCount(total)} ${t('home.clubMatchesLabel')}, ${formatCount(members)} ${t('home.clubMembersLabel')}`
+    "
     @click="toggle"
   >
     <!-- Own-drawn shuttlecock glyph, same line-icon language as the
@@ -107,6 +126,10 @@ usePolling(refresh, 15000)
            aria-hidden as well: clipping it to 0fr leaves it in the
            accessibility tree, and the button's own label already says
            what the number is. -->
+      <!-- Each figure's label sits directly under that figure, in its own
+           collapsible: one shared collapsible would stack both labels
+           after both numbers, which reads as the wrong label under the
+           wrong figure the moment the panel opens. -->
       <div class="collapsible" :class="{ 'is-open': expanded }" :aria-hidden="!expanded">
         <div>
           <span
@@ -119,6 +142,49 @@ usePolling(refresh, 15000)
               <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-brand-pink" />
             </span>
             {{ t('home.clubMatchesLabel') }}
+          </span>
+        </div>
+      </div>
+
+      <!-- The member tally, under the match one. Collapsed it is a bare
+           number beside a small figure glyph, so the pill stays a pill;
+           expanded it gets its own label like the tally above it. Hidden
+           until it is known rather than shown as a zero, the same rule the
+           match count follows. -->
+      <p
+        v-if="members !== null"
+        class="mt-1 flex items-center gap-1 font-display font-bold tabular-nums text-white/55"
+        :class="expanded ? 'text-sm' : 'text-[11px]'"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="shrink-0"
+          :class="expanded ? 'h-3.5 w-3.5' : 'h-3 w-3'"
+          aria-hidden="true"
+        >
+          <path d="M16 20v-1.6a3.4 3.4 0 0 0-3.4-3.4H7.4A3.4 3.4 0 0 0 4 18.4V20" />
+          <circle cx="10" cy="7.6" r="3.4" />
+          <path d="M20 20v-1.6a3.4 3.4 0 0 0-2.6-3.3M15.2 4.3a3.4 3.4 0 0 1 0 6.6" />
+        </svg>
+        <CountUp :value="members" :format="formatCount" />
+      </p>
+
+      <div
+        v-if="members !== null"
+        class="collapsible"
+        :class="{ 'is-open': expanded }"
+        :aria-hidden="!expanded"
+      >
+        <div>
+          <span
+            class="mt-1 flex items-center justify-end gap-1.5 text-[10px] tracking-wide whitespace-nowrap text-white/35 uppercase"
+          >
+            {{ t('home.clubMembersLabel') }}
           </span>
         </div>
       </div>
@@ -143,6 +209,12 @@ usePolling(refresh, 15000)
 
 .counter p {
   transition: font-size 0.26s ease;
+}
+
+.counter p svg {
+  transition:
+    width 0.26s ease,
+    height 0.26s ease;
 }
 
 /* Both axes: the label is what makes the panel wide *and* tall, so

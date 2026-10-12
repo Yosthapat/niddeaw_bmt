@@ -58,3 +58,7 @@ export interface PlayerProfile {
   total_ranked_players: number
   similar_players: Player[]
 }
+
+export interface PlayerCount {
+  active: number
+}

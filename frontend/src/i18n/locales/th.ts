@@ -30,6 +30,7 @@ export default {
   home: {
     memberMarqueeLabel: 'สมาชิกก๊วน',
     clubMatchesLabel: 'แมตช์ที่จบแล้ว',
+    clubMembersLabel: 'สมาชิก',
     tagline: 'ก๊วนแบดสายมันส์ — เช็คอิน จัดคู่ตาม ELO คิดเงินอัตโนมัติ ไม่มีใครหนีสถิติไปได้',
     quickLinks: {
       membersDesc: 'สถิติทุกคนในก๊วน',

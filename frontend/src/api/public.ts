@@ -5,6 +5,7 @@ import type {
   MatchCount,
   MatchDetail,
   Player,
+  PlayerCount,
   PlayerProfile,
   PlayerStats,
   Season,
@@ -95,6 +96,13 @@ export async function getMatches(
  * page counter can poll it without pulling match rows. */
 export async function getMatchCount(): Promise<MatchCount> {
   return request('/api/matches/count')
+}
+
+/** The active roster's size, counted by Postgres rather than measured off a
+ *  fetched roster. Unlike the match tally this barely moves, so the home
+ *  page reads it once rather than on every poll. */
+export async function getPlayerCount(): Promise<PlayerCount> {
+  return request('/api/players/count')
 }
 
 export async function getMatchDetail(matchId: string): Promise<MatchDetail> {
