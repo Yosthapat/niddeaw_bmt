@@ -40,7 +40,11 @@ from app.main import app  # noqa: E402
 from app.security import hash_password  # noqa: E402
 
 ADMIN_ID = str(uuid.uuid4())
-NAMES = ["บอล", "เจมส์", "ฟ้า", "ต้น", "อุ้ม", "มิว", "แทน", "กิ๊ก"]
+# Names shaped like the club's real ones — English, capitalised, and
+# including the apostrophe someone actually has. The app now refuses a
+# nickname that is not, so a lab seeded with Thai names would be a lab
+# whose own members could not be re-saved through its own screens.
+NAMES = ["Ball", "James", "Faa", "Ton", "Oum", "Mew", "Tan", "P'Tee"]
 TIERS = ["beer", "beer", "soju", "soju", "highball", "milk", "beer", "soju"]
 
 

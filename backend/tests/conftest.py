@@ -50,6 +50,19 @@ class FakeQuery:
     def __getattr__(self, name: str) -> Any:
         def builder(*args: Any, **kwargs: Any) -> "FakeQuery":
             self.calls.append((name, args, kwargs))
+            # `ilike` is the one filter this fake applies, because it is
+            # the one whose *result* is the behaviour under test: the
+            # nickname uniqueness check reads "did this match anything",
+            # and a fake that answers "everything" could not tell a free
+            # name from a taken one. Every other filter stays a no-op —
+            # see the class docstring.
+            if name == "ilike" and len(args) == 2:
+                column, pattern = args
+                wanted = str(pattern).lower()
+                return FakeQuery(
+                    [r for r in self._rows if str(r.get(column, "")).lower() == wanted],
+                    self.calls,
+                )
             return self
 
         return builder
