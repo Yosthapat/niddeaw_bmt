@@ -2,8 +2,9 @@ from fastapi import APIRouter, HTTPException, Request, status
 
 from app.config import get_settings
 from app.db_utils import rows
-from app.deps import SupabaseDep
+from app.deps import AdminDep, SupabaseDep
 from app.models.admin import AdminLoginRequest, AdminLoginResponse
+from app.models.diagnostics import ClientIdentity
 from app.security import create_access_token, verify_password
 from app.services import login_throttle
 
@@ -48,3 +49,24 @@ def login(
     token = create_access_token(admin_id=admin_row["id"], role=admin_row["role"])
     settings = get_settings()
     return AdminLoginResponse(access_token=token, expires_in_minutes=settings.jwt_expire_minutes)
+
+
+@router.get("/whoami", response_model=ClientIdentity)
+def whoami(request: Request, admin: AdminDep) -> ClientIdentity:
+    """What the login throttle makes of the caller asking.
+
+    Admin-only: it reports the address our edge saw, which is not
+    something to hand out publicly. See ClientIdentity for what the answer
+    means and how to read it.
+    """
+    forwarded_for = request.headers.get("x-forwarded-for")
+    peer = request.client.host if request.client else None
+    key = login_throttle.client_key(forwarded_for, peer)
+    return ClientIdentity(
+        forwarded_for=forwarded_for,
+        hops=[hop.strip() for hop in (forwarded_for or "").split(",") if hop.strip()],
+        peer=peer,
+        throttle_key=key,
+        recent_failures=login_throttle.failure_count(key),
+        retry_after_seconds=login_throttle.retry_after_seconds(key),
+    )

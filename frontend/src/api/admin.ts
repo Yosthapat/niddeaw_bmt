@@ -413,3 +413,20 @@ export async function getActivityLog(
 export async function getActivityLogAdmins(): Promise<Admin[]> {
   return request('/api/admin/activity-log/admins')
 }
+
+// Login-throttle diagnostics
+export interface ClientIdentity {
+  forwarded_for: string | null
+  hops: string[]
+  peer: string | null
+  throttle_key: string
+  recent_failures: number
+  retry_after_seconds: number
+}
+
+/** What the login throttle makes of this device. Two devices on different
+ *  networks should report different `throttle_key` values; the same value
+ *  from both means everyone shares one lockout budget. */
+export async function getClientIdentity(): Promise<ClientIdentity> {
+  return request('/api/admin/auth/whoami')
+}

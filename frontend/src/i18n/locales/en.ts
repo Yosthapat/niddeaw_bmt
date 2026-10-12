@@ -320,6 +320,15 @@ export default {
     uploadQr: 'Upload QR Image',
     replaceQr: 'Replace QR',
     qrUploadFailed: 'Failed to upload QR',
+    identityTitle: 'What the server sees (login lockout check)',
+    identityHint:
+      "Five wrong passwords lock a caller out for 15 minutes. Open this on a phone (mobile data) and on a laptop (wifi) and compare the key below: two different keys mean lockouts are per-device; the same key on both means one person's lockout locks everybody.",
+    identityCheck: 'Check this device',
+    identityKey: 'The key the throttle uses:',
+    identityFailures: '{n} wrong passwords still counted',
+    identityLocked: 'locked for about {n} more minutes',
+    identityHops: 'Proxies passed:',
+    identityFailed: 'Could not read the identity',
     currentQr: 'Current QR',
   },
   dashboard: {
