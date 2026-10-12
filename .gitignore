@@ -31,3 +31,4 @@ frontend/.env
 
 # Wrangler local cache (account info, etc.)
 .wrangler/
+backend/*.egg-info/

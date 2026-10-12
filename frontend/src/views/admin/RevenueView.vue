@@ -6,6 +6,7 @@ import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { ApiError } from '@/api/client'
 import type { DailyRevenue, IncomeSource, OtherIncome } from '@/types'
 import { compressImage } from '@/utils/imageCompression'
+import ReceiptThumb from '@/components/admin/ReceiptThumb.vue'
 import AdminNav from '@/components/layout/AdminNav.vue'
 
 const { t, locale } = useI18n()
@@ -394,9 +395,7 @@ onMounted(async () => {
 
           <template v-else>
             <div class="flex items-start gap-3">
-              <a v-if="i.slip_url" :href="i.slip_url" target="_blank" rel="noopener noreferrer" class="shrink-0">
-                <img :src="i.slip_url" alt="" class="h-14 w-14 rounded border border-brand-pink/20 object-cover" />
-              </a>
+              <ReceiptThumb v-if="i.slip_url" :url="i.slip_url" />
               <div class="flex-1">
                 <div class="flex flex-wrap items-center gap-2">
                   <span class="rounded-full bg-brand-black px-2 py-0.5 text-[10px] font-semibold tracking-wide text-brand-pink/80 uppercase">
