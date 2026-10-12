@@ -19,6 +19,28 @@ const saveError = ref<string | null>(null)
 const uploadingQr = ref(false)
 const qrUploadError = ref<string | null>(null)
 
+// The admin login locks out a caller after five wrong passwords, and who
+// counts as "a caller" depends on how many proxies sit in front of the
+// app — something only the running deployment can answer. Open this on
+// two devices on different networks: different keys mean the lockout is
+// per-device as intended, the same key means one wrong-password spree
+// locks the whole club out.
+const identity = ref<adminApi.ClientIdentity | null>(null)
+const identityLoading = ref(false)
+const identityError = ref<string | null>(null)
+
+async function loadIdentity(): Promise<void> {
+  identityLoading.value = true
+  identityError.value = null
+  try {
+    identity.value = await adminApi.getClientIdentity()
+  } catch (e) {
+    identityError.value = apiErrorMessage(e, t('settings.identityFailed'))
+  } finally {
+    identityLoading.value = false
+  }
+}
+
 async function onQrFileSelected(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
@@ -196,5 +218,40 @@ const paymentMethodOptions = computed<{ value: PaymentMethod; label: string }[]>
         {{ saving ? t('common.saving') : t('settings.saveSettings') }}
       </button>
     </form>
+
+    <section class="mt-10">
+      <h2 class="text-sm font-semibold text-white/70">{{ t('settings.identityTitle') }}</h2>
+      <p class="mt-1 text-xs text-white/50">{{ t('settings.identityHint') }}</p>
+
+      <button
+        type="button"
+        :disabled="identityLoading"
+        class="tap hud-hover mt-3 w-full rounded-full border border-brand-pink/40 px-4 text-sm font-semibold text-brand-pink disabled:opacity-50"
+        @click="loadIdentity"
+      >
+        {{ identityLoading ? t('common.loading') : t('settings.identityCheck') }}
+      </button>
+
+      <p v-if="identityError" class="mt-3 text-sm text-status-error">{{ identityError }}</p>
+
+      <div
+        v-if="identity"
+        class="hud-panel mt-3 border border-brand-pink/20 bg-brand-surface p-4 text-sm"
+      >
+        <p class="text-white/50">{{ t('settings.identityKey') }}</p>
+        <p class="mt-1 font-mono text-base break-all text-brand-pink">{{ identity.throttle_key }}</p>
+
+        <p class="mt-3 text-white/50">
+          {{ t('settings.identityFailures', { n: identity.recent_failures }) }}
+          <span v-if="identity.retry_after_seconds > 0" class="text-status-error">
+            — {{ t('settings.identityLocked', { n: Math.ceil(identity.retry_after_seconds / 60) }) }}
+          </span>
+        </p>
+
+        <p v-if="identity.hops.length > 1" class="mt-3 text-xs text-white/40">
+          {{ t('settings.identityHops') }} {{ identity.hops.join(' → ') }}
+        </p>
+      </div>
+    </section>
   </main>
 </template>

@@ -71,6 +71,15 @@ def retry_after_seconds(key: str) -> int:
     return max(1, int(WINDOW_SECONDS - (now - attempts[0])) + 1)
 
 
+def failure_count(key: str) -> int:
+    """How many failures are still inside this caller's window.
+
+    Read-only, and it expires stale entries as it goes, so the number is
+    what `retry_after_seconds` would act on right now.
+    """
+    return len(_recent(key, monotonic()))
+
+
 def record_failure(key: str) -> None:
     now = monotonic()
     attempts = _recent(key, now)
