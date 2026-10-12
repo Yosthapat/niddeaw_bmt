@@ -19,7 +19,11 @@ MIN_GAMES_TO_QUALIFY = 5
 def get_hall_of_fame(
     supabase: SupabaseDep, limit: int = Query(default=10, le=50)
 ) -> list[PlayerStats]:
-    players_result = supabase.table("players").select("*").execute()
+    # Active members only, like the members list and the ranking. Someone
+    # who has left the club should not still be standing in its hall; the
+    # matches they played keep their name either way, which is where their
+    # history lives.
+    players_result = supabase.table("players").select("*").eq("is_active", True).execute()
 
     stats: list[PlayerStats] = []
     for row in rows(players_result):

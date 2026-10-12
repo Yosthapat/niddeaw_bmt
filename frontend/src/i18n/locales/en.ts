@@ -68,6 +68,8 @@ export default {
     nicknameTooLong: 'Too long (40 characters at most)',
     nicknameNotEnglish: 'English letters only (apostrophe, hyphen and spaces are allowed)',
     nicknameNotCapitalised: 'The first letter must be a capital',
+    showDeleted: "Deleted members ({n})",
+    deletedBadge: "Deleted",
     nicknameTaken: 'A member already has this name',
     nicknameRequired: 'Nickname *',
     handUnset: 'Hand (unspecified)',
@@ -75,6 +77,7 @@ export default {
     profilePhoto: 'Profile Photo',
     saveNew: 'Save New Member',
     deactivate: 'Deactivate',
+    deactivateConfirm: 'Deactivate {name}? They disappear from the members list, the ranking and the Hall of Fame — you can bring them back from "Deleted members"',
     activate: 'Activate',
     delete: 'Delete',
     deleteConfirm:

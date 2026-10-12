@@ -104,6 +104,19 @@ def test_the_same_name_is_refused(
     assert "Ball" in response.json()["detail"]
 
 
+def test_a_deleted_members_name_is_free_again(
+    client: TestClient, supabase_spy: FakeSupabase, supabase_rows: dict[str, list[dict[str, Any]]]
+) -> None:
+    """Someone who has left the club does not retire their nickname.
+
+    The fake applies no filter but ilike, so what proves this is that the
+    request asked for active members only.
+    """
+    supabase_rows["players"] = [player(EXISTING_ID, "Ball", active=False)]
+    add(client, "Ball")
+    assert ("eq", ("is_active", True), {}) in supabase_spy.calls
+
+
 def test_the_check_ignores_capitals(
     client: TestClient, supabase_spy: FakeSupabase, supabase_rows: dict[str, list[dict[str, Any]]]
 ) -> None:

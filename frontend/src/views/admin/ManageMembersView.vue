@@ -6,7 +6,7 @@ import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { ApiError } from '@/api/client'
 import { useEloTier, tierTextStyle } from '@/composables/useEloTier'
 import { AVATAR_DIMENSION, compressImage } from '@/utils/imageCompression'
-import { nicknameProblem, nicknameTaken } from '@/utils/nickname'
+import { nicknameProblem } from '@/utils/nickname'
 import type { EloTier, Player } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
@@ -34,18 +34,42 @@ function nicknameMessage(raw: string, excludeId?: string): string | null {
   if (!raw.trim()) return null // an empty box is not yet a mistake
   const problem = nicknameProblem(raw)
   if (problem) return t(`members.nickname${problem[0].toUpperCase()}${problem.slice(1)}`)
-  if (nicknameTaken(raw, players.value, excludeId)) return t('members.nicknameTaken')
-  return null
+  // Only members still in the club hold a name: someone deleted has left,
+  // and reserving their nickname forever would retire it from the club.
+  const clash = players.value.find(
+    (p) =>
+      p.is_active &&
+      p.id !== excludeId &&
+      p.nickname.toLowerCase() === raw.trim().split(/\s+/).join(' ').toLowerCase(),
+  )
+  return clash ? t('members.nicknameTaken') : null
 }
 
 const newNameProblem = computed(() => nicknameMessage(newPlayer.nickname))
 const editNameProblem = computed(() =>
   editingId.value ? nicknameMessage(editForm.nickname, editingId.value) : null,
 )
+// A deleted member is kept rather than removed when they have matches,
+// check-ins or a bill behind them — the alternative is breaking every
+// record they appear in. They are out of the list by default, which is
+// what "deleted" should look like.
+//
+// Not gone from it entirely, though: a deleted member still holds their
+// nickname (the API refuses to hand it to someone new), so without a way
+// to see them the screen would refuse a name while showing nobody who has
+// it. This switch is that way, and it is the only place a deleted member
+// can be brought back.
+const showDeleted = ref(false)
+const deletedCount = computed(() => players.value.filter((p) => !p.is_active).length)
+const activeCount = computed(() => players.value.filter((p) => p.is_active).length)
+
 const visiblePlayers = computed(() => {
   const query = search.value.trim().toLowerCase()
-  if (!query) return players.value
-  return players.value.filter((p) => p.nickname.toLowerCase().includes(query))
+  return players.value.filter(
+    (p) =>
+      (p.is_active || showDeleted.value) &&
+      (!query || p.nickname.toLowerCase().includes(query)),
+  )
 })
 
 // Representative starting score per tier — matches the boundaries in
@@ -197,6 +221,22 @@ async function saveEdit(player: Player): Promise<void> {
 }
 
 async function toggleActive(player: Player): Promise<void> {
+  // Deactivating takes the row off this screen, so an accidental tap used
+  // to make someone vanish with nothing said. Only on the way out:
+  // bringing somebody back needs no second thought.
+  if (
+    player.is_active &&
+    !(await confirm({
+      title: t('members.deactivate'),
+      message: t('members.deactivateConfirm', { name: player.nickname }),
+      // Without this the dialog's own button reads "ลบ", which is the one
+      // word this action is not.
+      confirmLabel: t('members.deactivate'),
+      danger: true,
+    }))
+  ) {
+    return
+  }
   const updated = await adminApi.updatePlayer(player.id, { is_active: !player.is_active })
   players.value = players.value.map((p) => (p.id === updated.id ? updated : p))
 }
@@ -328,9 +368,20 @@ onMounted(loadPlayers)
     <p v-else-if="players.length === 0" class="mt-6 text-white/60">{{ t('members.empty') }}</p>
 
     <template v-else>
-    <h2 class="mt-6 text-sm font-semibold text-white/70">
-      {{ t('members.listTitle') }} ({{ players.length }})
-    </h2>
+    <div class="mt-6 flex flex-wrap items-center justify-between gap-2">
+      <h2 class="text-sm font-semibold text-white/70">
+        {{ t('members.listTitle') }} ({{ activeCount }})
+      </h2>
+      <button
+        v-if="deletedCount > 0"
+        type="button"
+        class="tap rounded-full border border-white/15 px-3 text-xs text-white/50"
+        :class="showDeleted ? 'border-brand-pink/40 text-brand-pink' : ''"
+        @click="showDeleted = !showDeleted"
+      >
+        {{ t('members.showDeleted', { n: deletedCount }) }}
+      </button>
+    </div>
     <p v-if="visiblePlayers.length === 0" class="mt-2 text-sm text-white/40">
       {{ t('members.noSearchResults') }}
     </p>
@@ -348,7 +399,15 @@ onMounted(loadPlayers)
               <input type="file" accept="image/*" class="hidden" @change="onAvatarSelected($event, p)" />
               <span v-if="uploadingAvatarId === p.id" class="absolute inset-0 flex items-center justify-center rounded-full bg-black/60 text-[10px]">...</span>
             </label>
-            <p class="min-w-0 flex-1 truncate font-medium">{{ p.nickname }}</p>
+            <p class="min-w-0 flex-1 truncate font-medium">
+              {{ p.nickname }}
+              <span
+                v-if="!p.is_active"
+                class="ml-1 rounded-full bg-status-error/20 px-2 py-0.5 align-middle text-[10px] font-semibold text-status-error"
+              >
+                {{ t('members.deletedBadge') }}
+              </span>
+            </p>
             <TierMascot :tier="p.elo_level" :size="28" :interactive="false" />
             <EloBadge :elo-score="p.elo_score" show-score />
           </div>
