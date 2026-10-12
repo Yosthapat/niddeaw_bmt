@@ -84,3 +84,13 @@ def test_it_counts_only_the_active_roster(
     supabase_rows["players"] = [member("1", "กิ๊ก"), member("2", "ต้น", active=False)]
     client.get("/api/players/count")
     assert ("eq", ("is_active", True), {}) in supabase_spy.calls
+
+
+def test_the_hall_of_fame_leaves_out_deleted_members(
+    client: TestClient, supabase_spy: FakeSupabase, supabase_rows: dict[str, list[Any]]
+) -> None:
+    """Someone who has left the club should not still be standing in its
+    hall. The fake applies no filters, so the request is what shows it."""
+    supabase_rows["players"] = [member("11111111-1111-1111-1111-111111111111", "กิ๊ก")]
+    client.get("/api/hall-of-fame")
+    assert ("eq", ("is_active", True), {}) in supabase_spy.calls
