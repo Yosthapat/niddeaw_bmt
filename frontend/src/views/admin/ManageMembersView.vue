@@ -34,15 +34,15 @@ function nicknameMessage(raw: string, excludeId?: string): string | null {
   if (!raw.trim()) return null // an empty box is not yet a mistake
   const problem = nicknameProblem(raw)
   if (problem) return t(`members.nickname${problem[0].toUpperCase()}${problem.slice(1)}`)
+  // Only members still in the club hold a name: someone deleted has left,
+  // and reserving their nickname forever would retire it from the club.
   const clash = players.value.find(
     (p) =>
+      p.is_active &&
       p.id !== excludeId &&
       p.nickname.toLowerCase() === raw.trim().split(/\s+/).join(' ').toLowerCase(),
   )
-  if (clash) {
-    return clash.is_active ? t('members.nicknameTaken') : t('members.nicknameTakenDeleted')
-  }
-  return null
+  return clash ? t('members.nicknameTaken') : null
 }
 
 const newNameProblem = computed(() => nicknameMessage(newPlayer.nickname))
@@ -221,6 +221,22 @@ async function saveEdit(player: Player): Promise<void> {
 }
 
 async function toggleActive(player: Player): Promise<void> {
+  // Deactivating takes the row off this screen, so an accidental tap used
+  // to make someone vanish with nothing said. Only on the way out:
+  // bringing somebody back needs no second thought.
+  if (
+    player.is_active &&
+    !(await confirm({
+      title: t('members.deactivate'),
+      message: t('members.deactivateConfirm', { name: player.nickname }),
+      // Without this the dialog's own button reads "ลบ", which is the one
+      // word this action is not.
+      confirmLabel: t('members.deactivate'),
+      danger: true,
+    }))
+  ) {
+    return
+  }
   const updated = await adminApi.updatePlayer(player.id, { is_active: !player.is_active })
   players.value = players.value.map((p) => (p.id === updated.id ? updated : p))
 }

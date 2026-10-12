@@ -60,16 +60,24 @@ def _check_nickname(supabase: Client, raw: str, *, exclude_id: str | None = None
     name holds neither, so by the time it is used as a pattern it can only
     match itself.
 
-    Deactivated members count as taken. Their name is still on every match
-    they played, and the right move when someone comes back is to
-    reactivate them rather than to create a second row with the same name.
+    Only active members hold a name. Someone deleted has left the club, and
+    keeping their name reserved would mean a nickname could never be used
+    again by anyone — the matches they played keep showing their name
+    either way, since those rows store ids and resolve the name beside
+    them.
     """
     problem = nickname_service.validation_error(raw)
     if problem:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=problem)
 
     name = nickname_service.normalise(raw)
-    clash = supabase.table("players").select("id").ilike("nickname", name).execute()
+    clash = (
+        supabase.table("players")
+        .select("id")
+        .eq("is_active", True)
+        .ilike("nickname", name)
+        .execute()
+    )
     for row in rows(clash):
         if exclude_id is None or str(row["id"]) != exclude_id:
             raise HTTPException(
