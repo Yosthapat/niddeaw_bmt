@@ -54,11 +54,10 @@ const editNameProblem = computed(() =>
 // record they appear in. They are out of the list by default, which is
 // what "deleted" should look like.
 //
-// Not gone from it entirely, though: a deleted member still holds their
-// nickname (the API refuses to hand it to someone new), so without a way
-// to see them the screen would refuse a name while showing nobody who has
-// it. This switch is that way, and it is the only place a deleted member
-// can be brought back.
+// This switch is the only way back from such a delete. "ลบ" cannot
+// promise to be permanent — for anyone who has played a night it can do
+// no more than hide them — so without somewhere they still appear, one
+// mistaken tap would be unrecoverable from the screens entirely.
 const showDeleted = ref(false)
 const deletedCount = computed(() => players.value.filter((p) => !p.is_active).length)
 const activeCount = computed(() => players.value.filter((p) => p.is_active).length)
@@ -220,29 +219,21 @@ async function saveEdit(player: Player): Promise<void> {
   }
 }
 
-async function toggleActive(player: Player): Promise<void> {
-  // Deactivating takes the row off this screen, so an accidental tap used
-  // to make someone vanish with nothing said. Only on the way out:
-  // bringing somebody back needs no second thought.
-  if (
-    player.is_active &&
-    !(await confirm({
-      title: t('members.deactivate'),
-      message: t('members.deactivateConfirm', { name: player.nickname }),
-      // Without this the dialog's own button reads "ลบ", which is the one
-      // word this action is not.
-      confirmLabel: t('members.deactivate'),
-      danger: true,
-    }))
-  ) {
-    return
-  }
-  const updated = await adminApi.updatePlayer(player.id, { is_active: !player.is_active })
+// No confirmation on the way back in: this undoes a delete rather than
+// doing anything, and a tap in error is undone by the delete button that
+// takes its place.
+async function restorePlayer(player: Player): Promise<void> {
+  const updated = await adminApi.updatePlayer(player.id, { is_active: true })
   players.value = players.value.map((p) => (p.id === updated.id ? updated : p))
 }
 
 async function removePlayer(player: Player): Promise<void> {
-  if (!(await confirm({ title: t('members.delete'), message: t('members.deleteConfirm'), danger: true }))) return
+  const confirmed = await confirm({
+    title: t('members.delete'),
+    message: t('members.deleteConfirm', { name: player.nickname }),
+    danger: true,
+  })
+  if (!confirmed) return
   deletingId.value = player.id
   rowError.value = null
   rowNotice.value = null
@@ -419,18 +410,19 @@ onMounted(loadPlayers)
               {{ t('common.edit') }}
             </button>
             <button
-              class="min-h-10 flex-1 rounded-full px-3 text-xs font-semibold"
-              :class="p.is_active ? 'bg-white/10 text-white/60' : 'bg-status-success/20 text-status-success'"
-              @click="toggleActive(p)"
-            >
-              {{ p.is_active ? t('members.deactivate') : t('members.activate') }}
-            </button>
-            <button
+              v-if="p.is_active"
               :disabled="deletingId === p.id"
-              class="ml-auto min-h-10 rounded-full bg-status-error/20 px-4 text-xs font-semibold text-status-error disabled:opacity-50"
+              class="min-h-10 flex-1 rounded-full bg-status-error/20 px-3 text-xs font-semibold text-status-error disabled:opacity-50"
               @click="removePlayer(p)"
             >
               {{ deletingId === p.id ? t('common.saving') : t('members.delete') }}
+            </button>
+            <button
+              v-else
+              class="min-h-10 flex-1 rounded-full bg-status-success/20 px-3 text-xs font-semibold text-status-success"
+              @click="restorePlayer(p)"
+            >
+              {{ t('members.restore') }}
             </button>
           </div>
         </div>

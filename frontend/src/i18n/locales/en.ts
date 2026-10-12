@@ -76,15 +76,13 @@ export default {
     startingTierHint: "Starting tier (leave blank = starts at Soju)",
     profilePhoto: 'Profile Photo',
     saveNew: 'Save New Member',
-    deactivate: 'Deactivate',
-    deactivateConfirm: 'Deactivate {name}? They disappear from the members list, the ranking and the Hall of Fame — you can bring them back from "Deleted members"',
-    activate: 'Activate',
+    restore: 'Bring back',
     delete: 'Delete',
     deleteConfirm:
-      'Permanently delete this member? This cannot be undone. (If they have match/checkin/billing history, they will be deactivated instead.)',
+      "Delete {name}? They disappear from the members list, the ranking and the Hall of Fame. Anyone with match, check-in or billing history can be brought back from 'Deleted members'; anyone with no history yet is deleted for good.",
     deleteFailed: 'Failed to delete',
     deleteFallbackDeactivated:
-      '{name} has match/checkin/billing history and cannot be permanently deleted — deactivated instead.',
+      "{name} has match, check-in or billing history and cannot be permanently deleted — hidden from every screen instead, and can be brought back from 'Deleted members'.",
     clickToChangePhoto: 'Click photo to change it',
     eloScore: 'ELO Score',
     quote: 'Quote',
