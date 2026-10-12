@@ -6,6 +6,7 @@ import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { ApiError } from '@/api/client'
 import { useEloTier, tierTextStyle } from '@/composables/useEloTier'
 import { AVATAR_DIMENSION, compressImage } from '@/utils/imageCompression'
+import { nicknameProblem, nicknameTaken } from '@/utils/nickname'
 import type { EloTier, Player } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
@@ -24,6 +25,23 @@ const error = ref<string | null>(null)
 // heading stays the club's, so a search narrows the list without ever
 // changing what the screen claims the club has.
 const search = ref('')
+
+// The API is what actually enforces the nickname rules — both this screen
+// and the check-in screen call it. This says the same thing while the
+// admin is still typing, so they are not told after a round trip that the
+// name they just entered will not do.
+function nicknameMessage(raw: string, excludeId?: string): string | null {
+  if (!raw.trim()) return null // an empty box is not yet a mistake
+  const problem = nicknameProblem(raw)
+  if (problem) return t(`members.nickname${problem[0].toUpperCase()}${problem.slice(1)}`)
+  if (nicknameTaken(raw, players.value, excludeId)) return t('members.nicknameTaken')
+  return null
+}
+
+const newNameProblem = computed(() => nicknameMessage(newPlayer.nickname))
+const editNameProblem = computed(() =>
+  editingId.value ? nicknameMessage(editForm.nickname, editingId.value) : null,
+)
 const visiblePlayers = computed(() => {
   const query = search.value.trim().toLowerCase()
   if (!query) return players.value
@@ -281,10 +299,15 @@ onMounted(loadPlayers)
         <input type="file" accept="image/*" class="flex-1 text-xs" @change="onNewAvatarSelected" />
       </label>
 
+      <p v-if="newNameProblem" class="text-sm text-status-error sm:col-span-2">{{ newNameProblem }}</p>
       <p v-if="createError" class="text-sm text-status-error sm:col-span-2">{{ createError }}</p>
 
       <div class="flex gap-2 sm:col-span-2">
-        <button type="submit" :disabled="savingCreate" class="rounded-full bg-brand-pink px-4 py-1.5 text-sm font-semibold text-brand-black disabled:opacity-50">
+        <button
+          type="submit"
+          :disabled="savingCreate || newNameProblem !== null || !newPlayer.nickname.trim()"
+          class="rounded-full bg-brand-pink px-4 py-1.5 text-sm font-semibold text-brand-black disabled:opacity-50"
+        >
           {{ savingCreate ? t('common.saving') : t('members.saveNew') }}
         </button>
         <button type="button" class="text-sm text-white/50" @click="creating = false">{{ t('common.cancel') }}</button>
@@ -375,8 +398,15 @@ onMounted(loadPlayers)
             <input v-model.number="editForm.elo_score" type="number" class="w-24 bg-transparent text-center" />
             <TierMascot :tier="eloTierFor(editForm.elo_score)" :size="24" class="shrink-0" :interactive="false" />
           </label>
+          <p v-if="editNameProblem" class="text-sm text-status-error sm:col-span-2">
+            {{ editNameProblem }}
+          </p>
           <div class="flex gap-2 sm:col-span-2">
-            <button type="submit" :disabled="savingEdit" class="rounded-full bg-brand-pink px-4 py-1.5 text-sm font-semibold text-brand-black disabled:opacity-50">
+            <button
+              type="submit"
+              :disabled="savingEdit || editNameProblem !== null || !editForm.nickname.trim()"
+              class="rounded-full bg-brand-pink px-4 py-1.5 text-sm font-semibold text-brand-black disabled:opacity-50"
+            >
               {{ savingEdit ? t('common.saving') : t('common.save') }}
             </button>
             <button type="button" class="text-sm text-white/50" @click="cancelEdit">{{ t('common.cancel') }}</button>

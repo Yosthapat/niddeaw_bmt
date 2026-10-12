@@ -137,6 +137,23 @@ class Query:
         self._filters.append(lambda r: str(r.get(column)) == str(value))
         return self
 
+    def ilike(self, column: str, pattern: str) -> "Query":
+        """Case-insensitive match, with % and _ as wildcards.
+
+        Used by the nickname uniqueness check, which validates the name's
+        characters before it gets here — so in practice the pattern is a
+        plain name and this is an exact match ignoring case. The wildcards
+        are translated anyway rather than assumed away.
+        """
+        import re as _re
+
+        expr = "".join(
+            ".*" if ch == "%" else "." if ch == "_" else _re.escape(ch) for ch in pattern
+        )
+        matcher = _re.compile(f"^{expr}$", _re.IGNORECASE)
+        self._filters.append(lambda r: matcher.match(str(r.get(column, ""))) is not None)
+        return self
+
     def neq(self, column: str, value: Any) -> "Query":
         self._filters.append(lambda r: str(r.get(column)) != str(value))
         return self

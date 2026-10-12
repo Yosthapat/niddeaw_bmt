@@ -6,6 +6,7 @@ import { usePlayersStore } from '@/stores/players'
 import * as adminApi from '@/api/admin'
 import { ApiError } from '@/api/client'
 import { usePolling } from '@/composables/usePolling'
+import { nicknameProblem, nicknameTaken } from '@/utils/nickname'
 import type { Checkin } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import SessionPicker from '@/components/layout/SessionPicker.vue'
@@ -20,6 +21,16 @@ const playersStore = usePlayersStore()
 const checkins = ref<Checkin[]>([])
 const newPlayerName = ref('')
 const addingPlayer = ref(false)
+
+// Same rules as the members screen, because this box creates a member just
+// as that one does — and the API is what enforces them for both.
+const newNameProblem = computed(() => {
+  if (!newPlayerName.value.trim()) return null
+  const problem = nicknameProblem(newPlayerName.value)
+  if (problem) return t(`members.nickname${problem[0].toUpperCase()}${problem.slice(1)}`)
+  if (nicknameTaken(newPlayerName.value, playersStore.players)) return t('members.nicknameTaken')
+  return null
+})
 const actionError = ref<string | null>(null)
 const search = ref('')
 
@@ -237,21 +248,25 @@ usePolling(refreshCheckins, 8000)
           </li>
         </ul>
 
-        <div v-if="addingPlayer" class="mt-3 flex gap-2">
-          <input
-            v-model="newPlayerName"
-            :placeholder="t('checkin.newMemberName')"
-            class="flex-1 rounded-lg border border-brand-pink/25 bg-brand-black px-2 py-1 text-sm"
-          />
-          <button
-            class="rounded-full bg-brand-pink px-3 py-1 text-sm font-semibold text-brand-black"
-            @click="quickAddPlayer"
-          >
-            {{ t('common.save') }}
-          </button>
-          <button class="text-sm text-white/50" @click="addingPlayer = false">
-            {{ t('common.cancel') }}
-          </button>
+        <div v-if="addingPlayer" class="mt-3">
+          <div class="flex gap-2">
+            <input
+              v-model="newPlayerName"
+              :placeholder="t('checkin.newMemberName')"
+              class="flex-1 rounded-lg border border-brand-pink/25 bg-brand-black px-2 py-1 text-sm"
+            />
+            <button
+              :disabled="newNameProblem !== null || !newPlayerName.trim()"
+              class="tap rounded-full bg-brand-pink px-3 text-sm font-semibold text-brand-black disabled:opacity-50"
+              @click="quickAddPlayer"
+            >
+              {{ t('common.save') }}
+            </button>
+            <button class="text-sm text-white/50" @click="addingPlayer = false">
+              {{ t('common.cancel') }}
+            </button>
+          </div>
+          <p v-if="newNameProblem" class="mt-2 text-sm text-status-error">{{ newNameProblem }}</p>
         </div>
         <button
           v-else

@@ -8,6 +8,7 @@ from app.deps import AdminDep, SupabaseDep
 from app.models.player import Player, PlayerCreate, PlayerUpdate
 from app.services.elo_service import SCORE_FLOOR, STARTING_SCORE, get_tier
 from app.services.image_service import avatar_jpeg, avatar_path, storage_path_from_url
+from app.services import nickname_service
 
 router = APIRouter(prefix="/api/admin/players", tags=["admin-players"])
 
@@ -49,11 +50,42 @@ def list_all_players(supabase: SupabaseDep, admin: AdminDep) -> list[Player]:
     return [Player.model_validate(row) for row in rows(result)]
 
 
+
+def _check_nickname(supabase: Client, raw: str, *, exclude_id: str | None = None) -> str:
+    """Validate a nickname and make sure nobody else has it. Returns the
+    normalised name to store.
+
+    The uniqueness check runs after the format check on purpose: `ilike`
+    treats % and _ as wildcards, and the format rule is what guarantees the
+    name holds neither, so by the time it is used as a pattern it can only
+    match itself.
+
+    Deactivated members count as taken. Their name is still on every match
+    they played, and the right move when someone comes back is to
+    reactivate them rather than to create a second row with the same name.
+    """
+    problem = nickname_service.validation_error(raw)
+    if problem:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=problem)
+
+    name = nickname_service.normalise(raw)
+    clash = supabase.table("players").select("id").ilike("nickname", name).execute()
+    for row in rows(clash):
+        if exclude_id is None or str(row["id"]) != exclude_id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=nickname_service.taken_message(name),
+            )
+    return name
+
+
 @router.post("", response_model=Player, status_code=status.HTTP_201_CREATED)
 def create_player(payload: PlayerCreate, supabase: SupabaseDep, admin: AdminDep) -> Player:
+    nickname = _check_nickname(supabase, payload.nickname)
     elo_score = max(SCORE_FLOOR, payload.elo_score) if payload.elo_score is not None else STARTING_SCORE
     row = {
         **payload.model_dump(mode="json", exclude={"elo_score"}),
+        "nickname": nickname,
         "elo_score": elo_score,
         "elo_level": get_tier(elo_score),
         "is_active": True,
@@ -69,6 +101,13 @@ def update_player(
     updates = payload.model_dump(mode="json", exclude_unset=True)
     if not updates:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
+    # Only when the nickname is actually being set: a request that changes
+    # someone's Instagram handle has no business failing over the name they
+    # have had since before the rules existed.
+    if updates.get("nickname") is not None:
+        updates["nickname"] = _check_nickname(
+            supabase, updates["nickname"], exclude_id=str(player_id)
+        )
     if "elo_score" in updates and updates["elo_score"] is not None:
         clamped = max(SCORE_FLOOR, updates["elo_score"])
         updates["elo_score"] = clamped
