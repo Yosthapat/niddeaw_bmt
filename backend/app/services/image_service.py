@@ -25,6 +25,12 @@ from PIL import Image, ImageOps
 # browser throws away after paying to download them.
 AVATAR_MAX_PX = 480
 
+# A receipt or slip is kept at full size — the whole point of photographing
+# one is reading the small print back off it — but the lists on the
+# expenses and revenue screens draw it as a 56px square. 200px covers that
+# on a retina phone, and is about 5 KB instead of 400.
+THUMBNAIL_MAX_PX = 200
+
 JPEG_QUALITY = 82
 
 # JPEG has no alpha, so a transparent PNG needs something behind it. The
@@ -34,7 +40,17 @@ BACKDROP = (24, 14, 19)  # --color-brand-surface, #180e13
 
 
 def avatar_jpeg(data: bytes) -> bytes:
-    """Re-encode an uploaded image as an avatar-sized JPEG.
+    """Re-encode an uploaded image as an avatar-sized JPEG."""
+    return resize_jpeg(data, AVATAR_MAX_PX)
+
+
+def thumbnail_jpeg(data: bytes) -> bytes:
+    """Re-encode an uploaded image as a list-thumbnail-sized JPEG."""
+    return resize_jpeg(data, THUMBNAIL_MAX_PX)
+
+
+def resize_jpeg(data: bytes, max_px: int) -> bytes:
+    """Re-encode an image so its long edge is at most `max_px`, as JPEG.
 
     Raises ValueError if the bytes are not an image Pillow can read — the
     caller turns that into a 400 rather than storing something the site
@@ -54,7 +70,7 @@ def avatar_jpeg(data: bytes) -> bytes:
                 flattened.paste(image, mask=image.split()[-1])
                 image = flattened
 
-            image.thumbnail((AVATAR_MAX_PX, AVATAR_MAX_PX), Image.Resampling.LANCZOS)
+            image.thumbnail((max_px, max_px), Image.Resampling.LANCZOS)
 
             out = io.BytesIO()
             image.save(out, format="JPEG", quality=JPEG_QUALITY, optimize=True)
@@ -92,3 +108,22 @@ def storage_path_from_url(public_url: str, bucket: str) -> str | None:
     # One flat level of objects in this bucket; anything else is not a
     # path this module wrote.
     return path if path and "/" not in path else None
+
+
+# A receipt's thumbnail lives beside it, under the same name with "-thumb"
+# before the extension. Derived rather than stored in a column of its own:
+# the rows already hold a receipt_url, and a convention costs no migration
+# and no second URL to keep in step. The screen falls back to the full
+# image when a thumbnail is not there, which is what every receipt
+# uploaded before this looks like.
+def thumb_path(storage_path: str) -> str:
+    """`abc-123.png` -> `abc-123-thumb.jpg`."""
+    base = storage_path.rsplit(".", 1)[0]
+    return f"{base}-thumb.jpg"
+
+
+def thumb_url(public_url: str) -> str:
+    """The same derivation, applied to a public URL."""
+    head, _, query = public_url.partition("?")
+    derived = thumb_path(head)
+    return f"{derived}?{query}" if query else derived

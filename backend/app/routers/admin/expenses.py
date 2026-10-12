@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, status
 
 from app.db_utils import rows
 from app.deps import AdminDep, SupabaseDep
+from app.services.image_service import thumb_path, thumbnail_jpeg
 from app.models.admin import Admin
 from app.models.expense import Expense, ExpenseCreate, ExpenseUpdate, MonthlyExpenseSummary
 from app.services import expense_service
@@ -12,6 +13,10 @@ from app.services import expense_service
 router = APIRouter(prefix="/api/admin/expenses", tags=["admin-expenses"])
 
 RECEIPT_BUCKET = "receipts"
+
+# A thumbnail is named after the receipt it belongs to, so it only
+# changes when the receipt does — safe to cache for a year.
+THUMBNAIL_CACHE_SECONDS = "31536000"
 MAX_RECEIPT_BYTES = 5 * 1024 * 1024  # 5MB — full receipt photos run bigger than avatars
 
 
@@ -129,6 +134,25 @@ async def upload_receipt(
         contents,
         {"content-type": file.content_type or "image/jpeg", "upsert": "true"},
     )
+
+    # The lists draw this as a 56px square. Without a thumbnail beside it,
+    # opening the screen downloads every full-size receipt to paint one.
+    # Best-effort: a receipt that cannot be thumbnailed (an exotic format
+    # Pillow will not open, say) is still stored and still readable, and
+    # the screen falls back to the full image.
+    try:
+        supabase.storage.from_(RECEIPT_BUCKET).upload(
+            thumb_path(storage_path),
+            thumbnail_jpeg(contents),
+            {
+                "content-type": "image/jpeg",
+                "cache-control": THUMBNAIL_CACHE_SECONDS,
+                "upsert": "true",
+            },
+        )
+    except Exception:  # noqa: BLE001 - never fail the upload over a thumbnail
+        pass
+
     public_url = supabase.storage.from_(RECEIPT_BUCKET).get_public_url(storage_path)
 
     result = (

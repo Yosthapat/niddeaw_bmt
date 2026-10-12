@@ -120,7 +120,8 @@ def seed() -> MiniSupabase:
     db.tables["expenses"] = [
         {"id": str(uuid.uuid4()), "expense_date": datetime.now().date().isoformat(),
          "category": "shuttlecock", "custom_category": None, "amount": 580.0,
-         "paid_by": ADMIN_ID, "note": "ลูกแบด 1 โหล", "receipt_url": None,
+         "paid_by": ADMIN_ID, "note": "ลูกแบด 1 โหล",
+         "receipt_url": "https://fake.supabase.co/storage/v1/object/public/receipts/exp-1.jpg",
          "is_paid": False, "paid_at": None, "created_by": ADMIN_ID, "created_at": _iso(50)}
     ]
     db.tables["other_income"] = [

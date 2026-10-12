@@ -6,6 +6,7 @@ import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { ApiError } from '@/api/client'
 import { compressImage } from '@/utils/imageCompression'
 import type { Admin, Expense, ExpenseCategory, MonthlyExpenseSummary } from '@/types'
+import ReceiptThumb from '@/components/admin/ReceiptThumb.vue'
 import AdminNav from '@/components/layout/AdminNav.vue'
 
 const { t, locale } = useI18n()
@@ -414,9 +415,7 @@ async function saveEdit(expense: Expense): Promise<void> {
 
         <template v-else>
           <div class="flex items-start gap-3">
-            <a v-if="e.receipt_url" :href="e.receipt_url" target="_blank" rel="noopener noreferrer" class="shrink-0">
-              <img :src="e.receipt_url" alt="" class="h-14 w-14 rounded border border-brand-pink/20 object-cover" />
-            </a>
+            <ReceiptThumb v-if="e.receipt_url" :url="e.receipt_url" />
             <div class="flex-1">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="font-medium">{{ e.category === 'other' ? e.category_other : categoryLabel(e.category) }}</span>
