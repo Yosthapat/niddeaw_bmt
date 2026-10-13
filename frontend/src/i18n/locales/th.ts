@@ -170,6 +170,10 @@ export default {
     tooManyAttempts: 'ใส่รหัสผิดหลายครั้งเกินไป ลองใหม่อีกครั้งในอีก {minutes} นาที',
     submit: 'เข้าสู่ระบบ',
   },
+  update: {
+    available: 'มีเวอร์ชันใหม่ — แตะเพื่ออัปเดต',
+    updating: 'กำลังอัปเดต...',
+  },
   session: {
     label: 'คืนที่ดูอยู่',
     none: 'ยังไม่มี session',
