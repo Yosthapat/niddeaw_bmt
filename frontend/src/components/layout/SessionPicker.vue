@@ -82,11 +82,11 @@ async function deleteCurrent(): Promise<void> {
 
 <template>
   <div class="flex flex-wrap items-center gap-2 hud-panel border border-brand-pink/20 bg-brand-surface p-3">
-    <span class="text-sm text-white/60">Session:</span>
+    <span class="text-sm text-white/60">{{ t('session.label') }}</span>
     <select
       v-if="sessionsStore.sessions.length > 0"
       :value="sessionsStore.currentSessionId ?? ''"
-      class="rounded-lg border border-brand-pink/25 bg-brand-black px-2 py-1 text-sm"
+      class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-black px-2 text-sm"
       @change="sessionsStore.setCurrentSession(($event.target as HTMLSelectElement).value || null)"
     >
       <optgroup v-if="sessionsStore.openSessions.length > 0" :label="t('session.openGroup')">
@@ -129,7 +129,7 @@ async function deleteCurrent(): Promise<void> {
     <template v-else>
       <select
         v-model="locationChoice"
-        class="rounded-lg border border-brand-pink/25 bg-brand-black px-2 py-1 text-sm"
+        class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-black px-2 text-sm"
       >
         <option v-for="loc in COURT_OPTIONS" :key="loc" :value="loc">{{ loc }}</option>
         <option :value="CUSTOM_OPTION">{{ t('session.locationCustom') }}</option>

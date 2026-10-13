@@ -141,7 +141,7 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
           :tabindex="i < half.length ? 0 : -1"
         >
           <PlayerAvatar :name="player.nickname" :avatar-url="player.avatar_url" size="md" />
-          <span class="flex items-center gap-1 text-[10px] leading-none whitespace-nowrap">
+          <span class="flex items-center gap-1 text-xs leading-none whitespace-nowrap">
             <!-- Not interactive here: its interactive form is a <button>,
                  which cannot sit inside this link and would swallow the tap
                  that should open the member's profile. -->

@@ -7,6 +7,7 @@ import * as adminApi from '@/api/admin'
 import { ApiError } from '@/api/client'
 import { usePolling } from '@/composables/usePolling'
 import { nicknameProblem, nicknameTaken } from '@/utils/nickname'
+import { formatTime } from '@/utils/format'
 import type { Checkin } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import SessionPicker from '@/components/layout/SessionPicker.vue'
@@ -132,7 +133,7 @@ usePolling(refreshCheckins, 8000)
 <template>
   <AdminNav />
   <main class="mx-auto max-w-4xl px-4 py-6">
-    <h1 class="text-2xl font-bold text-brand-pink">{{ t('admin.nav.checkin') }}</h1>
+    <h1 class="sr-only">{{ t('admin.nav.checkin') }}</h1>
     <div class="mt-4">
       <SessionPicker />
     </div>
@@ -156,7 +157,7 @@ usePolling(refreshCheckins, 8000)
         v-model="search"
         type="search"
         :placeholder="t('checkin.searchPlaceholder')"
-        class="hud-panel mt-4 w-full border border-brand-pink/25 bg-brand-surface px-3 py-2 text-sm outline-none focus:border-brand-pink"
+        class="hud-panel mt-4 min-h-11 w-full border border-brand-pink/25 bg-brand-surface px-3 text-sm outline-none focus:border-brand-pink"
       />
 
       <div v-if="!sessionClosed" class="mt-4 flex gap-2" role="tablist">
@@ -207,7 +208,7 @@ usePolling(refreshCheckins, 8000)
             />
             <EloBadge v-if="playersStore.byId(c.player_id)" :elo-score="playersStore.byId(c.player_id)!.elo_score" />
             <span class="text-xs text-white/40">
-              {{ new Date(c.checkin_time).toLocaleTimeString(locale === 'th' ? 'th-TH' : 'en-US', { hour: '2-digit', minute: '2-digit' }) }}
+              {{ formatTime(c.checkin_time, locale) }}
             </span>
             <button
               v-if="!sessionClosed"

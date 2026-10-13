@@ -8,7 +8,13 @@ import { getMatches } from '@/api/public'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { ApiError } from '@/api/client'
 import { usePolling } from '@/composables/usePolling'
-import type { Match, MatchmakingQueueResponse, PairingSuggestion, QueueEntry } from '@/types'
+import type {
+  Match,
+  MatchmakingQueueResponse,
+  MatchWinner,
+  PairingSuggestion,
+  QueueEntry,
+} from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import SessionPicker from '@/components/layout/SessionPicker.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
@@ -87,6 +93,39 @@ const playedOpen = ref(localStorage.getItem(PLAYED_STORAGE_KEY) === 'open')
 function togglePlayed(): void {
   playedOpen.value = !playedOpen.value
   localStorage.setItem(PLAYED_STORAGE_KEY, playedOpen.value ? 'open' : 'closed')
+}
+
+// Correcting a result used to mean leaving the admin area altogether: the
+// row linked to the public match page, which was the only screen with the
+// three buttons on it. The admin is standing on a court with a phone, so
+// the correction happens here, in the row that is already open.
+const fixingId = ref<string | null>(null)
+const savingFix = ref(false)
+const fixError = ref<string | null>(null)
+
+function toggleFix(matchId: string): void {
+  fixError.value = null
+  fixingId.value = fixingId.value === matchId ? null : matchId
+}
+
+async function fixResult(match: Match, winner: MatchWinner): Promise<void> {
+  if (match.winner === winner) {
+    fixingId.value = null
+    return
+  }
+  savingFix.value = true
+  fixError.value = null
+  try {
+    const updated = await adminApi.editMatchResult(match.id, winner)
+    playedMatches.value = playedMatches.value.map((m) => (m.id === updated.id ? updated : m))
+    fixingId.value = null
+    // The ratings moved, so every screen reading them is now stale.
+    await Promise.all([playersStore.refresh(), refreshQueue()])
+  } catch (e) {
+    fixError.value = apiErrorMessage(e, t('matchRecord.editFailed'))
+  } finally {
+    savingFix.value = false
+  }
 }
 
 async function refreshQueue(): Promise<void> {
@@ -431,7 +470,7 @@ const pollControls = usePolling(refreshQueue, 7000)
 <template>
   <AdminNav />
   <main class="mx-auto max-w-4xl px-4 py-6">
-    <h1 class="text-2xl font-bold text-brand-pink">{{ t('admin.nav.matchmaking') }}</h1>
+    <h1 class="sr-only">{{ t('admin.nav.matchmaking') }}</h1>
     <div class="mt-4">
       <SessionPicker />
     </div>
@@ -461,7 +500,7 @@ const pollControls = usePolling(refreshQueue, 7000)
                  hollow ring on a waiting card is a third cue that survives
                  with the colour taken away entirely. -->
             <span
-              class="mb-2 inline-flex items-center gap-1.5 rounded-full border border-status-success/40 bg-status-success/10 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-status-success uppercase"
+              class="mb-2 inline-flex items-center gap-1.5 rounded-full border border-status-success/40 bg-status-success/10 px-2 py-0.5 text-xs font-semibold tracking-wide text-status-success uppercase"
             >
               <span class="relative flex h-1.5 w-1.5">
                 <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-status-success opacity-75" />
@@ -471,7 +510,7 @@ const pollControls = usePolling(refreshQueue, 7000)
             </span>
             <span
               v-if="typeof m.match_no === 'number'"
-              class="mb-2 ml-2 font-mono text-[11px] font-semibold text-white/45"
+              class="mb-2 ml-2 font-mono text-xs font-semibold text-white/45"
               :title="t('matches.matchNo', { n: m.match_no })"
             >#{{ m.match_no }}</span>
             <div class="flex items-center justify-between gap-3">
@@ -548,7 +587,7 @@ const pollControls = usePolling(refreshQueue, 7000)
           >
             <div v-if="editingMatchId !== m.match_id">
               <span
-                class="mb-2 inline-flex items-center gap-1.5 rounded-full border border-status-error/40 bg-status-error/10 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-status-error uppercase"
+                class="mb-2 inline-flex items-center gap-1.5 rounded-full border border-status-error/40 bg-status-error/10 px-2 py-0.5 text-xs font-semibold tracking-wide text-status-error uppercase"
               >
                 <!-- Hollow, and still: the shape alone separates it from a
                      playing card for a reader who cannot tell the two
@@ -558,7 +597,7 @@ const pollControls = usePolling(refreshQueue, 7000)
               </span>
               <span
                 v-if="typeof m.match_no === 'number'"
-                class="mb-2 ml-2 font-mono text-[11px] font-semibold text-white/45"
+                class="mb-2 ml-2 font-mono text-xs font-semibold text-white/45"
                 :title="t('matches.matchNo', { n: m.match_no })"
               >#{{ m.match_no }}</span>
               <div class="flex items-center justify-between gap-3">
@@ -699,9 +738,14 @@ const pollControls = usePolling(refreshQueue, 7000)
         </button>
         <ul v-show="playedOpen" class="mt-2 space-y-2">
           <li v-for="m in playedMatches" :key="m.id">
-            <RouterLink
-              :to="`/matches/${m.id}`"
-              class="hud-hover hud-panel flex min-h-10 items-center gap-2 border border-brand-pink/15 bg-brand-surface px-3 py-2 text-sm hover:border-brand-pink/40"
+            <!-- The row opens the correction in place rather than linking
+                 out to the public match page: the mistake is noticed here,
+                 and this is where the admin already is. -->
+            <button
+              type="button"
+              class="hud-hover hud-panel flex w-full min-h-10 items-center gap-2 border border-brand-pink/15 bg-brand-surface px-3 py-2 text-left text-sm hover:border-brand-pink/40"
+              :aria-expanded="fixingId === m.id"
+              @click="toggleFix(m.id)"
             >
               <span v-if="typeof m.match_no === 'number'" class="font-mono text-xs text-brand-pink/70">
                 #{{ m.match_no }}
@@ -721,7 +765,40 @@ const pollControls = usePolling(refreshQueue, 7000)
               <span class="shrink-0 text-xs font-semibold text-brand-pink/70">
                 {{ t('matchmaking.fixResult') }}
               </span>
-            </RouterLink>
+            </button>
+
+            <div
+              v-if="fixingId === m.id"
+              class="hud-panel mt-1.5 border border-brand-pink/25 bg-brand-black p-3"
+            >
+              <p class="text-xs text-white/50">{{ t('matchRecord.editResultHint') }}</p>
+              <div class="mt-2 grid gap-2">
+                <button
+                  v-for="choice in [
+                    { winner: 'team1' as MatchWinner, label: m.team1_player_ids.map(nameOf).join(' & ') },
+                    { winner: 'draw' as MatchWinner, label: t('common.draw') },
+                    { winner: 'team2' as MatchWinner, label: m.team2_player_ids.map(nameOf).join(' & ') },
+                  ]"
+                  :key="choice.winner"
+                  type="button"
+                  :disabled="savingFix"
+                  class="tap rounded-full border px-3 text-sm font-semibold disabled:opacity-50"
+                  :class="
+                    m.winner === choice.winner
+                      ? 'border-brand-pink bg-brand-pink/15 text-brand-pink'
+                      : 'border-white/15 text-white/70 hover:border-white/40 hover:text-white'
+                  "
+                  @click="fixResult(m, choice.winner)"
+                >
+                  {{ choice.winner === 'draw' ? choice.label : `${choice.label} ${t('matchRecord.wins')}` }}
+                  <span v-if="m.winner === choice.winner" class="ml-1 text-xs font-normal">
+                    ({{ t('matchmaking.currentResult') }})
+                  </span>
+                </button>
+              </div>
+              <p v-if="savingFix" class="mt-2 text-xs text-white/50">{{ t('common.saving') }}</p>
+              <p v-if="fixError" class="mt-2 text-xs text-status-error">{{ fixError }}</p>
+            </div>
           </li>
         </ul>
       </section>

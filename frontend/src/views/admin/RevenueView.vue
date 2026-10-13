@@ -8,6 +8,7 @@ import type { DailyRevenue, IncomeSource, OtherIncome } from '@/types'
 import { compressImage } from '@/utils/imageCompression'
 import ReceiptThumb from '@/components/admin/ReceiptThumb.vue'
 import AdminNav from '@/components/layout/AdminNav.vue'
+import { formatDateWithWeekday, money } from '@/utils/format'
 
 const { t, locale } = useI18n()
 const { confirm } = useConfirmDialog()
@@ -30,12 +31,7 @@ function apiErrorMessage(e: unknown, fallback: string): string {
 }
 
 function formatDate(isoDate: string): string {
-  return new Date(isoDate).toLocaleDateString(locale.value === 'th' ? 'th-TH' : 'en-US', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
+  return formatDateWithWeekday(isoDate, locale.value)
 }
 
 const billingTotal = computed(() => daily.value.reduce((sum, d) => sum + d.total_amount, 0))
@@ -245,7 +241,7 @@ onMounted(async () => {
 <template>
   <AdminNav />
   <main class="mx-auto max-w-3xl px-4 py-6">
-    <h1 class="text-2xl font-bold text-brand-pink">{{ t('admin.nav.revenue') }}</h1>
+    <h1 class="sr-only">{{ t('admin.nav.revenue') }}</h1>
 
     <p v-if="loading" class="mt-6 text-white/60">{{ t('common.loading') }}</p>
     <p v-else-if="error" class="mt-6 text-status-error">{{ error }}</p>
@@ -254,26 +250,26 @@ onMounted(async () => {
       <div v-if="daily.length > 0 || otherIncome.length > 0" class="mt-6 grid grid-cols-3 gap-2.5">
         <div class="hud-panel border border-brand-pink/40 bg-brand-surface p-3 text-center">
           <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('revenue.grandTotal') }}</p>
-          <p class="mt-1 font-display text-xl font-bold text-brand-pink">฿{{ grandTotal.toFixed(2) }}</p>
+          <p class="mt-1 font-display text-xl font-bold text-brand-pink">{{ money(grandTotal) }}</p>
         </div>
         <div class="hud-panel border border-brand-pink/20 bg-brand-surface p-3 text-center">
           <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('revenue.fromBilling') }}</p>
-          <p class="mt-1 font-display text-xl font-bold">฿{{ billingTotal.toFixed(2) }}</p>
+          <p class="mt-1 font-display text-xl font-bold">{{ money(billingTotal) }}</p>
         </div>
         <div class="hud-panel border border-brand-pink/20 bg-brand-surface p-3 text-center">
           <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('revenue.fromOtherIncome') }}</p>
-          <p class="mt-1 font-display text-xl font-bold">฿{{ otherIncomeTotal.toFixed(2) }}</p>
+          <p class="mt-1 font-display text-xl font-bold">{{ money(otherIncomeTotal) }}</p>
         </div>
       </div>
 
       <div v-if="daily.length > 0" class="mt-2.5 grid grid-cols-2 gap-2.5">
         <div class="hud-panel border border-brand-pink/20 bg-brand-surface p-3 text-center">
           <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('billing.paid') }}</p>
-          <p class="mt-1 font-display text-xl font-bold text-status-success">฿{{ grandPaid.toFixed(2) }}</p>
+          <p class="mt-1 font-display text-xl font-bold text-status-success">{{ money(grandPaid) }}</p>
         </div>
         <div class="hud-panel border border-brand-pink/20 bg-brand-surface p-3 text-center">
           <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('billing.unpaid') }}</p>
-          <p class="mt-1 font-display text-xl font-bold text-status-error">฿{{ grandUnpaid.toFixed(2) }}</p>
+          <p class="mt-1 font-display text-xl font-bold text-status-error">{{ money(grandUnpaid) }}</p>
         </div>
       </div>
 
@@ -286,16 +282,16 @@ onMounted(async () => {
         >
           <div class="flex items-center justify-between gap-3">
             <span class="font-medium">{{ formatDate(d.date) }}</span>
-            <span class="font-display text-lg font-bold text-brand-pink">฿{{ d.total_amount.toFixed(2) }}</span>
+            <span class="font-display text-lg font-bold text-brand-pink">{{ money(d.total_amount) }}</span>
           </div>
           <div class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/50">
             <span>{{ d.session_count }} session{{ d.session_count > 1 ? 's' : '' }}</span>
             <span>·</span>
             <span>{{ d.billing_count }} {{ t('revenue.bills') }}</span>
             <span>·</span>
-            <span class="text-status-success">{{ t('billing.paid') }} ฿{{ d.paid_amount.toFixed(2) }}</span>
+            <span class="text-status-success">{{ t('billing.paid') }} {{ money(d.paid_amount) }}</span>
             <span v-if="d.unpaid_amount > 0" class="text-status-error">
-              {{ t('revenue.outstanding') }} ฿{{ d.unpaid_amount.toFixed(2) }}
+              {{ t('revenue.outstanding') }} {{ money(d.unpaid_amount) }}
             </span>
           </div>
         </li>
@@ -398,7 +394,7 @@ onMounted(async () => {
               <ReceiptThumb v-if="i.slip_url" :url="i.slip_url" />
               <div class="flex-1">
                 <div class="flex flex-wrap items-center gap-2">
-                  <span class="rounded-full bg-brand-black px-2 py-0.5 text-[10px] font-semibold tracking-wide text-brand-pink/80 uppercase">
+                  <span class="rounded-full bg-brand-black px-2 py-0.5 text-xs font-semibold tracking-wide text-brand-pink/80 uppercase">
                     {{ sourceLabel(i.source) }}
                   </span>
                   <span class="font-medium">{{ i.source_name }}</span>
@@ -406,7 +402,7 @@ onMounted(async () => {
                 <p class="mt-0.5 text-xs text-white/40">{{ formatDate(i.income_date) }}</p>
                 <p v-if="i.note" class="mt-0.5 text-xs text-white/40">{{ i.note }}</p>
               </div>
-              <span class="shrink-0 font-bold text-brand-pink">฿{{ i.amount.toFixed(2) }}</span>
+              <span class="shrink-0 font-bold text-brand-pink">{{ money(i.amount) }}</span>
             </div>
             <div class="mt-3 flex items-center gap-2">
               <button class="min-h-10 rounded-full border border-brand-pink/40 px-4 text-xs font-semibold text-brand-pink" @click="startEditIncome(i)">{{ t('income.edit') }}</button>

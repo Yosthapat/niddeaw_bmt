@@ -9,6 +9,7 @@ import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 import CountUp from '@/components/common/CountUp.vue'
 import StaggerHeading from '@/components/common/StaggerHeading.vue'
+import { formatDate } from '@/utils/format'
 
 const { t, locale } = useI18n()
 
@@ -24,11 +25,7 @@ const playDates = ref<string[]>([])
 const selectedDate = ref<string>('')
 
 function formatPlayDate(isoDate: string): string {
-  return new Date(isoDate).toLocaleDateString(locale.value === 'th' ? 'th-TH' : 'en-US', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
+  return formatDate(isoDate, locale.value)
 }
 
 async function load(): Promise<void> {
@@ -75,21 +72,21 @@ const rankBadgeClass = ['rank-badge-gold', 'rank-badge-silver', 'rank-badge-bron
       <div class="flex flex-wrap items-center gap-2">
         <div class="hud-panel flex border border-brand-pink/25 bg-brand-surface p-1 text-sm">
           <button
-            class="px-3 py-1.5 font-semibold transition-colors"
+            class="flex min-h-11 items-center px-3 font-semibold transition-colors"
             :class="period === 'all' ? 'bg-brand-pink text-brand-black' : 'text-white/50 hover:text-white'"
             @click="period = 'all'"
           >
             {{ t('ranking.allTime') }}
           </button>
           <button
-            class="px-3 py-1.5 font-semibold transition-colors"
+            class="flex min-h-11 items-center px-3 font-semibold transition-colors"
             :class="period === 'year' ? 'bg-brand-pink text-brand-black' : 'text-white/50 hover:text-white'"
             @click="period = 'year'"
           >
             {{ t('ranking.thisYear') }}
           </button>
           <button
-            class="px-3 py-1.5 font-semibold transition-colors"
+            class="flex min-h-11 items-center px-3 font-semibold transition-colors"
             :class="period === 'day' ? 'bg-brand-pink text-brand-black' : 'text-white/50 hover:text-white'"
             @click="period = 'day'"
           >

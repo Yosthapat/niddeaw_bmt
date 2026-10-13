@@ -174,6 +174,7 @@ export default {
     submit: 'Log In',
   },
   session: {
+    label: 'Night',
     none: 'No session yet',
     openGroup: 'Open',
     closedGroup: 'History (closed)',
@@ -215,7 +216,8 @@ export default {
   },
   matchmaking: {
     playedToday: 'Finished tonight',
-    fixResult: 'Fix ›',
+    fixResult: 'Fix',
+    currentResult: 'current',
     everyoneInAMatch: 'Only {n} free right now — the next pairing waits for a match to finish',
     selectSessionFirst: 'Select or create a session first',
     inProgress: 'In Progress',
@@ -382,6 +384,7 @@ export default {
   activityLog: {
     title: 'Activity Log',
     allAdmins: 'All admins',
+    anyDate: 'Any day',
     clearFilters: 'Clear filters',
     loadFailed: 'Failed to load activity log',
     empty: 'No activity yet',
@@ -409,6 +412,7 @@ export default {
     receiptUploadFailed: 'Photo upload failed (expense was still saved) — try attaching it again from the list below',
     thisMonth: 'This month',
     monthTotal: 'Total',
+    monthPicked: 'Month shown',
     noExpensesThisMonth: 'No expenses this month yet',
     history: 'Monthly history',
     noHistory: 'No expense data yet',

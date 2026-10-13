@@ -171,6 +171,7 @@ export default {
     submit: 'เข้าสู่ระบบ',
   },
   session: {
+    label: 'คืนที่ดูอยู่',
     none: 'ยังไม่มี session',
     openGroup: 'เปิดอยู่',
     closedGroup: 'ประวัติ (ปิดแล้ว)',
@@ -211,7 +212,8 @@ export default {
   },
   matchmaking: {
     playedToday: 'แมตช์ที่จบแล้ววันนี้',
-    fixResult: 'แก้ผล ›',
+    fixResult: 'แก้ผล',
+    currentResult: 'ผลตอนนี้',
     everyoneInAMatch: 'คนว่างเหลือ {n} คน — รอแมตช์ที่กำลังแข่งจบก่อน ถึงจะจัดคู่ถัดไปได้',
     selectSessionFirst: 'เลือกหรือสร้าง session ก่อน',
     inProgress: 'กำลังแข่ง',
@@ -377,6 +379,7 @@ export default {
   activityLog: {
     title: 'ประวัติการใช้งาน',
     allAdmins: 'แอดมินทั้งหมด',
+    anyDate: 'ทุกวัน',
     clearFilters: 'ล้างตัวกรอง',
     loadFailed: 'โหลด activity log ไม่สำเร็จ',
     empty: 'ยังไม่มีกิจกรรม',
@@ -404,6 +407,7 @@ export default {
     receiptUploadFailed: 'อัพโหลดรูปไม่สำเร็จ (แต่บันทึกรายจ่ายไว้แล้ว) ลองแนบรูปใหม่ได้จากรายการด้านล่าง',
     thisMonth: 'เดือนนี้',
     monthTotal: 'ยอดรวม',
+    monthPicked: 'เดือนที่ดูอยู่',
     noExpensesThisMonth: 'เดือนนี้ยังไม่มีรายจ่าย',
     history: 'ประวัติรายเดือน',
     noHistory: 'ยังไม่มีข้อมูลรายจ่าย',

@@ -27,6 +27,7 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { ApiError } from '@/api/client'
 import { useFinanceStore } from '@/stores/finance'
+import { moneyShort } from '@/utils/format'
 
 const { t } = useI18n()
 
@@ -175,7 +176,7 @@ function showLabel(index: number): boolean {
 }
 
 function formatBaht(n: number): string {
-  return `฿${Math.round(n).toLocaleString('th-TH')}`
+  return moneyShort(n)
 }
 
 const totalRevenue = computed(() => bars.value.reduce((sum, b) => sum + b.revenue, 0))

@@ -273,6 +273,23 @@ button:not(:disabled):active {
   min-height: 2.5rem;
 }
 
+/* The same floor for a control that must keep its drawn size — a 22px tier
+   mascot in a table row is a button, and it was a 22px one. The hit area is
+   a pseudo-element centred on it, so the thumb gets its 44px and the layout
+   around it does not move a pixel. */
+.tap-area {
+  position: relative;
+}
+.tap-area::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2.75rem;
+  height: 2.75rem;
+  translate: -50% -50%;
+}
+
 /* Shared hover lift + glow for clickable hud-panel cards/rows — lets pages
    opt in with one class instead of repeating the same transition/shadow
    pair on every card variant. */

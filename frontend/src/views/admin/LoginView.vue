@@ -124,7 +124,7 @@ async function submit(): Promise<void> {
 
       <form class="mt-7 flex flex-col gap-4" @submit.prevent="submit">
         <label class="flex flex-col gap-1.5">
-          <span class="text-[11px] tracking-wide text-white/45 uppercase">{{ t('login.username') }}</span>
+          <span class="text-xs tracking-wide text-white/45 uppercase">{{ t('login.username') }}</span>
           <input
             v-model="username"
             type="text"
@@ -135,7 +135,7 @@ async function submit(): Promise<void> {
           />
         </label>
         <label class="flex flex-col gap-1.5">
-          <span class="text-[11px] tracking-wide text-white/45 uppercase">{{ t('login.password') }}</span>
+          <span class="text-xs tracking-wide text-white/45 uppercase">{{ t('login.password') }}</span>
           <input
             v-model="password"
             type="password"

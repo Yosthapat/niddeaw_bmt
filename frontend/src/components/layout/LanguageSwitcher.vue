@@ -31,7 +31,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onClickOutside))
   <div ref="rootEl" class="relative">
     <button
       type="button"
-      class="hud-panel flex items-center gap-1.5 border border-brand-pink/25 bg-brand-surface px-2.5 py-1.5 text-xs font-semibold text-white/70 hover:border-brand-pink/50 hover:text-white"
+      class="hud-panel flex min-h-11 items-center gap-1.5 border border-brand-pink/25 bg-brand-surface px-2.5 text-xs font-semibold text-white/70 hover:border-brand-pink/50 hover:text-white"
       @click="open = !open"
     >
       <span>{{ options.find((o) => o.locale === active)?.flag }}</span>
@@ -46,7 +46,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onClickOutside))
         v-for="opt in options"
         :key="opt.locale"
         type="button"
-        class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs font-semibold transition-colors"
+        class="flex min-h-11 w-full items-center gap-2 px-3 text-left text-xs font-semibold transition-colors"
         :class="opt.locale === active ? 'text-brand-pink' : 'text-white/60 hover:text-white'"
         @click="choose(opt.locale)"
       >

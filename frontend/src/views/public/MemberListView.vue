@@ -79,7 +79,7 @@ onMounted(async () => {
         v-model="search"
         type="search"
         :placeholder="t('members.searchPlaceholder')"
-        class="hud-panel w-full max-w-xs border border-brand-pink/25 bg-brand-surface px-4 py-2 text-sm outline-none focus:border-brand-pink"
+        class="hud-panel min-h-11 w-full max-w-xs border border-brand-pink/25 bg-brand-surface px-4 text-sm outline-none focus:border-brand-pink"
       />
     </div>
 
@@ -108,7 +108,10 @@ onMounted(async () => {
         <tbody class="divide-y divide-white/5">
           <tr v-for="s in filteredStats" :key="s.player.id" class="transition-colors hover:bg-brand-surface-raised">
             <td class="px-4 py-3 font-medium">
-              <RouterLink :to="`/members/${s.player.id}`" class="flex items-center gap-2.5 hover:text-brand-pink">
+              <RouterLink
+                :to="`/members/${s.player.id}`"
+                class="flex min-h-11 items-center gap-2.5 hover:text-brand-pink"
+              >
                 <PlayerAvatar :name="s.player.nickname" :avatar-url="s.player.avatar_url" size="sm" />
                 {{ s.player.nickname }}
               </RouterLink>
@@ -134,7 +137,7 @@ onMounted(async () => {
     <div v-if="!loading && hasMore && !search.trim()" class="mt-6 text-center">
       <button
         :disabled="loadingMore"
-        class="hud-hover rounded-full border border-brand-pink/40 px-5 py-2 text-sm font-semibold text-brand-pink hover:bg-brand-pink hover:text-brand-black disabled:opacity-50"
+        class="tap hud-hover rounded-full border border-brand-pink/40 px-5 text-sm font-semibold text-brand-pink hover:bg-brand-pink hover:text-brand-black disabled:opacity-50"
         @click="loadMore"
       >
         {{ loadingMore ? t('common.loading') : t('matches.loadMore') }}

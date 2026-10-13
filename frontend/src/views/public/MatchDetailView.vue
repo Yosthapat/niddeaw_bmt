@@ -7,6 +7,7 @@ import * as adminApi from '@/api/admin'
 import { ApiError } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import type { MatchDetail, MatchWinner } from '@/types'
+import { formatDateTime } from '@/utils/format'
 import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
@@ -84,7 +85,7 @@ const durationLabel = computed(() => {
 
 const dateLabel = computed(() => {
   if (!detail.value) return ''
-  return new Date(detail.value.match.created_at).toLocaleString(locale.value === 'th' ? 'th-TH' : 'en-US')
+  return formatDateTime(detail.value.match.created_at, locale.value)
 })
 
 // See PlayerProfileView.vue for why this watches the param instead of

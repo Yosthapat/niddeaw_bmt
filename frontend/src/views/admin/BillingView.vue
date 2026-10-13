@@ -8,6 +8,7 @@ import { ApiError } from '@/api/client'
 import { effectiveAmount } from '@/types'
 import type { Billing, Checkin, PaymentInfoResponse } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
+import { money } from '@/utils/format'
 import SessionPicker from '@/components/layout/SessionPicker.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 
@@ -166,7 +167,7 @@ onMounted(async () => {
 <template>
   <AdminNav />
   <main class="mx-auto max-w-3xl px-4 py-6">
-    <h1 class="text-2xl font-bold text-brand-pink">{{ t('admin.nav.billing') }}</h1>
+    <h1 class="sr-only">{{ t('admin.nav.billing') }}</h1>
     <div class="mt-4">
       <SessionPicker />
     </div>
@@ -180,7 +181,7 @@ onMounted(async () => {
         v-model="search"
         type="search"
         :placeholder="t('billing.searchPlaceholder')"
-        class="hud-panel mt-4 w-full border border-brand-pink/25 bg-brand-surface px-3 py-2 text-sm outline-none focus:border-brand-pink"
+        class="hud-panel mt-4 min-h-11 w-full border border-brand-pink/25 bg-brand-surface px-3 text-sm outline-none focus:border-brand-pink"
       />
       <div v-if="sessionsStore.currentSession?.status === 'open'" class="mt-6">
         <button
@@ -223,10 +224,10 @@ onMounted(async () => {
           </h2>
           <p class="text-sm">
             <span class="text-white/40">{{ t('billing.collected') }}</span>
-            <span class="ml-1 font-semibold text-status-success">฿{{ totals.paid.toFixed(2) }}</span>
+            <span class="ml-1 font-semibold text-status-success">{{ money(totals.paid) }}</span>
             <span class="mx-1.5 text-white/20">·</span>
             <span class="text-white/40">{{ t('billing.outstanding') }}</span>
-            <span class="ml-1 font-semibold text-brand-pink">฿{{ totals.due.toFixed(2) }}</span>
+            <span class="ml-1 font-semibold text-brand-pink">{{ money(totals.due) }}</span>
           </p>
         </div>
       </section>
@@ -248,7 +249,7 @@ onMounted(async () => {
             <PlayerAvatar :name="nameOf(b.player_id)" :avatar-url="avatarOf(b.player_id)" size="sm" />
             <span class="flex-1 font-medium">{{ nameOf(b.player_id) }}</span>
             <span class="text-xs text-white/40">{{ b.game_count }} {{ t('common.game') }}</span>
-            <span class="font-bold text-brand-pink">฿{{ effectiveAmount(b).toFixed(2) }}</span>
+            <span class="font-bold text-brand-pink">{{ money(effectiveAmount(b)) }}</span>
             <button
               class="tap rounded-full px-3 text-xs font-semibold"
               :class="b.paid_status === 'paid' ? 'bg-status-success/20 text-status-success' : 'bg-white/10 text-white/60'"
@@ -259,12 +260,12 @@ onMounted(async () => {
           </div>
 
           <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
-            <span class="text-white/40">{{ t('billing.calculatedAmount') }}: ฿{{ b.amount_calc.toFixed(2) }}</span>
+            <span class="text-white/40">{{ t('billing.calculatedAmount') }}: {{ money(b.amount_calc) }}</span>
             <input
               v-model="editingAdjust[b.id]"
               type="number"
               :placeholder="b.amount_adjusted?.toString() ?? t('billing.adjustAmount')"
-              class="w-24 rounded border border-brand-pink-dark/40 bg-brand-black px-2 py-0.5"
+              class="min-h-11 w-24 rounded border border-brand-pink-dark/40 bg-brand-black px-2"
             />
             <button class="tap px-1 text-brand-pink underline" @click="saveAdjust(b)">{{ t('billing.saveAdjustment') }}</button>
             <button class="tap px-1 text-brand-pink underline" @click="showQr(b)">
@@ -287,7 +288,7 @@ onMounted(async () => {
             </p>
             <p v-if="paymentInfoByBillingId[b.id].method !== 'promptpay'" class="text-sm">
               <span class="text-white/40">{{ t('billing.amountToTransfer') }}:</span>
-              <span class="ml-1 font-bold text-brand-pink">฿{{ paymentInfoByBillingId[b.id].amount.toFixed(2) }}</span>
+              <span class="ml-1 font-bold text-brand-pink">{{ money(paymentInfoByBillingId[b.id].amount) }}</span>
             </p>
           </div>
         </li>
