@@ -9,14 +9,18 @@ export default defineConfig({
   plugins: [
     vue(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt', not 'autoUpdate': the admin uses this standing on a court
+      // with a half-filled bill on screen, and a build that swaps itself in
+      // underneath them loses what they typed. The new version waits, the
+      // screen offers it (UpdateBanner.vue), and the reload happens when
+      // they say so.
+      //
+      // skipWaiting is deliberately absent for the same reason — it is what
+      // makes a waiting worker take over on its own. UpdateBanner asks for
+      // it by hand, once, on the tap.
+      registerType: 'prompt',
       includeAssets: ['favicon.ico'],
-      // Explicit (not relying on plugin defaults) so a new deploy takes over
-      // an already-open tab immediately instead of serving a stale cached
-      // build until the user manually clears the service worker.
       workbox: {
-        skipWaiting: true,
-        clientsClaim: true,
         cleanupOutdatedCaches: true,
       },
       manifest: {

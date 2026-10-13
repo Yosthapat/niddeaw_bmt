@@ -173,6 +173,10 @@ export default {
     tooManyAttempts: 'Too many failed attempts. Try again in {minutes} minutes.',
     submit: 'Log In',
   },
+  update: {
+    available: 'New version ready — tap to update',
+    updating: 'Updating...',
+  },
   session: {
     label: 'Night',
     none: 'No session yet',
