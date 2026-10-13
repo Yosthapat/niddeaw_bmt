@@ -98,13 +98,16 @@ def reverse_match_results(
     """Undoes the elo_score/games/wins/draws/losses effect a set of completed
     matches had on their players — e.g. before deleting the session they
     belong to, so a deleted (test) session doesn't leave stats permanently
-    skewed. Matches recorded before elo_delta_team1/2 existed (None) are
-    skipped since there's nothing to undo them by."""
+    skewed.
+
+    A match recorded before elo_delta_team1/2 existed (None) has no rating
+    move to undo, so its rating is left where it is rather than guessed at.
+    Its game is still taken off the counters: games/wins/draws/losses do not
+    depend on the delta, and a deleted match that keeps counting is a profile
+    claiming more games than the club has any record of."""
     updated: dict[UUID, PlayerStatRow] = {pid: dict(row) for pid, row in players_by_id.items()}  # type: ignore[misc]
     for match in matches:
         delta_team1, delta_team2 = match["elo_delta_team1"], match["elo_delta_team2"]
-        if delta_team1 is None or delta_team2 is None:
-            continue
         winner = match["winner"]
         team1_outcome = "win" if winner == "team1" else "draw" if winner == "draw" else "loss"
         team2_outcome = "win" if winner == "team2" else "draw" if winner == "draw" else "loss"
@@ -159,11 +162,14 @@ def _apply_one(updated: dict[UUID, PlayerStatRow], pid: UUID, delta: int, outcom
         row["losses"] += 1
 
 
-def _undo_one(updated: dict[UUID, PlayerStatRow], pid: UUID, delta: int, outcome: str) -> None:
+def _undo_one(
+    updated: dict[UUID, PlayerStatRow], pid: UUID, delta: int | None, outcome: str
+) -> None:
     row = updated.get(pid)
     if row is None:
         return
-    row["elo_score"] = apply_delta(row["elo_score"], -delta)
+    if delta is not None:
+        row["elo_score"] = apply_delta(row["elo_score"], -delta)
     row["games"] = max(0, row["games"] - 1)
     if outcome == "win":
         row["wins"] = max(0, row["wins"] - 1)
