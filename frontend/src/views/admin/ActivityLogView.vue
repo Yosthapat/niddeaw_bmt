@@ -6,6 +6,7 @@ import { ApiError } from '@/api/client'
 import type { Admin, AdminActivityLogEntry } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import LocalisedDateInput from '@/components/common/LocalisedDateInput.vue'
+import { actionKey, readableDetail } from '@/utils/activityAction'
 import { formatDateTime as formatDateTimeIn } from '@/utils/format'
 
 const { t, locale } = useI18n()
@@ -31,9 +32,17 @@ function formatDateTime(iso: string): string {
   return formatDateTimeIn(iso, locale.value)
 }
 
+// The label the backend stored is Thai and, for a row written before its
+// route was in that table, a raw "PATCH /api/admin/...". Reading it off the
+// method and path instead gives the right words in the right language, and
+// repairs the rows already in the log.
+function actionLabel(entry: AdminActivityLogEntry): string {
+  const key = actionKey(entry.method, entry.path)
+  return key ? t(`activityLog.actions.${key}`) : entry.action
+}
+
 function detailSummary(entry: AdminActivityLogEntry): string {
-  if (!entry.detail) return ''
-  return Object.values(entry.detail).join(', ')
+  return readableDetail(entry.detail)
 }
 
 async function loadEntries(): Promise<void> {
@@ -100,7 +109,7 @@ onMounted(async () => {
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
             <span class="font-medium text-brand-pink">{{ adminName(e.admin_id) }}</span>
-            <span class="ml-2 text-white/80">{{ e.action }}</span>
+            <span class="ml-2 text-white/80">{{ actionLabel(e) }}</span>
           </div>
           <span class="text-xs text-white/40">{{ formatDateTime(e.created_at) }}</span>
         </div>
