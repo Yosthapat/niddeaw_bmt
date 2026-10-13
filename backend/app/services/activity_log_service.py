@@ -21,8 +21,11 @@ _ROUTE_LABELS: list[tuple[str, str, re.Pattern[str]]] = [
     ("POST", "ล็อคคู่", re.compile(r"^/api/admin/matchmaking/locked-pairs$")),
     ("DELETE", "ปลดล็อคคู่", re.compile(r"^/api/admin/matchmaking/locked-pairs/[^/]+$")),
     ("POST", "ยืนยันคู่แข่ง", re.compile(r"^/api/admin/matchmaking/confirm$")),
+    ("PATCH", "แก้คู่ที่เข้าคิว", re.compile(r"^/api/admin/matchmaking/matches/[^/]+$")),
     ("DELETE", "ยกเลิกแมตช์", re.compile(r"^/api/admin/matchmaking/matches/[^/]+$")),
+    ("POST", "เริ่มแข่ง", re.compile(r"^/api/admin/matchmaking/matches/[^/]+/start$")),
     ("POST", "บันทึกผลแมตช์", re.compile(r"^/api/admin/matchmaking/matches/[^/]+/result$")),
+    ("PATCH", "แก้ผลแมตช์", re.compile(r"^/api/admin/matchmaking/matches/[^/]+/result$")),
     ("POST", "ปิดยอด session", re.compile(r"^/api/admin/billing/close-session/[^/]+$")),
     ("POST", "เพิ่มบิลผู้เล่น", re.compile(r"^/api/admin/billing/player/[^/]+/[^/]+$")),
     ("PATCH", "ปรับยอดบิล", re.compile(r"^/api/admin/billing/[^/]+/adjust$")),
@@ -32,10 +35,16 @@ _ROUTE_LABELS: list[tuple[str, str, re.Pattern[str]]] = [
     ("DELETE", "ลบรายจ่าย", re.compile(r"^/api/admin/expenses/[^/]+$")),
     ("POST", "ทำจ่ายบิลรายจ่าย", re.compile(r"^/api/admin/expenses/[^/]+/pay$")),
     ("POST", "อัพโหลดใบเสร็จ", re.compile(r"^/api/admin/expenses/[^/]+/receipt$")),
+    ("POST", "เพิ่มรายรับอื่น", re.compile(r"^/api/admin/income$")),
+    ("PATCH", "แก้ไขรายรับอื่น", re.compile(r"^/api/admin/income/[^/]+$")),
+    ("DELETE", "ลบรายรับอื่น", re.compile(r"^/api/admin/income/[^/]+$")),
+    ("POST", "แนบสลิปรายรับ", re.compile(r"^/api/admin/income/[^/]+/slip$")),
     ("POST", "เพิ่มสมาชิก", re.compile(r"^/api/admin/players$")),
     ("PATCH", "แก้ไขสมาชิก", re.compile(r"^/api/admin/players/[^/]+$")),
+    ("DELETE", "ลบสมาชิก", re.compile(r"^/api/admin/players/[^/]+$")),
     ("POST", "อัพโหลดรูปสมาชิก", re.compile(r"^/api/admin/players/[^/]+/avatar$")),
     ("PUT", "แก้ไขตั้งค่า", re.compile(r"^/api/admin/settings$")),
+    ("POST", "อัพโหลด QR รับเงิน", re.compile(r"^/api/admin/settings/qr$")),
 ]
 
 
