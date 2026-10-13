@@ -25,6 +25,7 @@ import { storeToRefs } from 'pinia'
 import { ApiError } from '@/api/client'
 import { useFinanceStore } from '@/stores/finance'
 import CountUp from '@/components/common/CountUp.vue'
+import { moneyShort } from '@/utils/format'
 
 const { t } = useI18n()
 
@@ -64,10 +65,10 @@ const balance = computed(() => inflow.value - spent.value)
 const overdrawn = computed(() => balance.value < 0)
 
 function formatBaht(n: number): string {
-  // Sign ahead of the symbol ("−฿4,000", not "฿-4,000"), and a real minus
-  // sign rather than a hyphen so it lines up with the outflow row.
-  const rounded = Math.round(n)
-  return `${rounded < 0 ? '−' : ''}฿${Math.abs(rounded).toLocaleString('th-TH')}`
+  // moneyShort puts the sign ahead of the symbol ("−฿4,000", not "฿-4,000"),
+  // with a real minus sign rather than a hyphen so it lines up with the
+  // outflow row above it.
+  return moneyShort(n)
 }
 
 // --- Donut geometry ---------------------------------------------------
@@ -165,7 +166,7 @@ const spentDash = computed(() => {
           <!-- Hero figure: the answer to "เหลือเท่าไหร่", read as a number
                rather than off the arc. -->
           <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
-            <p class="text-[0.65rem] tracking-wide text-white/40 uppercase">
+            <p class="text-xs tracking-wide text-white/40 uppercase">
               {{ t('dashboard.balanceRemaining') }}
             </p>
             <p
@@ -174,7 +175,7 @@ const spentDash = computed(() => {
             >
               <CountUp :value="Math.round(balance)" :format="formatBaht" />
             </p>
-            <p v-if="!overdrawn" class="text-[0.65rem] text-white/40">
+            <p v-if="!overdrawn" class="text-xs text-white/40">
               {{ Math.round(remainingPct) }}%
             </p>
           </div>

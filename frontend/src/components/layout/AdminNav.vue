@@ -54,7 +54,7 @@ function logout(): void {
         :key="link.to"
         :to="link.to"
         :data-active="route.path === link.to"
-        class="hud-panel shrink-0 px-3 py-1.5 font-semibold whitespace-nowrap transition-colors"
+        class="hud-panel flex min-h-11 shrink-0 items-center px-3 font-semibold whitespace-nowrap transition-colors"
         :class="
           route.path === link.to
             ? 'bg-brand-pink text-brand-black'
@@ -65,7 +65,7 @@ function logout(): void {
       </RouterLink>
       <span class="mx-1 h-5 w-px shrink-0 bg-white/15" aria-hidden="true" />
       <button
-        class="hud-panel shrink-0 border border-white/15 px-3 py-1.5 whitespace-nowrap text-white/50 hover:border-white/30 hover:text-white"
+        class="hud-panel flex min-h-11 shrink-0 items-center border border-white/15 px-3 whitespace-nowrap text-white/50 hover:border-white/30 hover:text-white"
         @click="logout"
       >
         {{ t('admin.nav.logout') }}

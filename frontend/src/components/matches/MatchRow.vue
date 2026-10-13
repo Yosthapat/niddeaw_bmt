@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import type { Match, Player } from '@/types'
+import { formatDateTime } from '@/utils/format'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 
 // The match-log card: both teams face to face, the winner stamped and the
@@ -38,7 +39,7 @@ function durationLabel(match: Match): string | null {
 }
 
 function dateLabel(isoDate: string): string {
-  return new Date(isoDate).toLocaleString(locale.value === 'th' ? 'th-TH' : 'en-US')
+  return formatDateTime(isoDate, locale.value)
 }
 </script>
 
@@ -55,7 +56,7 @@ function dateLabel(isoDate: string): string {
              first. -->
         <span
           v-if="typeof match.match_no === 'number'"
-          class="hud-panel shrink-0 border border-brand-pink/30 bg-brand-black px-1.5 py-0.5 font-mono text-[11px] font-semibold text-brand-pink/80"
+          class="hud-panel shrink-0 border border-brand-pink/30 bg-brand-black px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-pink/80"
           :title="t('matches.matchNo', { n: match.match_no })"
         >#{{ match.match_no }}</span>
         <!-- No doubles/singles split any more: the club only plays
@@ -136,7 +137,9 @@ function dateLabel(isoDate: string): string {
   rotate: -10deg;
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 0.6rem;
+  /* 12px floor, same as every other label on the page: this stamp was
+     9.6px, the smallest text in the app. */
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   padding: 0.05rem 0.4rem;

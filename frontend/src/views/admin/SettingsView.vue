@@ -106,7 +106,7 @@ const paymentMethodOptions = computed<{ value: PaymentMethod; label: string }[]>
 <template>
   <AdminNav />
   <main class="mx-auto max-w-md px-4 py-6">
-    <h1 class="text-2xl font-bold text-brand-pink">{{ t('settings.title') }}</h1>
+    <h1 class="sr-only">{{ t('settings.title') }}</h1>
 
     <p v-if="loading" class="mt-6 text-white/60">{{ t('common.loading') }}</p>
     <p v-else-if="loadError" class="mt-6 text-status-error">{{ loadError }}</p>
@@ -116,7 +116,7 @@ const paymentMethodOptions = computed<{ value: PaymentMethod; label: string }[]>
         {{ t('settings.paymentMethod') }}
         <select
           v-model="settings.payment_method"
-          class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2"
+          class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-black px-3"
         >
           <option v-for="opt in paymentMethodOptions" :key="opt.value" :value="opt.value">
             {{ opt.label }}
@@ -130,7 +130,7 @@ const paymentMethodOptions = computed<{ value: PaymentMethod; label: string }[]>
           <input
             v-model="settings.promptpay_id"
             :placeholder="t('settings.promptpayPlaceholder')"
-            class="rounded-lg border border-brand-pink/25 bg-brand-surface px-3 py-2 outline-none focus:border-brand-pink"
+            class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-surface px-3 outline-none focus:border-brand-pink"
           />
         </label>
 
@@ -138,7 +138,7 @@ const paymentMethodOptions = computed<{ value: PaymentMethod; label: string }[]>
           {{ t('settings.promptpayType') }}
           <select
             v-model="settings.promptpay_type"
-            class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2"
+            class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-black px-3"
           >
             <option v-for="opt in promptPayTypeOptions" :key="opt.value" :value="opt.value">
               {{ opt.label }}
@@ -152,21 +152,21 @@ const paymentMethodOptions = computed<{ value: PaymentMethod; label: string }[]>
           {{ t('settings.bankName') }}
           <input
             v-model="settings.bank_name"
-            class="rounded-lg border border-brand-pink/25 bg-brand-surface px-3 py-2 outline-none focus:border-brand-pink"
+            class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-surface px-3 outline-none focus:border-brand-pink"
           />
         </label>
         <label class="flex flex-col gap-1 text-sm">
           {{ t('settings.bankAccountNumber') }}
           <input
             v-model="settings.bank_account_number"
-            class="rounded-lg border border-brand-pink/25 bg-brand-surface px-3 py-2 outline-none focus:border-brand-pink"
+            class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-surface px-3 outline-none focus:border-brand-pink"
           />
         </label>
         <label class="flex flex-col gap-1 text-sm">
           {{ t('settings.bankAccountName') }}
           <input
             v-model="settings.bank_account_name"
-            class="rounded-lg border border-brand-pink/25 bg-brand-surface px-3 py-2 outline-none focus:border-brand-pink"
+            class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-surface px-3 outline-none focus:border-brand-pink"
           />
         </label>
       </template>
@@ -193,7 +193,7 @@ const paymentMethodOptions = computed<{ value: PaymentMethod; label: string }[]>
           v-model.number="settings.default_court_fee_per_person"
           type="number"
           min="0"
-          class="rounded-lg border border-brand-pink/25 bg-brand-surface px-3 py-2 outline-none focus:border-brand-pink"
+          class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-surface px-3 outline-none focus:border-brand-pink"
         />
       </label>
 
@@ -203,7 +203,7 @@ const paymentMethodOptions = computed<{ value: PaymentMethod; label: string }[]>
           v-model.number="settings.default_shuttlecock_price_per_game"
           type="number"
           min="0"
-          class="rounded-lg border border-brand-pink/25 bg-brand-surface px-3 py-2 outline-none focus:border-brand-pink"
+          class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-surface px-3 outline-none focus:border-brand-pink"
         />
       </label>
 

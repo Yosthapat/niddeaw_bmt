@@ -8,6 +8,7 @@ import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 import CountUp from '@/components/common/CountUp.vue'
 import StaggerHeading from '@/components/common/StaggerHeading.vue'
+import { formatDayMonth } from '@/utils/format'
 
 const { t, locale } = useI18n()
 
@@ -52,10 +53,7 @@ async function loadPlayers(): Promise<void> {
 }
 
 function formatSessionDate(isoDate: string): string {
-  return new Date(isoDate).toLocaleDateString(locale.value === 'th' ? 'th-TH' : 'en-US', {
-    day: 'numeric',
-    month: 'long',
-  })
+  return formatDayMonth(isoDate, locale.value)
 }
 
 onMounted(loadPlayers)

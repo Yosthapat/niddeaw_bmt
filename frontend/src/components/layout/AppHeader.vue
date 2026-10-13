@@ -7,6 +7,13 @@ import LanguageSwitcher from './LanguageSwitcher.vue'
 const route = useRoute()
 const { t, locale } = useI18n()
 
+// Inside /admin the club's own nav is dead weight: the admin screens carry
+// their own strip of nine destinations directly below this bar, so the
+// header was a second row of navigation competing with it — five links to
+// pages nobody opens mid-night, above the nine they actually use. What is
+// left is the way back out to the site and the language switch.
+const isAdmin = computed(() => route.path.startsWith('/admin'))
+
 // Hall of Fame nav link is temporarily hidden (not in use yet) — the
 // /hall-of-fame route and view still exist, just unlinked from the header.
 const publicLinks = computed(() => [
@@ -69,7 +76,7 @@ watch(locale, refreshUnderline)
          400px phone and the whole bar scrolled sideways. Desktop keeps the
          roomier spacing. -->
     <div class="mx-auto flex max-w-5xl items-center gap-2.5 px-3 py-3 sm:gap-4 sm:px-4">
-      <RouterLink to="/" class="flex shrink-0 items-center gap-2.5">
+      <RouterLink to="/" class="flex min-h-11 shrink-0 items-center gap-2.5">
         <span class="hud-panel bg-brand-pink p-0.5">
           <img src="/pwa-icons/pwa-64x64.png" alt="นิดเดียว Badminton Club logo" class="hud-panel block h-8 w-8" />
         </span>
@@ -78,7 +85,11 @@ watch(locale, refreshUnderline)
         </span>
       </RouterLink>
 
-      <nav ref="navRef" class="relative flex flex-1 gap-3 text-xs font-semibold tracking-wider uppercase sm:gap-5">
+      <nav
+        v-if="!isAdmin"
+        ref="navRef"
+        class="relative flex flex-1 gap-3 text-xs font-semibold tracking-wider uppercase sm:gap-5"
+      >
         <RouterLink
           v-for="link in publicLinks"
           :key="link.to"
@@ -90,7 +101,7 @@ watch(locale, refreshUnderline)
             :ref="(el) => setLinkRef(link.to, el as Element | null)"
             :href="href"
             :aria-current="route.path === link.to ? 'page' : undefined"
-            class="whitespace-nowrap py-2 transition-colors"
+            class="flex min-h-11 items-center whitespace-nowrap transition-colors"
             :class="route.path === link.to ? 'text-brand-pink' : 'text-white/50 hover:text-white'"
             @click="navigate"
           >
@@ -105,7 +116,7 @@ watch(locale, refreshUnderline)
            the language switcher already overflow a phone's width, and this
            is the one control in the bar that no member ever needs — see
            HomeView.vue. -->
-      <LanguageSwitcher class="shrink-0" />
+      <LanguageSwitcher class="shrink-0" :class="isAdmin ? 'ml-auto' : ''" />
     </div>
   </header>
 </template>

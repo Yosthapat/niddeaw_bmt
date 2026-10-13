@@ -91,7 +91,7 @@ onMounted(() => loadPage(currentPage.value))
     <div v-if="!loading && matches.length > 0" class="mt-6 flex items-center justify-center gap-3">
       <button
         :disabled="currentPage <= 1"
-        class="hud-hover rounded-full border border-brand-pink/40 px-4 py-2 text-sm font-semibold text-brand-pink hover:bg-brand-pink hover:text-brand-black disabled:pointer-events-none disabled:opacity-30"
+        class="tap hud-hover rounded-full border border-brand-pink/40 px-4 text-sm font-semibold text-brand-pink hover:bg-brand-pink hover:text-brand-black disabled:pointer-events-none disabled:opacity-30"
         @click="goToPage(currentPage - 1)"
       >
         {{ t('matches.prevPage') }}
@@ -99,7 +99,7 @@ onMounted(() => loadPage(currentPage.value))
       <span class="text-sm text-white/50">{{ t('matches.pageLabel', { n: currentPage }) }}</span>
       <button
         :disabled="!hasNext"
-        class="hud-hover rounded-full border border-brand-pink/40 px-4 py-2 text-sm font-semibold text-brand-pink hover:bg-brand-pink hover:text-brand-black disabled:pointer-events-none disabled:opacity-30"
+        class="tap hud-hover rounded-full border border-brand-pink/40 px-4 text-sm font-semibold text-brand-pink hover:bg-brand-pink hover:text-brand-black disabled:pointer-events-none disabled:opacity-30"
         @click="goToPage(currentPage + 1)"
       >
         {{ t('matches.nextPage') }}

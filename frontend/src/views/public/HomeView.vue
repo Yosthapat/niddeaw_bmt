@@ -196,7 +196,7 @@ const sponsors = [
             <path :d="vibe.path" />
             <circle v-for="(dot, i) in vibe.dots" :key="i" :cx="dot[0]" :cy="dot[1]" r="1" fill="currentColor" stroke="none" />
           </svg>
-          <span class="text-[11px] leading-tight text-white/60">{{ vibe.label }}</span>
+          <span class="text-xs leading-tight text-white/60">{{ vibe.label }}</span>
         </div>
       </div>
     </section>
@@ -213,7 +213,7 @@ const sponsors = [
           :href="social.href"
           target="_blank"
           rel="noopener noreferrer"
-          class="hud-panel hud-hover inline-flex items-center gap-1.5 border border-brand-pink/25 bg-brand-black px-3 py-1.5 text-xs font-semibold text-white/80 transition-colors hover:border-brand-pink hover:text-brand-pink"
+          class="hud-panel hud-hover inline-flex min-h-11 items-center gap-1.5 border border-brand-pink/25 bg-brand-black px-3 text-xs font-semibold text-white/80 transition-colors hover:border-brand-pink hover:text-brand-pink"
         >
           <svg
             viewBox="0 0 24 24"
@@ -237,7 +237,7 @@ const sponsors = [
       <div class="mt-5 border-t border-brand-pink/15 pt-4">
         <RouterLink
           :to="authStore.isAuthenticated ? '/admin' : '/admin/login'"
-          class="hud-hover inline-flex items-center gap-2 text-xs font-semibold tracking-wide text-white/40 uppercase transition-colors hover:text-brand-pink"
+          class="hud-hover inline-flex min-h-11 items-center gap-2 text-xs font-semibold tracking-wide text-white/40 uppercase transition-colors hover:text-brand-pink"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5">
             <rect x="5" y="11" width="14" height="9" rx="1.5" />

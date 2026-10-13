@@ -133,7 +133,7 @@ onMounted(loadMembers)
       <div class="collapsible" :class="{ 'is-open': expanded }" :aria-hidden="!expanded">
         <div>
           <span
-            class="mt-1.5 flex items-center justify-end gap-1.5 text-[10px] tracking-wide whitespace-nowrap text-white/45 uppercase"
+            class="mt-1.5 flex items-center justify-end gap-1.5 text-xs tracking-wide whitespace-nowrap text-white/45 uppercase"
           >
             <!-- Same pulse LiveView uses, at half the size: it says the number
                  is live rather than a figure baked in at page load. -->
@@ -154,7 +154,7 @@ onMounted(loadMembers)
       <p
         v-if="members !== null"
         class="mt-1 flex items-center gap-1 font-display font-bold tabular-nums text-white/55"
-        :class="expanded ? 'text-sm' : 'text-[11px]'"
+        :class="expanded ? 'text-sm' : 'text-xs'"
       >
         <svg
           viewBox="0 0 24 24"
@@ -182,7 +182,7 @@ onMounted(loadMembers)
       >
         <div>
           <span
-            class="mt-1 flex items-center justify-end gap-1.5 text-[10px] tracking-wide whitespace-nowrap text-white/35 uppercase"
+            class="mt-1 flex items-center justify-end gap-1.5 text-xs tracking-wide whitespace-nowrap text-white/35 uppercase"
           >
             {{ t('home.clubMembersLabel') }}
           </span>

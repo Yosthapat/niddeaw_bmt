@@ -8,6 +8,8 @@ import { compressImage } from '@/utils/imageCompression'
 import type { Admin, Expense, ExpenseCategory, MonthlyExpenseSummary } from '@/types'
 import ReceiptThumb from '@/components/admin/ReceiptThumb.vue'
 import AdminNav from '@/components/layout/AdminNav.vue'
+import LocalisedDateInput from '@/components/common/LocalisedDateInput.vue'
+import { formatDate as formatDateIn, formatMonth, money } from '@/utils/format'
 
 const { t, locale } = useI18n()
 const { confirm } = useConfirmDialog()
@@ -46,11 +48,7 @@ function payerName(adminId: string): string {
 }
 
 function formatDate(isoDate: string): string {
-  return new Date(isoDate).toLocaleDateString(locale.value === 'th' ? 'th-TH' : 'en-US', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
+  return formatDateIn(isoDate, locale.value)
 }
 
 function shiftMonth(delta: number): void {
@@ -275,20 +273,25 @@ async function saveEdit(expense: Expense): Promise<void> {
 <template>
   <AdminNav />
   <main class="mx-auto max-w-3xl px-4 py-6">
-    <h1 class="text-2xl font-bold text-brand-pink">{{ t('admin.nav.expenses') }}</h1>
+    <h1 class="sr-only">{{ t('admin.nav.expenses') }}</h1>
 
     <!-- This month summary -->
     <section class="hud-panel mt-4 border border-brand-pink/20 bg-brand-surface p-4">
       <div class="flex items-center justify-between gap-2">
         <button type="button" class="tap px-3 text-white/50 hover:text-white" @click="shiftMonth(-1)">←</button>
-        <input v-model="selectedMonth" type="month" class="rounded border border-brand-pink-dark/40 bg-brand-black px-2 py-1 text-sm" />
+        <LocalisedDateInput
+          v-model="selectedMonth"
+          type="month"
+          :aria-label="t('expenses.monthPicked')"
+          class="min-w-0 flex-1"
+        />
         <button type="button" class="tap px-3 text-white/50 hover:text-white" @click="shiftMonth(1)">→</button>
       </div>
 
       <div class="mt-3 flex items-center justify-between">
         <span class="text-sm text-white/60">{{ t('expenses.monthTotal') }}</span>
         <span class="text-xl font-bold text-brand-pink">
-          ฿{{ (selectedMonthSummary?.total_amount ?? 0).toFixed(2) }}
+          {{ money(selectedMonthSummary?.total_amount ?? 0) }}
         </span>
       </div>
       <div v-if="selectedMonthSummary" class="mt-2 flex flex-wrap gap-2 text-xs">
@@ -297,7 +300,7 @@ async function saveEdit(expense: Expense): Promise<void> {
           :key="cat"
           class="rounded-full bg-brand-black px-2.5 py-1 text-white/60"
         >
-          {{ categoryLabel(cat) }}: ฿{{ selectedMonthSummary.by_category[cat]?.toFixed(2) }}
+          {{ categoryLabel(cat) }}: {{ money(selectedMonthSummary.by_category[cat] ?? 0) }}
         </span>
       </div>
     </section>
@@ -425,10 +428,10 @@ async function saveEdit(expense: Expense): Promise<void> {
               <p v-if="e.note" class="mt-0.5 text-xs text-white/40">{{ e.note }}</p>
             </div>
             <div class="flex shrink-0 flex-col items-end gap-1.5">
-              <span class="font-bold text-brand-pink">฿{{ e.amount.toFixed(2) }}</span>
+              <span class="font-bold text-brand-pink">{{ money(e.amount) }}</span>
               <span
                 v-if="e.is_paid"
-                class="rounded-full border border-status-success/40 px-2 py-0.5 text-[10px] font-semibold text-status-success"
+                class="rounded-full border border-status-success/40 px-2 py-0.5 text-xs font-semibold text-status-success"
               >
                 {{ t('expenses.paidStamp') }}
               </span>
@@ -436,7 +439,7 @@ async function saveEdit(expense: Expense): Promise<void> {
                 v-else
                 type="button"
                 :disabled="markingPaidId === e.id"
-                class="tap rounded-full border border-brand-pink/40 px-3 text-[10px] font-semibold text-brand-pink disabled:opacity-50"
+                class="tap rounded-full border border-brand-pink/40 px-3 text-xs font-semibold text-brand-pink disabled:opacity-50"
                 @click="markPaid(e)"
               >
                 {{ markingPaidId === e.id ? t('expenses.markingPaid') : t('expenses.markPaid') }}
@@ -473,8 +476,8 @@ async function saveEdit(expense: Expense): Promise<void> {
             :class="s.month === selectedMonth ? 'border-brand-pink/60 bg-brand-surface-raised' : 'border-brand-pink/10 bg-brand-surface text-white/60'"
             @click="selectedMonth = s.month"
           >
-            <span>{{ s.month }}</span>
-            <span class="font-semibold">฿{{ s.total_amount.toFixed(2) }}</span>
+            <span>{{ formatMonth(s.month, locale) }}</span>
+            <span class="font-semibold">{{ money(s.total_amount) }}</span>
           </button>
         </li>
       </ul>

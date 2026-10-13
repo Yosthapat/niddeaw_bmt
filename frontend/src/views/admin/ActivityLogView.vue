@@ -5,6 +5,8 @@ import * as adminApi from '@/api/admin'
 import { ApiError } from '@/api/client'
 import type { Admin, AdminActivityLogEntry } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
+import LocalisedDateInput from '@/components/common/LocalisedDateInput.vue'
+import { formatDateTime as formatDateTimeIn } from '@/utils/format'
 
 const { t, locale } = useI18n()
 
@@ -26,13 +28,7 @@ function adminName(adminId: string): string {
 }
 
 function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString(locale.value === 'th' ? 'th-TH' : 'en-US', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return formatDateTimeIn(iso, locale.value)
 }
 
 function detailSummary(entry: AdminActivityLogEntry): string {
@@ -66,7 +62,7 @@ onMounted(async () => {
 <template>
   <AdminNav />
   <main class="mx-auto max-w-3xl px-4 py-6">
-    <h1 class="text-2xl font-bold text-brand-pink">{{ t('activityLog.title') }}</h1>
+    <h1 class="sr-only">{{ t('activityLog.title') }}</h1>
 
     <div class="mt-4 flex flex-wrap gap-2.5">
       <select
@@ -76,10 +72,10 @@ onMounted(async () => {
         <option value="">{{ t('activityLog.allAdmins') }}</option>
         <option v-for="a in admins" :key="a.id" :value="a.id">{{ a.username }}</option>
       </select>
-      <input
+      <LocalisedDateInput
         v-model="selectedDate"
-        type="date"
-        class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm text-white/80"
+        :placeholder="t('activityLog.anyDate')"
+        :aria-label="t('activityLog.anyDate')"
       />
       <button
         v-if="selectedAdminId || selectedDate"

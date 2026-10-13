@@ -25,7 +25,7 @@ const labels: Record<EloTier, string> = {
   <button
     v-if="interactive"
     type="button"
-    class="hud-hover inline-block shrink-0 rounded-full transition-transform active:scale-95"
+    class="tap-area hud-hover inline-block shrink-0 rounded-full transition-transform active:scale-95"
     :aria-label="labels[tier]"
     @click="open(props.tier)"
   >
