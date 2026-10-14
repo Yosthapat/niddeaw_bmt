@@ -48,6 +48,7 @@ const ROUTES: [string, RegExp, string][] = [
   ['POST', /^\/api\/admin\/players\/[^/]+\/avatar$/, 'uploadAvatar'],
   ['PUT', /^\/api\/admin\/settings$/, 'editSettings'],
   ['POST', /^\/api\/admin\/settings\/qr$/, 'uploadQr'],
+  ['POST', /^\/api\/admin\/stats-audit\/repair$/, 'repairStats'],
 ]
 
 export function actionKey(method: string, path: string): string | null {

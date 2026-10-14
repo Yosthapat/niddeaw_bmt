@@ -10,6 +10,8 @@ been caught by the service tests — these go through the HTTP API.
 from typing import Any
 from uuid import uuid4
 
+from tests.conftest import FakeSupabase
+
 from fastapi.testclient import TestClient
 
 from app.security import create_access_token
@@ -300,3 +302,53 @@ def test_a_player_with_a_match_still_queued_cannot_be_billed(
         f"/api/admin/billing/player/{SESSION_ID}/{PLAYER_IDS[0]}", headers=auth()
     )
     assert response.status_code == 409
+
+
+def test_the_match_is_claimed_before_anybody_is_counted(
+    client: TestClient, supabase_spy: FakeSupabase, supabase_rows: dict[str, list[dict[str, Any]]]
+) -> None:
+    """The order is what stops one match being counted twice.
+
+    Writing the players first left a gap: a dropped connection before the
+    status was saved, and the night's games stayed on four profiles while
+    the match stayed in_progress — so pressing บันทึกผล again counted the
+    same match a second time, which is a profile reading ten games off
+    seven. Claiming the match first makes the retry a 409 instead.
+    """
+    supabase_rows["sessions"] = [session_row("open")]
+    supabase_rows["matches"] = [match_row("in_progress")]
+    supabase_rows["players"] = player_rows()
+
+    client.post(
+        f"/api/admin/matchmaking/matches/{MATCH_ID}/result",
+        json={"winner": "team1"},
+        headers=auth(),
+    )
+
+    updates = [
+        index
+        for index, (name, args, _) in enumerate(supabase_spy.calls)
+        if name == "update" and args
+    ]
+    claim = next(i for i in updates if "status" in supabase_spy.calls[i][1][0])
+    counted = next(i for i in updates if "games" in supabase_spy.calls[i][1][0])
+    assert claim < counted, "the players were counted before the match was claimed"
+
+
+def test_the_claim_only_matches_a_match_nobody_has_finished(
+    client: TestClient, supabase_spy: FakeSupabase, supabase_rows: dict[str, list[dict[str, Any]]]
+) -> None:
+    """Two taps on บันทึกผล race each other. The database decides: the
+    update asks for a row that is not completed yet, so exactly one of them
+    gets a row back and the other is told it is already recorded."""
+    supabase_rows["sessions"] = [session_row("open")]
+    supabase_rows["matches"] = [match_row("in_progress")]
+    supabase_rows["players"] = player_rows()
+
+    client.post(
+        f"/api/admin/matchmaking/matches/{MATCH_ID}/result",
+        json={"winner": "team1"},
+        headers=auth(),
+    )
+
+    assert ("neq", ("status", "completed"), {}) in supabase_spy.calls

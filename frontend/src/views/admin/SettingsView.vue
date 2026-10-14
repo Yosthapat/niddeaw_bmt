@@ -3,11 +3,13 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
 import { ApiError } from '@/api/client'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { compressImage } from '@/utils/imageCompression'
 import type { ClubSettings, PaymentMethod, PromptPayType } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 
 const { t } = useI18n()
+const { confirm } = useConfirmDialog()
 
 const settings = ref<ClubSettings | null>(null)
 const loading = ref(true)
@@ -39,6 +41,61 @@ async function loadIdentity(): Promise<void> {
   } finally {
     identityLoading.value = false
   }
+}
+
+// The numbers on a profile are counters kept as results come in, not a
+// count of the match rows; the matches are the truth. When the two
+// disagree the person who notices is the admin looking at the screen, so
+// the check and the repair live here rather than only in a CLI that needs
+// a terminal and the service key.
+const audit = ref<adminApi.StatsReport | null>(null)
+const auditLoading = ref(false)
+const auditError = ref<string | null>(null)
+const repairing = ref(false)
+
+async function checkStats(): Promise<void> {
+  auditLoading.value = true
+  auditError.value = null
+  try {
+    audit.value = await adminApi.checkStats()
+  } catch (e) {
+    auditError.value = apiErrorMessage(e, t('settings.statsFailed'))
+  } finally {
+    auditLoading.value = false
+  }
+}
+
+async function repairStats(): Promise<void> {
+  const confirmed = await confirm({
+    title: t('settings.statsRepair'),
+    message: t('settings.statsRepairConfirm', { n: audit.value?.rows.length ?? 0 }),
+    confirmLabel: t('settings.statsRepair'),
+  })
+  if (!confirmed) return
+  repairing.value = true
+  auditError.value = null
+  try {
+    audit.value = await adminApi.repairStats()
+  } catch (e) {
+    auditError.value = apiErrorMessage(e, t('settings.statsFailed'))
+  } finally {
+    repairing.value = false
+  }
+}
+
+// Only the figures that actually differ. A row that printed the game
+// count alone read "1 → 1" whenever the disagreement was in the wins, which
+// looks like the screen flagging someone for nothing.
+function differences(row: adminApi.StatsRow): { label: string; from: number; to: number }[] {
+  const fields: [string, number, number][] = [
+    [t('common.game'), row.stored_games, row.real_games],
+    [t('common.win'), row.stored_wins, row.real_wins],
+    [t('common.draw'), row.stored_draws, row.real_draws],
+    [t('common.loss'), row.stored_losses, row.real_losses],
+  ]
+  return fields
+    .filter(([, from, to]) => from !== to)
+    .map(([label, from, to]) => ({ label, from, to }))
 }
 
 async function onQrFileSelected(event: Event): Promise<void> {
@@ -218,6 +275,78 @@ const paymentMethodOptions = computed<{ value: PaymentMethod; label: string }[]>
         {{ saving ? t('common.saving') : t('settings.saveSettings') }}
       </button>
     </form>
+
+    <section class="mt-10">
+      <h2 class="text-sm font-semibold text-white/70">{{ t('settings.statsTitle') }}</h2>
+      <p class="mt-1 text-xs text-white/50">{{ t('settings.statsHint') }}</p>
+
+      <button
+        type="button"
+        :disabled="auditLoading"
+        class="tap hud-hover mt-3 w-full rounded-full border border-brand-pink/40 px-4 text-sm font-semibold text-brand-pink disabled:opacity-50"
+        @click="checkStats"
+      >
+        {{ auditLoading ? t('common.loading') : t('settings.statsCheck') }}
+      </button>
+
+      <p v-if="auditError" class="mt-3 text-sm text-status-error">{{ auditError }}</p>
+
+      <div v-if="audit" class="hud-panel mt-3 border border-brand-pink/20 bg-brand-surface p-4">
+        <p class="text-sm text-white/60">
+          {{ t('settings.statsChecked', { players: audit.players_checked, matches: audit.matches_counted }) }}
+        </p>
+
+        <!-- After a repair the rows are what was just written, not what is
+             still wrong — so they stay on screen, and the button that would
+             write them again does not. -->
+        <p v-if="audit.applied" class="mt-2 text-sm text-status-success">
+          {{ t('settings.statsRepaired', { n: audit.rows.length }) }}
+        </p>
+        <p v-else-if="audit.rows.length === 0" class="mt-2 text-sm text-status-success">
+          {{ t('settings.statsAllGood') }}
+        </p>
+
+        <template v-if="audit.rows.length > 0">
+          <ul class="mt-3 space-y-1.5">
+            <li
+              v-for="row in audit.rows"
+              :key="row.player_id"
+              class="flex items-center justify-between gap-2 text-sm"
+            >
+              <span class="truncate">
+                {{ row.nickname }}
+                <span v-if="!row.is_active" class="text-xs text-white/40">
+                  ({{ t('members.deletedBadge') }})
+                </span>
+              </span>
+              <span class="flex shrink-0 flex-wrap justify-end gap-x-2 font-mono text-xs">
+                <span v-for="d in differences(row)" :key="d.label" class="whitespace-nowrap">
+                  <span class="text-white/40">{{ d.label }}</span>
+                  <span class="ml-1 text-status-error">{{ d.from }}</span>
+                  <span class="text-white/30">→</span>
+                  <span class="text-status-success">{{ d.to }}</span>
+                </span>
+              </span>
+            </li>
+          </ul>
+
+          <button
+            v-if="!audit.applied"
+            type="button"
+            :disabled="repairing"
+            class="tap mt-4 w-full rounded-full bg-brand-pink px-4 text-sm font-semibold text-brand-black disabled:opacity-50"
+            @click="repairStats"
+          >
+            {{ repairing ? t('common.saving') : t('settings.statsRepair') }}
+          </button>
+          <p class="mt-2 text-xs text-white/40">{{ t('settings.statsEloNote') }}</p>
+        </template>
+
+        <p v-if="audit.orphan_player_ids.length > 0" class="mt-3 text-xs text-status-error">
+          {{ t('settings.statsOrphans', { n: audit.orphan_player_ids.length }) }}
+        </p>
+      </div>
+    </section>
 
     <section class="mt-10">
       <h2 class="text-sm font-semibold text-white/70">{{ t('settings.identityTitle') }}</h2>

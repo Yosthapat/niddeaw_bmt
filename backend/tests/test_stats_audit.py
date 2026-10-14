@@ -15,6 +15,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from app.services import stats_audit
+from tests.conftest import FakeSupabase
 
 P1 = str(uuid4())
 P2 = str(uuid4())
@@ -348,3 +349,98 @@ def test_the_breakdown_counts_a_player_on_either_side() -> None:
     db.tables["sessions"] = [{"id": NIGHT1, "date": "2026-10-10"}]
 
     assert [n.games for n in stats_audit.spells(db, UUID(P1))] == [2]  # type: ignore[arg-type]
+
+
+# --- the same audit, from the admin screen --------------------------------
+
+
+def api_player(pid: str, nickname: str, games: int) -> dict[str, Any]:
+    """The players table as the API reads it — the audit needs every column
+    the Player model does, not just the four it compares."""
+    return {
+        "id": pid,
+        "nickname": nickname,
+        "member_seq": 1,
+        "avatar_url": None,
+        "elo_score": 1200,
+        "elo_level": "highball",
+        "is_active": True,
+        "line_id": None,
+        "dominant_hand": None,
+        "tiktok": None,
+        "instagram": None,
+        "quote": None,
+        "created_at": "2026-10-01T10:00:00+00:00",
+        "games": games,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+    }
+
+
+def admin_auth() -> dict[str, str]:
+    from app.security import create_access_token
+
+    return {"Authorization": f"Bearer {create_access_token(admin_id=str(uuid4()), role='admin')}"}
+
+
+def test_the_screen_can_ask_who_disagrees_with_their_matches(
+    client: Any, supabase_rows: dict[str, list[dict[str, Any]]]
+) -> None:
+    supabase_rows["players"] = [api_player(P1, "Aekk", 10)]
+    supabase_rows["matches"] = [match(team1=[P1], team2=[P2]) for _ in range(7)]
+
+    response = client.get("/api/admin/stats-audit", headers=admin_auth())
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["applied"] is False
+    assert [(r["nickname"], r["stored_games"], r["real_games"]) for r in body["rows"]] == [
+        ("Aekk", 10, 7)
+    ]
+
+
+def test_asking_writes_nothing(
+    client: Any, supabase_spy: FakeSupabase, supabase_rows: dict[str, list[dict[str, Any]]]
+) -> None:
+    supabase_rows["players"] = [api_player(P1, "Aekk", 10)]
+    supabase_rows["matches"] = [match(team1=[P1], team2=[P2])]
+
+    client.get("/api/admin/stats-audit", headers=admin_auth())
+
+    assert [c for c in supabase_spy.calls if c[0] == "update"] == []
+
+
+def test_the_repair_writes_the_record_the_matches_support(
+    client: Any, supabase_spy: FakeSupabase, supabase_rows: dict[str, list[dict[str, Any]]]
+) -> None:
+    supabase_rows["players"] = [api_player(P1, "Aekk", 10)]
+    supabase_rows["matches"] = [match(team1=[P1], team2=[P2]) for _ in range(7)]
+
+    response = client.post("/api/admin/stats-audit/repair", headers=admin_auth())
+
+    assert response.status_code == 200
+    assert response.json()["applied"] is True
+    written = [c[1][0] for c in supabase_spy.calls if c[0] == "update"]
+    assert written == [{"games": 7, "wins": 7, "draws": 0, "losses": 0}]
+
+
+def test_the_repair_never_writes_elo(
+    client: Any, supabase_spy: FakeSupabase, supabase_rows: dict[str, list[dict[str, Any]]]
+) -> None:
+    supabase_rows["players"] = [api_player(P1, "Aekk", 10)]
+    supabase_rows["matches"] = [match(team1=[P1], team2=[P2])]
+
+    client.post("/api/admin/stats-audit/repair", headers=admin_auth())
+
+    for payload in (c[1][0] for c in supabase_spy.calls if c[0] == "update"):
+        assert "elo_score" not in payload and "elo_level" not in payload
+
+
+def test_neither_is_open_to_anyone_without_a_login(
+    client: Any, supabase_rows: dict[str, list[dict[str, Any]]]
+) -> None:
+    """These read every player's record and one of them rewrites it."""
+    supabase_rows["players"] = []
+    assert client.get("/api/admin/stats-audit").status_code == 401
+    assert client.post("/api/admin/stats-audit/repair").status_code == 401

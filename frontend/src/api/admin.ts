@@ -430,3 +430,37 @@ export interface ClientIdentity {
 export async function getClientIdentity(): Promise<ClientIdentity> {
   return request('/api/admin/auth/whoami')
 }
+
+// Stats audit — the profile counters against the matches themselves
+export interface StatsRow {
+  player_id: string
+  nickname: string
+  is_active: boolean
+  stored_games: number
+  real_games: number
+  stored_wins: number
+  real_wins: number
+  stored_draws: number
+  real_draws: number
+  stored_losses: number
+  real_losses: number
+}
+
+export interface StatsReport {
+  applied: boolean
+  players_checked: number
+  matches_counted: number
+  rows: StatsRow[]
+  orphan_player_ids: string[]
+}
+
+/** Who disagrees with their own match history. Writes nothing. */
+export async function checkStats(): Promise<StatsReport> {
+  return request('/api/admin/stats-audit')
+}
+
+/** Writes each player the record their matches support. An overwrite, so
+ *  running it twice changes nothing the second time; ELO is never touched. */
+export async function repairStats(): Promise<StatsReport> {
+  return request('/api/admin/stats-audit/repair', { method: 'POST' })
+}

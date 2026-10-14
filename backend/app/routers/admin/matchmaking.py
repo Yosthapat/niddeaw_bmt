@@ -334,6 +334,16 @@ def _save_result(
     return Match.model_validate(rows(updated)[0])
 
 
+def _store_deltas(supabase: Client, match_id: UUID, delta_team1: int, delta_team2: int) -> Match:
+    updated = (
+        supabase.table("matches")
+        .update({"elo_delta_team1": delta_team1, "elo_delta_team2": delta_team2})
+        .eq("id", str(match_id))
+        .execute()
+    )
+    return Match.model_validate(rows(updated)[0])
+
+
 @router.post("/matches/{match_id}/result", response_model=Match)
 def submit_result(
     match_id: UUID, payload: MatchResultSubmit, supabase: SupabaseDep, admin: AdminDep
@@ -342,8 +352,7 @@ def submit_result(
     # Recording a result applies ELO and bumps every player's games/wins, so
     # doing it twice moves the whole club's ratings by double. The record
     # screen is a plain URL with the match in its query string, so the
-    # browser's own Back button lands right back on live buttons — this is
-    # the only thing standing between that and a silently wrong ladder.
+    # browser's own Back button lands right back on live buttons.
     # A match still queued can be recorded: it just means the admin opened
     # the result screen before pressing "เริ่มแข่ง". A result recorded for
     # the wrong team is corrected with PATCH below, never by sending this
@@ -354,12 +363,49 @@ def submit_result(
             detail="แมตช์นี้บันทึกผลไปแล้ว",
         )
 
+    # Claim the match before touching anybody's record, and let the database
+    # decide who claimed it: the update only matches a row that is not
+    # completed yet, so of two requests exactly one gets a row back.
+    #
+    # The order is the point. Writing the stats first and the status second
+    # left a gap — a dropped connection between them, or a Supabase hiccup,
+    # and the players kept the night's games while the match stayed
+    # in_progress. The admin presses บันทึกผล again, the status guard above
+    # sees a match that is not completed, and the same four players are
+    # counted twice for one match. That is a profile reading ten games off
+    # seven, with nothing in the match history to explain it.
+    #
+    # Claiming first cannot do that. If the stats write then fails, the
+    # match is completed with nobody counted — an under-count, which the
+    # stats audit lists and repairs, rather than an over-count that looks
+    # like real play.
+    claimed = (
+        supabase.table("matches")
+        .update(
+            {
+                "winner": payload.winner,
+                "status": "completed",
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+        .eq("id", str(match_id))
+        .neq("status", "completed")
+        .execute()
+    )
+    if not rows(claimed):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="แมตช์นี้บันทึกผลไปแล้ว",
+        )
+
     team1_ids, team2_ids = _team_ids(match_row)
     updated_stats, delta_team1, delta_team2 = elo_service.apply_match_result(
         _player_stats(supabase, team1_ids + team2_ids), team1_ids, team2_ids, payload.winner
     )
     _write_player_stats(supabase, updated_stats)
-    return _save_result(supabase, match_id, payload.winner, delta_team1, delta_team2)
+    # The deltas are what a correction later reverses by, so they are stored
+    # once the move they describe has actually been made.
+    return _store_deltas(supabase, match_id, delta_team1, delta_team2)
 
 
 @router.patch("/matches/{match_id}/result", response_model=Match)

@@ -12,6 +12,7 @@ from app.routers.admin import matchmaking as admin_matchmaking
 from app.routers.admin import other_income as admin_other_income
 from app.routers.admin import players_admin
 from app.routers.admin import sessions as admin_sessions
+from app.routers.admin import stats_audit_admin as admin_stats_audit
 from app.routers.admin import settings as admin_settings
 from app.routers.public import hall_of_fame, live, matches, players, ranking, seasons
 
@@ -50,6 +51,7 @@ app.include_router(admin_billing.router)
 app.include_router(admin_expenses.router)
 app.include_router(admin_other_income.router)
 app.include_router(admin_activity_log.router)
+app.include_router(admin_stats_audit.router)
 
 
 @app.get("/health")
