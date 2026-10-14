@@ -11,6 +11,10 @@ import AdminNav from '@/components/layout/AdminNav.vue'
 const { t } = useI18n()
 const { confirm } = useConfirmDialog()
 
+// Baked in at build time by vite.config.ts.
+const buildSha = __BUILD_SHA__
+const buildTime = __BUILD_TIME__
+
 const settings = ref<ClubSettings | null>(null)
 const loading = ref(true)
 const loadError = ref<string | null>(null)
@@ -382,5 +386,13 @@ const paymentMethodOptions = computed<{ value: PaymentMethod; label: string }[]>
         </p>
       </div>
     </section>
+
+    <!-- Which build this phone is actually running. A home-screen app is
+         served by a service worker, so "the site is updated" and "this
+         phone has the update" are different facts that look identical from
+         the outside; this is how they get compared. -->
+    <p class="mt-10 text-center text-xs text-white/30">
+      {{ t('settings.buildStamp', { time: buildTime, sha: buildSha }) }}
+    </p>
   </main>
 </template>

@@ -332,6 +332,7 @@ export default {
     uploadQr: 'Upload QR Image',
     replaceQr: 'Replace QR',
     qrUploadFailed: 'Failed to upload QR',
+    buildStamp: 'Build {time} UTC · {sha}',
     statsTitle: 'Check the stats',
     statsHint: "A profile's numbers are counters added as results come in, not a count of the matches. When the two disagree, the matches are the truth.",
     statsCheck: 'Check everyone',

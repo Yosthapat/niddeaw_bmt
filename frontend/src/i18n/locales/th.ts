@@ -328,6 +328,7 @@ export default {
     uploadQr: 'อัพโหลดรูป QR',
     replaceQr: 'เปลี่ยนรูป QR',
     qrUploadFailed: 'อัพโหลด QR ไม่สำเร็จ',
+    buildStamp: 'เวอร์ชัน {time} UTC · {sha}',
     statsTitle: 'ตรวจสถิติ',
     statsHint: 'ตัวเลขบนโปรไฟล์เป็นตัวนับที่บวกตอนบันทึกผล ไม่ได้นับจากแมตช์จริง ถ้าสองอย่างไม่ตรงกัน แมตช์คือของจริง',
     statsCheck: 'ตรวจสถิติทุกคน',
