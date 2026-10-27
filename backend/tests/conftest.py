@@ -20,7 +20,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app.deps import get_supabase  # noqa: E402
 from app.main import app  # noqa: E402
-from app.services import login_throttle  # noqa: E402
+from app.services import login_throttle, record_service  # noqa: E402
 
 
 class FakeResult:
@@ -139,6 +139,15 @@ def _clean_throttle() -> Iterator[None]:
     login_throttle.reset_all()
     yield
     login_throttle.reset_all()
+
+
+@pytest.fixture(autouse=True)
+def _fresh_records() -> Iterator[None]:
+    """record_service keeps the club's count in memory between requests;
+    one test's matches must never answer the next test's question."""
+    record_service.invalidate()
+    yield
+    record_service.invalidate()
 
 
 @pytest.fixture

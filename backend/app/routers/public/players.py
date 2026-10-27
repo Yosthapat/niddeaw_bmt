@@ -10,7 +10,7 @@ from app.db_utils import rows
 from app.deps import SupabaseDep
 from app.models.match import Match
 from app.models.player import NemesisInfo, Player, PlayerCount, PlayerProfile, PlayerStats
-from app.services import season_service, stats_service
+from app.services import record_service, season_service, stats_service
 
 # Reads that show a match number go through the matches_numbered view
 # (db/migrations/0025) rather than the table: the number is a rank over the
@@ -21,16 +21,10 @@ MATCHES_VIEW = "matches_numbered"
 router = APIRouter(prefix="/api/players", tags=["public-players"])
 
 
-def _record_for(player: Player) -> stats_service.PlayerRecord:
-    """Builds a PlayerRecord straight from a player's own denormalized
-    counters — no match-history scan needed."""
-    return stats_service.PlayerRecord(
-        games=player.games, wins=player.wins, draws=player.draws, losses=player.losses
-    )
-
-
-def _to_stats(player: Player) -> PlayerStats:
-    record = _record_for(player)
+def _to_stats(player: Player, records: dict[UUID, stats_service.PlayerRecord]) -> PlayerStats:
+    """`records` is record_service.all_records(): counted from the matches, so
+    this agrees with the player's match history (see record_service)."""
+    record = records.get(player.id, stats_service.PlayerRecord())
     return PlayerStats(
         player=player,
         games=record.games,
@@ -65,12 +59,14 @@ def list_players(
         players_result = (
             supabase.table("players").select("*").in_("id", [str(pid) for pid in ids]).execute()
         )
-        stats = [_to_stats(Player.model_validate(row)) for row in rows(players_result)]
+        records = record_service.all_records(supabase)
+        stats = [_to_stats(Player.model_validate(row), records) for row in rows(players_result)]
         stats.sort(key=lambda s: s.player.nickname.lower())
         return stats
 
     players_result = supabase.table("players").select("*").eq("is_active", True).execute()
-    stats = [_to_stats(Player.model_validate(row)) for row in rows(players_result)]
+    records = record_service.all_records(supabase)
+    stats = [_to_stats(Player.model_validate(row), records) for row in rows(players_result)]
     # Alphabetical roster — points-based ranking lives on the separate
     # /api/ranking endpoint (RankingView), not here.
     stats.sort(key=lambda s: s.player.nickname.lower())
@@ -202,7 +198,7 @@ def get_player_profile(player_id: UUID, supabase: SupabaseDep) -> PlayerProfile:
     if not player_rows:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Player not found")
     player = Player.model_validate(player_rows[0])
-    record = _record_for(player)
+    record = record_service.record_for(supabase, player.id)
 
     # Nemesis needs a per-opponent breakdown of own_matches (fetched above)
     # before it knows who to look up — stays sequential after that point.

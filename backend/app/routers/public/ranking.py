@@ -8,7 +8,7 @@ from fastapi import APIRouter, Query
 from app.db_utils import rows
 from app.deps import SupabaseDep
 from app.models.player import Player, PlayerStats
-from app.services import stats_service
+from app.services import record_service, stats_service
 
 router = APIRouter(prefix="/api/ranking", tags=["public-ranking"])
 
@@ -30,10 +30,7 @@ def _stats_from_record(player: Player, record: stats_service.PlayerRecord) -> Pl
 
 def _play_dates(supabase: SupabaseDep) -> list[DateType]:
     """Every session date with at least one completed match, newest first."""
-    matches_result = (
-        supabase.table("matches").select("session_id").eq("status", "completed").execute()
-    )
-    session_ids = [row["session_id"] for row in rows(matches_result)]
+    session_ids = [row["session_id"] for row in record_service.completed_matches(supabase, "session_id")]
     if not session_ids:
         return []
     sessions_result = (
@@ -63,9 +60,12 @@ def get_ranking(
     players = [Player.model_validate(row) for row in rows(players_result)]
 
     records: dict[UUID, stats_service.PlayerRecord] = {}
-    use_denormalized_totals = period == "all"
 
-    if period == "day":
+    if period == "all":
+        # Counted from the matches, the same as the members list, a profile
+        # and the match history — see record_service.
+        records = record_service.all_records(supabase)
+    elif period == "day":
         # Scoped through sessions.date, not matches.created_at: a Friday
         # session running past midnight UTC would otherwise split across two
         # calendar days, and the club thinks in play-nights, not UTC dates.
@@ -87,28 +87,17 @@ def get_ranking(
         )
         records = stats_service.build_player_records(rows(matches_result))  # type: ignore[arg-type]
     elif period == "year":
-        # "This year" isn't denormalized, but is bounded to this year's
-        # matches at the query level (not fetched in full then filtered in
-        # Python) so it stays cheap regardless of the club's total history.
+        # Bounded to this year's matches at the query level (not fetched in
+        # full then filtered in Python), and paged: a year of club nights is
+        # already near PostgREST's 1000-row ceiling.
         year_start = datetime(datetime.now(timezone.utc).year, 1, 1, tzinfo=timezone.utc)
-        matches_result = (
-            supabase.table("matches")
-            .select("team1_player_ids, team2_player_ids, winner, created_at")
-            .eq("status", "completed")
-            .gte("created_at", year_start.isoformat())
-            .execute()
+        records = stats_service.build_player_records(
+            record_service.completed_matches(supabase, since=year_start)  # type: ignore[arg-type]
         )
-        records = stats_service.build_player_records(rows(matches_result))  # type: ignore[arg-type]
 
     stats: list[PlayerStats] = []
     for player in players:
-        if use_denormalized_totals:
-            # Denormalized totals — no match-history scan needed.
-            record = stats_service.PlayerRecord(
-                games=player.games, wins=player.wins, draws=player.draws, losses=player.losses
-            )
-        else:
-            record = records.get(player.id, stats_service.PlayerRecord())
+        record = records.get(player.id, stats_service.PlayerRecord())
         if record.games == 0:
             continue  # ranking only shows players who've played at least one match
         stats.append(_stats_from_record(player, record))

@@ -8,7 +8,7 @@ from supabase import Client
 from app.db_utils import rows
 from app.deps import AdminDep, SupabaseDep
 from app.models.session import Session, SessionCreate, SessionUpdate
-from app.services import elo_service
+from app.services import elo_service, record_service
 
 router = APIRouter(prefix="/api/admin/sessions", tags=["admin-sessions"])
 
@@ -64,6 +64,8 @@ def delete_session(session_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> 
     result = supabase.table("sessions").delete().eq("id", str(session_id)).execute()
     if not rows(result):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+    # Its matches went with it, so everyone in them has fewer games now.
+    record_service.invalidate()
 
     _reverse_match_stats(completed_matches, supabase)
 
