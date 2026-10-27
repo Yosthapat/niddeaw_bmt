@@ -14,8 +14,8 @@ construction, not by upkeep. The counters are still written, and the ELO
 rating still lives on the player, because a rating depends on the order
 games were played and cannot be recounted.
 
-The club's whole history is one paged query of three narrow columns, about
-a thousand rows a year. The count is kept in memory and thrown away whenever
+The club's whole history is one paged query of three narrow columns: 239
+completed matches by the end of October 2026. The count is kept in memory and thrown away whenever
 this process records, corrects or deletes a result. The API runs as a
 single process (deploy/render.yaml), so that covers every write the app can
 make. CACHE_SECONDS only bounds a change made outside the app, e.g. a row
@@ -48,9 +48,10 @@ def completed_matches(
 ) -> list[dict[str, Any]]:
     """Every completed match (from `since`, if given), paged.
 
-    Without the paging a read stops at PostgREST's row ceiling without a
-    word, and everyone past it looks as if they played less than they did.
-    The club passed 950 completed matches in October 2026.
+    Without the paging a read stops at PostgREST's 1000-row ceiling without
+    a word, and everyone past it looks as if they played less than they
+    did. The club is at 239 completed matches (October 2026), so that is a
+    few years off, not a reason to leave the reads unpaged.
     """
     out: list[dict[str, Any]] = []
     offset = 0

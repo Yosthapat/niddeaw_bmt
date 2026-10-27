@@ -88,8 +88,8 @@ def get_ranking(
         records = stats_service.build_player_records(rows(matches_result))  # type: ignore[arg-type]
     elif period == "year":
         # Bounded to this year's matches at the query level (not fetched in
-        # full then filtered in Python), and paged: a year of club nights is
-        # already near PostgREST's 1000-row ceiling.
+        # full then filtered in Python), and paged, so it keeps counting
+        # once a year of club nights passes PostgREST's 1000-row ceiling.
         year_start = datetime(datetime.now(timezone.utc).year, 1, 1, tzinfo=timezone.utc)
         records = stats_service.build_player_records(
             record_service.completed_matches(supabase, since=year_start)  # type: ignore[arg-type]
