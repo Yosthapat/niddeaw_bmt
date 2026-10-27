@@ -54,6 +54,11 @@ export default defineConfig({
       includeAssets: ['favicon.ico'],
       workbox: {
         cleanupOutdatedCaches: true,
+        // The 3D home hero (three.js, ~130 KB gzipped) is only fetched by a
+        // phone that will run it. Precaching it would make every installed
+        // phone download it, including the ones that keep the CSS hero.
+        // Offline, the hero just stays CSS.
+        globIgnores: ['**/heroScene-*.js', '**/hero/cat-depth.png'],
       },
       manifest: {
         name: 'นิดเดียว Badminton Club',

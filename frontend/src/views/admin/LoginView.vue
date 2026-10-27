@@ -111,8 +111,10 @@ async function submit(): Promise<void> {
       <div class="flex flex-col items-center gap-3">
         <span class="hud-panel bg-brand-pink p-0.5">
           <img
-            src="/pwa-icons/pwa-64x64.png"
+            src="/pwa-icons/pwa-192x192.png"
             alt="นิดเดียว Badminton Club logo"
+            width="40"
+            height="40"
             class="hud-panel block h-10 w-10"
           />
         </span>

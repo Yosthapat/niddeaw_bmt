@@ -5,12 +5,11 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import type { EloTier } from '@/types'
-import TierMascot from '@/components/players/TierMascot.vue'
 import AdCarousel from '@/components/home/AdCarousel.vue'
 import ClubMatchCounter from '@/components/home/ClubMatchCounter.vue'
+import HomeHero from '@/components/home/HomeHero.vue'
 import MemberMarquee from '@/components/home/MemberMarquee.vue'
 import TierRevealScene from '@/components/home/TierRevealScene.vue'
-import { tierTextStyle } from '@/composables/useEloTier'
 
 const { t } = useI18n()
 // Moved off the header: see the comment in AppHeader.vue.
@@ -24,20 +23,6 @@ const revealTier = ref<EloTier | null>(null)
 // Auto-rotating promo banner slot, up to 4 images — drop files into
 // frontend/public/ads/ and list them here.
 const ads = ['/ads/friday-night.webp']
-
-// Ordered by rising alcohol content — matches elo_service.py's
-// _TIER_THRESHOLDS order. Absinthe's `gradient` gives it the rainbow
-// "rarest rank" treatment via tierTextStyle() instead of a flat color.
-const tiers: { tier: EloTier; label: string; color: string; gradient?: string }[] = [
-  { tier: 'milk', label: 'Milk', color: 'var(--color-tier-milk)' },
-  { tier: 'beer', label: 'Beer', color: 'var(--color-tier-beer)' },
-  { tier: 'highball', label: 'Highball', color: 'var(--color-tier-highball)' },
-  { tier: 'wine', label: 'Wine', color: 'var(--color-tier-wine)' },
-  { tier: 'soju', label: 'Soju', color: 'var(--color-tier-soju)' },
-  { tier: 'whisky', label: 'Whisky', color: 'var(--color-tier-whisky)' },
-  { tier: 'vodka', label: 'Vodka', color: 'var(--color-tier-vodka)' },
-  { tier: 'absinthe', label: 'Absinthe', color: 'var(--color-tier-absinthe)', gradient: 'var(--gradient-tier-absinthe)' },
-]
 
 // Club vibe strip — hand-drawn line icons (24x24, stroke-based) instead of
 // filled/flat glyphs so they sit quietly next to the bolder TierMascot
@@ -91,189 +76,93 @@ const socialLinks = [
     path: 'M6 20V10 M12 20V4 M18 20V13',
   },
 ]
-
-// -mono.png variants: original logos recolored to a white silhouette
-// (RGB -> white, original alpha kept as the mask) so every logo reads
-// cleanly straight against the dark background with no card/box needed —
-// same treatment bmbad.com uses for its sponsor strip.
-// width/height are each file's real intrinsic size (not the ~96px display
-// size — object-contain scales it down) so the browser can reserve the
-// right aspect ratio before the bytes arrive instead of reflowing the
-// section into place once each logo finishes loading.
-const sponsors = [
-  { name: 'Wasteland', src: '/sponsors/wasteland-mono.png', width: 499, height: 499, href: 'https://www.instagram.com/wastelandbkk' },
-  {
-    name: 'Match Mellow',
-    src: '/sponsors/match-mellow-mono.png',
-    width: 552,
-    height: 452,
-    href: 'https://www.instagram.com/match.mellowww',
-  },
-  {
-    name: 'Sawadee Natural Herbal Balm',
-    src: '/sponsors/sawadee-mono.png',
-    width: 501,
-    height: 498,
-    href: 'https://www.instagram.com/sawadee_naturalherbalbalm',
-  },
-  {
-    name: 'Umore Made',
-    src: '/sponsors/umore-made-mono.png',
-    width: 500,
-    height: 500,
-    href: 'https://www.instagram.com/umore.made',
-  },
-  {
-    name: 'The Players Club',
-    src: '/sponsors/players-club-mono.png',
-    width: 500,
-    height: 500,
-    href: 'https://www.instagram.com/theplayersclubthailand',
-  },
-]
 </script>
 
 <template>
-  <!-- Top padding is much smaller than the bottom: the marquee and tally
-       row is the first thing in here, and a symmetric py-12/py-20 left it
-       stranded 48px (80px on desktop) below the header with nothing in
-       between. The bottom keeps the original roomier padding, above the
-       footer. -->
-  <main class="mx-auto max-w-4xl px-4 pt-5 pb-12 sm:pt-8 sm:pb-20">
-    <!-- Marquee takes whatever width the counter leaves; min-w-0 lets it
-         actually shrink instead of forcing the row wider than the page. -->
-    <div class="mb-4 flex items-center gap-3 sm:mb-5">
-      <MemberMarquee class="flex-1" />
-      <ClubMatchCounter />
-    </div>
+  <main class="pb-12 sm:pb-20">
+    <HomeHero @reveal="revealTier = $event" />
 
-    <div v-reveal>
-      <AdCarousel :images="ads" />
-    </div>
-
-    <div v-reveal="1" class="relative mt-10 flex flex-col items-center text-center sm:mt-12">
-      <div class="hero-aura" aria-hidden="true" />
-      <h1 class="font-display text-[clamp(2rem,7vw,3.75rem)] leading-none font-bold text-white">
-        <span class="stagger-word" style="--stagger-delay: 0ms">นิดเดียว</span
-        ><span class="stagger-word text-brand-pink" style="--stagger-delay: 120ms">BADMINTON</span>
-      </h1>
-      <p class="mt-4 max-w-md text-balance text-white/60">
-        {{ t('home.tagline') }}
-      </p>
-
-      <div class="mt-6 flex flex-wrap items-center justify-center gap-3 text-xs font-semibold tracking-widest text-white/40 uppercase">
-        <button
-          v-for="(tier, i) in tiers"
-          :key="tier.label"
-          type="button"
-          v-tilt
-          class="float-idle flex flex-col items-center gap-1"
-          :style="{ '--float-delay': `${i * 0.25}s` }"
-          :aria-label="`${tier.label} tier — เปิดฉากเต็มจอ`"
-          @click="revealTier = tier.tier"
-        >
-          <TierMascot :tier="tier.tier" :size="40" :interactive="false" />
-          <span :class="{ 'tier-shimmer': tier.gradient }" :style="tierTextStyle(tier.color, tier.gradient)">{{
-            tier.label
-          }}</span>
-        </button>
+    <div class="mx-auto max-w-4xl px-4 pt-6 sm:pt-8">
+      <!-- Marquee takes whatever width the counter leaves; min-w-0 lets it
+           actually shrink instead of forcing the row wider than the page. -->
+      <div class="mb-4 flex items-center gap-3 sm:mb-5">
+        <MemberMarquee class="flex-1" />
+        <ClubMatchCounter />
       </div>
-    </div>
 
-    <section v-reveal class="hud-panel glass-panel mt-8 border border-brand-pink/20 p-6 sm:mt-10">
-      <h2 class="text-center text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">{{ t('home.vibesTitle') }}</h2>
-      <div class="mt-5 flex flex-wrap justify-center gap-x-6 gap-y-5 sm:gap-x-8">
-        <div v-for="vibe in vibes" :key="vibe.label" class="flex w-16 flex-col items-center gap-2 text-center">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.75"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="h-7 w-7 text-brand-pink"
-          >
-            <path :d="vibe.path" />
-            <circle v-for="(dot, i) in vibe.dots" :key="i" :cx="dot[0]" :cy="dot[1]" r="1" fill="currentColor" stroke="none" />
-          </svg>
-          <span class="text-xs leading-tight text-white/60">{{ vibe.label }}</span>
+      <div v-reveal>
+        <AdCarousel :images="ads" />
+      </div>
+
+      <section v-reveal class="hud-panel glass-panel mt-8 border border-brand-pink/20 p-6 sm:mt-10">
+        <h2 class="text-center text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">{{ t('home.vibesTitle') }}</h2>
+        <div class="mt-5 flex flex-wrap justify-center gap-x-6 gap-y-5 sm:gap-x-8">
+          <div v-for="vibe in vibes" :key="vibe.label" class="flex w-16 flex-col items-center gap-2 text-center">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.75"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="h-7 w-7 text-brand-pink"
+            >
+              <path :d="vibe.path" />
+              <circle v-for="(dot, i) in vibe.dots" :key="i" :cx="dot[0]" :cy="dot[1]" r="1" fill="currentColor" stroke="none" />
+            </svg>
+            <span class="text-xs leading-tight text-white/60">{{ vibe.label }}</span>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section v-reveal class="hud-panel glass-panel mt-8 border border-brand-pink/20 p-6 text-left sm:mt-10">
-      <h2 class="font-display text-sm font-bold tracking-wide text-brand-pink uppercase">{{ t('home.contactTitle') }}</h2>
-      <p class="mt-2 text-sm text-white/60">
-        {{ t('home.contactBody') }}
-      </p>
-      <div class="mt-4 flex flex-wrap gap-2">
-        <a
-          v-for="social in socialLinks"
-          :key="social.label"
-          :href="social.href"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="hud-panel hud-hover inline-flex min-h-11 items-center gap-1.5 border border-brand-pink/25 bg-brand-black px-3 text-xs font-semibold text-white/80 transition-colors hover:border-brand-pink hover:text-brand-pink"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.75"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="h-4 w-4"
+      <section v-reveal class="hud-panel glass-panel mt-8 border border-brand-pink/20 p-6 text-left sm:mt-10">
+        <h2 class="font-display text-sm font-bold tracking-wide text-brand-pink uppercase">{{ t('home.contactTitle') }}</h2>
+        <p class="mt-2 text-sm text-white/60">
+          {{ t('home.contactBody') }}
+        </p>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <a
+            v-for="social in socialLinks"
+            :key="social.label"
+            :href="social.href"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="hud-panel hud-hover inline-flex min-h-11 items-center gap-1.5 border border-brand-pink/25 bg-brand-black px-3 text-xs font-semibold text-white/80 transition-colors hover:border-brand-pink hover:text-brand-pink"
           >
-            <path :d="social.path" />
-          </svg>
-          {{ social.label }}
-        </a>
-      </div>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.75"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="h-4 w-4"
+            >
+              <path :d="social.path" />
+            </svg>
+            {{ social.label }}
+          </a>
+        </div>
 
-      <!-- Kept inside the contact panel but set apart by the rule: it is
-           the same "who runs this" corner of the page, while staying
-           visually unlike the LINE/TikTok buttons above so nobody taps it
-           expecting to reach a human. -->
-      <div class="mt-5 border-t border-brand-pink/15 pt-4">
-        <RouterLink
-          :to="authStore.isAuthenticated ? '/admin' : '/admin/login'"
-          class="hud-hover inline-flex min-h-11 items-center gap-2 text-xs font-semibold tracking-wide text-white/40 uppercase transition-colors hover:text-brand-pink"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5">
-            <rect x="5" y="11" width="14" height="9" rx="1.5" />
-            <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-          </svg>
-          {{ authStore.isAuthenticated ? t('nav.admin') : t('nav.adminLogin') }}
-        </RouterLink>
-      </div>
-    </section>
+        <!-- Kept inside the contact panel but set apart by the rule: it is
+             the same "who runs this" corner of the page, while staying
+             visually unlike the LINE/TikTok buttons above so nobody taps it
+             expecting to reach a human. -->
+        <div class="mt-5 border-t border-brand-pink/15 pt-4">
+          <RouterLink
+            :to="authStore.isAuthenticated ? '/admin' : '/admin/login'"
+            class="hud-hover inline-flex min-h-11 items-center gap-2 text-xs font-semibold tracking-wide text-white/40 uppercase transition-colors hover:text-brand-pink"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5">
+              <rect x="5" y="11" width="14" height="9" rx="1.5" />
+              <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+            </svg>
+            {{ authStore.isAuthenticated ? t('nav.admin') : t('nav.adminLogin') }}
+          </RouterLink>
+        </div>
+      </section>
 
-    <section v-reveal class="mt-10 border-t border-b border-brand-pink/15 py-8 text-center sm:mt-12">
-      <h2 class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">{{ t('home.sponsorsTitle') }}</h2>
-      <div class="mt-6 flex flex-wrap items-center justify-center gap-x-12 gap-y-8">
-        <a
-          v-for="(sponsor, i) in sponsors"
-          :key="sponsor.name"
-          v-tilt
-          :href="sponsor.href"
-          target="_blank"
-          rel="noopener noreferrer"
-          :aria-label="sponsor.name"
-          class="sponsor-logo float-idle inline-block"
-          :style="{ '--float-delay': `${i * 0.3}s` }"
-        >
-          <img
-            :src="sponsor.src"
-            :alt="sponsor.name"
-            :width="sponsor.width"
-            :height="sponsor.height"
-            loading="lazy"
-            decoding="async"
-            class="h-24 w-auto object-contain sm:h-28"
-          />
-        </a>
-      </div>
-    </section>
+    </div>
 
     <!-- Teleports its actual content to <body> on its own, but must stay a
          child here (not a sibling of <main>) — App.vue's page <Transition>

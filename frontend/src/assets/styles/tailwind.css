@@ -308,37 +308,41 @@ button:not(:disabled):active {
   box-shadow: 0 0 24px -6px rgb(234 76 164 / 0.55);
 }
 
-/* AppHeader.vue's active-link indicator — a single shared bar whose
-   left/width are set from JS (measured against the active RouterLink),
-   so it slides to the new position instead of the old per-link v-if bar
-   teleporting on every navigation. */
-.nav-underline {
-  transition:
-    left 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-    width 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.15s ease;
+/* Liquid glass — the public site's navigation: AppHeader.vue's floating
+   bar and PublicTabBar.vue at the bottom of a phone. A bright edge on top,
+   a fainter one underneath, and whatever is behind showing through
+   blurred and a little more saturated. Without backdrop-filter (old
+   browsers) it is still a readable dark tint, never clear glass. */
+.glass-bar {
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 0.17), rgb(255 255 255 / 0.05) 55%, rgb(255 255 255 / 0.1)),
+    rgb(20 10 41 / 0.55);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  backdrop-filter: blur(22px) saturate(180%);
+  border: 1px solid rgb(255 255 255 / 0.24);
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 0.5),
+    inset 0 -1px 1px rgb(255 255 255 / 0.1),
+    0 14px 34px rgb(6 0 20 / 0.5);
+}
+/* The page you are on: a drop of brighter glass with pink light in it. */
+.glass-drop {
+  background: radial-gradient(120% 140% at 30% 0%, rgb(255 255 255 / 0.4), rgb(255 255 255 / 0.1) 60%);
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 0.7),
+    inset 0 -3px 8px rgb(234 76 164 / 0.38),
+    0 6px 14px rgb(234 76 164 / 0.35);
+  color: #fff;
 }
 
-/* HomeView.vue hero — a soft, slowly-drifting pink/purple blob sitting
-   behind the title so the hero doesn't read as flat text on black. Pure
-   CSS (no canvas/WebGL) since this has to stay light on club members'
-   older phones. Positioned by the caller; this just owns blur + motion. */
-.hero-aura {
-  position: absolute;
-  inset: -20%;
-  z-index: -1;
-  pointer-events: none;
-  background: radial-gradient(closest-side, rgb(234 76 164 / 0.35), transparent 70%),
-    radial-gradient(closest-side, rgb(157 91 244 / 0.25), transparent 70%) 70% 30% / 60% 60% no-repeat;
-  filter: blur(40px);
-  animation: hero-aura-drift 12s ease-in-out infinite alternate;
+/* How much room the floating header takes at the top of the page. The
+   home hero pulls itself up by exactly this much to run underneath it. */
+:root {
+  --header-h: 80px;
 }
-@keyframes hero-aura-drift {
-  from {
-    transform: translate(-2%, -2%) scale(1);
-  }
-  to {
-    transform: translate(2%, 2%) scale(1.08);
+@media (min-width: 900px) {
+  :root {
+    --header-h: 88px;
   }
 }
 
@@ -408,7 +412,7 @@ button:not(:disabled):active {
 /* App.vue — a slim pink/purple gradient bookend at the foot of every
    single page (rendered once, outside <RouterView>, the same way
    AppHeader sits above it on every page). Same pink+purple duo as
-   .hero-aura, just as a flat band instead of a blurred glow — a closing
+   the home hero's beam, just as a flat band instead of a blurred glow — a closing
    signature rather than a new color introduced to the palette. */
 .signature-stripe {
   height: 6px;
@@ -553,10 +557,6 @@ button:not(:disabled):active {
   button:not(:disabled):active {
     transform: none;
   }
-  .nav-underline {
-    transition: none;
-  }
-  .hero-aura,
   .profile-glow {
     animation: none;
   }

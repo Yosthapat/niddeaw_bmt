@@ -5,6 +5,7 @@ import TierInfoModal from '@/components/players/TierInfoModal.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import AmbientBackground from '@/components/common/AmbientBackground.vue'
 import UpdateBanner from '@/components/common/UpdateBanner.vue'
+import PublicTabBar from '@/components/layout/PublicTabBar.vue'
 
 const route = useRoute()
 </script>
@@ -15,7 +16,7 @@ const route = useRoute()
        viewport. `hidden` here would silently kill it.
 
        It exists because decorative glows are positioned to bleed past the
-       content box — HomeView's .hero-aura sits at inset:-20% and pushed the
+       content box — the home hero's old glow sat at inset:-20% and pushed the
        home page's scrollWidth to 448 in a 400px viewport, letting the whole
        page be dragged sideways on a phone. Only the off-screen part is
        clipped, so nothing that was ever visible changes. Browsers without
@@ -37,6 +38,12 @@ const route = useRoute()
       <component :is="Component" v-else :key="route.path" />
     </RouterView>
     <div class="signature-stripe" aria-hidden="true" />
+    <!-- Room at the end of every public page for the tab bar floating
+         over it, so the last line can scroll clear of the bar. -->
+    <template v-if="!route.path.startsWith('/admin')">
+      <div class="h-[calc(96px+env(safe-area-inset-bottom,0px))] min-[900px]:hidden" aria-hidden="true" />
+      <PublicTabBar />
+    </template>
     <TierInfoModal />
     <ConfirmDialog />
     <UpdateBanner />
