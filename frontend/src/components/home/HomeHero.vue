@@ -7,7 +7,7 @@
  * "scroll for more" cue, and the partners running past in a band underneath.
  *
  * The layout is borrowed; everything in it is the club's own. The character
- * is the club's cat emblem, the words are the club's tagline split into a
+ * is the club's crowned cat, made 3D by tools/art/bake_3d.py, the words are the club's tagline split into a
  * shout and a body, the faint shapes in the background are a shuttlecock, a
  * crown and a racket, and the band carries the club's sponsors.
  */
@@ -166,17 +166,22 @@ const ghosts = [
     <div class="mx-auto grid max-w-6xl items-center gap-4 px-4 pt-6 sm:px-6 md:grid-cols-[1.05fr_1fr] md:gap-8 md:pt-14">
       <!-- Character first on a phone, the way a poster reads; to the right
            of the words from tablet width up. -->
-      <div class="relative order-first flex justify-center md:order-last">
-        <div class="bb-emblem-halo" aria-hidden="true" />
-        <img
-          src="/hero/emblem.webp"
-          :alt="t('home.hero.emblemAlt')"
-          width="404"
-          height="418"
-          fetchpriority="high"
-          decoding="async"
-          class="bb-emblem w-[min(58vw,14rem)] md:w-[min(100%,24rem)]"
-        />
+      <div class="relative order-first flex justify-center md:order-last md:self-end">
+        <div class="bb-cat-halo" aria-hidden="true" />
+        <!-- Two elements on purpose: the fade lives on the image and the
+             shadows on its wrapper. On one element the fade would also cut
+             the shadows off at the image's edges, drawing a box. -->
+        <div class="bb-cat-lit w-[min(66vw,17rem)] md:w-[min(100%,28rem)]">
+          <img
+            src="/hero/cat-3d.webp"
+            :alt="t('home.hero.catAlt')"
+            width="1000"
+            height="1000"
+            fetchpriority="high"
+            decoding="async"
+            class="bb-cat block h-auto w-full"
+          />
+        </div>
       </div>
 
       <div class="text-center md:text-left">
@@ -324,7 +329,7 @@ const ghosts = [
 }
 
 /* Light the cat throws on the stage behind it. */
-.bb-emblem-halo {
+.bb-cat-halo {
   position: absolute;
   inset: 8% 6%;
   border-radius: 9999px;
@@ -332,13 +337,21 @@ const ghosts = [
   filter: blur(30px);
 }
 
-/* The emblem is the logo with its black ground turned into transparency,
-   so the glow follows the drawing rather than a square. */
-.bb-emblem {
+/* The first shadow is the cat's own, cast down and right onto the grid
+   behind it, which is what makes it stand off the background; the second
+   is the pink stage light around it. Applied to the wrapper, so they
+   follow the faded shape below rather than being clipped by it. */
+.bb-cat-lit {
   position: relative;
-  height: auto;
-  filter: drop-shadow(0 0 14px rgb(234 76 164 / 0.55)) drop-shadow(0 0 40px rgb(157 91 244 / 0.35));
+  filter: drop-shadow(16px 22px 20px rgb(8 2 20 / 0.55)) drop-shadow(0 0 26px rgb(234 76 164 / 0.4));
   animation: bb-hover 6s ease-in-out infinite;
+}
+/* The art stops flat at the cat's waist. Fading the last strip out lets it
+   rise out of the light at the bottom of the stage instead of looking
+   sliced, and starts low enough to leave the paw whole. */
+.bb-cat {
+  -webkit-mask-image: linear-gradient(to bottom, #000 84%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 84%, transparent 100%);
 }
 @keyframes bb-hover {
   0%,
@@ -375,6 +388,7 @@ const ghosts = [
 .bb-marquee {
   --band-scale: 1;
   overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
   mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
 }
 .bb-track {
@@ -400,7 +414,7 @@ const ghosts = [
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bb-emblem,
+  .bb-cat-lit,
   .bb-chevron {
     animation: none;
   }
@@ -424,6 +438,7 @@ const ghosts = [
     display: none;
   }
   .bb-marquee {
+    -webkit-mask-image: none;
     mask-image: none;
   }
 }

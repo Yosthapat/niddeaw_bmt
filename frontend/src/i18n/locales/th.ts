@@ -37,7 +37,7 @@ export default {
       // \u2060 is a word joiner: without it Thai line breaking splits เช็ค|อิน
       body: 'นิดเดียว BADMINTON — เช็ค\u2060อิน จัดคู่ตาม ELO คิดเงินอัตโนมัติ',
       scrollCue: 'เลื่อนดูต่อ',
-      emblemAlt: 'นิดเดียว Badminton Club',
+      catAlt: 'แมวสวมมงกุฎ มาสคอตของนิดเดียว Badminton Club',
     },
     quickLinks: {
       membersDesc: 'สถิติทุกคนในก๊วน',

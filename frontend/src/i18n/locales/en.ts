@@ -36,7 +36,7 @@ export default {
       line2: 'Nobody escapes the stats!!',
       body: 'Niddeaw BADMINTON — check in, get matched by ELO, billing done automatically.',
       scrollCue: 'Scroll for more',
-      emblemAlt: 'Niddeaw Badminton Club',
+      catAlt: 'The crowned cat, mascot of Niddeaw Badminton Club',
     },
     quickLinks: {
       membersDesc: "Everyone's stats in the club",
