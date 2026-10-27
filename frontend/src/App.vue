@@ -5,6 +5,7 @@ import TierInfoModal from '@/components/players/TierInfoModal.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import AmbientBackground from '@/components/common/AmbientBackground.vue'
 import UpdateBanner from '@/components/common/UpdateBanner.vue'
+import PublicTabBar from '@/components/layout/PublicTabBar.vue'
 
 const route = useRoute()
 </script>
@@ -37,6 +38,12 @@ const route = useRoute()
       <component :is="Component" v-else :key="route.path" />
     </RouterView>
     <div class="signature-stripe" aria-hidden="true" />
+    <!-- Room at the end of every public page for the tab bar floating
+         over it, so the last line can scroll clear of the bar. -->
+    <template v-if="!route.path.startsWith('/admin')">
+      <div class="h-[calc(96px+env(safe-area-inset-bottom,0px))] min-[900px]:hidden" aria-hidden="true" />
+      <PublicTabBar />
+    </template>
     <TierInfoModal />
     <ConfirmDialog />
     <UpdateBanner />

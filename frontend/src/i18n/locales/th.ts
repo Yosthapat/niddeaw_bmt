@@ -18,6 +18,7 @@ export default {
     saving: 'กำลังบันทึก...',
   },
   nav: {
+    main: 'เมนูหลัก',
     home: 'หน้าแรก',
     members: 'สมาชิก',
     ranking: 'อันดับ',
@@ -34,9 +35,12 @@ export default {
     hero: {
       line1: 'ก๊วนแบดสายมันส์.',
       line2: 'ไม่มีใครหนีสถิติไปได้!!',
-      // \u2060 is a word joiner: without it Thai line breaking splits เช็ค|อิน
-      body: 'นิดเดียว BADMINTON — เช็ค\u2060อิน จัดคู่ตาม ELO คิดเงินอัตโนมัติ',
-      scrollCue: 'เลื่อนดูต่อ',
+      // \u2060 is a word joiner: without it Thai line breaking splits เช็ค|อิน and คิด|เงิน
+      body: 'นิดเดียว BADMINTON — เช็ค\u2060อิน จัดคู่ตาม ELO คิด\u2060เงิน\u2060อัตโนมัติ',
+      when: 'ทุกวันศุกร์ · 20:00–00:00 · KB โยธินพัฒนา',
+      ctaRanking: 'ดูอันดับ',
+      ctaLive: 'กำลังแข่ง',
+      tiersLabel: '8 ระดับ ELO — แตะเพื่อดู',
       catAlt: 'แมวสวมมงกุฎ มาสคอตของนิดเดียว Badminton Club',
     },
     quickLinks: {

@@ -18,6 +18,7 @@ export default {
     saving: 'Saving...',
   },
   nav: {
+    main: 'Main menu',
     home: 'Home',
     members: 'Members',
     ranking: 'Ranking',
@@ -35,7 +36,10 @@ export default {
       line1: 'The fun-loving badminton club.',
       line2: 'Nobody escapes the stats!!',
       body: 'Niddeaw BADMINTON — check in, get matched by ELO, billing done automatically.',
-      scrollCue: 'Scroll for more',
+      when: 'Every Friday · 20:00–00:00 · KB โยธินพัฒนา',
+      ctaRanking: 'See the ranking',
+      ctaLive: 'Live',
+      tiersLabel: '8 ELO tiers — tap one',
       catAlt: 'The crowned cat, mascot of Niddeaw Badminton Club',
     },
     quickLinks: {

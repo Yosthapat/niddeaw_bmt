@@ -1,6 +1,14 @@
 """Turn the flat cat logo into the 3D one the home page shows.
 
-    python tools/art/bake_3d.py            # writes frontend/public/hero/cat-3d.webp
+    python tools/art/bake_3d.py
+
+writes two files to frontend/public/hero/:
+
+  cat-color.webp  the cat, lit as below, 1024px square, its last 16% fading
+                  out (the art is cut flat at the waist)
+  cat-depth.png   how far each pixel stands out of the picture, 0..1, which
+                  the three.js scene uses to push the cat's surface toward
+                  the camera, so tilting the view shows real relief
 
 The logo is a flat cartoon: black outlines around flat colour. This puffs
 every region the outline encloses (crown, ears, head, body, tail, paw) up
@@ -19,10 +27,12 @@ from PIL import Image
 
 HERE = Path(__file__).resolve().parent
 SRC = HERE / 'cat-source.png'
-OUT = HERE.parent.parent / 'frontend' / 'public' / 'hero' / 'cat-3d.webp'
+OUT_DIR = HERE.parent.parent / 'frontend' / 'public' / 'hero'
 
 BEVEL = 64          # px (at source size) over which a surface rises from its edge
-OUT_WIDTH = 1000    # 2x the widest it is drawn on the page
+OUT_SIZE = 1024     # 2x the widest it is drawn on the page
+FADE = 0.16         # the bottom share of the art that fades out
+DEPTH_SIZE = 512
 
 
 def shift(m: np.ndarray, dy: int, dx: int) -> np.ndarray:
@@ -99,11 +109,24 @@ def main() -> None:
     colour += rim[..., None] * np.array([0.93, 0.30, 0.64]) * 0.85
 
     img = Image.fromarray((np.dstack([np.clip(colour, 0, 1), alpha]) * 255).round().astype(np.uint8), 'RGBA')
-    img = img.crop(img.getchannel('A').point(lambda v: 255 if v > 8 else 0).getbbox())
-    img = img.resize((OUT_WIDTH, round(img.height * OUT_WIDTH / img.width)), Image.LANCZOS)
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    img.save(OUT, 'WEBP', quality=90, method=6)
-    print(f'wrote {OUT.relative_to(HERE.parent.parent)} {img.width}x{img.height}')
+    bbox = img.getchannel('A').point(lambda v: 255 if v > 8 else 0).getbbox()
+    img = img.crop(bbox).resize((OUT_SIZE, OUT_SIZE), Image.LANCZOS)
+    rgba = np.asarray(img).astype(np.float32)
+    rgba[..., 3] *= np.clip((1.0 - np.linspace(0, 1, OUT_SIZE)) / FADE, 0, 1)[:, None]
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    Image.fromarray(rgba.round().astype(np.uint8), 'RGBA').save(OUT_DIR / 'cat-color.webp', 'WEBP', quality=90, method=6)
+
+    # Depth: the same per-region bevel, plus one broad dome over the whole
+    # silhouette, so the cat reads as a rounded figure rather than a set of
+    # separate cushions.
+    dome = blur(solid.astype(np.float32), 60)
+    dome = np.clip(dome / max(float(dome.max()), 1e-6), 0, 1) ** 0.8
+    depth = blur((0.35 * np.sqrt(1 - (1 - t) ** 2) + 0.65 * dome) * solid, 3)
+    depth = depth / depth.max()
+    Image.fromarray((depth * 255).round().astype(np.uint8)).crop(bbox).resize((DEPTH_SIZE, DEPTH_SIZE), Image.LANCZOS).save(
+        OUT_DIR / 'cat-depth.png', optimize=True
+    )
+    print(f'wrote cat-color.webp {OUT_SIZE}px and cat-depth.png {DEPTH_SIZE}px to {OUT_DIR.relative_to(HERE.parent.parent)}')
 
 
 if __name__ == '__main__':
