@@ -15,7 +15,7 @@ const route = useRoute()
        viewport. `hidden` here would silently kill it.
 
        It exists because decorative glows are positioned to bleed past the
-       content box — HomeView's .hero-aura sits at inset:-20% and pushed the
+       content box — the home hero's old glow sat at inset:-20% and pushed the
        home page's scrollWidth to 448 in a 400px viewport, letting the whole
        page be dragged sideways on a phone. Only the off-screen part is
        clipped, so nothing that was ever visible changes. Browsers without

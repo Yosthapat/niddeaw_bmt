@@ -31,7 +31,14 @@ export default {
     memberMarqueeLabel: 'สมาชิกก๊วน',
     clubMatchesLabel: 'แมตช์ที่จบแล้ว',
     clubMembersLabel: 'สมาชิก',
-    tagline: 'ก๊วนแบดสายมันส์ — เช็คอิน จัดคู่ตาม ELO คิดเงินอัตโนมัติ ไม่มีใครหนีสถิติไปได้',
+    hero: {
+      line1: 'ก๊วนแบดสายมันส์.',
+      line2: 'ไม่มีใครหนีสถิติไปได้!!',
+      // \u2060 is a word joiner: without it Thai line breaking splits เช็ค|อิน
+      body: 'นิดเดียว BADMINTON — เช็ค\u2060อิน จัดคู่ตาม ELO คิดเงินอัตโนมัติ',
+      scrollCue: 'เลื่อนดูต่อ',
+      emblemAlt: 'นิดเดียว Badminton Club',
+    },
     quickLinks: {
       membersDesc: 'สถิติทุกคนในก๊วน',
       rankingDesc: 'ใครแน่ที่สุดตอนนี้',

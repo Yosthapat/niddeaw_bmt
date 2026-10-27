@@ -31,8 +31,13 @@ export default {
     memberMarqueeLabel: 'Club members',
     clubMatchesLabel: 'Matches played',
     clubMembersLabel: 'Members',
-    tagline:
-      'The fun-loving badminton club — check in, get matched by ELO, billing done automatically. Nobody escapes the stats.',
+    hero: {
+      line1: 'The fun-loving badminton club.',
+      line2: 'Nobody escapes the stats!!',
+      body: 'Niddeaw BADMINTON — check in, get matched by ELO, billing done automatically.',
+      scrollCue: 'Scroll for more',
+      emblemAlt: 'Niddeaw Badminton Club',
+    },
     quickLinks: {
       membersDesc: "Everyone's stats in the club",
       rankingDesc: "Who's the strongest right now",
