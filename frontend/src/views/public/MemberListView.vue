@@ -1,182 +1,168 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getPlayers } from '@/api/public'
-import type { PlayerStats } from '@/types'
-import EloBadge from '@/components/players/EloBadge.vue'
-import TierMascot from '@/components/players/TierMascot.vue'
-import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
+import type { EloTier, PlayerStats } from '@/types'
+import { tierMeta } from '@/composables/useEloTier'
+import { TIER_ORDER } from '@/utils/tierCard'
+import MemberCard from '@/components/players/MemberCard.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 import StaggerHeading from '@/components/common/StaggerHeading.vue'
 
-const PAGE_SIZE = 20
+type Sort = 'elo' | 'name' | 'games'
 
 const { t } = useI18n()
 
 const stats = ref<PlayerStats[]>([])
 const loading = ref(true)
-const loadingMore = ref(false)
 const error = ref<string | null>(null)
-const hasMore = ref(true)
 const search = ref('')
-const loadedAll = ref(false)
+const tier = ref<EloTier | 'all'>('all')
+const sort = ref<Sort>('elo')
 
-// Sorted alphabetically (A-Z) server-side (cheap — denormalized stats, no
-// match-history scan), so the roster arrives in that order already.
-const filteredStats = computed(() => {
-  const query = search.value.trim().toLowerCase()
-  if (!query) return stats.value
-  return stats.value.filter((s) => s.player.nickname.toLowerCase().includes(query))
-})
-
-async function loadMore(): Promise<void> {
-  loadingMore.value = true
-  try {
-    const next = await getPlayers({ limit: PAGE_SIZE, offset: stats.value.length })
-    stats.value = [...stats.value, ...next]
-    hasMore.value = next.length === PAGE_SIZE
-  } catch {
-    error.value = t('members.loadMoreError')
-  } finally {
-    loadingMore.value = false
-  }
-}
-
-// Search has to look across the whole roster, not just what's paged in
-// so far — fetch everyone once, the first time the box is actually used.
-watch(search, async (value) => {
-  if (!value.trim() || loadedAll.value) return
-  loadedAll.value = true
-  try {
-    stats.value = await getPlayers()
-    hasMore.value = false
-  } catch {
-    error.value = t('members.loadError')
-  }
-})
-
+// The whole roster at once: a tier filter or a sort over the first page
+// only would be quietly wrong, and it is about a hundred small rows.
 onMounted(async () => {
   try {
-    const first = await getPlayers({ limit: PAGE_SIZE })
-    stats.value = first
-    hasMore.value = first.length === PAGE_SIZE
+    stats.value = await getPlayers()
   } catch {
     error.value = t('members.loadError')
   } finally {
     loading.value = false
   }
 })
+
+const counts = computed(() => {
+  const by: Partial<Record<EloTier, number>> = {}
+  for (const s of stats.value) by[s.player.elo_level] = (by[s.player.elo_level] ?? 0) + 1
+  return by
+})
+
+const shown = computed(() => {
+  const query = search.value.trim().toLowerCase()
+  const list = stats.value.filter(
+    (s) =>
+      (tier.value === 'all' || s.player.elo_level === tier.value) &&
+      (!query ||
+        s.player.nickname.toLowerCase().includes(query) ||
+        s.player.member_code.toLowerCase().includes(query)),
+  )
+  const by: Record<Sort, (a: PlayerStats, b: PlayerStats) => number> = {
+    elo: (a, b) => b.player.elo_score - a.player.elo_score,
+    name: (a, b) => a.player.nickname.localeCompare(b.player.nickname),
+    games: (a, b) => b.games - a.games || b.player.elo_score - a.player.elo_score,
+  }
+  return [...list].sort(by[sort.value])
+})
+
+const emptyMascot = computed(() => (tier.value === 'all' ? 'milk' : tier.value))
 </script>
 
 <template>
-  <main class="mx-auto max-w-4xl px-4 py-8 sm:py-12">
+  <main class="mx-auto max-w-6xl px-4 py-8 sm:py-12">
     <div class="flex flex-wrap items-end justify-between gap-4">
       <div>
-        <p class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">Roster</p>
-        <h1 class="font-display text-3xl font-bold text-white"><StaggerHeading :text="t('nav.members')" /></h1>
+        <p class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">
+          Roster<template v-if="!loading && !error"> · {{ t('roster.count', { n: stats.length }) }}</template>
+        </p>
+        <h1 class="font-display text-3xl font-bold text-white sm:text-5xl"><StaggerHeading :text="t('nav.members')" /></h1>
       </div>
-      <input
-        v-model="search"
-        type="search"
-        :placeholder="t('members.searchPlaceholder')"
-        :aria-label="t('members.searchPlaceholder')"
-        class="hud-panel min-h-11 w-full border sm:max-w-xs border-brand-pink/25 bg-brand-surface px-4 text-sm outline-none focus:border-brand-pink"
-      />
+      <div class="flex w-full gap-2 sm:w-auto">
+        <input
+          v-model="search"
+          type="search"
+          :placeholder="t('roster.searchPlaceholder')"
+          :aria-label="t('roster.searchPlaceholder')"
+          class="min-h-11 min-w-0 flex-1 rounded-full border border-white/20 bg-white/[0.07] px-4 text-sm outline-none focus:border-brand-pink sm:w-72"
+        />
+        <select
+          v-model="sort"
+          :aria-label="t('roster.sortLabel')"
+          class="min-h-11 shrink-0 rounded-full border border-white/20 bg-[#140a2b] px-3 text-sm text-white"
+        >
+          <option value="elo">{{ t('roster.sortElo') }}</option>
+          <option value="games">{{ t('roster.sortGames') }}</option>
+          <option value="name">{{ t('roster.sortName') }}</option>
+        </select>
+      </div>
     </div>
 
-    <div v-if="loading" class="mt-6 space-y-2">
-      <HudSkeletonBlock v-for="i in 8" :key="i" :delay="i * 60" class="h-12" />
+    <!-- tier filter: scrolls sideways on a phone rather than wrapping into
+         three rows above the cards -->
+    <div
+      role="group"
+      :aria-label="t('roster.filterLabel')"
+      class="tier-chips mt-5 -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0"
+    >
+      <button type="button" class="tier-chip" :aria-pressed="tier === 'all'" @click="tier = 'all'">
+        {{ t('roster.all') }}
+      </button>
+      <button
+        v-for="id in TIER_ORDER"
+        :key="id"
+        type="button"
+        class="tier-chip"
+        :aria-pressed="tier === id"
+        @click="tier = id"
+      >
+        <img :src="`/tiers/${id}.webp`" alt="" width="24" height="24" class="h-6 w-6" />
+        {{ tierMeta(id).label }}
+        <span class="text-xs text-white/45">{{ counts[id] ?? 0 }}</span>
+      </button>
+    </div>
+
+    <div v-if="loading" class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-6">
+      <HudSkeletonBlock v-for="i in 10" :key="i" :delay="i * 60" class="aspect-[3/4.4]" />
     </div>
     <p v-else-if="error" class="mt-6 text-status-error">{{ error }}</p>
     <p v-else-if="stats.length === 0" class="mt-6 text-white/60">{{ t('members.empty') }}</p>
-    <p v-else-if="filteredStats.length === 0" class="mt-6 text-white/60">{{ t('members.noSearchResults') }}</p>
 
-    <!-- Phone: one card per member. The nine-column table needed 680px and
-         scrolled sideways inside a 343px box, so win/draw/loss — the numbers
-         people come here for — were the ones out of sight. -->
-    <ul v-else-if="filteredStats.length > 0" class="mt-6 space-y-2 sm:hidden">
-      <li v-for="s in filteredStats" :key="s.player.id">
+    <div v-else-if="shown.length === 0" class="mt-12 flex flex-col items-center gap-3 text-center text-white/70">
+      <img :src="`/tiers/${emptyMascot}.webp`" alt="" width="96" height="96" class="h-24 w-24 opacity-80" />
+      <p>{{ search.trim() ? t('members.noSearchResults') : t('roster.emptyTier') }}</p>
+    </div>
+
+    <ul v-else class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-6">
+      <li v-for="s in shown" :key="s.player.id">
         <RouterLink
           :to="`/members/${s.player.id}`"
-          class="hud-panel glass-panel hud-hover block border border-brand-pink/15 px-4 py-3"
+          class="block h-full rounded-[18px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-pink"
         >
-          <div class="flex items-center gap-3">
-            <PlayerAvatar :name="s.player.nickname" :avatar-url="s.player.avatar_url" size="sm" />
-            <span class="min-w-0 flex-1 truncate font-medium">{{ s.player.nickname }}</span>
-            <TierMascot :tier="s.player.elo_level" :size="22" :interactive="false" />
-            <EloBadge :elo-score="s.player.elo_score" />
-          </div>
-          <dl class="mt-3 grid grid-cols-5 gap-1 text-center">
-            <div v-for="cell in [
-              { label: t('common.game'), value: s.games },
-              { label: t('common.win'), value: s.wins },
-              { label: t('common.draw'), value: s.draws },
-              { label: t('common.loss'), value: s.losses },
-            ]" :key="cell.label">
-              <dt class="text-[11px] text-white/40">{{ cell.label }}</dt>
-              <dd class="font-display text-white/80">{{ cell.value }}</dd>
-            </div>
-            <div>
-              <dt class="text-[11px] text-white/40">Pts</dt>
-              <dd class="font-display font-semibold text-brand-pink">{{ s.points }}</dd>
-            </div>
-          </dl>
+          <MemberCard :player="s.player" :games="s.games" :wins="s.wins" :draws="s.draws" :losses="s.losses" />
         </RouterLink>
       </li>
     </ul>
-
-    <div v-if="!loading && !error && filteredStats.length > 0" v-reveal class="hud-panel glass-panel mt-6 hidden overflow-x-auto border border-brand-pink/20 sm:block">
-      <table class="w-full min-w-[680px] text-left text-sm">
-        <thead class="border-b border-brand-pink/20 text-xs font-semibold tracking-wider text-white/40 uppercase">
-          <tr>
-            <th class="px-4 py-3">{{ t('common.player') }}</th>
-            <th class="px-4 py-3">Level</th>
-            <th class="px-4 py-3 text-right">{{ t('common.game') }}</th>
-            <th class="px-4 py-3 text-right">{{ t('common.win') }}</th>
-            <th class="px-4 py-3 text-right">{{ t('common.draw') }}</th>
-            <th class="px-4 py-3 text-right">{{ t('common.loss') }}</th>
-            <th class="px-4 py-3 text-right">Pts</th>
-            <th class="px-4 py-3 text-right">{{ t('common.avg') }}</th>
-            <th class="px-4 py-3 text-right">{{ t('common.scorePercent') }}</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-white/5">
-          <tr v-for="s in filteredStats" :key="s.player.id" class="transition-colors hover:bg-brand-surface-raised">
-            <td class="px-4 py-3 font-medium">
-              <RouterLink
-                :to="`/members/${s.player.id}`"
-                class="flex min-h-11 items-center gap-2.5 hover:text-brand-pink"
-              >
-                <PlayerAvatar :name="s.player.nickname" :avatar-url="s.player.avatar_url" size="sm" />
-                {{ s.player.nickname }}
-              </RouterLink>
-            </td>
-            <td class="px-4 py-3">
-              <div class="flex items-center gap-1.5">
-                <TierMascot :tier="s.player.elo_level" :size="22" />
-                <EloBadge :elo-score="s.player.elo_score" />
-              </div>
-            </td>
-            <td class="px-4 py-3 text-right text-white/70">{{ s.games }}</td>
-            <td class="px-4 py-3 text-right text-white/70">{{ s.wins }}</td>
-            <td class="px-4 py-3 text-right text-white/70">{{ s.draws }}</td>
-            <td class="px-4 py-3 text-right text-white/70">{{ s.losses }}</td>
-            <td class="px-4 py-3 text-right font-display font-semibold text-brand-pink">{{ s.points }}</td>
-            <td class="px-4 py-3 text-right text-white/70">{{ s.avg_points.toFixed(2) }}</td>
-            <td class="px-4 py-3 text-right text-white/70">{{ s.score_percent.toFixed(1) }}%</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div v-if="!loading && hasMore && !search.trim()" class="mt-6 text-center">
-      <button
-        :disabled="loadingMore"
-        class="tap hud-hover rounded-full border border-brand-pink/40 px-5 text-sm font-semibold text-brand-pink hover:bg-brand-pink hover:text-brand-black disabled:opacity-50"
-        @click="loadMore"
-      >
-        {{ loadingMore ? t('common.loading') : t('matches.loadMore') }}
-      </button>
-    </div>
   </main>
 </template>
+
+<style scoped>
+.tier-chips {
+  scrollbar-width: none;
+}
+.tier-chips::-webkit-scrollbar {
+  display: none;
+}
+.tier-chip {
+  display: inline-flex;
+  min-height: 44px;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.06);
+  color: rgb(255 255 255 / 0.82);
+  font-size: 14px;
+  white-space: nowrap;
+}
+.tier-chip[aria-pressed='true'] {
+  border-color: rgb(255 255 255 / 0.4);
+  background: radial-gradient(120% 140% at 30% 0%, rgb(255 255 255 / 0.4), rgb(255 255 255 / 0.1) 60%);
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 0.7),
+    inset 0 -3px 8px rgb(234 76 164 / 0.38),
+    0 6px 14px rgb(234 76 164 / 0.35);
+  color: #fff;
+}
+</style>

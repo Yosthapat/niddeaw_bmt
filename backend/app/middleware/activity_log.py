@@ -8,7 +8,9 @@ from app.deps import get_current_admin
 from app.services.activity_log_service import LOGGED_METHODS, describe_action
 from app.supabase_client import get_supabase_client
 
-_SKIP_PATHS = {"/api/admin/auth/login"}
+# The logo preview stores nothing — it only shows the admin what a file
+# would look like on the band.
+_SKIP_PATHS = {"/api/admin/auth/login", "/api/admin/sponsors/logo-preview"}
 
 
 class AdminActivityLogMiddleware(BaseHTTPMiddleware):

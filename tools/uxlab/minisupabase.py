@@ -33,6 +33,7 @@ AUTO: dict[str, dict[str, Callable[[], Any]]] = {
     "billings": {"id": lambda: str(uuid.uuid4()), "updated_at": _now},
     "expenses": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
     "other_income": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
+    "sponsors": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
     "locked_pairs": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
     "pairing_history": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
     "admin_activity_log": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
@@ -280,9 +281,17 @@ class _Bucket:
 
     def upload(self, path: str, contents: bytes, options: Row | None = None) -> None:
         self._db.storage_files[f"{self._name}/{path}"] = len(contents)
+        self._db.storage_bytes[f"{self._name}/{path}"] = contents
 
     def get_public_url(self, path: str) -> str:
-        return f"http://storage.test/{self._name}/{path}"
+        # Same shape as Supabase's, so code that reads a path back out of a
+        # public URL works; lab.py serves it, so an uploaded image shows.
+        return f"{self._db.public_base}/storage/v1/object/public/{self._name}/{path}"
+
+    def remove(self, paths: list[str]) -> None:
+        for path in paths:
+            self._db.storage_files.pop(f"{self._name}/{path}", None)
+            self._db.storage_bytes.pop(f"{self._name}/{path}", None)
 
 
 class _Storage:
@@ -297,6 +306,8 @@ class MiniSupabase:
     def __init__(self, tables: dict[str, list[Row]] | None = None) -> None:
         self.tables: dict[str, list[Row]] = tables if tables is not None else {}
         self.storage_files: dict[str, int] = {}
+        self.storage_bytes: dict[str, bytes] = {}
+        self.public_base = "http://storage.test"
         self.storage = _Storage(self)
         self.log: list[tuple[str, str]] = []
 

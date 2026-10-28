@@ -23,6 +23,8 @@ const KNOWN: Record<string, string> = {
   'QR file too large (max 5MB)': 'apiErrors.fileTooLarge5',
   'Slip file too large (max 5MB)': 'apiErrors.fileTooLarge5',
   'Avatar file too large (max 2MB) — resize before uploading': 'apiErrors.fileTooLarge2',
+  'Logo file too large (max 5MB)': 'apiErrors.fileTooLarge5',
+  'Sponsor not found': 'apiErrors.rowGone',
   'Unsupported image type': 'apiErrors.badImage',
   'Club settings not seeded': 'apiErrors.settingsMissing',
   'Club settings not configured — set them in Admin > Settings first': 'apiErrors.settingsMissing',
