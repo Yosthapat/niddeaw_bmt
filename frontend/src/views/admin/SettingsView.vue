@@ -2,11 +2,12 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
-import { ApiError } from '@/api/client'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { compressImage } from '@/utils/imageCompression'
 import type { ClubSettings, PaymentMethod, PromptPayType } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
+import { bahtProblem, MAX_HANDLE, promptpayIdProblem } from '@/utils/limits'
+import { apiErrorMessage } from '@/api/errors'
 
 const { t } = useI18n()
 const { confirm } = useConfirmDialog()
@@ -118,12 +119,6 @@ async function onQrFileSelected(event: Event): Promise<void> {
   }
 }
 
-function apiErrorMessage(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) {
-    return `${fallback} (${e.status}: ${e.message})`
-  }
-  return fallback
-}
 
 onMounted(async () => {
   try {
@@ -135,8 +130,32 @@ onMounted(async () => {
   }
 })
 
+const promptpayProblem = computed(() => {
+  const st = settings.value
+  if (!st || st.payment_method !== 'promptpay') return null
+  if (!promptpayIdProblem(st.promptpay_id ?? '', st.promptpay_type)) return null
+  return t(
+    { phone: 'validation.promptpayPhone', national_id: 'validation.promptpayNationalId', ewallet: 'validation.promptpayEwallet' }[
+      st.promptpay_type
+    ],
+  )
+})
+const courtFeeProblem = computed(() => {
+  const p = settings.value && bahtProblem(settings.value.default_court_fee_per_person, { allowZero: true })
+  return p ? t(`validation.${p}`) : null
+})
+const shuttlecockProblem = computed(() => {
+  const p = settings.value && bahtProblem(settings.value.default_shuttlecock_price_per_game, { allowZero: true })
+  return p ? t(`validation.${p}`) : null
+})
+// Red only after the first Save, not while the id is half typed.
+const tried = ref(false)
+
 async function save(): Promise<void> {
   if (!settings.value) return
+  tried.value = true
+  saved.value = false
+  if (promptpayProblem.value || courtFeeProblem.value || shuttlecockProblem.value) return
   saving.value = true
   saved.value = false
   saveError.value = null
@@ -190,6 +209,10 @@ const paymentMethodOptions = computed<{ value: PaymentMethod; label: string }[]>
           PromptPay ID
           <input
             v-model="settings.promptpay_id"
+            inputmode="numeric"
+            autocomplete="off"
+            :maxlength="MAX_HANDLE"
+            :aria-invalid="tried && !!promptpayProblem"
             :placeholder="t('settings.promptpayPlaceholder')"
             class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-surface px-3 outline-none focus:border-brand-pink"
           />
@@ -206,6 +229,7 @@ const paymentMethodOptions = computed<{ value: PaymentMethod; label: string }[]>
             </option>
           </select>
         </label>
+        <p v-if="tried && promptpayProblem" class="-mt-2 text-xs text-status-error" role="alert">{{ promptpayProblem }}</p>
       </template>
 
       <template v-else-if="settings.payment_method === 'bank_account' || settings.payment_method === 'bank_account_qr'">
@@ -253,9 +277,12 @@ const paymentMethodOptions = computed<{ value: PaymentMethod; label: string }[]>
         <input
           v-model.number="settings.default_court_fee_per_person"
           type="number"
+          inputmode="decimal"
           min="0"
+          :aria-invalid="tried && !!courtFeeProblem"
           class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-surface px-3 outline-none focus:border-brand-pink"
         />
+        <span v-if="tried && courtFeeProblem" class="text-xs text-status-error">{{ courtFeeProblem }}</span>
       </label>
 
       <label class="flex flex-col gap-1 text-sm">
@@ -263,9 +290,12 @@ const paymentMethodOptions = computed<{ value: PaymentMethod; label: string }[]>
         <input
           v-model.number="settings.default_shuttlecock_price_per_game"
           type="number"
+          inputmode="decimal"
           min="0"
+          :aria-invalid="tried && !!shuttlecockProblem"
           class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-surface px-3 outline-none focus:border-brand-pink"
         />
+        <span v-if="tried && shuttlecockProblem" class="text-xs text-status-error">{{ shuttlecockProblem }}</span>
       </label>
 
       <p v-if="saved" class="text-sm text-status-success">{{ t('settings.saved') }}</p>
@@ -274,7 +304,7 @@ const paymentMethodOptions = computed<{ value: PaymentMethod; label: string }[]>
       <button
         type="submit"
         :disabled="saving"
-        class="rounded-lg bg-brand-pink px-3 py-2 font-semibold text-brand-black disabled:opacity-50"
+        class="tap rounded-lg bg-brand-pink px-3 font-semibold text-brand-black disabled:opacity-50"
       >
         {{ saving ? t('common.saving') : t('settings.saveSettings') }}
       </button>

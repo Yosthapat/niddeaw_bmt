@@ -25,7 +25,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
-import { ApiError } from '@/api/client'
+import { apiErrorMessage } from '@/api/errors'
 import { useFinanceStore } from '@/stores/finance'
 import { moneyShort } from '@/utils/format'
 
@@ -50,9 +50,7 @@ const { dailyRevenue, expenses, loading } = storeToRefs(finance)
 const error = computed(() => {
   const e = finance.error
   if (!e) return null
-  return e instanceof ApiError
-    ? `${t('dashboard.chartLoadFailed')} (${e.status})`
-    : t('dashboard.chartLoadFailed')
+  return apiErrorMessage(e, t('dashboard.chartLoadFailed'))
 })
 
 interface Bar {

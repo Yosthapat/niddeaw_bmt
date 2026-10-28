@@ -21,7 +21,7 @@ const route = useRoute()
        page be dragged sideways on a phone. Only the off-screen part is
        clipped, so nothing that was ever visible changes. Browsers without
        `overflow: clip` just ignore the line and behave as before. -->
-  <div class="min-h-screen overflow-x-clip">
+  <div class="min-h-dvh overflow-x-clip">
     <AmbientBackground v-if="!route.path.startsWith('/admin')" />
     <AppHeader />
     <RouterView v-slot="{ Component, route }">

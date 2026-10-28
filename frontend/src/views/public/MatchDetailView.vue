@@ -4,7 +4,6 @@ import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { getMatchDetail } from '@/api/public'
 import * as adminApi from '@/api/admin'
-import { ApiError } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import type { MatchDetail, MatchWinner } from '@/types'
 import { formatDateTime } from '@/utils/format'
@@ -12,6 +11,7 @@ import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
+import { apiErrorMessage } from '@/api/errors'
 
 const route = useRoute()
 const { t, locale } = useI18n()
@@ -49,8 +49,7 @@ async function fixResult(winner: MatchWinner): Promise<void> {
     editDone.value = true
     editOpen.value = false
   } catch (e) {
-    editError.value =
-      e instanceof ApiError ? `${t('matchRecord.editFailed')} (${e.status}: ${e.message})` : t('matchRecord.editFailed')
+    editError.value = apiErrorMessage(e, t('matchRecord.editFailed'))
   } finally {
     editing.value = false
   }

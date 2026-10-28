@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, status
 from app.db_utils import rows
 from app.deps import AdminDep, SupabaseDep
 from app.models.club_settings import ClubSettings, ClubSettingsUpdate
+from app.services import promptpay_service
 
 router = APIRouter(prefix="/api/admin/settings", tags=["admin-settings"])
 
@@ -32,6 +33,11 @@ def update_settings(
     updates = payload.model_dump(mode="json", exclude_unset=True)
     if not updates:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
+    problem = promptpay_service.id_problem(
+        updates.get("promptpay_id"), updates.get("promptpay_type"), updates.get("payment_method")
+    )
+    if problem:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=problem)
     result = supabase.table("club_settings").update(updates).eq("id", _SINGLETON_ID).execute()
     settings_rows = rows(result)
     if not settings_rows:

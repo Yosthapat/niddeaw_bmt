@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, computed_field
 
+from app.models.fields import EloScore, Handle, Note
+
 EloTier = Literal["milk", "beer", "highball", "wine", "soju", "whisky", "vodka", "absinthe"]
 DominantHand = Literal["left", "right"]
 
@@ -18,21 +20,25 @@ class PlayerBase(BaseModel):
 
 
 class PlayerCreate(PlayerBase):
-    elo_score: int | None = None
+    line_id: Handle | None = None
+    tiktok: Handle | None = None
+    instagram: Handle | None = None
+    quote: Note | None = None
+    elo_score: EloScore | None = None
     """Starting rating for a player who isn't a true beginner — defaults to
     elo_service.STARTING_SCORE (1000) when omitted."""
 
 
 class PlayerUpdate(BaseModel):
     nickname: str | None = None
-    line_id: str | None = None
+    line_id: Handle | None = None
     avatar_url: str | None = None
     is_active: bool | None = None
     dominant_hand: DominantHand | None = None
-    tiktok: str | None = None
-    instagram: str | None = None
-    quote: str | None = None
-    elo_score: int | None = None
+    tiktok: Handle | None = None
+    instagram: Handle | None = None
+    quote: Note | None = None
+    elo_score: EloScore | None = None
     """Manual admin override — bypasses match-based deltas entirely. When
     set, elo_level is recomputed from this value server-side (see
     update_player in routers/admin/players_admin.py)."""

@@ -64,6 +64,7 @@ export default {
     sponsorsTitle: 'ผู้สนับสนุน',
   },
   members: {
+    saveFailed: 'บันทึกข้อมูลสมาชิกไม่สำเร็จ',
     searchPlaceholder: 'ค้นหาสมาชิก...',
     listTitle: 'รายชื่อสมาชิก',
     loadError: 'โหลดข้อมูลสมาชิกไม่สำเร็จ',
@@ -113,7 +114,7 @@ export default {
     matchNo: 'แมตช์ที่ {n}',
     minutes: 'นาที',
     // อ่านคู่กับเลขแมตช์ที่อยู่ข้างหน้า: "#30 แมท"
-    typeLabel: 'แมท',
+    typeLabel: 'แมตช์',
     empty: 'ยังไม่มีผลแมตช์',
     loadError: 'โหลดผลแมตช์ไม่สำเร็จ',
     loadMoreError: 'โหลดผลแมตช์เพิ่มไม่สำเร็จ',
@@ -186,6 +187,7 @@ export default {
     updating: 'กำลังอัปเดต...',
   },
   session: {
+    pickNight: 'เลือกคืนที่จะดู',
     label: 'คืนที่ดูอยู่',
     none: 'ยังไม่มี session',
     openGroup: 'เปิดอยู่',
@@ -297,6 +299,7 @@ export default {
     calculatedAmount: 'ยอดคำนวณ',
     adjustAmount: 'ปรับยอด',
     saveAdjustment: 'บันทึกยอดปรับ',
+    useCalculated: 'ใช้ยอดคำนวณ',
     showQr: 'แสดงวิธีจ่ายเงิน',
     hideQr: 'ซ่อน',
     billFailed: 'คิดเงินไม่สำเร็จ',
@@ -391,6 +394,7 @@ export default {
   },
   admin: {
     nav: {
+      label: 'เมนูแอดมิน',
       dashboard: 'หน้าหลัก',
       checkin: 'เช็คอิน',
       members: 'จัดการสมาชิก',
@@ -447,6 +451,9 @@ export default {
     empty: 'ยังไม่มีกิจกรรม',
   },
   expenses: {
+    prevMonth: 'เดือนก่อน',
+    nextMonth: 'เดือนถัดไป',
+    paidByRequired: 'เลือกก่อนว่าใครเป็นคนจ่าย',
     categoryLabels: {
       court_fee: 'ค่าคอร์ท',
       shuttlecock: 'ค่าลูกแบด',
@@ -522,6 +529,43 @@ export default {
   // TierInfoModal.vue — mascot flavor text. Skill-level letters (VB, BG-,
   // BG, N-, N, S, P, C) per the club's own "มือ" grading scale, lowest to
   // highest, matching the tier order (rising alcohol content).
+  validation: {
+    empty: 'กรอกตัวเลขก่อน',
+    notNumber: 'ต้องเป็นตัวเลข',
+    negative: 'ติดลบไม่ได้',
+    zero: 'ต้องมากกว่า 0',
+    tooLarge: 'สูงเกิน 1,000,000 บาท — พิมพ์ 0 เกินหรือเปล่า?',
+    locationRequired: 'ใส่ชื่อสนามก่อน',
+    promptpayPhone: 'เบอร์โทรต้องเป็นตัวเลข 10 หลัก ขึ้นต้นด้วย 0 เช่น 0812345678',
+    promptpayNationalId: 'เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก',
+    promptpayEwallet: 'e-Wallet ID ต้องเป็นตัวเลข 15 หลัก',
+    eloRange: 'ELO ต้องอยู่ระหว่าง 0 ถึง 4000',
+  },
+  apiErrors: {
+    offline: 'ต่อเน็ตไม่ได้ — เช็คสัญญาณแล้วลองอีกครั้ง',
+    signedOut: 'หมดเวลาล็อกอิน เข้าสู่ระบบใหม่แล้วลองอีกครั้ง',
+    waitSeconds: 'ลองบ่อยเกินไป รออีก {n} วินาที',
+    server: 'เซิร์ฟเวอร์มีปัญหาชั่วคราว ลองอีกครั้งในอีกสักครู่',
+    invalid: 'ข้อมูลบางช่องไม่ถูกต้อง ตรวจแล้วลองอีกครั้ง',
+    sessionGone: 'ไม่พบคืนนี้แล้ว (อาจถูกลบไป) — รีเฟรชหน้า',
+    nothingChanged: 'ยังไม่ได้แก้อะไร',
+    tooManyLogins: 'ใส่รหัสผิดหลายครั้ง รอสักครู่แล้วลองใหม่',
+    badLogin: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง',
+    checkinGone: 'ไม่พบการเช็คอินนี้แล้ว — รีเฟรชหน้า',
+    categoryOtherRequired: 'เลือก "อื่น ๆ" แล้วต้องพิมพ์ว่าเป็นค่าอะไร',
+    rowGone: 'รายการนี้ถูกลบไปแล้ว — รีเฟรชหน้า',
+    matchGone: 'ไม่พบแมตช์นี้แล้ว — รีเฟรชหน้า',
+    playerGone: 'ไม่พบสมาชิกคนนี้แล้ว — รีเฟรชหน้า',
+    fileTooLarge5: 'ไฟล์ใหญ่เกิน 5MB — ย่อรูปก่อนแล้วลองใหม่',
+    fileTooLarge2: 'ไฟล์ใหญ่เกิน 2MB — ย่อรูปก่อนแล้วลองใหม่',
+    badImage: 'รองรับเฉพาะรูป JPG, PNG หรือ WebP',
+    settingsMissing: 'ยังไม่ได้ตั้งค่าก๊วน — ไปที่หน้าตั้งค่าก่อน',
+    promptpayMissing: 'ยังไม่ได้ใส่ PromptPay ID — ไปที่หน้าตั้งค่าก่อน',
+    bankMissing: 'ยังไม่ได้ใส่เลขบัญชี — ไปที่หน้าตั้งค่าก่อน',
+    qrMissing: 'ยังไม่ได้อัปโหลด QR — ไปที่หน้าตั้งค่าก่อน',
+    alreadyLocked: 'มีคนในคู่นี้ถูกล็อคคู่กับคนอื่นอยู่แล้ว',
+    matchMoved: 'แมตช์นี้เปลี่ยนสถานะไปแล้ว (มีคนกดก่อน) — รีเฟรชหน้า',
+  },
   tierInfo: {
     close: 'ปิด',
     milk:

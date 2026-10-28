@@ -4,9 +4,9 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { usePlayersStore } from '@/stores/players'
 import * as adminApi from '@/api/admin'
-import { ApiError } from '@/api/client'
 import type { MatchWinner } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
+import { apiErrorMessage } from '@/api/errors'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -38,7 +38,7 @@ async function submit(winner: MatchWinner): Promise<void> {
     // admin should never meet that error in the first place.
     router.replace('/admin/matchmaking')
   } catch (e) {
-    error.value = e instanceof ApiError ? `${t('matchRecord.failed')} (${e.status}: ${e.message})` : t('matchRecord.failed')
+    error.value = apiErrorMessage(e, t('matchRecord.failed'))
   } finally {
     submitting.value = false
   }

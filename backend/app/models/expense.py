@@ -4,25 +4,27 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.models.fields import Note, PositiveBaht
+
 ExpenseCategory = Literal["court_fee", "shuttlecock", "jersey", "other"]
 
 
 class ExpenseCreate(BaseModel):
     expense_date: date
     category: ExpenseCategory
-    category_other: str | None = None
-    amount: float
+    category_other: Note | None = None
+    amount: PositiveBaht
     paid_by: UUID
-    note: str | None = None
+    note: Note | None = None
 
 
 class ExpenseUpdate(BaseModel):
     expense_date: date | None = None
     category: ExpenseCategory | None = None
-    category_other: str | None = None
-    amount: float | None = None
+    category_other: Note | None = None
+    amount: PositiveBaht | None = None
     paid_by: UUID | None = None
-    note: str | None = None
+    note: Note | None = None
 
 
 class Expense(BaseModel):
