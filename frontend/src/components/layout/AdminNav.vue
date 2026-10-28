@@ -23,6 +23,7 @@ const officeLinks = computed(() => [
   { to: '/admin/members', label: t('admin.nav.members') },
   { to: '/admin/expenses', label: t('admin.nav.expenses') },
   { to: '/admin/revenue', label: t('admin.nav.revenue') },
+  { to: '/admin/sponsors', label: t('admin.nav.sponsors') },
   { to: '/admin/settings', label: t('admin.nav.settings') },
   { to: '/admin/activity-log', label: t('admin.nav.activityLog') },
 ])

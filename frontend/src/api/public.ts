@@ -1,5 +1,6 @@
 import { request } from './client'
 import type {
+  Sponsor,
   LiveQueueResponse,
   Match,
   MatchCount,
@@ -111,4 +112,8 @@ export async function getMatchDetail(matchId: string): Promise<MatchDetail> {
 
 export async function getLiveStatus(): Promise<LiveQueueResponse> {
   return request('/api/live')
+}
+
+export async function getSponsors(): Promise<Sponsor[]> {
+  return request('/api/sponsors')
 }

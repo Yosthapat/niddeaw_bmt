@@ -1,6 +1,8 @@
 import { ApiError, request } from './client'
 import type {
   Admin,
+  LogoPreview,
+  Sponsor,
   AdminActivityLogEntry,
   Billing,
   Checkin,
@@ -463,4 +465,44 @@ export async function checkStats(): Promise<StatsReport> {
  *  running it twice changes nothing the second time; ELO is never touched. */
 export async function repairStats(): Promise<StatsReport> {
   return request('/api/admin/stats-audit/repair', { method: 'POST' })
+}
+
+// Sponsors
+export async function getAllSponsors(): Promise<Sponsor[]> {
+  return request('/api/admin/sponsors')
+}
+
+export async function previewSponsorLogo(file: File): Promise<LogoPreview> {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request('/api/admin/sponsors/logo-preview', { method: 'POST', body: formData })
+}
+
+export async function createSponsor(name: string, href: string, file: File): Promise<Sponsor> {
+  const formData = new FormData()
+  formData.append('name', name)
+  if (href.trim()) formData.append('href', href.trim())
+  formData.append('file', file)
+  return request('/api/admin/sponsors', { method: 'POST', body: formData })
+}
+
+export async function updateSponsor(
+  id: string,
+  payload: { name?: string; href?: string | null; is_visible?: boolean },
+): Promise<Sponsor> {
+  return request(`/api/admin/sponsors/${id}`, { method: 'PATCH', body: JSON.stringify(payload) })
+}
+
+export async function replaceSponsorLogo(id: string, file: File): Promise<Sponsor> {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request(`/api/admin/sponsors/${id}/logo`, { method: 'POST', body: formData })
+}
+
+export async function reorderSponsors(ids: string[]): Promise<Sponsor[]> {
+  return request('/api/admin/sponsors/order', { method: 'PUT', body: JSON.stringify({ ids }) })
+}
+
+export async function deleteSponsor(id: string): Promise<void> {
+  return request(`/api/admin/sponsors/${id}`, { method: 'DELETE' })
 }

@@ -15,6 +15,8 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from fastapi import Response
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, "..", "..", "backend"))
@@ -133,12 +135,25 @@ def seed() -> MiniSupabase:
          "source": "sponsor", "source_name": "ร้านลูกแบดนิดเดียว", "amount": 1000.0,
          "note": None, "slip_url": None, "created_by": ADMIN_ID, "created_at": _iso(40)}
     ]
+    db.tables["sponsors"] = [
+        {"id": str(uuid.uuid4()), "name": name, "href": f"https://www.instagram.com/{ig}",
+         "logo_url": f"/sponsors/{slug}-mono.png", "logo_width": w, "logo_height": h,
+         "sort_order": i, "is_visible": True, "created_at": _iso(400 - i)}
+        for i, (name, ig, slug, w, h) in enumerate([
+            ("Wasteland", "wastelandbkk", "wasteland", 424, 104),
+            ("Match Mellow", "match.mellowww", "match-mellow", 323, 205),
+            ("Sawadee Natural Herbal Balm", "sawadee_naturalherbalbalm", "sawadee", 417, 350),
+            ("Umore Made", "umore.made", "umore-made", 449, 169),
+            ("The Players Club", "theplayersclubthailand", "players-club", 354, 388),
+        ], start=1)
+    ]
     for table in ("locked_pairs", "pairing_history", "admin_activity_log"):
         db.tables.setdefault(table, [])
     return db
 
 
 DB = seed()
+DB.public_base = f"http://127.0.0.1:{PORT}"
 app.dependency_overrides[get_supabase] = lambda: DB
 # The activity-log middleware reaches for the client directly rather than
 # through the dependency, so both names have to point at the stand-in.
@@ -151,6 +166,16 @@ def _state() -> dict[str, object]:
     """What the server believes, so a check can assert on stored data rather
     than only on what was drawn."""
     return {name: rows for name, rows in DB.tables.items()}
+
+
+@app.get("/storage/v1/object/public/{bucket}/{path}")
+def _stored(bucket: str, path: str) -> Response:
+    """Serves what the API uploaded, at the URL it was told the file has."""
+    data = DB.storage_bytes.get(f"{bucket}/{path}")
+    if data is None:
+        return Response(status_code=404)
+    kind = "image/png" if path.endswith(".png") else "image/jpeg"
+    return Response(content=data, media_type=kind)
 
 
 if __name__ == "__main__":

@@ -18,6 +18,8 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import type { EloTier } from '@/types'
+import { getSponsors } from '@/api/public'
+import { BUNDLED_SPONSORS, logoHeight, type BandLogo } from '@/utils/sponsorBand'
 import TierMascot from '@/components/players/TierMascot.vue'
 import type { HeroScene } from './heroScene'
 
@@ -38,46 +40,16 @@ const tiers: { tier: EloTier; label: string }[] = [
   { tier: 'absinthe', label: 'Absinthe' },
 ]
 
-// -mono.png variants: original logos recolored to a white silhouette
-// (RGB -> white, original alpha kept as the mask) so every logo reads
-// cleanly straight against the dark background with no card/box needed.
-// Each file is trimmed to the logo itself, and width/height are its real
-// intrinsic size so the browser can reserve the right aspect ratio before
-// the bytes arrive.
-const sponsors = [
-  { name: 'Wasteland', src: '/sponsors/wasteland-mono.png', width: 424, height: 104, href: 'https://www.instagram.com/wastelandbkk' },
-  {
-    name: 'Match Mellow',
-    src: '/sponsors/match-mellow-mono.png',
-    width: 323,
-    height: 205,
-    href: 'https://www.instagram.com/match.mellowww',
-  },
-  {
-    name: 'Sawadee Natural Herbal Balm',
-    src: '/sponsors/sawadee-mono.png',
-    width: 417,
-    height: 350,
-    href: 'https://www.instagram.com/sawadee_naturalherbalbalm',
-  },
-  { name: 'Umore Made', src: '/sponsors/umore-made-mono.png', width: 449, height: 169, href: 'https://www.instagram.com/umore.made' },
-  {
-    name: 'The Players Club',
-    src: '/sponsors/players-club-mono.png',
-    width: 354,
-    height: 388,
-    href: 'https://www.instagram.com/theplayersclubthailand',
-  },
-]
-
-// One height for every logo would make Wasteland's long wordmark a sliver
-// and The Players Club's round badge a block. Sizing each to the same area
-// instead gives them the same visual weight in the band. In px at phone
-// width; the band scales it.
-const LOGO_AREA = 2400
-function logoHeight(sponsor: { width: number; height: number }): number {
-  const aspect = sponsor.width / sponsor.height
-  return Math.round(Math.min(52, Math.max(20, Math.sqrt(LOGO_AREA / aspect))))
+// The partners band: every logo a white silhouette trimmed to the mark
+// (made by the backend from whatever the sponsor sent), with its real size
+// so the browser reserves the right shape before the bytes arrive.
+const sponsors = ref<BandLogo[]>(BUNDLED_SPONSORS)
+async function loadSponsors(): Promise<void> {
+  try {
+    sponsors.value = await getSponsors()
+  } catch {
+    // keep the bundled five — see BUNDLED_SPONSORS
+  }
 }
 
 // ------------------------------------------------------------------ scene
@@ -187,6 +159,7 @@ async function startScene(): Promise<void> {
 }
 
 onMounted(() => {
+  void loadSponsors()
   measure()
   resizeObserver = new ResizeObserver(measure)
   if (hero.value) resizeObserver.observe(hero.value)
@@ -302,8 +275,8 @@ onBeforeUnmount(() => {
     <!-- The partners band. Two identical halves on one track that slides
          left by exactly one half, so the loop never shows a seam. The
          second half is hidden from screen readers and the tab order: it is
-         the same five links again. -->
-    <div class="bb-marquee mt-8 border-y border-white/10 bg-white/[0.04] py-3 backdrop-blur-md min-[900px]:mt-12">
+         the same links again. -->
+    <div v-if="sponsors.length > 0" class="bb-marquee mt-8 border-y border-white/10 bg-white/[0.04] py-3 backdrop-blur-md min-[900px]:mt-12">
       <div class="bb-track flex w-max items-center">
         <template v-for="copy in 2" :key="copy">
           <div
@@ -316,8 +289,8 @@ onBeforeUnmount(() => {
             </span>
             <a
               v-for="sponsor in sponsors"
-              :key="sponsor.name"
-              :href="sponsor.href"
+              :key="sponsor.logo_url"
+              :href="sponsor.href ?? undefined"
               target="_blank"
               rel="noopener noreferrer"
               :aria-label="sponsor.name"
@@ -325,10 +298,10 @@ onBeforeUnmount(() => {
               class="sponsor-logo shrink-0"
             >
               <img
-                :src="sponsor.src"
+                :src="sponsor.logo_url"
                 :alt="copy === 2 ? '' : sponsor.name"
-                :width="sponsor.width"
-                :height="sponsor.height"
+                :width="sponsor.logo_width"
+                :height="sponsor.logo_height"
                 loading="lazy"
                 decoding="async"
                 class="bb-logo w-auto object-contain"
