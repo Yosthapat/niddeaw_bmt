@@ -17,7 +17,7 @@ from app.models.matchmaking import (
     MatchmakingQueueResponse,
     MatchmakingSuggestionResponse,
 )
-from app.services import elo_service, matchmaking_service, queue_service
+from app.services import elo_service, matchmaking_service, queue_service, record_service
 from app.services.session_state import ensure_session_open
 
 router = APIRouter(prefix="/api/admin/matchmaking", tags=["admin-matchmaking"])
@@ -397,6 +397,7 @@ def submit_result(
             status_code=status.HTTP_409_CONFLICT,
             detail="แมตช์นี้บันทึกผลไปแล้ว",
         )
+    record_service.invalidate()
 
     team1_ids, team2_ids = _team_ids(match_row)
     updated_stats, delta_team1, delta_team2 = elo_service.apply_match_result(
@@ -459,4 +460,6 @@ def edit_result(
         reversed_stats, team1_ids, team2_ids, payload.winner
     )
     _write_player_stats(supabase, updated_stats)
-    return _save_result(supabase, match_id, payload.winner, delta_team1, delta_team2)
+    saved = _save_result(supabase, match_id, payload.winner, delta_team1, delta_team2)
+    record_service.invalidate()
+    return saved

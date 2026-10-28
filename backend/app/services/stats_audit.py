@@ -21,34 +21,16 @@ from supabase import Client
 
 from app.db_utils import rows
 from app.models.maintenance import PlayerSpell, StatsReport, StatsRow
-from app.services import stats_service
+from app.services import record_service, stats_service
 
 PAGE = 1000  # PostgREST's own default ceiling; ask for it explicitly
 MATCH_COLUMNS = "team1_player_ids,team2_player_ids,winner,session_id,created_at"
 
 
 def _all_completed_matches(supabase: Client) -> list[dict[str, Any]]:
-    """Every completed match, paged.
-
-    Without the paging this would silently stop at PostgREST's row ceiling
-    and report the players above it as having played fewer games than they
-    did — an audit that invents drift is worse than no audit.
-    """
-    out: list[dict[str, Any]] = []
-    offset = 0
-    while True:
-        page = rows(
-            supabase.table("matches")
-            .select(MATCH_COLUMNS)
-            .eq("status", "completed")
-            .order("created_at")
-            .range(offset, offset + PAGE - 1)
-            .execute()
-        )
-        out.extend(page)
-        if len(page) < PAGE:
-            return out
-        offset += PAGE
+    """Every completed match, paged (record_service.completed_matches): an
+    audit that stopped at PostgREST's row ceiling would invent drift."""
+    return record_service.completed_matches(supabase, MATCH_COLUMNS)
 
 
 def _all_players(supabase: Client) -> list[dict[str, Any]]:

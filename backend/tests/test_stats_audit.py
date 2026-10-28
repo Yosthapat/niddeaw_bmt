@@ -14,7 +14,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.services import stats_audit
+from app.services import record_service, stats_audit
 from tests.conftest import FakeSupabase
 
 P1 = str(uuid4())
@@ -294,6 +294,9 @@ def test_the_audit_reads_past_one_page_of_matches(monkeypatch: pytest.MonkeyPatc
     report every player above the cap as having played fewer games than they
     did — an audit that invents drift is worse than none."""
     monkeypatch.setattr(stats_audit, "PAGE", 2)
+    # The matches are paged by record_service, the one place the site reads
+    # them from, so its page size is the one this has to shrink.
+    monkeypatch.setattr(record_service, "PAGE", 2)
     db = club(
         [player(P1, "Ball", games=5, wins=5)],
         [match(team1=[P1], team2=[P2]) for _ in range(5)],

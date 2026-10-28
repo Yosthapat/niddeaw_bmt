@@ -8,7 +8,7 @@ from fastapi import APIRouter, Query
 from app.db_utils import rows
 from app.deps import SupabaseDep
 from app.models.player import Player, PlayerStats
-from app.services import stats_service
+from app.services import record_service, stats_service
 
 router = APIRouter(prefix="/api/hall-of-fame", tags=["public-hall-of-fame"])
 
@@ -25,12 +25,11 @@ def get_hall_of_fame(
     # history lives.
     players_result = supabase.table("players").select("*").eq("is_active", True).execute()
 
+    records = record_service.all_records(supabase)
     stats: list[PlayerStats] = []
     for row in rows(players_result):
         player = Player.model_validate(row)
-        record = stats_service.PlayerRecord(
-            games=player.games, wins=player.wins, draws=player.draws, losses=player.losses
-        )
+        record = records.get(player.id, stats_service.PlayerRecord())
         if record.games < MIN_GAMES_TO_QUALIFY:
             continue
         stats.append(

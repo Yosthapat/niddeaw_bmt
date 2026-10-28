@@ -7,7 +7,7 @@ from app.db_utils import rows
 from app.deps import SupabaseDep
 from app.models.match import Match, MatchCount, MatchDetail, PlayerMatchStat
 from app.models.player import Player
-from app.services import stats_service
+from app.services import record_service, stats_service
 
 # Reads that show a match number go through the matches_numbered view
 # (db/migrations/0025) rather than the table: the number is a rank over the
@@ -86,11 +86,11 @@ def get_match_detail(match_id: UUID, supabase: SupabaseDep) -> MatchDetail:
             player = Player.model_validate(row)
             players_by_id[player.id] = player
 
+    records = record_service.all_records(supabase)
+
     def build_stat(pid: UUID) -> PlayerMatchStat:
         player = players_by_id[pid]
-        record = stats_service.PlayerRecord(
-            games=player.games, wins=player.wins, draws=player.draws, losses=player.losses
-        )
+        record = records.get(pid, stats_service.PlayerRecord())
         return PlayerMatchStat(
             player=player,
             games=record.games,
