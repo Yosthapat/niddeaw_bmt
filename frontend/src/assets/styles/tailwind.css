@@ -366,32 +366,6 @@ button:not(:disabled):active {
   }
 }
 
-/* PlayerProfileView.vue avatar — a tier-colored glow ring behind the
-   avatar (color set per-instance via --glow-color), breathing gently
-   rather than sitting static. */
-.profile-glow {
-  position: absolute;
-  inset: -14%;
-  z-index: -1;
-  pointer-events: none;
-  border-radius: 999px;
-  background: var(--glow-color, var(--color-brand-pink));
-  opacity: 0.35;
-  filter: blur(28px);
-  animation: profile-glow-breathe 3.5s ease-in-out infinite;
-}
-@keyframes profile-glow-breathe {
-  0%,
-  100% {
-    opacity: 0.25;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.45;
-    transform: scale(1.08);
-  }
-}
-
 /* RankingView.vue top-3 rank badges — small filled medal circles instead
    of plain numerals, so the podium reads at a glance. */
 .rank-badge-gold {

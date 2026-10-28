@@ -4,10 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { getPlayerProfile } from '@/api/public'
 import type { PlayerProfile } from '@/types'
-import { tierMeta } from '@/composables/useEloTier'
-import EloBadge from '@/components/players/EloBadge.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
-import TierMascot from '@/components/players/TierMascot.vue'
+import ProfileFlipCard from '@/components/players/ProfileFlipCard.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 import CountUp from '@/components/common/CountUp.vue'
 import PlayerLiveStatus from '@/components/players/PlayerLiveStatus.vue'
@@ -18,6 +16,30 @@ const { t } = useI18n()
 const profile = ref<PlayerProfile | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
+const matchesAnchor = ref<HTMLElement | null>(null)
+const shared = ref(false)
+
+function toMatches(): void {
+  matchesAnchor.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+// The phone's own share sheet where there is one (LINE, Messenger...);
+// otherwise the link goes on the clipboard and the button says so.
+async function share(): Promise<void> {
+  const url = window.location.href
+  const title = profile.value?.player.nickname ?? document.title
+  try {
+    if (navigator.share) {
+      await navigator.share({ title, url })
+      return
+    }
+    await navigator.clipboard.writeText(url)
+    shared.value = true
+    setTimeout(() => (shared.value = false), 2000)
+  } catch {
+    // the share sheet was dismissed, or the clipboard refused — nothing to say
+  }
+}
 
 // Watches the param instead of onMounted so this also works if Vue ever
 // reuses the component instance across two /members/:id URLs (both match
@@ -54,52 +76,27 @@ watch(
     <p v-else-if="error || !profile" class="mt-6 text-status-error">{{ error }}</p>
 
     <template v-else>
-      <div v-reveal class="mt-6 flex flex-col items-center gap-6 sm:flex-row sm:items-center sm:justify-center">
-        <div class="flex flex-col items-center gap-2 text-center">
-          <div v-tilt class="relative float-idle">
-            <div
-              class="profile-glow"
-              aria-hidden="true"
-              :style="{ '--glow-color': tierMeta(profile.player.elo_level).colorVar }"
-            />
-            <PlayerAvatar :name="profile.player.nickname" :avatar-url="profile.player.avatar_url" size="xl" />
-          </div>
-          <h1 class="mt-1 font-display text-2xl font-bold">{{ profile.player.nickname }}</h1>
-          <p class="text-xs tracking-widest text-white/40">{{ profile.player.member_code }}</p>
-          <p v-if="profile.player.quote" class="max-w-xs text-sm text-white/50 italic">
-            "{{ profile.player.quote }}"
-          </p>
+      <div v-reveal class="mt-6">
+        <ProfileFlipCard :profile="profile" />
+        <p v-if="profile.player.quote" class="mx-auto mt-4 max-w-xs text-center text-sm text-white/55 italic">
+          "{{ profile.player.quote }}"
+        </p>
+        <div class="mt-3 flex flex-wrap items-center justify-center gap-1.5 text-xs text-white/60">
+          <span>{{ t('profile.eloRank') }} <span class="font-semibold text-brand-pink">#{{ profile.elo_rank }}</span> / {{ profile.total_ranked_players }}</span>
+          <template v-if="profile.player.dominant_hand">
+            <span aria-hidden="true">·</span>
+            <span>{{ profile.player.dominant_hand === 'left' ? t('profile.leftHanded') : t('profile.rightHanded') }}</span>
+          </template>
+          <span v-if="profile.player.tiktok" class="hud-panel glass-panel border border-brand-pink/20 px-2.5 py-1">TikTok {{ profile.player.tiktok }}</span>
+          <span v-if="profile.player.instagram" class="hud-panel glass-panel border border-brand-pink/20 px-2.5 py-1">IG {{ profile.player.instagram }}</span>
         </div>
-
-        <div class="hidden h-56 w-px bg-brand-pink/15 sm:block" />
-
-        <div class="flex flex-col items-center gap-2 text-center">
-          <TierMascot :tier="profile.player.elo_level" :size="72" />
-          <EloBadge :elo-score="profile.player.elo_score" show-score />
-          <p class="text-xs tracking-widest text-white/40 uppercase">
-            {{ t('profile.eloRank') }} <span class="font-semibold text-brand-pink">#{{ profile.elo_rank }}</span>
-            / {{ profile.total_ranked_players }}
-          </p>
-          <p v-if="profile.player.dominant_hand" class="text-xs text-white/50">
-            {{ profile.player.dominant_hand === 'left' ? t('profile.leftHanded') : t('profile.rightHanded') }}
-          </p>
-          <div
-            v-if="profile.player.tiktok || profile.player.instagram"
-            class="mt-1 flex flex-wrap items-center justify-center gap-1.5"
-          >
-            <span
-              v-if="profile.player.tiktok"
-              class="hud-panel glass-panel border border-brand-pink/20 px-2.5 py-1 text-xs text-white/70"
-            >
-              TikTok {{ profile.player.tiktok }}
-            </span>
-            <span
-              v-if="profile.player.instagram"
-              class="hud-panel glass-panel border border-brand-pink/20 px-2.5 py-1 text-xs text-white/70"
-            >
-              IG {{ profile.player.instagram }}
-            </span>
-          </div>
+        <div class="mx-auto mt-4 flex max-w-xs gap-2">
+          <button type="button" class="tap flex-1 rounded-full border border-white/20 px-4 text-sm text-white/80" @click="toMatches">
+            {{ t('card.matchHistory') }}
+          </button>
+          <button type="button" class="tap flex-1 rounded-full bg-brand-pink px-4 text-sm font-semibold text-brand-black" @click="share">
+            {{ shared ? t('card.copied') : t('card.share') }}
+          </button>
         </div>
       </div>
 
@@ -177,7 +174,9 @@ watch(
         </ul>
       </section>
 
-      <PlayerSeasonMatches :key="`seasons-${profile.player.id}`" :player-id="profile.player.id" />
+      <div ref="matchesAnchor" class="scroll-mt-24">
+        <PlayerSeasonMatches :key="`seasons-${profile.player.id}`" :player-id="profile.player.id" />
+      </div>
     </template>
   </main>
 </template>
