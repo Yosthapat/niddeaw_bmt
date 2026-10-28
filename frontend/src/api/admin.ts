@@ -2,6 +2,11 @@ import { ApiError, request } from './client'
 import type {
   Admin,
   LogoPreview,
+  PreorderTally,
+  Product,
+  ProductFields,
+  ShopOrderAdmin,
+  OrderStatus,
   Sponsor,
   AdminActivityLogEntry,
   Billing,
@@ -505,4 +510,43 @@ export async function reorderSponsors(ids: string[]): Promise<Sponsor[]> {
 
 export async function deleteSponsor(id: string): Promise<void> {
   return request(`/api/admin/sponsors/${id}`, { method: 'DELETE' })
+}
+
+// Shop
+export async function getAdminProducts(): Promise<Product[]> {
+  return request('/api/admin/shop/products')
+}
+
+export async function createProduct(fields: ProductFields): Promise<Product> {
+  return request('/api/admin/shop/products', { method: 'POST', body: JSON.stringify(fields) })
+}
+
+export async function updateProduct(id: string, fields: ProductFields): Promise<Product> {
+  return request(`/api/admin/shop/products/${id}`, { method: 'PATCH', body: JSON.stringify(fields) })
+}
+
+export async function deleteProduct(id: string): Promise<void> {
+  return request(`/api/admin/shop/products/${id}`, { method: 'DELETE' })
+}
+
+export async function addProductImage(id: string, file: File): Promise<Product> {
+  const form = new FormData()
+  form.append('file', file)
+  return request(`/api/admin/shop/products/${id}/images`, { method: 'POST', body: form })
+}
+
+export async function removeProductImage(id: string, url: string): Promise<Product> {
+  return request(`/api/admin/shop/products/${id}/images?url=${encodeURIComponent(url)}`, { method: 'DELETE' })
+}
+
+export async function getShopOrders(status?: OrderStatus): Promise<ShopOrderAdmin[]> {
+  return request(`/api/admin/shop/orders${status ? `?status=${status}` : ''}`)
+}
+
+export async function updateShopOrder(id: string, status: OrderStatus, note?: string): Promise<ShopOrderAdmin> {
+  return request(`/api/admin/shop/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ status, note }) })
+}
+
+export async function getPreorderTally(): Promise<PreorderTally[]> {
+  return request('/api/admin/shop/preorder-tally')
 }

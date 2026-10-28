@@ -58,6 +58,22 @@ const router = createRouter({
       component: () => import('../views/public/MatchDetailView.vue'),
     },
 
+    {
+      path: '/shop',
+      name: 'shop',
+      component: () => import('../views/public/ShopView.vue'),
+    },
+    {
+      path: '/shop/:id',
+      name: 'shop-product',
+      component: () => import('../views/public/ShopProductView.vue'),
+    },
+    {
+      path: '/shop/:id/order',
+      name: 'shop-order',
+      component: () => import('../views/public/ShopOrderView.vue'),
+    },
+
     // Admin — guarded except login.
     {
       path: '/admin/login',
@@ -110,6 +126,12 @@ const router = createRouter({
       path: '/admin/revenue',
       name: 'admin-revenue',
       component: () => import('../views/admin/RevenueView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin/shop',
+      name: 'admin-shop',
+      component: () => import('../views/admin/ShopAdminView.vue'),
       meta: { requiresAuth: true },
     },
     {

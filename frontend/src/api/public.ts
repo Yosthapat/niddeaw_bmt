@@ -1,5 +1,8 @@
 import { request } from './client'
 import type {
+  PaymentInfoResponse,
+  Product,
+  ShopOrder,
   Sponsor,
   LiveQueueResponse,
   Match,
@@ -116,4 +119,37 @@ export async function getLiveStatus(): Promise<LiveQueueResponse> {
 
 export async function getSponsors(): Promise<Sponsor[]> {
   return request('/api/sponsors')
+}
+
+// Shop
+export async function getShopProducts(): Promise<Product[]> {
+  return request('/api/shop/products')
+}
+
+export async function getShopProduct(id: string): Promise<Product> {
+  return request(`/api/shop/products/${id}`)
+}
+
+export async function getShopPayment(productId: string, qty: number): Promise<PaymentInfoResponse> {
+  return request(`/api/shop/products/${productId}/payment?qty=${qty}`)
+}
+
+export async function placeShopOrder(order: {
+  productId: string
+  playerId: string
+  size: string
+  qty: number
+  slip: File
+}): Promise<ShopOrder> {
+  const form = new FormData()
+  form.append('product_id', order.productId)
+  form.append('player_id', order.playerId)
+  form.append('size', order.size)
+  form.append('qty', String(order.qty))
+  form.append('file', order.slip)
+  return request('/api/shop/orders', { method: 'POST', body: form })
+}
+
+export async function getMemberOrders(playerId: string): Promise<ShopOrder[]> {
+  return request(`/api/shop/orders?player_id=${playerId}`)
 }
