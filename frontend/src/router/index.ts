@@ -59,6 +59,21 @@ const router = createRouter({
     },
 
     {
+      path: '/menu',
+      name: 'menu',
+      component: () => import('../views/public/MenuView.vue'),
+    },
+    {
+      path: '/search',
+      name: 'search',
+      component: () => import('../views/public/SearchView.vue'),
+    },
+    {
+      path: '/tournament',
+      name: 'tournament',
+      component: () => import('../views/public/TournamentView.vue'),
+    },
+    {
       path: '/shop',
       name: 'shop',
       component: () => import('../views/public/ShopView.vue'),

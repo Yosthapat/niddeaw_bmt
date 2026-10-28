@@ -2,7 +2,8 @@
 /**
  * The home page's opening screen: the club's crowned cat standing in a
  * hologram on a neon grid floor, a striped sun on the horizon behind it,
- * the club's shout beside it, and the sponsors running past underneath.
+ * the club's shout beside it, and the sponsors running past underneath
+ * (SponsorBand.vue).
  *
  * Drawn twice, on purpose. The CSS scene below is what everyone sees
  * first, and what stays on a phone that cannot run more, with reduced
@@ -18,9 +19,8 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import type { EloTier } from '@/types'
-import { getSponsors } from '@/api/public'
-import { BUNDLED_SPONSORS, logoHeight, type BandLogo } from '@/utils/sponsorBand'
 import TierMascot from '@/components/players/TierMascot.vue'
+import SponsorBand from './SponsorBand.vue'
 import type { HeroScene } from './heroScene'
 
 const emit = defineEmits<{ reveal: [tier: EloTier] }>()
@@ -39,18 +39,6 @@ const tiers: { tier: EloTier; label: string }[] = [
   { tier: 'vodka', label: 'Vodka' },
   { tier: 'absinthe', label: 'Absinthe' },
 ]
-
-// The partners band: every logo a white silhouette trimmed to the mark
-// (made by the backend from whatever the sponsor sent), with its real size
-// so the browser reserves the right shape before the bytes arrive.
-const sponsors = ref<BandLogo[]>(BUNDLED_SPONSORS)
-async function loadSponsors(): Promise<void> {
-  try {
-    sponsors.value = await getSponsors()
-  } catch {
-    // keep the bundled five — see BUNDLED_SPONSORS
-  }
-}
 
 // ------------------------------------------------------------------ scene
 const hero = ref<HTMLElement | null>(null)
@@ -159,7 +147,6 @@ async function startScene(): Promise<void> {
 }
 
 onMounted(() => {
-  void loadSponsors()
   measure()
   resizeObserver = new ResizeObserver(measure)
   if (hero.value) resizeObserver.observe(hero.value)
@@ -272,46 +259,7 @@ onBeforeUnmount(() => {
       {{ stats }}
     </p>
 
-    <!-- The partners band. Two identical halves on one track that slides
-         left by exactly one half, so the loop never shows a seam. The
-         second half is hidden from screen readers and the tab order: it is
-         the same links again. -->
-    <div v-if="sponsors.length > 0" class="bb-marquee mt-8 border-y border-white/10 bg-white/[0.04] py-3 backdrop-blur-md min-[900px]:mt-12">
-      <div class="bb-track flex w-max items-center">
-        <template v-for="copy in 2" :key="copy">
-          <div
-            class="bb-half flex shrink-0 items-center gap-10 pr-10"
-            :aria-hidden="copy === 2 ? 'true' : undefined"
-            :data-copy="copy"
-          >
-            <span class="font-display text-[11px] font-semibold tracking-[0.25em] whitespace-nowrap text-white/60 uppercase">
-              {{ t('home.sponsorsTitle') }}
-            </span>
-            <a
-              v-for="sponsor in sponsors"
-              :key="sponsor.logo_url"
-              :href="sponsor.href ?? undefined"
-              target="_blank"
-              rel="noopener noreferrer"
-              :aria-label="sponsor.name"
-              :tabindex="copy === 2 ? -1 : undefined"
-              class="sponsor-logo shrink-0"
-            >
-              <img
-                :src="sponsor.logo_url"
-                :alt="copy === 2 ? '' : sponsor.name"
-                :width="sponsor.logo_width"
-                :height="sponsor.logo_height"
-                loading="lazy"
-                decoding="async"
-                class="bb-logo w-auto object-contain"
-                :style="{ '--h': logoHeight(sponsor) }"
-              />
-            </a>
-          </div>
-        </template>
-      </div>
-    </div>
+    <SponsorBand class="mt-8 min-[900px]:mt-12" />
   </section>
 </template>
 
@@ -524,62 +472,10 @@ onBeforeUnmount(() => {
   }
 }
 
-/* ---------- the partners band ---------- */
-.bb-marquee {
-  --band-scale: 1;
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-}
-.bb-track {
-  animation: bb-marquee 32s linear infinite;
-}
-.bb-logo {
-  height: calc(var(--h) * var(--band-scale) * 1px);
-}
-@media (min-width: 640px) {
-  .bb-marquee {
-    --band-scale: 1.25;
-  }
-}
-/* Holds still while someone is aiming at a logo, by mouse or keyboard. */
-.bb-marquee:hover .bb-track,
-.bb-marquee:focus-within .bb-track {
-  animation-play-state: paused;
-}
-@keyframes bb-marquee {
-  to {
-    transform: translateX(-50%);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .hero-floor::before,
   .hero-cat {
     animation: none;
-  }
-  /* No drift: one copy, wrapped and centred, so every sponsor is still on
-     screen and none of them has to move to be seen. */
-  .bb-track {
-    animation: none;
-    width: 100%;
-  }
-  /* shrink-0 keeps the moving copy on one line; here it has to give that
-     up, or the row runs off both edges instead of wrapping. */
-  .bb-half {
-    flex-shrink: 1;
-    width: 100%;
-    padding-inline: 1rem;
-    flex-wrap: wrap;
-    justify-content: center;
-    row-gap: 1rem;
-  }
-  .bb-half[data-copy='2'] {
-    display: none;
-  }
-  .bb-marquee {
-    -webkit-mask-image: none;
-    mask-image: none;
   }
 }
 </style>
