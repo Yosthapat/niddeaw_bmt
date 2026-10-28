@@ -141,8 +141,10 @@ const problems = computed(() => {
   if (form.sale_type === 'preorder' && !form.closes) p.closes = t('shopAdmin.closesRequired')
   if (form.sale_type === 'stock') {
     for (const k of stockKeys.value) {
-      const v = form.stock[k]
-      if (v === '' || v === undefined || !Number.isInteger(Number(v)) || Number(v) < 0) {
+      // A blank box is "none yet": typing 0 into every size not in hand
+      // is busywork, and the shop shows that size as sold out either way.
+      const v = form.stock[k] ?? ''
+      if (v !== '' && (!Number.isInteger(Number(v)) || Number(v) < 0)) {
         p.stock = t('validation.notNumber')
       }
     }
@@ -187,7 +189,7 @@ async function save(): Promise<void> {
     preorder_closes_on: form.sale_type === 'preorder' ? form.closes : null,
     preorder_delivers_on: form.sale_type === 'preorder' ? form.delivers || null : null,
     ...(form.sale_type === 'stock'
-      ? { stock: Object.fromEntries(stockKeys.value.map((k) => [k, Number(form.stock[k])])) }
+      ? { stock: Object.fromEntries(stockKeys.value.map((k) => [k, Number(form.stock[k] ?? 0)])) }
       : {}),
   }
   try {
@@ -429,7 +431,7 @@ const stockTotal = (p: Product): number => Object.values(p.stock).reduce((a, b) 
         <div class="mt-1.5 grid grid-cols-3 gap-2">
           <label v-for="k in stockKeys" :key="k" class="flex min-h-12 items-center justify-between gap-2 rounded-xl border border-white/15 bg-white/4 pr-1.5 pl-3">
             <span class="font-display font-bold">{{ k || '#' }}</span>
-            <input v-model.number="form.stock[k]" type="number" inputmode="numeric" min="0" :aria-label="`${t('shopAdmin.stockOne')} ${k}`" class="h-9 w-16 rounded-lg border border-brand-pink/30 bg-brand-black text-center font-display font-bold" />
+            <input v-model.number="form.stock[k]" type="number" inputmode="numeric" min="0" :aria-label="`${t('shopAdmin.stockOne')} ${k}`" placeholder="0" class="h-9 w-16 rounded-lg border border-brand-pink/30 bg-brand-black text-center font-display font-bold" />
           </label>
         </div>
         <span v-if="tried && problems.stock" class="text-xs text-status-error">{{ problems.stock }}</span>

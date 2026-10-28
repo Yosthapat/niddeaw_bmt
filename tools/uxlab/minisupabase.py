@@ -12,6 +12,7 @@ select fails here the way it would against the real API), and
 
 from __future__ import annotations
 
+import itertools
 import re
 import uuid
 from datetime import datetime, timezone
@@ -22,6 +23,10 @@ Row = dict[str, Any]
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+# shop_orders.order_no is an identity column; the seed uses the first few.
+_ORDER_NO = itertools.count(100)
 
 
 # Columns each table fills in itself, as the schema's defaults do.
@@ -37,6 +42,11 @@ AUTO: dict[str, dict[str, Callable[[], Any]]] = {
     "locked_pairs": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
     "pairing_history": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
     "admin_activity_log": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
+    "products": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
+    "shop_orders": {
+        "id": lambda: str(uuid.uuid4()), "order_no": lambda: next(_ORDER_NO),
+        "created_at": _now, "updated_at": _now,
+    },
 }
 
 # Column defaults applied on insert when the caller omits them, mirroring
@@ -58,6 +68,10 @@ DEFAULTS: dict[str, Row] = {
     "expenses": {"receipt_url": None, "is_paid": False, "paid_at": None, "note": None},
     "other_income": {"slip_url": None, "note": None},
     "admin_activity_log": {"detail": None},
+    "products": {"description": None, "sizes": [], "preorder_closes_on": None,
+                 "preorder_delivers_on": None, "image_urls": [], "is_active": True,
+                 "sort_order": 0},
+    "shop_orders": {"status": "pending", "note": None},
 }
 
 
@@ -104,7 +118,7 @@ class Query:
         self._columns: str | None = None
         self._count: Any = None
         self._head = False
-        self._order: tuple[str, bool] | None = None
+        self._order: list[tuple[str, bool]] = []
         self._limit: int | None = None
         self._range: tuple[int, int] | None = None
         self._op = "select"
@@ -191,7 +205,7 @@ class Query:
         return self
 
     def order(self, column: str, desc: bool = False) -> "Query":
-        self._order = (column, desc)
+        self._order.append((column, desc))
         return self
 
     def limit(self, n: int) -> "Query":
@@ -218,9 +232,9 @@ class Query:
         if self._op == "select":
             found = self._matching(rows)
             total = len(found)
-            if self._order:
-                column, desc = self._order
-                found = sorted(found, key=lambda r: (r.get(column) is None, r.get(column)),
+            # Later keys break ties in earlier ones: stable sorts, last key first.
+            for column, desc in reversed(self._order):
+                found = sorted(found, key=lambda r, c=column: (r.get(c) is None, r.get(c)),
                                reverse=desc)
             if self._range:
                 start, end = self._range
