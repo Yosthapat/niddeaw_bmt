@@ -4,23 +4,25 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.models.fields import Name, Note, PositiveBaht
+
 IncomeSource = Literal["sponsor", "investment", "other"]
 
 
 class OtherIncomeCreate(BaseModel):
     income_date: date
     source: IncomeSource
-    source_name: str
-    amount: float
-    note: str | None = None
+    source_name: Name
+    amount: PositiveBaht
+    note: Note | None = None
 
 
 class OtherIncomeUpdate(BaseModel):
     income_date: date | None = None
     source: IncomeSource | None = None
-    source_name: str | None = None
-    amount: float | None = None
-    note: str | None = None
+    source_name: Name | None = None
+    amount: PositiveBaht | None = None
+    note: Note | None = None
 
 
 class OtherIncome(BaseModel):

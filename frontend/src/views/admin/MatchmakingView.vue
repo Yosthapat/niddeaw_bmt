@@ -6,7 +6,6 @@ import { usePlayersStore } from '@/stores/players'
 import * as adminApi from '@/api/admin'
 import { getMatches } from '@/api/public'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
-import { ApiError } from '@/api/client'
 import { usePolling } from '@/composables/usePolling'
 import type {
   Match,
@@ -18,6 +17,7 @@ import type {
 import AdminNav from '@/components/layout/AdminNav.vue'
 import SessionPicker from '@/components/layout/SessionPicker.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
+import { apiErrorMessage } from '@/api/errors'
 
 const { t } = useI18n()
 const { confirm } = useConfirmDialog()
@@ -61,12 +61,6 @@ const lockError = ref<string | null>(null)
 const lockDraft = ref<{ a: string; b: string }>({ a: '', b: '' })
 const unlockingId = ref<string | null>(null)
 
-function apiErrorMessage(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) {
-    return `${fallback} (${e.status}: ${e.message})`
-  }
-  return fallback
-}
 
 function nameOf(playerId: string): string {
   const p = playersStore.byId(playerId)
@@ -743,7 +737,7 @@ const pollControls = usePolling(refreshQueue, 7000)
                  and this is where the admin already is. -->
             <button
               type="button"
-              class="hud-hover hud-panel flex w-full min-h-10 items-center gap-2 border border-brand-pink/15 bg-brand-surface px-3 py-2 text-left text-sm hover:border-brand-pink/40"
+              class="hud-hover hud-panel flex w-full min-h-11 items-center gap-2 border border-brand-pink/15 bg-brand-surface px-3 py-2 text-left text-sm hover:border-brand-pink/40"
               :aria-expanded="fixingId === m.id"
               @click="toggleFix(m.id)"
             >

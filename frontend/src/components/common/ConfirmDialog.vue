@@ -86,14 +86,14 @@ onUnmounted(() => {
             <button
               ref="cancelButton"
               type="button"
-              class="rounded-full border border-white/20 px-4 py-1.5 text-sm text-white/70 hover:bg-white/10"
+              class="tap rounded-full border border-white/20 px-5 text-sm text-white/70 hover:bg-white/10"
               @click="respond(false)"
             >
               {{ t('common.cancel') }}
             </button>
             <button
               type="button"
-              class="rounded-full px-4 py-1.5 text-sm font-semibold"
+              class="tap rounded-full px-5 text-sm font-semibold"
               :class="state.danger ? 'bg-status-error text-white' : 'bg-brand-pink text-brand-black'"
               @click="respond(true)"
             >

@@ -12,6 +12,8 @@ import AdminNav from '@/components/layout/AdminNav.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
+import { MAX_ELO, MAX_HANDLE, MAX_NOTE } from '@/utils/limits'
+import { apiErrorMessage } from '@/api/errors'
 
 const { t } = useI18n()
 const { confirm } = useConfirmDialog()
@@ -120,6 +122,11 @@ const editForm = reactive({
 const uploadingAvatarId = ref<string | null>(null)
 const deletingId = ref<string | null>(null)
 const rowError = ref<string | null>(null)
+const editError = ref<string | null>(null)
+const eloProblem = computed(() => {
+  const v = editForm.elo_score as unknown
+  return typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > MAX_ELO ? t('validation.eloRange') : null
+})
 const rowNotice = ref<string | null>(null)
 
 async function loadPlayers(): Promise<void> {
@@ -134,12 +141,6 @@ async function loadPlayers(): Promise<void> {
   }
 }
 
-function apiErrorMessage(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) {
-    return `${fallback} (${e.status}: ${e.message})`
-  }
-  return fallback
-}
 
 async function createPlayer(): Promise<void> {
   if (!newPlayer.nickname.trim()) return
@@ -187,6 +188,7 @@ async function createPlayer(): Promise<void> {
 
 function startEdit(player: Player): void {
   editingId.value = player.id
+  editError.value = null
   editForm.nickname = player.nickname
   editForm.line_id = player.line_id ?? ''
   editForm.dominant_hand = player.dominant_hand ?? ''
@@ -201,7 +203,9 @@ function cancelEdit(): void {
 }
 
 async function saveEdit(player: Player): Promise<void> {
+  if (eloProblem.value) return
   savingEdit.value = true
+  editError.value = null
   try {
     const updated = await adminApi.updatePlayer(player.id, {
       nickname: editForm.nickname.trim(),
@@ -214,6 +218,10 @@ async function saveEdit(player: Player): Promise<void> {
     })
     players.value = players.value.map((p) => (p.id === updated.id ? updated : p))
     editingId.value = null
+  } catch (e) {
+    // Used to have no catch at all: a refused save left the form open and
+    // silent, and the admin had no way to tell it hadn't gone through.
+    editError.value = apiErrorMessage(e, t('members.saveFailed'))
   } finally {
     savingEdit.value = false
   }
@@ -223,8 +231,13 @@ async function saveEdit(player: Player): Promise<void> {
 // doing anything, and a tap in error is undone by the delete button that
 // takes its place.
 async function restorePlayer(player: Player): Promise<void> {
-  const updated = await adminApi.updatePlayer(player.id, { is_active: true })
-  players.value = players.value.map((p) => (p.id === updated.id ? updated : p))
+  rowError.value = null
+  try {
+    const updated = await adminApi.updatePlayer(player.id, { is_active: true })
+    players.value = players.value.map((p) => (p.id === updated.id ? updated : p))
+  } catch (e) {
+    rowError.value = apiErrorMessage(e, t('members.saveFailed'))
+  }
 }
 
 async function removePlayer(player: Player): Promise<void> {
@@ -300,16 +313,16 @@ onMounted(loadPlayers)
       class="mt-4 grid gap-2 hud-panel border border-brand-pink/20 bg-brand-surface p-4 sm:grid-cols-2"
       @submit.prevent="createPlayer"
     >
-      <input v-model="newPlayer.nickname" :placeholder="t('members.nicknameRequired')" required class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
-      <input v-model="newPlayer.line_id" placeholder="LINE ID" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
-      <select v-model="newPlayer.dominant_hand" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm text-white/80">
+      <input v-model="newPlayer.nickname" :placeholder="t('members.nicknameRequired')" :aria-label="t('members.nicknameRequired')" maxlength="40" autocapitalize="words" required class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
+      <input v-model="newPlayer.line_id" placeholder="LINE ID" aria-label="LINE ID" :maxlength="MAX_HANDLE" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
+      <select v-model="newPlayer.dominant_hand" :aria-label="t('members.handUnset')" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm text-white/80">
         <option value="">{{ t('members.handUnset') }}</option>
         <option value="left">{{ t('profile.leftHanded') }}</option>
         <option value="right">{{ t('profile.rightHanded') }}</option>
       </select>
-      <input v-model="newPlayer.tiktok" placeholder="TikTok" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
-      <input v-model="newPlayer.instagram" placeholder="Instagram" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
-      <input v-model="newPlayer.quote" :placeholder="t('members.quote')" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm sm:col-span-2" />
+      <input v-model="newPlayer.tiktok" placeholder="TikTok" aria-label="TikTok" :maxlength="MAX_HANDLE" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
+      <input v-model="newPlayer.instagram" placeholder="Instagram" aria-label="Instagram" :maxlength="MAX_HANDLE" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
+      <input v-model="newPlayer.quote" :placeholder="t('members.quote')" :aria-label="t('members.quote')" :maxlength="MAX_NOTE" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm sm:col-span-2" />
 
       <div class="sm:col-span-2">
         <p class="mb-1.5 text-xs text-white/40">{{ t('members.startingTierHint') }}</p>
@@ -340,11 +353,11 @@ onMounted(loadPlayers)
         <button
           type="submit"
           :disabled="savingCreate || newNameProblem !== null || !newPlayer.nickname.trim()"
-          class="rounded-full bg-brand-pink px-4 py-1.5 text-sm font-semibold text-brand-black disabled:opacity-50"
+          class="tap rounded-full bg-brand-pink px-5 text-sm font-semibold text-brand-black disabled:opacity-50"
         >
           {{ savingCreate ? t('common.saving') : t('members.saveNew') }}
         </button>
-        <button type="button" class="text-sm text-white/50" @click="creating = false">{{ t('common.cancel') }}</button>
+        <button type="button" class="tap rounded-full border border-white/20 px-4 text-sm text-white/60" @click="creating = false">{{ t('common.cancel') }}</button>
       </div>
     </form>
 
@@ -352,6 +365,7 @@ onMounted(loadPlayers)
       v-model="search"
       type="search"
       :placeholder="t('members.searchPlaceholder')"
+      :aria-label="t('members.searchPlaceholder')"
       class="hud-panel mt-4 min-h-11 w-full border border-brand-pink/25 bg-brand-surface px-3 text-sm outline-none focus:border-brand-pink"
     />
 
@@ -407,7 +421,7 @@ onMounted(loadPlayers)
           </div>
           <div class="mt-2 flex items-center gap-2">
             <button
-              class="min-h-10 flex-1 rounded-full border border-brand-pink/40 px-3 text-xs font-semibold text-brand-pink"
+              class="min-h-11 flex-1 rounded-full border border-brand-pink/40 px-3 text-xs font-semibold text-brand-pink"
               @click="startEdit(p)"
             >
               {{ t('common.edit') }}
@@ -415,14 +429,14 @@ onMounted(loadPlayers)
             <button
               v-if="p.is_active"
               :disabled="deletingId === p.id"
-              class="min-h-10 flex-1 rounded-full bg-status-error/20 px-3 text-xs font-semibold text-status-error disabled:opacity-50"
+              class="min-h-11 flex-1 rounded-full bg-status-error/20 px-3 text-xs font-semibold text-status-error disabled:opacity-50"
               @click="removePlayer(p)"
             >
               {{ deletingId === p.id ? t('common.saving') : t('members.delete') }}
             </button>
             <button
               v-else
-              class="min-h-10 flex-1 rounded-full bg-status-success/20 px-3 text-xs font-semibold text-status-success"
+              class="min-h-11 flex-1 rounded-full bg-status-success/20 px-3 text-xs font-semibold text-status-success"
               @click="restorePlayer(p)"
             >
               {{ t('members.restore') }}
@@ -437,33 +451,35 @@ onMounted(loadPlayers)
             <span v-if="uploadingAvatarId === p.id" class="absolute inset-0 flex items-center justify-center bg-black/60 text-xs">...</span>
             <span>{{ t('members.clickToChangePhoto') }}</span>
           </label>
-          <input v-model="editForm.nickname" :placeholder="t('members.nicknameRequired')" required class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
-          <input v-model="editForm.line_id" placeholder="LINE ID" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
-          <select v-model="editForm.dominant_hand" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm text-white/80">
+          <input v-model="editForm.nickname" :placeholder="t('members.nicknameRequired')" :aria-label="t('members.nicknameRequired')" maxlength="40" autocapitalize="words" required class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
+          <input v-model="editForm.line_id" placeholder="LINE ID" aria-label="LINE ID" :maxlength="MAX_HANDLE" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
+          <select v-model="editForm.dominant_hand" :aria-label="t('members.handUnset')" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm text-white/80">
             <option value="">{{ t('members.handUnset') }}</option>
             <option value="left">{{ t('profile.leftHanded') }}</option>
             <option value="right">{{ t('profile.rightHanded') }}</option>
           </select>
-          <input v-model="editForm.tiktok" placeholder="TikTok" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
-          <input v-model="editForm.instagram" placeholder="Instagram" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
-          <input v-model="editForm.quote" :placeholder="t('members.quote')" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm sm:col-span-2" />
+          <input v-model="editForm.tiktok" placeholder="TikTok" aria-label="TikTok" :maxlength="MAX_HANDLE" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
+          <input v-model="editForm.instagram" placeholder="Instagram" aria-label="Instagram" :maxlength="MAX_HANDLE" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm" />
+          <input v-model="editForm.quote" :placeholder="t('members.quote')" :aria-label="t('members.quote')" :maxlength="MAX_NOTE" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm sm:col-span-2" />
           <label class="flex items-center gap-2 rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm sm:col-span-2">
             <span class="shrink-0 text-white/50">{{ t('members.eloScore') }}</span>
-            <input v-model.number="editForm.elo_score" type="number" class="w-24 bg-transparent text-center" />
+            <input v-model.number="editForm.elo_score" type="number" inputmode="numeric" min="0" :max="MAX_ELO" :aria-invalid="!!eloProblem" class="w-24 bg-transparent text-center" />
             <TierMascot :tier="eloTierFor(editForm.elo_score)" :size="24" class="shrink-0" :interactive="false" />
           </label>
           <p v-if="editNameProblem" class="text-sm text-status-error sm:col-span-2">
             {{ editNameProblem }}
           </p>
+          <p v-if="eloProblem" class="text-sm text-status-error sm:col-span-2">{{ eloProblem }}</p>
+          <p v-if="editError" class="text-sm text-status-error sm:col-span-2" role="alert">{{ editError }}</p>
           <div class="flex gap-2 sm:col-span-2">
             <button
               type="submit"
-              :disabled="savingEdit || editNameProblem !== null || !editForm.nickname.trim()"
-              class="rounded-full bg-brand-pink px-4 py-1.5 text-sm font-semibold text-brand-black disabled:opacity-50"
+              :disabled="savingEdit || editNameProblem !== null || eloProblem !== null || !editForm.nickname.trim()"
+              class="tap rounded-full bg-brand-pink px-5 text-sm font-semibold text-brand-black disabled:opacity-50"
             >
               {{ savingEdit ? t('common.saving') : t('common.save') }}
             </button>
-            <button type="button" class="text-sm text-white/50" @click="cancelEdit">{{ t('common.cancel') }}</button>
+            <button type="button" class="tap rounded-full border border-white/20 px-5 text-sm text-white/60" @click="cancelEdit">{{ t('common.cancel') }}</button>
           </div>
         </form>
       </li>

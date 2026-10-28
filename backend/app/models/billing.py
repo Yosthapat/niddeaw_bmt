@@ -4,11 +4,13 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.models.fields import Baht
+
 PaidStatus = Literal["unpaid", "paid"]
 
 
 class BillingAdjust(BaseModel):
-    amount_adjusted: float | None = None
+    amount_adjusted: Baht | None = None
 
 
 class BillingMarkPaid(BaseModel):

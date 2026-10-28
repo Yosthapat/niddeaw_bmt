@@ -69,6 +69,8 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
+  /* the visible height, not the one under a collapsed iOS URL bar */
+  min-height: 100dvh;
   color: #ede5e9;
   font-family: var(--font-body);
 }
@@ -265,12 +267,30 @@ button:not(:disabled):active {
    waiting to happen — the more so where the neighbouring control cancels a
    match or deletes a member. One class rather than a size on every call
    site, so the floor is the same everywhere and visibly so in the markup.
-   Padding still decides the width; this only refuses to go under 40px. */
+   Padding still decides the width; this only refuses to go under 44px, the
+   size both Apple's and Google's guidelines give for a fingertip. */
 .tap {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.5rem;
+  min-height: 2.75rem;
+}
+
+/* iOS Safari zooms the whole page onto any field whose text is under 16px,
+   and leaves it zoomed after the keyboard closes — on a phone every form
+   here would jump sideways the moment it was tapped. Unlayered, so it wins
+   over a text-sm utility without touching every call site; desktop keeps
+   the smaller type. The 44px floor is the same fingertip as .tap above. */
+@media (max-width: 899px) {
+  input:not([type='checkbox'], [type='radio'], [type='file'], [type='range']),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+  input:not([type='checkbox'], [type='radio'], [type='file'], [type='range']),
+  select {
+    min-height: 2.75rem;
+  }
 }
 
 /* The same floor for a control that must keep its drawn size — a 22px tier

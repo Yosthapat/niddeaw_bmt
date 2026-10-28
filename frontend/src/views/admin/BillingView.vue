@@ -4,13 +4,14 @@ import { useI18n } from 'vue-i18n'
 import { useSessionsStore } from '@/stores/sessions'
 import { usePlayersStore } from '@/stores/players'
 import * as adminApi from '@/api/admin'
-import { ApiError } from '@/api/client'
 import { effectiveAmount } from '@/types'
 import type { Billing, Checkin, PaymentInfoResponse } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import { money } from '@/utils/format'
 import SessionPicker from '@/components/layout/SessionPicker.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
+import { bahtProblem } from '@/utils/limits'
+import { apiErrorMessage } from '@/api/errors'
 
 const { t } = useI18n()
 const sessionsStore = useSessionsStore()
@@ -22,6 +23,9 @@ const closing = ref(false)
 const billingPlayerId = ref<string | null>(null)
 const paymentInfoByBillingId = ref<Record<string, PaymentInfoResponse>>({})
 const editingAdjust = ref<Record<string, string>>({})
+// Next to the row it belongs to — the page-level error sits above a list
+// that can be twenty bills long, out of sight of the box just typed in.
+const adjustError = ref<Record<string, string>>({})
 const actionError = ref<string | null>(null)
 
 function nameOf(playerId: string): string {
@@ -33,12 +37,6 @@ function avatarOf(playerId: string): string | undefined {
   return playersStore.byId(playerId)?.avatar_url ?? undefined
 }
 
-function apiErrorMessage(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) {
-    return `${fallback} (${e.status}: ${e.message})`
-  }
-  return fallback
-}
 
 const unbilledAttendeeIds = computed(() => {
   const billedIds = new Set(billings.value.map((b) => b.player_id))
@@ -117,16 +115,25 @@ async function closeAndBill(): Promise<void> {
   }
 }
 
-async function saveAdjust(billing: Billing): Promise<void> {
-  actionError.value = null
-  try {
+/** `clear` goes back to the calculated amount; otherwise the typed one. */
+async function saveAdjust(billing: Billing, clear = false): Promise<void> {
+  delete adjustError.value[billing.id]
+  let amount: number | null = null
+  if (!clear) {
     const raw = editingAdjust.value[billing.id]
-    const amount = raw === '' || raw === undefined ? null : Number(raw)
+    const problem = bahtProblem(raw, { allowZero: true })
+    if (problem) {
+      adjustError.value[billing.id] = t(`validation.${problem}`)
+      return
+    }
+    amount = Number(raw)
+  }
+  try {
     const updated = await adminApi.adjustBilling(billing.id, amount)
     billings.value = billings.value.map((b) => (b.id === updated.id ? updated : b))
     delete editingAdjust.value[billing.id]
   } catch (e) {
-    actionError.value = apiErrorMessage(e, t('billing.adjustFailed'))
+    adjustError.value[billing.id] = apiErrorMessage(e, t('billing.adjustFailed'))
   }
 }
 
@@ -181,12 +188,13 @@ onMounted(async () => {
         v-model="search"
         type="search"
         :placeholder="t('billing.searchPlaceholder')"
+        :aria-label="t('billing.searchPlaceholder')"
         class="hud-panel mt-4 min-h-11 w-full border border-brand-pink/25 bg-brand-surface px-3 text-sm outline-none focus:border-brand-pink"
       />
       <div v-if="sessionsStore.currentSession?.status === 'open'" class="mt-6">
         <button
           :disabled="closing"
-          class="w-full rounded-full bg-brand-pink px-4 py-2.5 text-sm font-semibold text-brand-black disabled:opacity-50"
+          class="tap w-full rounded-full bg-brand-pink px-4 text-sm font-semibold text-brand-black disabled:opacity-50"
           @click="closeAndBill"
         >
           {{ closing ? t('billing.closing') : t('billing.closeAndBill') }}
@@ -264,14 +272,34 @@ onMounted(async () => {
             <input
               v-model="editingAdjust[b.id]"
               type="number"
+              inputmode="decimal"
+              min="0"
+              :aria-label="`${t('billing.adjustAmount')} — ${nameOf(b.player_id)}`"
+              :aria-invalid="!!adjustError[b.id]"
               :placeholder="b.amount_adjusted?.toString() ?? t('billing.adjustAmount')"
-              class="min-h-11 w-24 rounded border border-brand-pink-dark/40 bg-brand-black px-2"
+              class="min-h-11 w-28 rounded border border-brand-pink-dark/40 bg-brand-black px-2"
+              @keydown.enter="saveAdjust(b)"
             />
-            <button class="tap px-1 text-brand-pink underline" @click="saveAdjust(b)">{{ t('billing.saveAdjustment') }}</button>
+            <button
+              class="tap px-1 text-brand-pink underline disabled:no-underline disabled:opacity-40"
+              :disabled="!editingAdjust[b.id]"
+              @click="saveAdjust(b)"
+            >
+              {{ t('billing.saveAdjustment') }}
+            </button>
+            <button
+              v-if="b.amount_adjusted !== null && b.amount_adjusted !== undefined"
+              class="tap px-1 text-white/50 underline"
+              @click="saveAdjust(b, true)"
+            >
+              {{ t('billing.useCalculated') }}
+            </button>
             <button class="tap px-1 text-brand-pink underline" @click="showQr(b)">
               {{ paymentInfoByBillingId[b.id] ? t('billing.hideQr') : t('billing.showQr') }}
             </button>
           </div>
+
+          <p v-if="adjustError[b.id]" class="mt-1 text-xs text-status-error" role="alert">{{ adjustError[b.id] }}</p>
 
           <div v-if="paymentInfoByBillingId[b.id]" class="mt-3 flex flex-col items-center gap-2 text-center">
             <img

@@ -2,12 +2,12 @@
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
-import { ApiError } from '@/api/client'
 import type { Admin, AdminActivityLogEntry } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import LocalisedDateInput from '@/components/common/LocalisedDateInput.vue'
 import { actionKey, readableDetail } from '@/utils/activityAction'
 import { formatDateTime as formatDateTimeIn } from '@/utils/format'
+import { apiErrorMessage } from '@/api/errors'
 
 const { t, locale } = useI18n()
 
@@ -19,10 +19,6 @@ const error = ref<string | null>(null)
 const selectedAdminId = ref('')
 const selectedDate = ref('')
 
-function apiErrorMessage(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) return `${fallback} (${e.status}: ${e.message})`
-  return fallback
-}
 
 function adminName(adminId: string): string {
   return admins.value.find((a) => a.id === adminId)?.username ?? '?'
@@ -76,7 +72,8 @@ onMounted(async () => {
     <div class="mt-4 flex flex-wrap gap-2.5">
       <select
         v-model="selectedAdminId"
-        class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm text-white/80"
+        :aria-label="t('activityLog.allAdmins')"
+        class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-sm text-white/80"
       >
         <option value="">{{ t('activityLog.allAdmins') }}</option>
         <option v-for="a in admins" :key="a.id" :value="a.id">{{ a.username }}</option>

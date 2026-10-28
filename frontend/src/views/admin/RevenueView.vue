@@ -3,12 +3,13 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
-import { ApiError } from '@/api/client'
 import type { DailyRevenue, IncomeSource, OtherIncome } from '@/types'
 import { compressImage } from '@/utils/imageCompression'
 import ReceiptThumb from '@/components/admin/ReceiptThumb.vue'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import { formatDateWithWeekday, money } from '@/utils/format'
+import { MAX_BAHT } from '@/utils/limits'
+import { apiErrorMessage } from '@/api/errors'
 
 const { t, locale } = useI18n()
 const { confirm } = useConfirmDialog()
@@ -23,12 +24,6 @@ const daily = ref<DailyRevenue[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 
-function apiErrorMessage(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) {
-    return `${fallback} (${e.status}: ${e.message})`
-  }
-  return fallback
-}
 
 function formatDate(isoDate: string): string {
   return formatDateWithWeekday(isoDate, locale.value)
@@ -120,6 +115,10 @@ async function submitIncome(): Promise<void> {
     createIncomeError.value = t('income.amountRequired')
     return
   }
+  if (amount > MAX_BAHT) {
+    createIncomeError.value = t('validation.tooLarge')
+    return
+  }
   if (!incomeForm.source_name.trim()) {
     createIncomeError.value = t('income.sourceNameRequired')
     return
@@ -177,6 +176,10 @@ async function saveIncomeEdit(income: OtherIncome): Promise<void> {
   const amount = Number(editIncomeForm.amount)
   if (!amount || amount <= 0) {
     incomeRowError.value = t('income.amountRequired')
+    return
+  }
+  if (amount > MAX_BAHT) {
+    incomeRowError.value = t('validation.tooLarge')
     return
   }
   if (!editIncomeForm.source_name.trim()) {
@@ -305,7 +308,7 @@ onMounted(async () => {
       <button
         v-if="!addingIncome"
         type="button"
-        class="hud-hover mt-3 w-full rounded-full border border-brand-pink/40 px-4 py-2.5 text-sm font-semibold text-brand-pink"
+        class="tap hud-hover mt-3 w-full rounded-full border border-brand-pink/40 px-4 text-sm font-semibold text-brand-pink"
         @click="addingIncome = true"
       >
         + {{ t('income.addTitle') }}
@@ -351,12 +354,12 @@ onMounted(async () => {
           <button
             type="button"
             :disabled="savingIncome"
-            class="rounded-full bg-brand-pink px-4 py-1.5 text-sm font-semibold text-brand-black disabled:opacity-50"
+            class="tap rounded-full bg-brand-pink px-5 text-sm font-semibold text-brand-black disabled:opacity-50"
             @click="submitIncome"
           >
             {{ savingIncome ? t('income.saving') : t('income.addIncome') }}
           </button>
-          <button type="button" class="text-sm text-white/50" @click="addingIncome = false">
+          <button type="button" class="tap rounded-full border border-white/20 px-4 text-sm text-white/60" @click="addingIncome = false">
             {{ t('common.cancel') }}
           </button>
         </div>
@@ -391,7 +394,7 @@ onMounted(async () => {
 
           <template v-else>
             <div class="flex items-start gap-3">
-              <ReceiptThumb v-if="i.slip_url" :url="i.slip_url" />
+              <ReceiptThumb v-if="i.slip_url" :url="i.slip_url" :alt="t('expenses.receipt')" />
               <div class="flex-1">
                 <div class="flex flex-wrap items-center gap-2">
                   <span class="rounded-full bg-brand-black px-2 py-0.5 text-xs font-semibold tracking-wide text-brand-pink/80 uppercase">
@@ -405,9 +408,9 @@ onMounted(async () => {
               <span class="shrink-0 font-bold text-brand-pink">{{ money(i.amount) }}</span>
             </div>
             <div class="mt-3 flex items-center gap-2">
-              <button class="min-h-10 rounded-full border border-brand-pink/40 px-4 text-xs font-semibold text-brand-pink" @click="startEditIncome(i)">{{ t('income.edit') }}</button>
+              <button class="min-h-11 rounded-full border border-brand-pink/40 px-4 text-xs font-semibold text-brand-pink" @click="startEditIncome(i)">{{ t('income.edit') }}</button>
               <label
-                class="min-h-10 rounded-full border border-brand-pink/40 px-4 text-xs font-semibold text-brand-pink flex cursor-pointer items-center"
+                class="min-h-11 rounded-full border border-brand-pink/40 px-4 text-xs font-semibold text-brand-pink flex cursor-pointer items-center"
                 :class="{ 'pointer-events-none opacity-50': uploadingSlipId === i.id }"
               >
                 <template v-if="uploadingSlipId === i.id">{{ t('income.uploadingSlip') }}</template>
@@ -422,7 +425,7 @@ onMounted(async () => {
               </label>
               <button
                 :disabled="deletingIncomeId === i.id"
-                class="ml-auto min-h-10 rounded-full bg-status-error/20 px-4 text-xs font-semibold text-status-error disabled:opacity-50"
+                class="ml-auto min-h-11 rounded-full bg-status-error/20 px-4 text-xs font-semibold text-status-error disabled:opacity-50"
                 @click="removeIncome(i)"
               >
                 {{ t('common.delete') }}

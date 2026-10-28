@@ -14,6 +14,8 @@ function initials(name: string): string {
 </script>
 
 <template>
+  <!-- lg steps down a size on phones: two doubles teams of 64px faces plus
+       the score between them were 30px wider than a 375px screen. -->
   <img
     v-if="avatarUrl"
     :src="avatarUrl"
@@ -24,7 +26,7 @@ function initials(name: string): string {
     :class="{
       'h-8 w-8': size === 'sm',
       'h-11 w-11': size === 'md',
-      'h-16 w-16': size === 'lg',
+      'h-12 w-12 sm:h-16 sm:w-16': size === 'lg',
       'h-44 w-44 sm:h-60 sm:w-60': size === 'xl',
     }"
   />
@@ -34,7 +36,7 @@ function initials(name: string): string {
     :class="{
       'h-8 w-8 text-xs': size === 'sm',
       'h-11 w-11 text-sm': size === 'md',
-      'h-16 w-16 text-lg': size === 'lg',
+      'h-12 w-12 text-base sm:h-16 sm:w-16 sm:text-lg': size === 'lg',
       'h-44 w-44 text-6xl sm:h-60 sm:w-60': size === 'xl',
     }"
   >

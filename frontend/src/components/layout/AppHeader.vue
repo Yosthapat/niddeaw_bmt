@@ -33,7 +33,7 @@ function isActive(to: string): boolean {
 <template>
   <header v-if="isAdmin" class="sticky top-0 z-10 border-b border-brand-pink/20 bg-brand-black/95 backdrop-blur">
     <div class="mx-auto flex max-w-5xl items-center gap-2.5 px-3 py-3 sm:gap-4 sm:px-4">
-      <RouterLink to="/" class="flex min-h-11 shrink-0 items-center gap-2.5">
+      <RouterLink to="/" class="flex min-h-11 min-w-11 shrink-0 items-center gap-2.5">
         <span class="hud-panel bg-brand-pink p-0.5">
           <img
             src="/pwa-icons/pwa-192x192.png"

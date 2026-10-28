@@ -3,13 +3,14 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
-import { ApiError } from '@/api/client'
 import { compressImage } from '@/utils/imageCompression'
 import type { Admin, Expense, ExpenseCategory, MonthlyExpenseSummary } from '@/types'
 import ReceiptThumb from '@/components/admin/ReceiptThumb.vue'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import LocalisedDateInput from '@/components/common/LocalisedDateInput.vue'
 import { formatDate as formatDateIn, formatMonth, money } from '@/utils/format'
+import { MAX_BAHT } from '@/utils/limits'
+import { apiErrorMessage } from '@/api/errors'
 
 const { t, locale } = useI18n()
 const { confirm } = useConfirmDialog()
@@ -34,10 +35,6 @@ const selectedMonthSummary = computed(
   () => summary.value.find((s) => s.month === selectedMonth.value) ?? null,
 )
 
-function apiErrorMessage(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) return `${fallback} (${e.status}: ${e.message})`
-  return fallback
-}
 
 function categoryLabel(category: ExpenseCategory): string {
   return t(`expenses.categoryLabels.${category}`)
@@ -128,11 +125,18 @@ async function submitExpense(): Promise<void> {
     createError.value = t('expenses.amountRequired')
     return
   }
+  if (amount > MAX_BAHT) {
+    createError.value = t('validation.tooLarge')
+    return
+  }
   if (form.category === 'other' && !form.category_other.trim()) {
     createError.value = t('expenses.categoryOtherRequired')
     return
   }
-  if (!form.paid_by) return
+  if (!form.paid_by) {
+    createError.value = t('expenses.paidByRequired')
+    return
+  }
 
   saving.value = true
   try {
@@ -240,6 +244,10 @@ async function saveEdit(expense: Expense): Promise<void> {
     rowError.value = t('expenses.amountRequired')
     return
   }
+  if (amount > MAX_BAHT) {
+    rowError.value = t('validation.tooLarge')
+    return
+  }
   if (editForm.category === 'other' && !editForm.category_other.trim()) {
     rowError.value = t('expenses.categoryOtherRequired')
     return
@@ -278,14 +286,14 @@ async function saveEdit(expense: Expense): Promise<void> {
     <!-- This month summary -->
     <section class="hud-panel mt-4 border border-brand-pink/20 bg-brand-surface p-4">
       <div class="flex items-center justify-between gap-2">
-        <button type="button" class="tap px-3 text-white/50 hover:text-white" @click="shiftMonth(-1)">←</button>
+        <button type="button" class="tap min-w-11 px-3 text-white/50 hover:text-white" :aria-label="t('expenses.prevMonth')" @click="shiftMonth(-1)">←</button>
         <LocalisedDateInput
           v-model="selectedMonth"
           type="month"
           :aria-label="t('expenses.monthPicked')"
           class="min-w-0 flex-1"
         />
-        <button type="button" class="tap px-3 text-white/50 hover:text-white" @click="shiftMonth(1)">→</button>
+        <button type="button" class="tap min-w-11 px-3 text-white/50 hover:text-white" :aria-label="t('expenses.nextMonth')" @click="shiftMonth(1)">→</button>
       </div>
 
       <div class="mt-3 flex items-center justify-between">
@@ -309,7 +317,7 @@ async function saveEdit(expense: Expense): Promise<void> {
     <button
       v-if="!adding"
       type="button"
-      class="hud-hover mt-6 w-full rounded-full border border-brand-pink/40 px-4 py-2.5 text-sm font-semibold text-brand-pink"
+      class="tap hud-hover mt-6 w-full rounded-full border border-brand-pink/40 px-4 text-sm font-semibold text-brand-pink"
       @click="adding = true"
     >
       + {{ t('expenses.addTitle') }}
@@ -367,13 +375,13 @@ async function saveEdit(expense: Expense): Promise<void> {
       <div class="mt-4 flex items-center gap-3">
         <button
           type="button"
-          :disabled="saving || !form.paid_by"
-          class="rounded-full bg-brand-pink px-4 py-1.5 text-sm font-semibold text-brand-black disabled:opacity-50"
+          :disabled="saving"
+          class="tap rounded-full bg-brand-pink px-5 text-sm font-semibold text-brand-black disabled:opacity-50"
           @click="submitExpense"
         >
           {{ saving ? t('expenses.saving') : t('expenses.addExpense') }}
         </button>
-        <button type="button" class="text-sm text-white/50" @click="adding = false">
+        <button type="button" class="tap rounded-full border border-white/20 px-4 text-sm text-white/60" @click="adding = false">
           {{ t('common.cancel') }}
         </button>
       </div>
@@ -418,7 +426,7 @@ async function saveEdit(expense: Expense): Promise<void> {
 
         <template v-else>
           <div class="flex items-start gap-3">
-            <ReceiptThumb v-if="e.receipt_url" :url="e.receipt_url" />
+            <ReceiptThumb v-if="e.receipt_url" :url="e.receipt_url" :alt="t('expenses.receipt')" />
             <div class="flex-1">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="font-medium">{{ e.category === 'other' ? e.category_other : categoryLabel(e.category) }}</span>
@@ -448,14 +456,14 @@ async function saveEdit(expense: Expense): Promise<void> {
           </div>
 
           <div class="mt-3 flex items-center gap-2">
-            <button class="min-h-10 rounded-full border border-brand-pink/40 px-4 text-xs font-semibold text-brand-pink" @click="startEdit(e)">{{ t('expenses.edit') }}</button>
-            <label class="min-h-10 rounded-full border border-brand-pink/40 px-4 text-xs font-semibold text-brand-pink flex cursor-pointer items-center">
+            <button class="min-h-11 rounded-full border border-brand-pink/40 px-4 text-xs font-semibold text-brand-pink" @click="startEdit(e)">{{ t('expenses.edit') }}</button>
+            <label class="min-h-11 rounded-full border border-brand-pink/40 px-4 text-xs font-semibold text-brand-pink flex cursor-pointer items-center">
               {{ e.receipt_url ? t('expenses.replaceReceipt') : t('expenses.addReceipt') }}
               <input type="file" accept="image/*" class="hidden" @change="onRowReceiptSelected($event, e)" />
             </label>
             <button
               :disabled="deletingId === e.id"
-              class="ml-auto min-h-10 rounded-full bg-status-error/20 px-4 text-xs font-semibold text-status-error disabled:opacity-50"
+              class="ml-auto min-h-11 rounded-full bg-status-error/20 px-4 text-xs font-semibold text-status-error disabled:opacity-50"
               @click="removeExpense(e)"
             >
               {{ t('common.delete') }}
@@ -472,7 +480,7 @@ async function saveEdit(expense: Expense): Promise<void> {
         <li v-for="s in summary" :key="s.month">
           <button
             type="button"
-            class="hud-panel flex min-h-10 w-full items-center justify-between border px-3 py-2 text-sm"
+            class="hud-panel flex min-h-11 w-full items-center justify-between border px-3 py-2 text-sm"
             :class="s.month === selectedMonth ? 'border-brand-pink/60 bg-brand-surface-raised' : 'border-brand-pink/10 bg-brand-surface text-white/60'"
             @click="selectedMonth = s.month"
           >

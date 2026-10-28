@@ -79,7 +79,8 @@ onMounted(async () => {
         v-model="search"
         type="search"
         :placeholder="t('members.searchPlaceholder')"
-        class="hud-panel min-h-11 w-full max-w-xs border border-brand-pink/25 bg-brand-surface px-4 text-sm outline-none focus:border-brand-pink"
+        :aria-label="t('members.searchPlaceholder')"
+        class="hud-panel min-h-11 w-full border sm:max-w-xs border-brand-pink/25 bg-brand-surface px-4 text-sm outline-none focus:border-brand-pink"
       />
     </div>
 
@@ -90,7 +91,41 @@ onMounted(async () => {
     <p v-else-if="stats.length === 0" class="mt-6 text-white/60">{{ t('members.empty') }}</p>
     <p v-else-if="filteredStats.length === 0" class="mt-6 text-white/60">{{ t('members.noSearchResults') }}</p>
 
-    <div v-else v-reveal class="hud-panel glass-panel mt-6 overflow-x-auto border border-brand-pink/20">
+    <!-- Phone: one card per member. The nine-column table needed 680px and
+         scrolled sideways inside a 343px box, so win/draw/loss — the numbers
+         people come here for — were the ones out of sight. -->
+    <ul v-else-if="filteredStats.length > 0" class="mt-6 space-y-2 sm:hidden">
+      <li v-for="s in filteredStats" :key="s.player.id">
+        <RouterLink
+          :to="`/members/${s.player.id}`"
+          class="hud-panel glass-panel hud-hover block border border-brand-pink/15 px-4 py-3"
+        >
+          <div class="flex items-center gap-3">
+            <PlayerAvatar :name="s.player.nickname" :avatar-url="s.player.avatar_url" size="sm" />
+            <span class="min-w-0 flex-1 truncate font-medium">{{ s.player.nickname }}</span>
+            <TierMascot :tier="s.player.elo_level" :size="22" :interactive="false" />
+            <EloBadge :elo-score="s.player.elo_score" />
+          </div>
+          <dl class="mt-3 grid grid-cols-5 gap-1 text-center">
+            <div v-for="cell in [
+              { label: t('common.game'), value: s.games },
+              { label: t('common.win'), value: s.wins },
+              { label: t('common.draw'), value: s.draws },
+              { label: t('common.loss'), value: s.losses },
+            ]" :key="cell.label">
+              <dt class="text-[11px] text-white/40">{{ cell.label }}</dt>
+              <dd class="font-display text-white/80">{{ cell.value }}</dd>
+            </div>
+            <div>
+              <dt class="text-[11px] text-white/40">Pts</dt>
+              <dd class="font-display font-semibold text-brand-pink">{{ s.points }}</dd>
+            </div>
+          </dl>
+        </RouterLink>
+      </li>
+    </ul>
+
+    <div v-if="!loading && !error && filteredStats.length > 0" v-reveal class="hud-panel glass-panel mt-6 hidden overflow-x-auto border border-brand-pink/20 sm:block">
       <table class="w-full min-w-[680px] text-left text-sm">
         <thead class="border-b border-brand-pink/20 text-xs font-semibold tracking-wider text-white/40 uppercase">
           <tr>

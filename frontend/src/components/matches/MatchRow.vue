@@ -27,7 +27,9 @@ function nameOf(playerId: string): string {
 }
 
 function setsLabel(match: Match): string {
-  if (!match.sets) return '-'
+  // Results are recorded as a winner only, so most matches have no sets;
+  // a lone "-" between the teams read as a missing score.
+  if (!match.sets || match.sets.length === 0) return 'VS'
   return match.sets.map(([a, b]) => `${a}-${b}`).join(', ')
 }
 
@@ -62,7 +64,7 @@ function dateLabel(isoDate: string): string {
         <!-- No doubles/singles split any more: the club only plays
              doubles, and the admin UI can only create type="double".
              A legacy singles row, if the database still holds one,
-             reads "แมท" like everything else. -->
+             reads "แมตช์" like everything else. -->
         {{ t('matches.typeLabel') }}
       </span>
       <span class="flex items-center gap-2">
@@ -73,7 +75,7 @@ function dateLabel(isoDate: string): string {
 
     <div class="mt-3 flex items-center justify-between gap-3">
       <div
-        class="flex flex-1 flex-col items-center gap-1.5"
+        class="flex min-w-0 flex-1 flex-col items-center gap-1.5"
         :class="{ 'opacity-45 grayscale': match.winner === 'team2' }"
       >
         <div class="stamp-wrap relative flex gap-2">
@@ -88,7 +90,7 @@ function dateLabel(isoDate: string): string {
           <span v-else-if="match.winner === 'draw'" class="stamp stamp--draw">{{ t('matches.draw') }}</span>
         </div>
         <span
-          class="text-center text-sm font-medium"
+          class="max-w-full text-center text-sm font-medium break-words"
           :class="match.winner === 'team1' ? 'text-brand-pink' : 'text-white/70'"
         >
           {{ match.team1_player_ids.map(nameOf).join(' & ') }}
@@ -100,7 +102,7 @@ function dateLabel(isoDate: string): string {
       </span>
 
       <div
-        class="flex flex-1 flex-col items-center gap-1.5"
+        class="flex min-w-0 flex-1 flex-col items-center gap-1.5"
         :class="{ 'opacity-45 grayscale': match.winner === 'team1' }"
       >
         <div class="stamp-wrap relative flex gap-2">
@@ -115,7 +117,7 @@ function dateLabel(isoDate: string): string {
           <span v-else-if="match.winner === 'draw'" class="stamp stamp--draw">{{ t('matches.draw') }}</span>
         </div>
         <span
-          class="text-center text-sm font-medium"
+          class="max-w-full text-center text-sm font-medium break-words"
           :class="match.winner === 'team2' ? 'text-brand-pink' : 'text-white/70'"
         >
           {{ match.team2_player_ids.map(nameOf).join(' & ') }}

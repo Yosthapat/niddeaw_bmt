@@ -4,7 +4,6 @@ import { useI18n } from 'vue-i18n'
 import { useSessionsStore } from '@/stores/sessions'
 import { usePlayersStore } from '@/stores/players'
 import * as adminApi from '@/api/admin'
-import { ApiError } from '@/api/client'
 import { usePolling } from '@/composables/usePolling'
 import { nicknameProblem, nicknameTaken } from '@/utils/nickname'
 import { formatTime } from '@/utils/format'
@@ -14,6 +13,7 @@ import SessionPicker from '@/components/layout/SessionPicker.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
+import { apiErrorMessage } from '@/api/errors'
 
 const { t, locale } = useI18n()
 const sessionsStore = useSessionsStore()
@@ -72,12 +72,6 @@ const filteredAvailablePlayers = computed(() => {
   return availablePlayers.value.filter((p) => p.nickname.toLowerCase().includes(query))
 })
 
-function apiErrorMessage(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) {
-    return `${fallback} (${e.status}: ${e.message})`
-  }
-  return fallback
-}
 
 async function refreshCheckins(): Promise<void> {
   if (!sessionsStore.currentSessionId) {
@@ -157,6 +151,7 @@ usePolling(refreshCheckins, 8000)
         v-model="search"
         type="search"
         :placeholder="t('checkin.searchPlaceholder')"
+        :aria-label="t('checkin.searchPlaceholder')"
         class="hud-panel mt-4 min-h-11 w-full border border-brand-pink/25 bg-brand-surface px-3 text-sm outline-none focus:border-brand-pink"
       />
 
@@ -254,7 +249,11 @@ usePolling(refreshCheckins, 8000)
             <input
               v-model="newPlayerName"
               :placeholder="t('checkin.newMemberName')"
-              class="flex-1 rounded-lg border border-brand-pink/25 bg-brand-black px-2 py-1 text-sm"
+              :aria-label="t('checkin.newMemberName')"
+              maxlength="40"
+              autocapitalize="words"
+              class="min-h-11 min-w-0 flex-1 rounded-lg border border-brand-pink/25 bg-brand-black px-2 text-sm"
+              @keydown.enter="newNameProblem === null && newPlayerName.trim() && quickAddPlayer()"
             />
             <button
               :disabled="newNameProblem !== null || !newPlayerName.trim()"
@@ -263,7 +262,7 @@ usePolling(refreshCheckins, 8000)
             >
               {{ t('common.save') }}
             </button>
-            <button class="text-sm text-white/50" @click="addingPlayer = false">
+            <button class="tap rounded-full border border-white/20 px-3 text-sm text-white/60" @click="addingPlayer = false">
               {{ t('common.cancel') }}
             </button>
           </div>

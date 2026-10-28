@@ -97,7 +97,7 @@ const rankBadgeClass = ['rank-badge-gold', 'rank-badge-silver', 'rank-badge-bron
           v-if="period === 'day' && playDates.length > 0"
           v-model="selectedDate"
           :aria-label="t('ranking.pickDay')"
-          class="hud-panel border border-brand-pink/25 bg-brand-surface px-3 py-2 text-sm text-white"
+          class="hud-panel min-h-11 border border-brand-pink/25 bg-brand-surface px-3 text-sm text-white"
           @change="load"
         >
           <option v-for="d in playDates" :key="d" :value="d">{{ formatPlayDate(d) }}</option>
@@ -129,18 +129,27 @@ const rankBadgeClass = ['rank-badge-gold', 'rank-badge-silver', 'rank-badge-bron
         >
           {{ medalByRank[i] ?? i + 1 }}
         </span>
-        <RouterLink :to="`/members/${s.player.id}`" class="flex flex-1 items-center gap-3 hover:text-brand-pink">
+        <RouterLink :to="`/members/${s.player.id}`" class="flex min-h-11 min-w-0 flex-1 items-center gap-3 hover:text-brand-pink">
           <PlayerAvatar :name="s.player.nickname" :avatar-url="s.player.avatar_url" size="sm" />
-          <div>
-            <p class="font-medium">{{ s.player.nickname }}</p>
+          <div class="min-w-0">
+            <p class="truncate font-medium">{{ s.player.nickname }}</p>
             <p class="text-xs text-white/40">
               {{ s.games }} {{ t('common.game') }} · {{ t('common.win') }} <CountUp :value="s.wins" />
+              · {{ t('common.draw') }} {{ s.draws }} · {{ t('common.loss') }} {{ s.losses }}
             </p>
           </div>
         </RouterLink>
-        <TierMascot :tier="s.player.elo_level" :size="28" class="hidden sm:block" />
-        <EloBadge :elo-score="s.player.elo_score" show-score class="hidden sm:inline-flex" />
-        <CountUp :value="s.points" class="w-12 text-right font-display text-lg font-bold text-brand-pink" />
+        <!-- A wrapper, not `hidden` on the components: their own root class
+             says inline-block, which won over `hidden` and squeezed the
+             name column to one word per line on a phone. -->
+        <div class="hidden shrink-0 items-center gap-2 sm:flex">
+          <TierMascot :tier="s.player.elo_level" :size="28" />
+          <EloBadge :elo-score="s.player.elo_score" show-score />
+        </div>
+        <div class="flex w-12 shrink-0 flex-col items-end leading-none">
+          <CountUp :value="s.points" class="font-display text-lg font-bold text-brand-pink" />
+          <span class="mt-1 text-[10px] text-white/40">{{ t('common.points') }}</span>
+        </div>
       </li>
     </ol>
   </main>

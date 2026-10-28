@@ -63,6 +63,7 @@ export default {
     sponsorsTitle: 'Presented by',
   },
   members: {
+    saveFailed: "Couldn't save the member",
     searchPlaceholder: 'Search members...',
     listTitle: 'All members',
     loadError: 'Failed to load member data',
@@ -187,6 +188,7 @@ export default {
     updating: 'Updating...',
   },
   session: {
+    pickNight: 'Choose a night',
     label: 'Night',
     none: 'No session yet',
     openGroup: 'Open',
@@ -299,6 +301,7 @@ export default {
     calculatedAmount: 'Calculated amount',
     adjustAmount: 'Adjust amount',
     saveAdjustment: 'Save Adjustment',
+    useCalculated: 'Use calculated',
     showQr: 'Show Payment Info',
     hideQr: 'Hide',
     billFailed: 'Failed to bill player',
@@ -394,6 +397,7 @@ export default {
   },
   admin: {
     nav: {
+      label: 'Admin menu',
       dashboard: 'Dashboard',
       checkin: 'Check-in',
       members: 'Manage Members',
@@ -450,6 +454,9 @@ export default {
     empty: 'No activity yet',
   },
   expenses: {
+    prevMonth: 'Previous month',
+    nextMonth: 'Next month',
+    paidByRequired: 'Choose who paid first',
     categoryLabels: {
       court_fee: 'Court fee',
       shuttlecock: 'Shuttlecocks',
@@ -525,6 +532,43 @@ export default {
   // TierInfoModal.vue — mascot flavor text. Skill-level letters (VB, BG-,
   // BG, N-, N, S, P, C) per the club's own "มือ" grading scale, lowest to
   // highest, matching the tier order (rising alcohol content).
+  validation: {
+    empty: 'Enter a number first',
+    notNumber: 'Must be a number',
+    negative: "Can't be negative",
+    zero: 'Must be more than 0',
+    tooLarge: 'Over 1,000,000 baht — an extra zero?',
+    locationRequired: 'Enter the court name first',
+    promptpayPhone: 'A phone number is 10 digits starting with 0, e.g. 0812345678',
+    promptpayNationalId: 'A national ID is 13 digits',
+    promptpayEwallet: 'An e-Wallet ID is 15 digits',
+    eloRange: 'ELO must be between 0 and 4000',
+  },
+  apiErrors: {
+    offline: "Can't reach the server — check the connection and try again",
+    signedOut: 'Your sign-in expired — sign in again and retry',
+    waitSeconds: 'Too many tries — wait {n} seconds',
+    server: 'The server hit a problem — try again in a moment',
+    invalid: "Some fields aren't valid — check them and try again",
+    sessionGone: 'That night no longer exists (it may have been deleted) — refresh',
+    nothingChanged: 'Nothing was changed',
+    tooManyLogins: 'Too many wrong passwords — wait a moment and try again',
+    badLogin: 'Wrong username or password',
+    checkinGone: 'That check-in no longer exists — refresh',
+    categoryOtherRequired: 'With "Other" chosen, type what the expense was',
+    rowGone: 'That entry was already deleted — refresh',
+    matchGone: 'That match no longer exists — refresh',
+    playerGone: 'That member no longer exists — refresh',
+    fileTooLarge5: 'The file is over 5MB — shrink the image and try again',
+    fileTooLarge2: 'The file is over 2MB — shrink the image and try again',
+    badImage: 'Only JPG, PNG or WebP images are supported',
+    settingsMissing: "Club settings aren't set up yet — open Settings first",
+    promptpayMissing: 'No PromptPay ID yet — add it in Settings first',
+    bankMissing: 'No bank account yet — add it in Settings first',
+    qrMissing: 'No QR uploaded yet — upload one in Settings first',
+    alreadyLocked: 'Someone in this pair is already locked with another player',
+    matchMoved: 'This match already changed state (someone got there first) — refresh',
+  },
   tierInfo: {
     close: 'Close',
     milk:

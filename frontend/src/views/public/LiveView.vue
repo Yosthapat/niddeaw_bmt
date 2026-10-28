@@ -97,7 +97,7 @@ usePolling(refresh, 7000)
             class="hud-panel glass-panel border border-brand-pink/20 px-4 py-3"
           >
             <div class="flex items-center justify-between gap-3">
-              <div class="flex flex-1 flex-col items-center gap-1.5">
+              <div class="flex min-w-0 flex-1 flex-col items-center gap-1.5">
                 <div class="flex gap-2">
                   <PlayerAvatar
                     v-for="pid in m.team1_player_ids"
@@ -107,7 +107,7 @@ usePolling(refresh, 7000)
                     size="lg"
                   />
                 </div>
-                <span class="text-center font-medium text-white/80">
+                <span class="max-w-full text-center font-medium break-words text-white/80">
                   {{ m.team1_player_ids.map(nameOf).join(' & ') }}
                 </span>
               </div>
@@ -121,7 +121,7 @@ usePolling(refresh, 7000)
                 </span>
               </div>
 
-              <div class="flex flex-1 flex-col items-center gap-1.5">
+              <div class="flex min-w-0 flex-1 flex-col items-center gap-1.5">
                 <div class="flex gap-2">
                   <PlayerAvatar
                     v-for="pid in m.team2_player_ids"
@@ -131,7 +131,7 @@ usePolling(refresh, 7000)
                     size="lg"
                   />
                 </div>
-                <span class="text-center font-medium text-white/80">
+                <span class="max-w-full text-center font-medium break-words text-white/80">
                   {{ m.team2_player_ids.map(nameOf).join(' & ') }}
                 </span>
               </div>
@@ -155,7 +155,7 @@ usePolling(refresh, 7000)
             class="hud-panel glass-panel border border-brand-pink/20 px-4 py-3"
           >
             <div class="flex items-center justify-between gap-3">
-              <div class="flex flex-1 flex-col items-center gap-1.5">
+              <div class="flex min-w-0 flex-1 flex-col items-center gap-1.5">
                 <div class="flex gap-2">
                   <PlayerAvatar
                     v-for="pid in m.team1_player_ids"
@@ -165,7 +165,7 @@ usePolling(refresh, 7000)
                     size="lg"
                   />
                 </div>
-                <span class="text-center text-sm text-white/80">
+                <span class="max-w-full text-center text-sm break-words text-white/80">
                   {{ m.team1_player_ids.map(nameOf).join(' & ') }}
                 </span>
               </div>
@@ -182,7 +182,7 @@ usePolling(refresh, 7000)
                 </span>
               </div>
 
-              <div class="flex flex-1 flex-col items-center gap-1.5">
+              <div class="flex min-w-0 flex-1 flex-col items-center gap-1.5">
                 <div class="flex gap-2">
                   <PlayerAvatar
                     v-for="pid in m.team2_player_ids"
@@ -192,7 +192,7 @@ usePolling(refresh, 7000)
                     size="lg"
                   />
                 </div>
-                <span class="text-center text-sm text-white/80">
+                <span class="max-w-full text-center text-sm break-words text-white/80">
                   {{ m.team2_player_ids.map(nameOf).join(' & ') }}
                 </span>
               </div>

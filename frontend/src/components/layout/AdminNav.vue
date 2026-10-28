@@ -9,12 +9,18 @@ const router = useRouter()
 const authStore = useAuthStore()
 const { t } = useI18n()
 
-const links = computed(() => [
+// The night's three screens first and in the order a night runs them —
+// check in, pair, bill — so on a phone they are the ones already in view.
+// Member management used to sit between check-in and pairing, splitting
+// the flow; it is a between-nights job and goes with the bookkeeping.
+const nightLinks = computed(() => [
   { to: '/admin', label: t('admin.nav.dashboard') },
   { to: '/admin/checkin', label: t('admin.nav.checkin') },
-  { to: '/admin/members', label: t('admin.nav.members') },
   { to: '/admin/matchmaking', label: t('admin.nav.matchmaking') },
   { to: '/admin/billing', label: t('admin.nav.billing') },
+])
+const officeLinks = computed(() => [
+  { to: '/admin/members', label: t('admin.nav.members') },
   { to: '/admin/expenses', label: t('admin.nav.expenses') },
   { to: '/admin/revenue', label: t('admin.nav.revenue') },
   { to: '/admin/settings', label: t('admin.nav.settings') },
@@ -47,22 +53,28 @@ function logout(): void {
 </script>
 
 <template>
-  <nav class="mx-auto max-w-4xl px-4 pt-4">
-    <div ref="strip" class="admin-nav-strip flex items-center gap-1.5 overflow-x-auto text-sm">
-      <RouterLink
-        v-for="link in links"
-        :key="link.to"
-        :to="link.to"
-        :data-active="route.path === link.to"
-        class="hud-panel flex min-h-11 shrink-0 items-center px-3 font-semibold whitespace-nowrap transition-colors"
-        :class="
-          route.path === link.to
-            ? 'bg-brand-pink text-brand-black'
-            : 'bg-brand-surface text-white/60 hover:bg-brand-surface-raised hover:text-white'
-        "
-      >
-        {{ link.label }}
-      </RouterLink>
+  <!-- Wider than the pages below it on a desktop, so all ten fit on one
+       row there; at 1280px the strip used to scroll with both ends cut. -->
+  <nav class="mx-auto max-w-4xl px-4 pt-4 lg:max-w-6xl" :aria-label="t('admin.nav.label')">
+    <div ref="strip" class="admin-nav-strip flex items-center gap-1.5 overflow-x-auto text-sm lg:flex-wrap lg:justify-center lg:overflow-visible">
+      <template v-for="(group, gi) in [nightLinks, officeLinks]" :key="gi">
+        <span v-if="gi > 0" class="mx-1 h-5 w-px shrink-0 bg-white/15" aria-hidden="true" />
+        <RouterLink
+          v-for="link in group"
+          :key="link.to"
+          :to="link.to"
+          :data-active="route.path === link.to"
+          :aria-current="route.path === link.to ? 'page' : undefined"
+          class="hud-panel flex min-h-11 shrink-0 items-center px-3 font-semibold whitespace-nowrap transition-colors"
+          :class="
+            route.path === link.to
+              ? 'bg-brand-pink text-brand-black'
+              : 'bg-brand-surface text-white/60 hover:bg-brand-surface-raised hover:text-white'
+          "
+        >
+          {{ link.label }}
+        </RouterLink>
+      </template>
       <span class="mx-1 h-5 w-px shrink-0 bg-white/15" aria-hidden="true" />
       <button
         class="hud-panel flex min-h-11 shrink-0 items-center border border-white/15 px-3 whitespace-nowrap text-white/50 hover:border-white/30 hover:text-white"
@@ -99,5 +111,12 @@ function logout(): void {
 }
 .admin-nav-strip::-webkit-scrollbar {
   display: none;
+}
+/* Nothing is cut on a desktop (it wraps there), so nothing should fade. */
+@media (min-width: 1024px) {
+  .admin-nav-strip {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
 }
 </style>

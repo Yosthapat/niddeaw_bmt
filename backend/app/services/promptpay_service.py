@@ -45,6 +45,37 @@ def _crc16_ccitt_false(data: str) -> str:
     return f"{crc:04X}"
 
 
+_ID_DIGITS: dict[str, tuple[int, str]] = {
+    "phone": (10, "เบอร์โทร PromptPay ต้องเป็นตัวเลข 10 หลัก เช่น 0812345678"),
+    "national_id": (13, "เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก"),
+    "ewallet": (15, "e-Wallet ID ต้องเป็นตัวเลข 15 หลัก"),
+}
+
+
+def id_problem(
+    promptpay_id: str | None, promptpay_type: str | None, payment_method: str | None
+) -> str | None:
+    """Why this PromptPay id would make a QR nobody can pay, or None.
+
+    _format_target pads whatever digits it is given, so "abc" or a phone
+    number one digit short still becomes a QR — one the banking app rejects
+    at the till, on a club night, with a queue behind it. Checked only when
+    the id is set or PromptPay is the chosen method: a club paying by bank
+    account can leave it blank."""
+    if promptpay_type is None or promptpay_type not in _ID_DIGITS:
+        return None
+    raw = (promptpay_id or "").strip()
+    if not raw and payment_method != "promptpay":
+        return None
+    length, message = _ID_DIGITS[promptpay_type]
+    digits = re.sub(r"[\s-]", "", raw)
+    if not digits.isdigit() or len(digits) != length:
+        return message
+    if promptpay_type == "phone" and not digits.startswith("0"):
+        return message
+    return None
+
+
 def _format_target(promptpay_id: str, promptpay_type: PromptPayType) -> tuple[str, str]:
     """Returns (merchant-info subfield tag, formatted target value)."""
     digits = re.sub(r"\D", "", promptpay_id)
