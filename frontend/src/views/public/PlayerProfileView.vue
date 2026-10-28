@@ -10,6 +10,7 @@ import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 import CountUp from '@/components/common/CountUp.vue'
 import PlayerLiveStatus from '@/components/players/PlayerLiveStatus.vue'
 import PlayerSeasonMatches from '@/components/players/PlayerSeasonMatches.vue'
+import PlayerShopOrders from '@/components/shop/PlayerShopOrders.vue'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -173,6 +174,8 @@ watch(
           </li>
         </ul>
       </section>
+
+      <PlayerShopOrders :player-id="profile.player.id" />
 
       <div ref="matchesAnchor" class="scroll-mt-24">
         <PlayerSeasonMatches :key="`seasons-${profile.player.id}`" :player-id="profile.player.id" />

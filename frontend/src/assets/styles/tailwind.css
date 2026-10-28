@@ -355,10 +355,11 @@ button:not(:disabled):active {
   color: #fff;
 }
 
-/* How much room the floating header takes at the top of the page. The
-   home hero pulls itself up by exactly this much to run underneath it. */
+/* How much room the header takes at the top of the page: the solid
+   phone bar, then from 900px the floating glass one. The home hero (wide
+   screens only) pulls itself up by exactly this much to run underneath it. */
 :root {
-  --header-h: 80px;
+  --header-h: 64px;
 }
 @media (min-width: 900px) {
   :root {

@@ -2,24 +2,14 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
 
 from app.db_utils import rows
 from app.deps import AdminDep, SupabaseDep
 from app.models.billing import Billing, BillingAdjust, BillingMarkPaid, DailyRevenue
-from app.models.club_settings import PaymentMethod
-from app.services import billing_service, promptpay_service, queue_service, revenue_service
+from app.models.payment import PaymentInfoResponse
+from app.services import billing_service, payment_info_service, queue_service, revenue_service
 
 router = APIRouter(prefix="/api/admin/billing", tags=["admin-billing"])
-
-
-class PaymentInfoResponse(BaseModel):
-    method: PaymentMethod
-    amount: float
-    data_uri: str | None = None
-    bank_name: str | None = None
-    bank_account_number: str | None = None
-    bank_account_name: str | None = None
 
 
 @router.get("", response_model=list[Billing])
@@ -233,55 +223,4 @@ def get_payment_info(billing_id: UUID, supabase: SupabaseDep, admin: AdminDep) -
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing row not found")
     billing = Billing.model_validate(billing_rows[0])
 
-    settings_result = supabase.table("club_settings").select("*").eq("id", 1).limit(1).execute()
-    settings_rows = rows(settings_result)
-    if not settings_rows:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Club settings not configured — set them in Admin > Settings first",
-        )
-    club_settings = settings_rows[0]
-    method: PaymentMethod = club_settings["payment_method"]
-    amount = billing.effective_amount
-
-    if method == "promptpay":
-        if not club_settings["promptpay_id"]:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="PromptPay ID not configured — set it in Admin > Settings first",
-            )
-        payload = promptpay_service.build_promptpay_payload(
-            club_settings["promptpay_id"], club_settings["promptpay_type"], amount
-        )
-        return PaymentInfoResponse(
-            method=method, amount=amount, data_uri=promptpay_service.generate_qr_data_uri(payload)
-        )
-
-    if method in ("bank_account", "bank_account_qr"):
-        bank_name = club_settings["bank_name"]
-        bank_account_number = club_settings["bank_account_number"]
-        bank_account_name = club_settings["bank_account_name"]
-        if not bank_name or not bank_account_number:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Bank account not configured — set it in Admin > Settings first",
-            )
-        data_uri = None
-        if method == "bank_account_qr":
-            text = f"ธนาคาร {bank_name}\nเลขบัญชี {bank_account_number}\nชื่อบัญชี {bank_account_name or ''}"
-            data_uri = promptpay_service.generate_qr_data_uri(text)
-        return PaymentInfoResponse(
-            method=method,
-            amount=amount,
-            data_uri=data_uri,
-            bank_name=bank_name,
-            bank_account_number=bank_account_number,
-            bank_account_name=bank_account_name,
-        )
-
-    if not club_settings["uploaded_qr_url"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No QR code uploaded — upload one in Admin > Settings first",
-        )
-    return PaymentInfoResponse(method=method, amount=amount, data_uri=club_settings["uploaded_qr_url"])
+    return payment_info_service.payment_info(supabase, billing.effective_amount)

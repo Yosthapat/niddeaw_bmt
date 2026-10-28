@@ -14,8 +14,9 @@ from app.routers.admin import players_admin
 from app.routers.admin import sessions as admin_sessions
 from app.routers.admin import stats_audit_admin as admin_stats_audit
 from app.routers.admin import settings as admin_settings
+from app.routers.admin import shop_admin as admin_shop
 from app.routers.admin import sponsors_admin as admin_sponsors
-from app.routers.public import hall_of_fame, live, matches, players, ranking, seasons, sponsors
+from app.routers.public import hall_of_fame, live, matches, players, ranking, seasons, shop, sponsors
 
 app = FastAPI(title="นิดเดียว Badminton Club API")
 
@@ -42,6 +43,7 @@ app.include_router(matches.router)
 app.include_router(live.router)
 app.include_router(seasons.router)
 app.include_router(sponsors.router)
+app.include_router(shop.router)
 
 app.include_router(admin_auth.router)
 app.include_router(admin_sessions.router)
@@ -55,6 +57,7 @@ app.include_router(admin_other_income.router)
 app.include_router(admin_activity_log.router)
 app.include_router(admin_stats_audit.router)
 app.include_router(admin_sponsors.router)
+app.include_router(admin_shop.router)
 
 
 @app.get("/health")

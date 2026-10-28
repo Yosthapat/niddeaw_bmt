@@ -147,6 +147,44 @@ def seed() -> MiniSupabase:
             ("The Players Club", "theplayersclubthailand", "players-club", 354, 388),
         ], start=1)
     ]
+    shirt, cap, towel = (str(uuid.uuid4()) for _ in range(3))
+    today = datetime.now().date()
+    db.tables["products"] = [
+        {"id": shirt, "name": "เสื้อก๊วน นิดเดียว 2026", "description": "ผ้าไมโคร ใส่ตีแบดสบาย\nสกรีนแมวมงกุฎด้านหลัง",
+         "price": 390.0, "sale_type": "preorder", "sizes": ["S", "M", "L", "XL", "2XL"],
+         "preorder_closes_on": (today + timedelta(days=9)).isoformat(),
+         "preorder_delivers_on": (today + timedelta(days=30)).isoformat(),
+         "image_urls": ["/hero/cat-color.webp"], "is_active": True, "sort_order": 0,
+         "created_at": _iso(60 * 24 * 3)},
+        {"id": cap, "name": "หมวกแก๊ป BMT", "description": None, "price": 250.0,
+         "sale_type": "stock", "sizes": [], "preorder_closes_on": None,
+         "preorder_delivers_on": None, "image_urls": [], "is_active": True, "sort_order": 1,
+         "created_at": _iso(60 * 24 * 2)},
+        {"id": towel, "name": "ผ้าเช็ดหน้า นิดเดียว", "description": "ผ้าคอตตอน 30×30 ซม.",
+         "price": 120.0, "sale_type": "stock", "sizes": ["ฟ้า", "ชมพู"],
+         "preorder_closes_on": None, "preorder_delivers_on": None, "image_urls": [],
+         "is_active": True, "sort_order": 2, "created_at": _iso(60 * 24)},
+    ]
+    db.tables["product_stock"] = [
+        {"product_id": cap, "size": "", "qty": 3},
+        {"product_id": towel, "size": "ฟ้า", "qty": 0},
+        {"product_id": towel, "size": "ชมพู", "qty": 5},
+    ]
+
+    def order(no: int, who: int, product: str, name: str, kind: str, size: str, qty: int,
+              price: float, status: str, minutes: int) -> dict[str, Any]:
+        return {"id": str(uuid.uuid4()), "order_no": no, "player_id": pid[who],
+                "product_id": product, "product_name": name, "sale_type": kind, "size": size,
+                "qty": qty, "unit_price": price, "total": price * qty,
+                "slip_url": "/hero/cat-color.webp", "status": status,
+                "note": "ยอดในสลิปไม่ตรง" if status == "rejected" else None,
+                "created_at": _iso(minutes), "updated_at": _iso(minutes)}
+
+    db.tables["shop_orders"] = [
+        order(1, 0, shirt, "เสื้อก๊วน นิดเดียว 2026", "preorder", "M", 2, 390.0, "pending", 30),
+        order(2, 1, shirt, "เสื้อก๊วน นิดเดียว 2026", "preorder", "L", 1, 390.0, "confirmed", 300),
+        order(3, 0, cap, "หมวกแก๊ป BMT", "stock", "", 1, 250.0, "rejected", 900),
+    ]
     for table in ("locked_pairs", "pairing_history", "admin_activity_log"):
         db.tables.setdefault(table, [])
     return db

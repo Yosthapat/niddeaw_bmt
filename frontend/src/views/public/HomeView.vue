@@ -1,14 +1,18 @@
 <script setup lang="ts">
 // Static club intro + contact — there's no backend-driven "club info" table
 // (out of scope per the issue doc), so this content is edited directly here.
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import type { EloTier } from '@/types'
 import AdCarousel from '@/components/home/AdCarousel.vue'
 import ClubMatchCounter from '@/components/home/ClubMatchCounter.vue'
+import HomeBanner from '@/components/home/HomeBanner.vue'
+import HomeCards from '@/components/home/HomeCards.vue'
 import HomeHero from '@/components/home/HomeHero.vue'
+import LiveNowBox from '@/components/home/LiveNowBox.vue'
 import MemberMarquee from '@/components/home/MemberMarquee.vue'
+import SponsorBand from '@/components/home/SponsorBand.vue'
 import TierRevealScene from '@/components/home/TierRevealScene.vue'
 
 const { t } = useI18n()
@@ -19,6 +23,18 @@ const authStore = useAuthStore()
 // small shared TierInfoModal that every other TierMascot on the site still
 // uses — home is the one place that gets the cinematic treatment.
 const revealTier = ref<EloTier | null>(null)
+
+// A phone gets the short banner, so the cards and the live box show
+// without scrolling; from 900px the full hero. Chosen in script rather than
+// with CSS so a phone never mounts the hero and downloads its 3D scene
+// only to hide it.
+const wideQuery = window.matchMedia('(min-width: 900px)')
+const wide = ref(wideQuery.matches)
+const onWide = (e: MediaQueryListEvent): void => {
+  wide.value = e.matches
+}
+wideQuery.addEventListener('change', onWide)
+onBeforeUnmount(() => wideQuery.removeEventListener('change', onWide))
 
 // Auto-rotating promo banner slot, up to 4 images — drop files into
 // frontend/public/ads/ and list them here.
@@ -80,7 +96,15 @@ const socialLinks = [
 
 <template>
   <main class="pb-12 sm:pb-20">
-    <HomeHero @reveal="revealTier = $event" />
+    <HomeHero v-if="wide" @reveal="revealTier = $event" />
+    <HomeBanner v-else />
+
+    <div class="mx-auto flex max-w-4xl flex-col gap-3.5 px-3 pt-3.5 sm:gap-4 sm:px-4 sm:pt-8">
+      <HomeCards />
+      <LiveNowBox />
+    </div>
+
+    <SponsorBand v-if="!wide" class="mt-5" />
 
     <div class="mx-auto max-w-4xl px-4 pt-6 sm:pt-8">
       <!-- Marquee takes whatever width the counter leaves; min-w-0 lets it
