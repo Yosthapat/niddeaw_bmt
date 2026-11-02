@@ -12,6 +12,13 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = 720
     cors_origins: str = "http://localhost:5173"
     env: str = "development"
+    # The weekly copy into Google Sheets (app/services/sheets_sync.py). All
+    # three optional: unset, the sync is simply off and the settings page
+    # says what is missing.
+    google_service_account_json: str | None = None
+    sheets_spreadsheet_id: str | None = None
+    # What the weekly GitHub Action sends to /api/internal/sheets-sync.
+    sheets_sync_secret: str | None = None
 
     @property
     def cors_origin_list(self) -> list[str]:

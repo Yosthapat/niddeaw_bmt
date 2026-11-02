@@ -58,7 +58,7 @@ async function fetchWithRetry(url: string, init: RequestInit): Promise<Response>
  * Attaches `Authorization: Bearer <token>` automatically when the Pinia
  * auth store holds a token — callers never handle the header themselves.
  */
-export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function send(path: string, options: RequestInit): Promise<Response> {
   const authStore = useAuthStore()
 
   const headers = new Headers(options.headers)
@@ -93,10 +93,20 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
     const body = await response.text()
     throw new ApiError(response.status, body || response.statusText, retryAfter(response))
   }
+  return response
+}
 
+export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const response = await send(path, options)
   if (response.status === 204) {
     return undefined as T
   }
 
   return (await response.json()) as T
+}
+
+/** A file the server sends back (e.g. the backup ZIP) rather than JSON. */
+export async function requestBlob(path: string, options: RequestInit = {}): Promise<Blob> {
+  const response = await send(path, options)
+  return response.blob()
 }
