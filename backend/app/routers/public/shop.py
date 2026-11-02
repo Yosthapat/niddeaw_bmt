@@ -1,15 +1,27 @@
+import contextlib
+import json
 import uuid
 from collections import deque
 from time import monotonic
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Form, HTTPException, Query, Request, UploadFile, status
+from fastapi import APIRouter, Form, HTTPException, Request, UploadFile, status
+from pydantic import ValidationError
 
 from app.db_utils import rows
 from app.deps import SupabaseDep
 from app.models.payment import PaymentInfoResponse
-from app.models.shop import ONE_SIZE, OrderPublic, Product
+from app.models.shop import (
+    MAX_LINE_QTY,
+    ONE_SIZE,
+    Cart,
+    OrderPublic,
+    Product,
+    Quote,
+    QuoteLine,
+    unit_price,
+)
 from app.services import login_throttle, payment_info_service, shop_service
 from app.services.image_service import resize_jpeg
 
@@ -73,15 +85,83 @@ def get_product(product_id: UUID, supabase: SupabaseDep) -> Product:
     return Product.model_validate(shop_service.hydrate(supabase, [_product_row(supabase, product_id)])[0])
 
 
-@router.get("/products/{product_id}/payment", response_model=PaymentInfoResponse)
-def payment_for(
-    product_id: UUID, supabase: SupabaseDep, qty: Annotated[int, Query(ge=1, le=10)]
-) -> PaymentInfoResponse:
-    """How to pay for `qty` of this product: the club's PromptPay QR with
-    the total in it (or whatever method Settings has). The total comes from
-    the product's price here, never from the page."""
-    product = _product_row(supabase, product_id)
-    return payment_info_service.payment_info(supabase, round(float(str(product["price"])) * qty, 2))
+def build_quote(supabase: SupabaseDep, cart: Cart) -> Quote:
+    """Price a cart from the products as they are now, and say of each line
+    whether it can still be bought — the cart page draws this, and placing
+    the order trusts nothing else. The same product and size twice is one
+    line."""
+    merged: dict[tuple[str, str], int] = {}
+    for line in cart.items:
+        key = (str(line.product_id), line.size)
+        merged[key] = merged.get(key, 0) + line.qty
+    ids = sorted({pid for pid, _ in merged})
+    result = supabase.table("products").select("*").in_("id", ids).execute()
+    found = {str(p["id"]): p for p in shop_service.hydrate(supabase, [r for r in rows(result) if str(r["id"]) in ids])}
+    lines: list[QuoteLine] = []
+    for (pid, size), qty in merged.items():
+        product = found.get(pid)
+        if product is None or not product.get("is_active"):
+            lines.append(
+                QuoteLine(
+                    product_id=UUID(pid), product_name="สินค้านี้", sale_type="stock", size=size, qty=qty,
+                    unit_price=0, line_total=0, problem="ไม่ขายแล้ว — เอาออกจากตะกร้า",
+                )
+            )
+            continue
+        sizes: list[str] = list(product["sizes"])
+        if not sizes:
+            size = ONE_SIZE
+        price = unit_price(product, size)
+        problem: str | None = None
+        available: int | None = None
+        if sizes and size not in sizes:
+            problem = "ไม่มีไซร์นี้แล้ว — เลือกใหม่"
+        elif qty > MAX_LINE_QTY:
+            problem = f"สั่งได้สูงสุด {MAX_LINE_QTY} ตัวต่อไซร์"
+        elif product["sale_type"] == "preorder":
+            if not product["open"]:
+                problem = "ปิดรับพรีออเดอร์แล้ว"
+        else:
+            available = int(product["stock"].get(size, 0))
+            if available < 1:
+                problem = "หมดแล้ว"
+            elif available < qty:
+                problem = f"เหลือแค่ {available} ตัว"
+        images: list[str] = list(product.get("image_urls") or [])
+        lines.append(
+            QuoteLine(
+                product_id=UUID(pid), product_name=product["name"], image_url=images[0] if images else None,
+                sale_type=product["sale_type"], size=size, qty=qty, unit_price=price,
+                line_total=round(price * qty, 2), problem=problem, available=available,
+            )
+        )
+    return Quote(
+        lines=lines,
+        total=round(sum(line.line_total for line in lines if not line.problem), 2),
+        ok=all(line.problem is None for line in lines),
+    )
+
+
+@router.post("/quote", response_model=Quote)
+def quote(cart: Cart, supabase: SupabaseDep) -> Quote:
+    return build_quote(supabase, cart)
+
+
+@router.post("/payment", response_model=PaymentInfoResponse)
+def payment_for(cart: Cart, supabase: SupabaseDep) -> PaymentInfoResponse:
+    """How to pay for this cart: the club's PromptPay QR with the total in
+    it (or whatever method Settings has). The total comes from the products'
+    prices here, never from the page."""
+    priced = build_quote(supabase, cart)
+    if not priced.ok:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_first_problem(priced))
+    return payment_info_service.payment_info(supabase, priced.total)
+
+
+def _first_problem(priced: Quote) -> str:
+    line = next(line for line in priced.lines if line.problem)
+    label = f"{line.product_name} {line.size}".strip()
+    return f"{label}: {line.problem}"
 
 
 @router.post("/orders", response_model=OrderPublic, status_code=status.HTTP_201_CREATED)
@@ -89,21 +169,19 @@ async def place_order(
     request: Request,
     supabase: SupabaseDep,
     file: UploadFile,
-    product_id: Annotated[UUID, Form()],
     player_id: Annotated[UUID, Form()],
-    qty: Annotated[int, Form(ge=1, le=10)],
-    size: Annotated[str, Form()] = ONE_SIZE,
+    items: Annotated[str, Form(max_length=4000)],
 ) -> OrderPublic:
-    """A member's order, with the slip of the transfer they have just made.
-    It waits as 'pending' until an admin checks the slip."""
+    """A member's whole cart as one order, with the slip of the one transfer
+    they have just made. It waits as 'pending' until an admin checks it."""
     _throttle(request)
-    product = shop_service.hydrate(supabase, [_product_row(supabase, product_id)])[0]
-    size = size.strip()
-    sizes: list[str] = list(product["sizes"])
-    if sizes and size not in sizes:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="เลือกไซซ์ก่อน")
-    if not sizes:
-        size = ONE_SIZE
+    try:
+        cart = Cart.model_validate({"items": json.loads(items)})
+    except (ValueError, ValidationError):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="ตะกร้าว่าง หรือข้อมูลไม่ถูกต้อง") from None
+    priced = build_quote(supabase, cart)
+    if not priced.ok:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_first_problem(priced))
 
     member = (
         supabase.table("players").select("id, is_active").eq("id", str(player_id)).limit(1).execute()
@@ -111,9 +189,6 @@ async def place_order(
     member_rows = rows(member)
     if not member_rows or not member_rows[0].get("is_active", True):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="ไม่พบชื่อสมาชิกนี้ในก๊วน")
-
-    if product["sale_type"] == "preorder" and not product["open"]:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="พรีออเดอร์นี้ปิดรับแล้ว")
 
     contents = await file.read()
     if len(contents) > MAX_SLIP_BYTES:
@@ -125,44 +200,45 @@ async def place_order(
     except ValueError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported image type") from None
 
-    took = False
-    if product["sale_type"] == "stock":
-        took = shop_service.take(supabase, str(product_id), size, qty)
-        if not took:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="ของหมดพอดี — เหลือไม่พอตามจำนวนที่สั่ง ลองลดจำนวนหรือเลือกไซซ์อื่น",
-            )
+    lines: list[dict[str, Any]] = [
+        {
+            "product_id": str(line.product_id), "product_name": line.product_name, "sale_type": line.sale_type,
+            "size": line.size, "qty": line.qty, "unit_price": line.unit_price, "line_total": line.line_total,
+        }
+        for line in priced.lines
+    ]
+    # Someone may have bought the last one since the quote above.
+    short = shop_service.take_lines(supabase, lines)
+    if short is not None:
+        label = f"{short['product_name']} {short['size']}".strip()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"{label}: ของหมดพอดี — เหลือไม่พอตามจำนวนที่สั่ง ลองลดจำนวนหรือเลือกไซร์อื่น",
+        )
 
-    path = f"slip-{uuid.uuid4().hex}.jpg"
+    order_id: str | None = None
     try:
+        path = f"slip-{uuid.uuid4().hex}.jpg"
         bucket = supabase.storage.from_(SHOP_BUCKET)
         bucket.upload(path, slip, {"content-type": "image/jpeg", "upsert": "false"})
         slip_url: str = bucket.get_public_url(path)
-        unit_price = round(float(str(product["price"])), 2)
-        result = (
+        order = rows(
             supabase.table("shop_orders")
-            .insert(
-                {
-                    "player_id": str(player_id),
-                    "product_id": str(product_id),
-                    "product_name": product["name"],
-                    "sale_type": product["sale_type"],
-                    "size": size,
-                    "qty": qty,
-                    "unit_price": unit_price,
-                    "total": round(unit_price * qty, 2),
-                    "slip_url": slip_url,
-                }
-            )
+            .insert({"player_id": str(player_id), "total": priced.total, "slip_url": slip_url})
             .execute()
+        )[0]
+        order_id = str(order["id"])
+        saved = rows(
+            supabase.table("shop_order_items").insert([{**line, "order_id": order_id} for line in lines]).execute()
         )
     except Exception:
-        # The shirt goes back on the shelf if the order didn't get written.
-        if took:
-            shop_service.give_back(supabase, str(product_id), size, qty)
+        # The shirts go back on the shelf if the order didn't get written.
+        shop_service.give_back_lines(supabase, lines)
+        if order_id:
+            with contextlib.suppress(Exception):
+                supabase.table("shop_orders").delete().eq("id", order_id).execute()
         raise
-    return OrderPublic.model_validate(rows(result)[0])
+    return OrderPublic.model_validate({**order, "items": saved})
 
 
 @router.get("/orders", response_model=list[OrderPublic])
@@ -176,4 +252,5 @@ def orders_of(player_id: UUID, supabase: SupabaseDep) -> list[OrderPublic]:
         .limit(20)
         .execute()
     )
-    return [OrderPublic.model_validate(r) for r in rows(result)]
+    mine = [r for r in rows(result) if str(r.get("player_id")) == str(player_id)]
+    return [OrderPublic.model_validate(o) for o in shop_service.with_items(supabase, mine)]

@@ -37,24 +37,47 @@ def stock_by_product(supabase: Client, product_ids: list[str]) -> dict[str, dict
     return out
 
 
+def live_order_ids(supabase: Client, order_ids: list[str]) -> set[str]:
+    """Which of these orders still count — every one that wasn't refused."""
+    if not order_ids:
+        return set()
+    result = supabase.table("shop_orders").select("id, status").in_("id", order_ids).execute()
+    return {str(r["id"]) for r in rows(result) if r.get("status") != "rejected"}
+
+
 def ordered_by_product(supabase: Client, product_ids: list[str]) -> dict[str, dict[str, int]]:
-    """Units ordered per product per size, not counting rejected orders."""
+    """Units ordered per product per size, not counting refused orders."""
     if not product_ids:
         return {}
-    result = (
-        supabase.table("shop_orders")
-        .select("product_id, size, qty, status")
+    items = rows(
+        supabase.table("shop_order_items")
+        .select("order_id, product_id, size, qty")
         .in_("product_id", product_ids)
-        .neq("status", "rejected")
         .execute()
     )
+    live = live_order_ids(supabase, sorted({str(i["order_id"]) for i in items}))
     out: dict[str, dict[str, int]] = {}
-    for row in rows(result):
-        if row.get("status") == "rejected":
+    for item in items:
+        if str(item["order_id"]) not in live or str(item.get("product_id")) not in product_ids:
             continue
-        sizes = out.setdefault(str(row["product_id"]), {})
-        sizes[row["size"]] = sizes.get(row["size"], 0) + int(row["qty"])
+        sizes = out.setdefault(str(item["product_id"]), {})
+        sizes[item["size"]] = sizes.get(item["size"], 0) + int(item["qty"])
     return out
+
+
+def items_by_order(supabase: Client, order_ids: list[str]) -> dict[str, list[dict[str, Any]]]:
+    if not order_ids:
+        return {}
+    result = supabase.table("shop_order_items").select("*").in_("order_id", order_ids).execute()
+    out: dict[str, list[dict[str, Any]]] = {}
+    for item in sorted(rows(result), key=lambda i: str(i.get("created_at") or "")):
+        out.setdefault(str(item["order_id"]), []).append(item)
+    return out
+
+
+def with_items(supabase: Client, order_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    by_order = items_by_order(supabase, [str(o["id"]) for o in order_rows])
+    return [{**o, "items": by_order.get(str(o["id"]), [])} for o in order_rows]
 
 
 def is_open(product: dict[str, Any], stock: dict[str, int], today: date) -> bool:
@@ -97,6 +120,27 @@ def take(supabase: Client, product_id: str, size: str, qty: int) -> bool:
         if rows(swapped):
             return True
     return False
+
+
+def take_lines(supabase: Client, lines: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Take every stock line of an order, or none of them: returns the line
+    that couldn't be had (after putting back what was already taken), or
+    None when all of them were."""
+    taken: list[dict[str, Any]] = []
+    for line in lines:
+        if line["sale_type"] != "stock" or not line.get("product_id"):
+            continue
+        if not take(supabase, str(line["product_id"]), line["size"], int(line["qty"])):
+            give_back_lines(supabase, taken)
+            return line
+        taken.append(line)
+    return None
+
+
+def give_back_lines(supabase: Client, lines: list[dict[str, Any]]) -> None:
+    for line in lines:
+        if line["sale_type"] == "stock" and line.get("product_id"):
+            give_back(supabase, str(line["product_id"]), line["size"], int(line["qty"]))
 
 
 def give_back(supabase: Client, product_id: str, size: str, qty: int) -> None:
