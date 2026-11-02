@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from app.models.fields import Note, PositiveBaht
 
-ExpenseCategory = Literal["court_fee", "shuttlecock", "jersey", "other"]
+ExpenseCategory = Literal["court_fee", "shuttlecock", "jersey", "dividend", "other"]
 
 
 class ExpenseCreate(BaseModel):
