@@ -36,6 +36,7 @@ export default {
     switchLang: 'Switch language (now English)',
   },
   home: {
+    seeAll: 'See all',
     memberMarqueeLabel: 'Club members',
     clubMatchesLabel: 'Matches played',
     clubMembersLabel: 'Members',

@@ -45,7 +45,7 @@ const where = computed(() => {
   <RouterLink
     v-if="match"
     to="/live"
-    class="flex flex-col gap-2.5 rounded-[18px] border border-white/12 bg-white/5 p-3 hover:bg-white/8 sm:p-4"
+    class="world-card flex flex-col gap-2.5 p-3 transition-transform hover:-translate-y-0.5 sm:p-4"
   >
     <div class="flex items-center justify-between gap-2">
       <span class="flex items-center gap-1.5 text-[13px] font-medium">

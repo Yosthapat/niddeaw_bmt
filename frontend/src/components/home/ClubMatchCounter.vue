@@ -79,7 +79,7 @@ onMounted(loadMembers)
   <button
     v-if="total !== null && total > 0"
     type="button"
-    class="hud-panel glass-panel hud-hover counter flex shrink-0 cursor-pointer items-center border border-brand-pink/25 hover:border-brand-pink/50"
+    class="glass-bar counter flex shrink-0 cursor-pointer items-center rounded-2xl transition-transform hover:-translate-y-0.5"
     :class="expanded ? 'gap-3 px-3.5 py-2' : 'gap-2 px-2.5 py-1.5'"
     :aria-expanded="expanded"
     :aria-label="
