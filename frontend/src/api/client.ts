@@ -26,6 +26,32 @@ function retryAfter(response: Response): number | null {
   return Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : null
 }
 
+// A read that fails on the way — the phone's signal dropped, or the free
+// server was restarting or waking up (502/503/504 from the host in front of
+// it) — is asked again a couple of times before the page says it couldn't
+// load. Only reads: a write that failed may already have gone through, and
+// sending it twice could bill someone twice.
+const RETRY_DELAYS_MS = [800, 2500]
+const RETRY_STATUSES = new Set([502, 503, 504])
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+
+async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+  const isRead = (init.method ?? 'GET').toUpperCase() === 'GET'
+  for (let attempt = 0; ; attempt++) {
+    const last = !isRead || attempt >= RETRY_DELAYS_MS.length
+    try {
+      const response = await fetch(url, init)
+      if (last || !RETRY_STATUSES.has(response.status)) return response
+    } catch (e) {
+      // fetch only throws when no answer came back at all — or when the
+      // caller cancelled it, which is never asked again
+      if (last || init.signal?.aborted || !(e instanceof TypeError)) throw e
+    }
+    await sleep(RETRY_DELAYS_MS[attempt])
+  }
+}
+
 /**
  * Thin fetch wrapper shared by api/public.ts and api/admin.ts.
  * Attaches `Authorization: Bearer <token>` automatically when the Pinia
@@ -47,10 +73,7 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
     headers.set('Authorization', `Bearer ${authStore.token}`)
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers,
-  })
+  const response = await fetchWithRetry(`${API_BASE_URL}${path}`, { ...options, headers })
 
   if (!response.ok) {
     // A token the server has rejected will be rejected again by every
