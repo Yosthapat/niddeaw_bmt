@@ -435,21 +435,6 @@ button:not(:disabled):active {
   }
 }
 
-/* RankingView.vue top-3 rank badges — small filled medal circles instead
-   of plain numerals, so the podium reads at a glance. */
-.rank-badge-gold {
-  background: linear-gradient(145deg, #ffe9a8, #d9a441);
-  color: #3a2600;
-}
-.rank-badge-silver {
-  background: linear-gradient(145deg, #f2f2f2, #a9a9a9);
-  color: #2b2b2b;
-}
-.rank-badge-bronze {
-  background: linear-gradient(145deg, #e3ad7a, #9a5a2e);
-  color: #2b1400;
-}
-
 /* HomeView.vue sponsor strip — each logo links out to the sponsor's own
    page, dimmed at rest (matches the mono-silhouette treatment) and
    lifting into a pink glow on hover so the links read as clickable

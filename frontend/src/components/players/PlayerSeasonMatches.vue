@@ -3,11 +3,11 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getPlayerMatches, getPlayersByIds, getSeasons } from '@/api/public'
 import type { Match, Player, Season } from '@/types'
-import MatchRow from '@/components/matches/MatchRow.vue'
+import MatchScoreCard from '@/components/matches/MatchScoreCard.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 
 // This member's own finished matches, one season (= one calendar year) at a
-// time, drawn with the same MatchRow card as the global match log — same
+// time, drawn with the same MatchScoreCard as the global match log — same
 // stamp, same dimmed loser, same layout. The member finds themselves by
 // their own avatar, so the row stays neutral rather than re-centring on
 // "you"; a second, profile-only style of match card would just be a second
@@ -131,13 +131,8 @@ onMounted(async () => {
     </p>
 
     <ul v-else-if="matches.length > 0" class="mt-4 space-y-3">
-      <li
-        v-for="(m, i) in matches"
-        :key="m.id"
-        v-reveal="i"
-        class="hud-panel glass-panel hud-hover border border-brand-pink/15 transition-colors hover:border-brand-pink/40"
-      >
-        <MatchRow :match="m" :players-by-id="playersById" />
+      <li v-for="(m, i) in matches" :key="m.id" v-reveal="i">
+        <MatchScoreCard :match="m" :players-by-id="playersById" with-date />
       </li>
     </ul>
 

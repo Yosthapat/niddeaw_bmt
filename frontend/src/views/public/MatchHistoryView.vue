@@ -4,13 +4,14 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { getMatches, getPlayersByIds } from '@/api/public'
 import type { Match, Player } from '@/types'
-import MatchRow from '@/components/matches/MatchRow.vue'
+import MatchScoreCard from '@/components/matches/MatchScoreCard.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
-import StaggerHeading from '@/components/common/StaggerHeading.vue'
+import PageBanner from '@/components/common/PageBanner.vue'
+import { formatDateWithWeekday } from '@/utils/format'
 
 const PAGE_SIZE = 20
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
@@ -62,48 +63,91 @@ function goToPage(page: number): void {
   router.push({ query: { ...route.query, page: page > 1 ? String(page) : undefined } })
 }
 
+// One heading per club night. Grouped by session rather than by calendar
+// day, so a night that runs past midnight stays one night; it is dated by
+// its first match (the list is newest-first, so the last one here).
+const nights = computed(() => {
+  const groups: { key: string; label: string; matches: Match[] }[] = []
+  for (const m of matches.value) {
+    const last = groups[groups.length - 1]
+    if (last && last.key === m.session_id) last.matches.push(m)
+    else groups.push({ key: m.session_id, label: '', matches: [m] })
+  }
+  for (const g of groups) g.label = formatDateWithWeekday(g.matches[g.matches.length - 1].created_at, locale.value)
+  return groups
+})
+
 watch(currentPage, (page) => loadPage(page))
 onMounted(() => loadPage(currentPage.value))
 </script>
 
 <template>
-  <main class="mx-auto max-w-3xl px-4 py-8 sm:py-12">
-    <p class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">Match Log</p>
-    <h1 class="font-display text-3xl font-bold text-white"><StaggerHeading :text="t('nav.matches')" /></h1>
+  <main class="pb-12 sm:pb-20">
+    <PageBanner eyebrow="Match Log" :title="t('nav.matches')" :sub="t('matches.sub')" mascot="/tiers/wine.webp" />
 
-    <div v-if="loading" class="mt-6 space-y-3">
-      <HudSkeletonBlock v-for="i in 5" :key="i" :delay="i * 80" class="h-28" />
-    </div>
-    <p v-else-if="error" class="mt-6 text-status-error">{{ error }}</p>
-    <p v-else-if="matches.length === 0" class="mt-6 text-white/60">{{ t('matches.empty') }}</p>
+    <div class="home-world">
+      <div class="mx-auto max-w-[1200px] px-3 pt-4 sm:px-6 sm:pt-7">
+        <div v-if="loading" class="grid gap-3 lg:grid-cols-2">
+          <HudSkeletonBlock v-for="i in 6" :key="i" :delay="i * 80" class="h-40 rounded-[20px]" />
+        </div>
+        <p v-else-if="error" class="world-card p-5 text-status-error">{{ error }}</p>
+        <p v-else-if="matches.length === 0" class="world-card p-5 text-white/65">{{ t('matches.empty') }}</p>
 
-    <ul v-else class="mt-6 space-y-3">
-      <li
-        v-for="(m, i) in matches"
-        :key="m.id"
-        v-reveal="i"
-        class="hud-panel glass-panel hud-hover border border-brand-pink/15 transition-colors hover:border-brand-pink/40"
-      >
-        <MatchRow :match="m" :players-by-id="playersById" />
-      </li>
-    </ul>
+        <template v-else>
+          <section v-for="night in nights" :key="night.key" class="mb-7" :aria-label="night.label">
+            <h2 class="night">
+              <span class="world-title font-display text-lg font-bold sm:text-[22px]">{{ night.label }}</span>
+              <span class="shrink-0 text-[13px] text-white/55">{{ t('matches.count', { n: night.matches.length }) }}</span>
+            </h2>
+            <ul class="grid gap-2.5 sm:gap-4 lg:grid-cols-2">
+              <li v-for="(m, i) in night.matches" :key="m.id" v-reveal="i">
+                <MatchScoreCard :match="m" :players-by-id="playersById" />
+              </li>
+            </ul>
+          </section>
 
-    <div v-if="!loading && matches.length > 0" class="mt-6 flex items-center justify-center gap-3">
-      <button
-        :disabled="currentPage <= 1"
-        class="tap hud-hover rounded-full border border-brand-pink/40 px-4 text-sm font-semibold text-brand-pink hover:bg-brand-pink hover:text-brand-black disabled:pointer-events-none disabled:opacity-30"
-        @click="goToPage(currentPage - 1)"
-      >
-        {{ t('matches.prevPage') }}
-      </button>
-      <span class="text-sm text-white/50">{{ t('matches.pageLabel', { n: currentPage }) }}</span>
-      <button
-        :disabled="!hasNext"
-        class="tap hud-hover rounded-full border border-brand-pink/40 px-4 text-sm font-semibold text-brand-pink hover:bg-brand-pink hover:text-brand-black disabled:pointer-events-none disabled:opacity-30"
-        @click="goToPage(currentPage + 1)"
-      >
-        {{ t('matches.nextPage') }}
-      </button>
+          <div class="flex items-center justify-center gap-3">
+            <button
+              type="button"
+              :disabled="currentPage <= 1"
+              class="pager world-card disabled:pointer-events-none disabled:opacity-35"
+              @click="goToPage(currentPage - 1)"
+            >
+              ← {{ t('matches.prevPage') }}
+            </button>
+            <span class="text-sm text-white/60">{{ t('matches.pageLabel', { n: currentPage }) }}</span>
+            <button
+              type="button"
+              :disabled="!hasNext"
+              class="pager world-card text-[#ff9fd6] disabled:pointer-events-none disabled:opacity-35"
+              @click="goToPage(currentPage + 1)"
+            >
+              {{ t('matches.nextPage') }} →
+            </button>
+          </div>
+        </template>
+      </div>
     </div>
   </main>
 </template>
+
+<style scoped>
+.night {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 6px 0 14px;
+}
+.night::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgb(255 108 192 / 0.5), transparent);
+}
+.pager {
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font-size: 14px;
+}
+</style>
