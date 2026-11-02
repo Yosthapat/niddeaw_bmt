@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.middleware.activity_log import AdminActivityLogMiddleware
+from app.middleware.unhandled_errors import UnhandledErrorsMiddleware
 from app.routers.admin import activity_log as admin_activity_log
 from app.routers.admin import auth as admin_auth
 from app.routers.admin import billing as admin_billing
@@ -12,16 +13,28 @@ from app.routers.admin import matchmaking as admin_matchmaking
 from app.routers.admin import other_income as admin_other_income
 from app.routers.admin import players_admin
 from app.routers.admin import sessions as admin_sessions
-from app.routers.admin import stats_audit_admin as admin_stats_audit
 from app.routers.admin import settings as admin_settings
 from app.routers.admin import shop_admin as admin_shop
 from app.routers.admin import sponsors_admin as admin_sponsors
-from app.routers.public import hall_of_fame, live, matches, players, ranking, seasons, shop, sponsors
+from app.routers.admin import stats_audit_admin as admin_stats_audit
+from app.routers.public import (
+    hall_of_fame,
+    live,
+    matches,
+    players,
+    ranking,
+    seasons,
+    shop,
+    sponsors,
+)
 
 app = FastAPI(title="นิดเดียว Badminton Club API")
 
 settings = get_settings()
 app.add_middleware(AdminActivityLogMiddleware)
+# Added after the activity log and before CORS, so it sits between them: a
+# crash is turned into a 500 inside CORSMiddleware and keeps its headers.
+app.add_middleware(UnhandledErrorsMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
