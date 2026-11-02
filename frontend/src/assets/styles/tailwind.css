@@ -355,6 +355,74 @@ button:not(:disabled):active {
   color: #fff;
 }
 
+/* The home page below the hero: the hero's world carried on down. The
+   purple of its sky fades out over the first screen, its neon floor goes
+   on as a faint flat grid that dissolves the same way, and every section
+   sits on it as a rounded pane of the same glass as the navigation — not
+   on black, which is what made the page break in two under the hero. */
+.home-world {
+  position: relative;
+  isolation: isolate;
+}
+.home-world::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: -2;
+  height: min(1400px, 100%);
+  background:
+    radial-gradient(60% 40% at 15% 8%, rgb(234 76 164 / 0.22), transparent 70%),
+    radial-gradient(55% 35% at 90% 30%, rgb(142 76 240 / 0.22), transparent 70%),
+    linear-gradient(#1c0933, #120624 45%, transparent);
+  pointer-events: none;
+}
+.home-world::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: -1;
+  height: min(1100px, 100%);
+  background-image:
+    linear-gradient(rgb(255 110 190 / 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 110 190 / 0.07) 1px, transparent 1px);
+  background-size: 56px 56px;
+  background-position: center top;
+  -webkit-mask-image: linear-gradient(#000, transparent 85%);
+  mask-image: linear-gradient(#000, transparent 85%);
+  pointer-events: none;
+}
+.world-card {
+  position: relative;
+  border: 1px solid rgb(255 255 255 / 0.15);
+  border-radius: 22px;
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 0.12), rgb(255 255 255 / 0.03) 55%, rgb(255 255 255 / 0.07)),
+    rgb(24 10 46 / 0.6);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 0.35),
+    0 22px 44px -22px rgb(234 76 164 / 0.55),
+    0 10px 28px rgb(6 0 20 / 0.45);
+}
+/* Section headings in the hero's own voice: a small English eyebrow over a
+   Thai title that glows like the hero's second line. */
+.world-eyebrow {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.25em;
+  color: rgb(255 159 214 / 0.85);
+}
+.world-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: #fff;
+  text-shadow:
+    0 0 16px rgb(255 108 192 / 0.6),
+    0 0 2px rgb(255 255 255 / 0.6);
+}
+
 /* How much room the header takes at the top of the page: the solid
    phone bar, then from 900px the floating glass one. The home hero (wide
    screens only) pulls itself up by exactly this much to run underneath it. */

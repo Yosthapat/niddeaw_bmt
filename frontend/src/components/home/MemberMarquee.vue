@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// A marquee of member photos drifting leftward above the banner, each one a
+// A marquee of member photos drifting leftward on the home page, each one a
 // link to that member's profile.
 //
 // Driven by scrollLeft rather than a CSS transform, because the strip is
@@ -140,7 +140,7 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
           :aria-label="player.nickname"
           :tabindex="i < half.length ? 0 : -1"
         >
-          <PlayerAvatar :name="player.nickname" :avatar-url="player.avatar_url" size="md" />
+          <PlayerAvatar :name="player.nickname" :avatar-url="player.avatar_url" size="md" round />
           <span class="flex items-center gap-1 text-xs leading-none whitespace-nowrap">
             <!-- Not interactive here: its interactive form is a <button>,
                  which cannot sit inside this link and would swallow the tap

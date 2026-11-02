@@ -10,7 +10,7 @@ const { t } = useI18n()
 
 <template>
   <div class="grid grid-cols-2 gap-2.5 sm:gap-4">
-    <RouterLink to="/tournament" class="home-card border-[#ffe14d]/50 bg-[linear-gradient(140deg,#3b0f5c,#1a0838_70%)]">
+    <RouterLink to="/tournament" class="home-card border-[#ffe14d]/50 bg-[linear-gradient(140deg,#3b0f5c,#1a0838_70%)] [--glow:rgb(255_207_63/0.4)]">
       <span class="card-blink self-start rounded-full border border-[#ffe14d] px-2 py-1 font-display text-[10px] leading-none font-bold tracking-[1.5px] text-[#ffe14d] sm:text-xs">
         COMING SOON
       </span>
@@ -39,8 +39,13 @@ const { t } = useI18n()
 </template>
 
 <style scoped>
+/* The hero's glass, tinted: the tournament gold, the shop pink. */
 .home-card {
   position: relative;
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 0.3),
+    0 22px 44px -22px var(--glow, rgb(234 76 164 / 0.55)),
+    0 10px 28px rgb(6 0 20 / 0.45);
   display: flex;
   min-height: 118px;
   flex-direction: column;
@@ -48,7 +53,7 @@ const { t } = useI18n()
   overflow: hidden;
   padding: 12px;
   border-width: 1px;
-  border-radius: 18px;
+  border-radius: 22px;
   transition: transform 0.15s;
 }
 .home-card:hover {

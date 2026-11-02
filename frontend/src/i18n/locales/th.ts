@@ -36,6 +36,7 @@ export default {
     switchLang: 'เปลี่ยนภาษา (ตอนนี้ภาษาไทย)',
   },
   home: {
+    seeAll: 'ดูทั้งหมด',
     memberMarqueeLabel: 'สมาชิกก๊วน',
     clubMatchesLabel: 'แมตช์ที่จบแล้ว',
     clubMembersLabel: 'สมาชิก',
