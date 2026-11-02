@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, HTTPException, Query, Request, UploadFile, status
 
 from app.db_utils import rows
 from app.deps import AdminDep, SupabaseDep
@@ -12,6 +12,7 @@ from app.models.shop import (
     MAX_IMAGES,
     ONE_SIZE,
     OrderAdmin,
+    OrderDelete,
     OrderItemUpdate,
     OrderStatus,
     OrderUpdate,
@@ -21,7 +22,8 @@ from app.models.shop import (
     ProductFields,
     unit_price,
 )
-from app.services import shop_service
+from app.security import verify_password
+from app.services import login_throttle, shop_service
 from app.services.image_service import resize_jpeg, storage_path_from_url
 
 router = APIRouter(prefix="/api/admin/shop", tags=["admin-shop"])
@@ -210,13 +212,21 @@ def remove_image(
 
 def _with_players(supabase: SupabaseDep, order_rows: list[dict[str, Any]]) -> list[OrderAdmin]:
     order_rows = shop_service.with_items(supabase, order_rows)
-    ids = sorted({str(o["player_id"]) for o in order_rows})
+    ids = sorted({str(o["player_id"]) for o in order_rows if o.get("player_id")})
     names: dict[str, dict[str, Any]] = {}
     if ids:
         result = supabase.table("players").select("id, nickname, member_seq").in_("id", ids).execute()
         names = {str(p["id"]): p for p in rows(result)}
     out = []
     for o in order_rows:
+        if not o.get("player_id"):
+            # A guest's order: the name they typed, and their phone.
+            out.append(
+                OrderAdmin.model_validate(
+                    {**o, "player_nickname": o.get("guest_name") or "?", "player_code": "", "guest": True}
+                )
+            )
+            continue
         p = names.get(str(o["player_id"]), {})
         seq = p.get("member_seq")
         out.append(
@@ -225,6 +235,7 @@ def _with_players(supabase: SupabaseDep, order_rows: list[dict[str, Any]]) -> li
                     **o,
                     "player_nickname": p.get("nickname", "?"),
                     "player_code": f"ND{int(seq):03d}" if seq is not None else "",
+                    "guest_phone": None,
                 }
             )
         )
@@ -360,6 +371,54 @@ def update_order_item(
         .execute()
     )
     return _with_players(supabase, rows(saved))[0]
+
+
+@router.post("/orders/{order_id}/delete", status_code=status.HTTP_204_NO_CONTENT)
+def delete_order(
+    order_id: UUID, payload: OrderDelete, request: Request, supabase: SupabaseDep, admin: AdminDep
+) -> None:
+    """Delete an order for good — a test, a duplicate, a mistake.
+
+    Asks for the admin's own password again: a phone left unlocked at the
+    court shouldn't be able to wipe orders. Stock the order held goes back
+    on the shelf, its slip is removed, and the activity log keeps what was
+    deleted (number, buyer, lines, total), since the order itself is gone.
+    """
+    key = f"delete-order:{admin.admin_id}"
+    wait = login_throttle.retry_after_seconds(key)
+    if wait:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="ใส่รหัสผิดหลายครั้ง — รอสักครู่แล้วลองใหม่",
+            headers={"Retry-After": str(wait)},
+        )
+    me = rows(supabase.table("admins").select("id, password_hash").eq("id", str(admin.admin_id)).limit(1).execute())
+    if not me or not verify_password(payload.password, me[0]["password_hash"]):
+        login_throttle.record_failure(key)
+        # 403, not 401: the admin is signed in, the password typed is just
+        # wrong — a 401 would sign them out.
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="รหัสผ่านไม่ถูกต้อง — ยังไม่ได้ลบอะไร")
+    login_throttle.clear(key)
+
+    found = rows(supabase.table("shop_orders").select("*").eq("id", str(order_id)).limit(1).execute())
+    if not found:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+    order = _with_players(supabase, found)[0]
+
+    # A refused order already gave its stock back.
+    if order.status != "rejected":
+        shop_service.give_back_lines(supabase, [i.model_dump(mode="json") for i in order.items])
+    supabase.table("shop_orders").delete().eq("id", str(order_id)).execute()
+    _forget(supabase, order.slip_url)
+
+    buyer = f"{order.player_nickname} (คนนอก)" if order.guest else f"{order.player_nickname} {order.player_code}".strip()
+    request.state.activity_detail = {
+        "order_no": order.order_no,
+        "buyer": buyer,
+        "items": [" ".join(x for x in (i.product_name, i.size, f"× {i.qty}") if x) for i in order.items],
+        "total": order.total,
+        "status": order.status,
+    }
 
 
 @router.get("/preorder-tally", response_model=list[PreorderTally])

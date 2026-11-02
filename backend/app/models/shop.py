@@ -101,11 +101,33 @@ class OrderPublic(BaseModel):
 
 
 class OrderAdmin(OrderPublic):
-    player_id: UUID
+    player_id: UUID | None = None
+    """None for a guest's order."""
     player_nickname: str
+    """The member's nickname, or the name a guest typed."""
     player_code: str
+    guest: bool = False
+    guest_phone: str | None = None
+    """Only ever sent to the admin: never in a public response."""
     slip_url: str
     updated_at: datetime
+
+
+GuestName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
+
+
+def phone_digits(raw: str) -> str | None:
+    """A Thai phone number as its digits (0812345678), or None when it
+    isn't one: a leading 0 and 9 or 10 digits, whatever dashes or spaces
+    were typed between them."""
+    digits = "".join(ch for ch in raw if ch.isdigit())
+    if len(digits) in (9, 10) and digits.startswith("0"):
+        return digits
+    return None
+
+
+class OrderDelete(BaseModel):
+    password: Annotated[str, StringConstraints(min_length=1, max_length=200)]
 
 
 class CartLine(BaseModel):

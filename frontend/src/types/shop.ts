@@ -59,9 +59,13 @@ export interface ShopOrder {
 }
 
 export interface ShopOrderAdmin extends ShopOrder {
-  player_id: string
+  /** null for a guest's order */
+  player_id: string | null
+  /** the member's nickname, or the name a guest typed */
   player_nickname: string
   player_code: string
+  guest: boolean
+  guest_phone: string | null
   slip_url: string
   updated_at: string
 }
@@ -97,6 +101,18 @@ export interface PreorderTally {
   preorder_closes_on: string | null
   by_size: Record<string, number>
   total: number
+}
+
+/** A Thai phone number as its digits, or null when it isn't one: a leading
+ *  0 and 9 or 10 digits. Mirrors backend app/models/shop.py phone_digits(). */
+export function phoneDigits(raw: string): string | null {
+  const digits = raw.replace(/\D/g, '')
+  return /^0\d{8,9}$/.test(digits) ? digits : null
+}
+
+/** 0812345678 → 081-234-5678, for reading back and dialling. */
+export function formatPhone(digits: string): string {
+  return digits.length === 10 ? `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}` : `${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`
 }
 
 /** "S-0012" — how an order is said out loud and searched for. */

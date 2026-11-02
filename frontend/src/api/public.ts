@@ -140,9 +140,17 @@ export async function getCartPayment(items: CartLine[]): Promise<PaymentInfoResp
   return request('/api/shop/payment', { method: 'POST', body: JSON.stringify({ items }) })
 }
 
-export async function placeShopOrder(order: { playerId: string; items: CartLine[]; slip: File }): Promise<ShopOrder> {
+/** Who is buying: a member, or someone from outside the club. */
+export type ShopBuyer = { playerId: string } | { guestName: string; guestPhone: string }
+
+export async function placeShopOrder(order: { buyer: ShopBuyer; items: CartLine[]; slip: File }): Promise<ShopOrder> {
   const form = new FormData()
-  form.append('player_id', order.playerId)
+  if ('playerId' in order.buyer) {
+    form.append('player_id', order.buyer.playerId)
+  } else {
+    form.append('guest_name', order.buyer.guestName)
+    form.append('guest_phone', order.buyer.guestPhone)
+  }
   form.append('items', JSON.stringify(order.items))
   form.append('file', order.slip)
   return request('/api/shop/orders', { method: 'POST', body: form })

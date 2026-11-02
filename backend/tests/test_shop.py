@@ -19,10 +19,11 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
+import app.middleware.activity_log as activity_log_mw
 from app.deps import get_supabase
 from app.main import app
 from app.routers.public import shop as public_shop
-from app.security import create_access_token
+from app.security import create_access_token, hash_password
 from app.services import shop_service
 from tests.conftest import FakeResult, FakeStorage, FakeSupabase
 
@@ -559,3 +560,116 @@ def test_fixing_a_preorder_line_touches_no_stock(client: TestClient, shelf: Shel
     )
     assert response.status_code == 200 and response.json()["total"] == 840
     assert (qty_of(shelf, "M"), qty_of(shelf, "XL")) == (5, 4)
+
+
+# ------------------------------------------------------ someone from outside
+
+
+def test_a_guest_orders_with_a_name_and_a_phone(client: TestClient, shelf: Shelf) -> None:
+    seed(shelf)
+    form = {"items": json.dumps(cart((PRODUCT_ID, "M", 1))), "guest_name": " พี่ต้น ", "guest_phone": "081-234-5678"}
+    response = client.post("/api/shop/orders", data=form, files={"file": ("slip.jpg", slip(), "image/jpeg")})
+    assert response.status_code == 201
+    stored = shelf.tables["shop_orders"][-1]
+    assert (stored["player_id"], stored["guest_name"], stored["guest_phone"]) == (None, "พี่ต้น", "0812345678")
+    assert "guest_phone" not in response.json()
+
+
+@pytest.mark.parametrize(
+    ("extra", "why"),
+    [
+        ({"guest_name": "พี่ต้น", "guest_phone": "08123"}, "เบอร์โทร"),
+        ({"guest_phone": "0812345678"}, "ชื่อ"),
+        ({"player_id": PLAYER_ID, "guest_name": "พี่ต้น", "guest_phone": "0812345678"}, "อย่างใดอย่างหนึ่ง"),
+        ({}, "ชื่อ"),
+    ],
+)
+def test_a_buyer_is_a_member_or_a_guest_never_both_never_neither(
+    client: TestClient, shelf: Shelf, extra: dict[str, str], why: str
+) -> None:
+    seed(shelf)
+    form = {"items": json.dumps(cart((PRODUCT_ID, "M", 1))), **extra}
+    response = client.post("/api/shop/orders", data=form, files={"file": ("slip.jpg", slip(), "image/jpeg")})
+    assert response.status_code == 400 and why in response.json()["detail"]
+    assert qty_of(shelf, "M") == 5  # nothing taken
+
+
+def test_the_admin_sees_a_guest_order_with_its_phone(client: TestClient, shelf: Shelf) -> None:
+    seed(shelf)
+    shelf.tables["shop_orders"] = [order_row(player_id=None, guest_name="พี่ต้น", guest_phone="0812345678")]
+    body = client.get("/api/admin/shop/orders", headers=auth()).json()
+    assert (body[0]["guest"], body[0]["player_nickname"], body[0]["guest_phone"]) == (True, "พี่ต้น", "0812345678")
+
+
+# --------------------------------------------------------- deleting an order
+
+ADMIN_ID = str(uuid4())
+
+
+def as_me() -> dict[str, str]:
+    return {"Authorization": f"Bearer {create_access_token(admin_id=ADMIN_ID, role='admin')}"}
+
+
+def with_admin(shelf: Shelf) -> None:
+    shelf.tables["admins"] = [{"id": ADMIN_ID, "username": "vaan", "password_hash": hash_password("right-one"), "role": "admin"}]
+
+
+def test_deleting_needs_the_admins_own_password(client: TestClient, shelf: Shelf) -> None:
+    seed(shelf)
+    with_admin(shelf)
+    response = client.post(f"/api/admin/shop/orders/{ORDER_ID}/delete", json={"password": "wrong"}, headers=as_me())
+    assert response.status_code == 403  # not 401: that would sign the admin out
+    assert shelf.tables["shop_orders"] and qty_of(shelf, "M") == 5
+
+
+def test_guessing_the_password_is_stopped(client: TestClient, shelf: Shelf) -> None:
+    seed(shelf)
+    with_admin(shelf)
+    codes = [
+        client.post(f"/api/admin/shop/orders/{ORDER_ID}/delete", json={"password": "wrong"}, headers=as_me()).status_code
+        for _ in range(6)
+    ]
+    assert codes == [403] * 5 + [429]
+
+
+def test_deleting_returns_the_stock_drops_the_slip_and_keeps_a_record(
+    client: TestClient, shelf: Shelf, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seed(shelf, stock=3)
+    with_admin(shelf)
+    monkeypatch.setattr(activity_log_mw, "get_supabase_client", lambda: shelf)
+    response = client.post(
+        f"/api/admin/shop/orders/{ORDER_ID}/delete", json={"password": "right-one"}, headers=as_me()
+    )
+    assert response.status_code == 204
+    assert not shelf.tables["shop_orders"]
+    assert qty_of(shelf, "M") == 5  # the order's 2 went back
+    assert shelf.storage.from_("shop").removed == [["slip-a.jpg"]]
+    logged = shelf.tables["admin_activity_log"][-1]
+    assert logged["action"] == "ลบออเดอร์ร้านค้า"
+    assert logged["detail"]["order_no"] == 12 and logged["detail"]["buyer"] == "Pukpick ND025"
+    assert logged["detail"]["items"] == ["เสื้อก๊วน สีดำ M × 2"] and logged["detail"]["total"] == 780
+
+
+def test_deleting_a_refused_order_does_not_return_stock_twice(client: TestClient, shelf: Shelf) -> None:
+    seed(shelf, stock=5)
+    with_admin(shelf)
+    shelf.tables["shop_orders"] = [order_row(status="rejected")]
+    client.post(f"/api/admin/shop/orders/{ORDER_ID}/delete", json={"password": "right-one"}, headers=as_me())
+    assert qty_of(shelf, "M") == 5
+
+
+def test_the_activity_log_still_lists_after_an_order_is_deleted(client: TestClient, shelf: Shelf) -> None:
+    # The deleted order's record holds a number, a list and a total — the
+    # log's own listing must still read it.
+    with_admin(shelf)
+    shelf.tables["admin_activity_log"] = [
+        {
+            "id": str(uuid4()), "admin_id": ADMIN_ID, "action": "ลบออเดอร์ร้านค้า", "method": "POST",
+            "path": f"/api/admin/shop/orders/{ORDER_ID}/delete", "created_at": "2026-11-02T18:00:00Z",
+            "detail": {"order_no": 12, "buyer": "พี่ต้น (คนนอก)", "items": ["หมวก × 1"], "total": 250.0},
+        }
+    ]
+    response = client.get("/api/admin/activity-log", headers=as_me())
+    assert response.status_code == 200
+    assert response.json()[0]["detail"]["order_no"] == 12
