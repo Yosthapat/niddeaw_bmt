@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getPlayDates, getRanking } from '@/api/public'
 import type { PlayerStats } from '@/types'
@@ -8,7 +8,8 @@ import TierMascot from '@/components/players/TierMascot.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 import CountUp from '@/components/common/CountUp.vue'
-import StaggerHeading from '@/components/common/StaggerHeading.vue'
+import PageBanner from '@/components/common/PageBanner.vue'
+import Podium from '@/components/ranking/Podium.vue'
 import { formatDate } from '@/utils/format'
 
 const { t, locale } = useI18n()
@@ -58,99 +59,187 @@ async function load(): Promise<void> {
 // couldn't tell that assignment apart from a real pick without a guard.
 watch(period, load, { immediate: true })
 
-const medalByRank = ['🥇', '🥈', '🥉']
-const rankBadgeClass = ['rank-badge-gold', 'rank-badge-silver', 'rank-badge-bronze']
+// The podium takes the top three; the list carries on from fourth.
+const podium = computed(() => stats.value.slice(0, 3))
+const rest = computed(() => stats.value.slice(3))
+
+const PERIODS = ['all', 'year', 'day'] as const
+const periodLabel = { all: 'ranking.allTime', year: 'ranking.thisYear', day: 'ranking.byDay' } as const
 </script>
 
 <template>
-  <main class="mx-auto max-w-3xl px-4 py-8 sm:py-12">
-    <div class="flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <p class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">Leaderboard</p>
-        <h1 class="font-display text-3xl font-bold text-white"><StaggerHeading :text="t('nav.ranking')" /></h1>
-      </div>
+  <main class="pb-12 sm:pb-20">
+    <PageBanner eyebrow="Leaderboard" :title="t('nav.ranking')" :sub="t('ranking.sub')" mascot="/hero/cat-color.webp">
       <div class="flex flex-wrap items-center gap-2">
-        <div class="hud-panel flex border border-brand-pink/25 bg-brand-surface p-1 text-sm">
+        <div class="seg" role="group" :aria-label="t('ranking.periodLabel')">
           <button
-            class="flex min-h-11 items-center px-3 font-semibold transition-colors"
-            :class="period === 'all' ? 'bg-brand-pink text-brand-black' : 'text-white/50 hover:text-white'"
-            @click="period = 'all'"
+            v-for="p in PERIODS"
+            :key="p"
+            type="button"
+            class="seg-btn"
+            :class="{ on: period === p }"
+            :aria-pressed="period === p"
+            @click="period = p"
           >
-            {{ t('ranking.allTime') }}
-          </button>
-          <button
-            class="flex min-h-11 items-center px-3 font-semibold transition-colors"
-            :class="period === 'year' ? 'bg-brand-pink text-brand-black' : 'text-white/50 hover:text-white'"
-            @click="period = 'year'"
-          >
-            {{ t('ranking.thisYear') }}
-          </button>
-          <button
-            class="flex min-h-11 items-center px-3 font-semibold transition-colors"
-            :class="period === 'day' ? 'bg-brand-pink text-brand-black' : 'text-white/50 hover:text-white'"
-            @click="period = 'day'"
-          >
-            {{ t('ranking.byDay') }}
+            {{ t(periodLabel[p]) }}
           </button>
         </div>
         <select
           v-if="period === 'day' && playDates.length > 0"
           v-model="selectedDate"
           :aria-label="t('ranking.pickDay')"
-          class="hud-panel min-h-11 border border-brand-pink/25 bg-brand-surface px-3 text-sm text-white"
+          class="min-h-11 rounded-full border border-white/20 bg-white/10 px-4 text-sm text-white backdrop-blur"
           @change="load"
         >
-          <option v-for="d in playDates" :key="d" :value="d">{{ formatPlayDate(d) }}</option>
+          <option v-for="d in playDates" :key="d" :value="d" class="bg-brand-black">{{ formatPlayDate(d) }}</option>
         </select>
       </div>
-    </div>
+    </PageBanner>
 
-    <div v-if="loading" class="mt-6 space-y-2">
-      <HudSkeletonBlock v-for="i in 8" :key="i" :delay="i * 70" class="h-16" />
-    </div>
-    <p v-else-if="error" class="mt-6 text-status-error">{{ error }}</p>
-    <p v-else-if="stats.length === 0" class="mt-6 text-white/60">
-      {{ period === 'day' && playDates.length === 0 ? t('ranking.noPlayDays') : t('ranking.empty') }}
-    </p>
-
-    <ol v-else class="mt-6 space-y-2">
-      <li
-        v-for="(s, i) in stats"
-        :key="s.player.id"
-        v-reveal="i"
-        v-tilt="i < 3"
-        class="hud-panel glass-panel hud-hover flex items-center gap-3 border px-4 py-3"
-        :class="[i < 3 ? 'float-idle' : '', i === 0 ? 'border-brand-pink/70 bg-gradient-to-r from-brand-pink/10 to-transparent' : 'border-brand-pink/15']"
-        :style="i < 3 ? { '--float-delay': `${i * 0.3}s` } : undefined"
-      >
-        <span
-          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-display text-sm font-bold"
-          :class="rankBadgeClass[i] ?? 'bg-brand-black text-white/70'"
-        >
-          {{ medalByRank[i] ?? i + 1 }}
-        </span>
-        <RouterLink :to="`/members/${s.player.id}`" class="flex min-h-11 min-w-0 flex-1 items-center gap-3 hover:text-brand-pink">
-          <PlayerAvatar :name="s.player.nickname" :avatar-url="s.player.avatar_url" size="sm" />
-          <div class="min-w-0">
-            <p class="truncate font-medium">{{ s.player.nickname }}</p>
-            <p class="text-xs text-white/40">
-              {{ s.games }} {{ t('common.game') }} · {{ t('common.win') }} <CountUp :value="s.wins" />
-              · {{ t('common.draw') }} {{ s.draws }} · {{ t('common.loss') }} {{ s.losses }}
-            </p>
+    <div class="home-world">
+      <div class="mx-auto max-w-[1200px] px-3 pt-4 sm:px-6 sm:pt-7">
+        <div v-if="loading" class="grid gap-4 lg:grid-cols-[400px_minmax(0,1fr)] xl:grid-cols-[440px_minmax(0,1fr)]">
+          <HudSkeletonBlock class="h-80 rounded-[22px]" />
+          <div class="space-y-2">
+            <HudSkeletonBlock v-for="i in 7" :key="i" :delay="i * 70" class="h-16 rounded-[18px]" />
           </div>
-        </RouterLink>
-        <!-- A wrapper, not `hidden` on the components: their own root class
-             says inline-block, which won over `hidden` and squeezed the
-             name column to one word per line on a phone. -->
-        <div class="hidden shrink-0 items-center gap-2 sm:flex">
-          <TierMascot :tier="s.player.elo_level" :size="28" />
-          <EloBadge :elo-score="s.player.elo_score" show-score />
         </div>
-        <div class="flex w-12 shrink-0 flex-col items-end leading-none">
-          <CountUp :value="s.points" class="font-display text-lg font-bold text-brand-pink" />
-          <span class="mt-1 text-[10px] text-white/40">{{ t('common.points') }}</span>
+        <p v-else-if="error" class="world-card p-5 text-status-error">{{ error }}</p>
+        <p v-else-if="stats.length === 0" class="world-card p-5 text-white/65">
+          {{ period === 'day' && playDates.length === 0 ? t('ranking.noPlayDays') : t('ranking.empty') }}
+        </p>
+
+        <div v-else class="grid items-start gap-4 lg:grid-cols-[400px_minmax(0,1fr)] lg:gap-6 xl:grid-cols-[440px_minmax(0,1fr)]">
+          <!-- the podium: stays in view beside the list on a desktop -->
+          <section v-reveal class="world-card p-5 sm:p-6 lg:!sticky lg:top-[calc(var(--header-h)+12px)]" aria-labelledby="ranking-podium">
+            <p class="world-eyebrow">TOP 3</p>
+            <h2 id="ranking-podium" class="world-title text-2xl">{{ t('ranking.podium') }}</h2>
+            <Podium :top="podium" show-elo class="mt-6" />
+          </section>
+
+          <ol v-if="rest.length > 0" class="space-y-2">
+            <li v-for="(s, i) in rest" :key="s.player.id" v-reveal="i">
+              <RouterLink :to="`/members/${s.player.id}`" class="rank-row world-card">
+                <span class="rank-no">{{ i + 4 }}</span>
+                <PlayerAvatar :name="s.player.nickname" :avatar-url="s.player.avatar_url" size="md" round />
+                <span class="min-w-0">
+                  <span class="block truncate font-display text-[15px] font-semibold sm:text-base">{{ s.player.nickname }}</span>
+                  <span class="block truncate text-[11px] text-white/55 sm:text-xs">
+                    {{ s.games }} {{ t('common.game') }} · {{ t('common.win') }} {{ s.wins }} · {{ t('common.draw') }} {{ s.draws }} ·
+                    {{ t('common.loss') }} {{ s.losses }}
+                  </span>
+                  <span class="tier-chip mt-1 sm:!hidden">
+                    <TierMascot :tier="s.player.elo_level" :size="22" :interactive="false" />
+                    <EloBadge :elo-score="s.player.elo_score" show-score />
+                  </span>
+                </span>
+                <span class="tier-chip !hidden sm:!inline-flex">
+                  <TierMascot :tier="s.player.elo_level" :size="24" :interactive="false" />
+                  <EloBadge :elo-score="s.player.elo_score" show-score />
+                </span>
+                <span class="flex w-12 flex-col items-end leading-none">
+                  <CountUp :value="s.points" class="pts font-display text-[22px] font-bold sm:text-2xl" />
+                  <span class="mt-1 text-[10px] text-white/50">{{ t('common.points') }}</span>
+                </span>
+              </RouterLink>
+            </li>
+          </ol>
         </div>
-      </li>
-    </ol>
+      </div>
+    </div>
   </main>
 </template>
+
+<style scoped>
+.seg {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.08);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.seg-btn {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 14px;
+  color: rgb(255 255 255 / 0.75);
+  transition: background 0.2s;
+}
+.seg-btn:hover {
+  color: #fff;
+}
+.seg-btn.on {
+  background: linear-gradient(#ff8fd0, #ea4ca4);
+  color: #1a0410;
+  font-weight: 500;
+  box-shadow: 0 4px 14px rgb(234 76 164 / 0.5);
+}
+.rank-row {
+  display: grid;
+  grid-template-columns: 30px 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 64px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  transition:
+    transform 0.2s,
+    border-color 0.2s;
+}
+.rank-row:hover {
+  transform: translateY(-2px);
+  border-color: rgb(255 108 192 / 0.5);
+}
+@media (min-width: 640px) {
+  .rank-row {
+    grid-template-columns: 38px 44px minmax(0, 1fr) auto auto;
+    gap: 14px;
+    padding: 10px 16px;
+  }
+}
+.rank-no {
+  display: flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.08);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  color: rgb(255 255 255 / 0.8);
+}
+@media (min-width: 640px) {
+  .rank-no {
+    width: 38px;
+    height: 38px;
+    font-size: 15px;
+  }
+}
+.tier-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px 0 4px;
+  border: 1px solid rgb(255 255 255 / 0.14);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.07);
+}
+.pts {
+  color: #ff6cc0;
+  text-shadow: 0 0 12px rgb(255 108 192 / 0.5);
+}
+@media (prefers-reduced-motion: reduce) {
+  .rank-row {
+    transition: none;
+  }
+}
+</style>

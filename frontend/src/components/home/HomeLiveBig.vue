@@ -8,14 +8,14 @@
 //
 // The phone keeps its slim LiveNowBox, which only appears while a match is
 // on; a phone screen has no room to spare for a countdown.
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { getPlayersByIds } from '@/api/public'
 import { useLiveNow } from '@/composables/useLiveNow'
 import type { Player } from '@/types'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
-import { gameNight, timeLeft } from '@/utils/gameNight'
+import { useGameNight } from '@/composables/useGameNight'
 
 const { t } = useI18n()
 const { live } = useLiveNow()
@@ -57,36 +57,7 @@ const where = computed(() => {
     .join(' · ')
 })
 
-// A second hand for the countdown. It only runs while the page is on
-// screen; a hidden tab catches up the moment it is shown again.
-const now = ref(Date.now())
-let tick: ReturnType<typeof setInterval> | null = null
-function onVisible(): void {
-  now.value = Date.now()
-}
-onMounted(() => {
-  tick = setInterval(() => {
-    if (document.visibilityState === 'visible') now.value = Date.now()
-  }, 1000)
-  document.addEventListener('visibilitychange', onVisible)
-})
-onBeforeUnmount(() => {
-  if (tick) clearInterval(tick)
-  document.removeEventListener('visibilitychange', onVisible)
-})
-
-const night = computed(() => gameNight(now.value))
-const countdown = computed(() => {
-  const left = timeLeft(night.value.start, now.value)
-  return [
-    { n: String(left.days), unit: t('home.big.days') },
-    { n: String(left.hours).padStart(2, '0'), unit: t('home.big.hours') },
-    { n: String(left.minutes).padStart(2, '0'), unit: t('home.big.minutes') },
-    { n: String(left.seconds).padStart(2, '0'), unit: t('home.big.seconds') },
-  ]
-})
-// "คืนนี้" on the Friday itself, "ศุกร์นี้" any other day of the week.
-const isFridayToday = computed(() => night.value.start - now.value < 20 * 3_600_000)
+const { night, countdown, startsAt } = useGameNight()
 </script>
 
 <template>
@@ -162,7 +133,7 @@ const isFridayToday = computed(() => night.value.start - now.value < 20 * 3_600_
     <!-- the rest of the week -->
     <template v-else>
       <p class="world-eyebrow">NEXT GAME NIGHT</p>
-      <h2 class="world-title mt-1 text-3xl">{{ isFridayToday ? t('home.big.tonightAt') : t('home.big.fridayAt') }}</h2>
+      <h2 class="world-title mt-1 text-3xl">{{ startsAt }}</h2>
       <div class="mt-5 flex gap-3" role="timer" :aria-label="t('home.big.countdownLabel')">
         <div v-for="part in countdown" :key="part.unit" class="count">
           <span class="font-display text-4xl leading-none font-bold text-[#ff9fd6] tabular-nums">{{ part.n }}</span>
