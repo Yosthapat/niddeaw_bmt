@@ -76,6 +76,7 @@ def test_check_in_still_works_while_the_session_is_open(
     client: TestClient, supabase_rows: dict[str, list[dict[str, Any]]]
 ) -> None:
     supabase_rows["sessions"] = [session_row("open")]
+    supabase_rows["players"] = player_rows()
     supabase_rows["checkins"] = [
         {"id": str(uuid4()), "session_id": SESSION_ID, "player_id": PLAYER_IDS[0],
          "checkin_time": "2026-10-09T13:00:00Z", "checkout_time": None}

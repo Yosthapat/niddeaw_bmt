@@ -18,7 +18,8 @@ export function bahtProblem(raw: unknown, opts: { allowZero: boolean }): BahtPro
   const value = typeof raw === 'number' ? raw : Number(raw)
   if (!Number.isFinite(value)) return 'notNumber'
   if (value < 0) return 'negative'
-  if (value === 0 && !opts.allowZero) return 'zero'
+  // Stored to the satang: 0.004 is kept as 0.00, which is nothing.
+  if (Math.round(value * 100) === 0 && !opts.allowZero) return 'zero'
   if (value > MAX_BAHT) return 'tooLarge'
   return null
 }

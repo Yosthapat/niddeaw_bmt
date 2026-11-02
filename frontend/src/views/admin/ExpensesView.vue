@@ -121,7 +121,7 @@ function resetForm(): void {
 async function submitExpense(): Promise<void> {
   createError.value = null
   const amount = Number(form.amount)
-  if (!amount || amount <= 0) {
+  if (!amount || Math.round(amount * 100) <= 0) {
     createError.value = t('expenses.amountRequired')
     return
   }
@@ -240,7 +240,7 @@ function startEdit(expense: Expense): void {
 
 async function saveEdit(expense: Expense): Promise<void> {
   const amount = Number(editForm.amount)
-  if (!amount || amount <= 0) {
+  if (!amount || Math.round(amount * 100) <= 0) {
     rowError.value = t('expenses.amountRequired')
     return
   }

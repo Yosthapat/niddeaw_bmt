@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from app.models.fields import Note, PositiveBaht
+from app.models.fields import EditForm, Note, PositiveBaht
 
 ExpenseCategory = Literal["court_fee", "shuttlecock", "jersey", "dividend", "other"]
 
@@ -18,7 +18,9 @@ class ExpenseCreate(BaseModel):
     note: Note | None = None
 
 
-class ExpenseUpdate(BaseModel):
+class ExpenseUpdate(EditForm):
+    NOT_NULL = frozenset({"expense_date", "category", "amount", "paid_by"})
+
     expense_date: date | None = None
     category: ExpenseCategory | None = None
     category_other: Note | None = None

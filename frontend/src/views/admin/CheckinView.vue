@@ -81,37 +81,60 @@ async function refreshCheckins(): Promise<void> {
   checkins.value = await adminApi.getCheckins(sessionsStore.currentSessionId)
 }
 
-async function doCheckin(playerId: string): Promise<void> {
-  if (!sessionsStore.currentSessionId) return
-  actionError.value = null
+// The rows a tap is still being sent for. At the door the admin taps fast,
+// and a second tap on the same row before the list refreshes would send
+// the same check-in (or a new member) twice.
+const busy = ref<Set<string>>(new Set())
+async function once(key: string, run: () => Promise<void>): Promise<void> {
+  if (busy.value.has(key)) return
+  busy.value = new Set(busy.value).add(key)
   try {
-    await adminApi.checkinPlayer(sessionsStore.currentSessionId, playerId)
-    await refreshCheckins()
-  } catch (e) {
-    actionError.value = apiErrorMessage(e, t('checkin.checkinFailed'))
+    await run()
+  } finally {
+    const next = new Set(busy.value)
+    next.delete(key)
+    busy.value = next
   }
+}
+
+async function doCheckin(playerId: string): Promise<void> {
+  const sessionId = sessionsStore.currentSessionId
+  if (!sessionId) return
+  actionError.value = null
+  await once(playerId, async () => {
+    try {
+      await adminApi.checkinPlayer(sessionId, playerId)
+      await refreshCheckins()
+    } catch (e) {
+      actionError.value = apiErrorMessage(e, t('checkin.checkinFailed'))
+    }
+  })
 }
 
 async function doCheckout(checkinId: string): Promise<void> {
   actionError.value = null
-  try {
-    await adminApi.checkoutPlayer(checkinId)
-    await refreshCheckins()
-  } catch (e) {
-    actionError.value = apiErrorMessage(e, t('checkin.checkoutFailed'))
-  }
+  await once(checkinId, async () => {
+    try {
+      await adminApi.checkoutPlayer(checkinId)
+      await refreshCheckins()
+    } catch (e) {
+      actionError.value = apiErrorMessage(e, t('checkin.checkoutFailed'))
+    }
+  })
 }
 
 async function quickAddPlayer(): Promise<void> {
   if (!newPlayerName.value.trim()) return
   actionError.value = null
-  try {
-    await playersStore.createPlayer({ nickname: newPlayerName.value.trim() })
-    newPlayerName.value = ''
-    addingPlayer.value = false
-  } catch (e) {
-    actionError.value = apiErrorMessage(e, t('checkin.addFailed'))
-  }
+  await once('new-player', async () => {
+    try {
+      await playersStore.createPlayer({ nickname: newPlayerName.value.trim() })
+      newPlayerName.value = ''
+      addingPlayer.value = false
+    } catch (e) {
+      actionError.value = apiErrorMessage(e, t('checkin.addFailed'))
+    }
+  })
 }
 
 watch(() => sessionsStore.currentSessionId, refreshCheckins)
@@ -207,7 +230,8 @@ usePolling(refreshCheckins, 8000)
             </span>
             <button
               v-if="!sessionClosed"
-              class="tap rounded-full border border-brand-pink px-3 text-xs text-brand-pink hover:bg-brand-pink hover:text-brand-black"
+              class="tap rounded-full border border-brand-pink px-3 text-xs text-brand-pink hover:bg-brand-pink hover:text-brand-black disabled:opacity-50"
+              :disabled="busy.has(c.id)"
               @click="doCheckout(c.id)"
             >
               {{ t('checkin.checkout') }}
@@ -230,7 +254,8 @@ usePolling(refreshCheckins, 8000)
             <PlayerAvatar :name="p.nickname" :avatar-url="p.avatar_url" size="sm" />
             <span class="flex-1">{{ p.nickname }}</span>
             <button
-              class="tap rounded-full bg-brand-pink px-3 text-xs font-semibold text-brand-black"
+              class="tap rounded-full bg-brand-pink px-3 text-xs font-semibold text-brand-black disabled:opacity-50"
+              :disabled="busy.has(p.id)"
               @click="doCheckin(p.id)"
             >
               {{ t('checkin.checkin') }}
@@ -256,7 +281,7 @@ usePolling(refreshCheckins, 8000)
               @keydown.enter="newNameProblem === null && newPlayerName.trim() && quickAddPlayer()"
             />
             <button
-              :disabled="newNameProblem !== null || !newPlayerName.trim()"
+              :disabled="newNameProblem !== null || !newPlayerName.trim() || busy.has('new-player')"
               class="tap rounded-full bg-brand-pink px-3 text-sm font-semibold text-brand-black disabled:opacity-50"
               @click="quickAddPlayer"
             >

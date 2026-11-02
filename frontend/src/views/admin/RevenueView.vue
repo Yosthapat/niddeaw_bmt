@@ -111,7 +111,7 @@ async function submitIncome(): Promise<void> {
   createIncomeError.value = null
   incomeRowError.value = null
   const amount = Number(incomeForm.amount)
-  if (!amount || amount <= 0) {
+  if (!amount || Math.round(amount * 100) <= 0) {
     createIncomeError.value = t('income.amountRequired')
     return
   }
@@ -174,7 +174,7 @@ function startEditIncome(income: OtherIncome): void {
 
 async function saveIncomeEdit(income: OtherIncome): Promise<void> {
   const amount = Number(editIncomeForm.amount)
-  if (!amount || amount <= 0) {
+  if (!amount || Math.round(amount * 100) <= 0) {
     incomeRowError.value = t('income.amountRequired')
     return
   }

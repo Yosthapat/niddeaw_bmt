@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from app.models.fields import Name, Note, PositiveBaht
+from app.models.fields import EditForm, Name, Note, PositiveBaht
 
 IncomeSource = Literal["sponsor", "investment", "other"]
 
@@ -17,7 +17,9 @@ class OtherIncomeCreate(BaseModel):
     note: Note | None = None
 
 
-class OtherIncomeUpdate(BaseModel):
+class OtherIncomeUpdate(EditForm):
+    NOT_NULL = frozenset({"income_date", "source", "source_name", "amount"})
+
     income_date: date | None = None
     source: IncomeSource | None = None
     source_name: Name | None = None

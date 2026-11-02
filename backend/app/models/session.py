@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from app.models.fields import Baht, Name
+from app.models.fields import Baht, EditForm, Name
 
 SessionStatus = Literal["open", "closed"]
 
@@ -16,7 +16,9 @@ class SessionCreate(BaseModel):
     shuttlecock_price_per_game: Baht
 
 
-class SessionUpdate(BaseModel):
+class SessionUpdate(EditForm):
+    NOT_NULL = frozenset({"location", "court_fee_per_person", "shuttlecock_price_per_game", "status"})
+
     location: Name | None = None
     court_fee_per_person: Baht | None = None
     shuttlecock_price_per_game: Baht | None = None

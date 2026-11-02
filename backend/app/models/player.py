@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, computed_field
 
-from app.models.fields import EloScore, Handle, Note
+from app.models.fields import EditForm, EloScore, Handle, Note
 
 EloTier = Literal["milk", "beer", "highball", "wine", "soju", "whisky", "vodka", "absinthe"]
 DominantHand = Literal["left", "right"]
@@ -29,7 +29,9 @@ class PlayerCreate(PlayerBase):
     elo_service.STARTING_SCORE (1000) when omitted."""
 
 
-class PlayerUpdate(BaseModel):
+class PlayerUpdate(EditForm):
+    NOT_NULL = frozenset({"nickname", "is_active", "elo_score"})
+
     nickname: str | None = None
     line_id: Handle | None = None
     avatar_url: str | None = None
