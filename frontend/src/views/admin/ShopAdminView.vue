@@ -4,8 +4,8 @@ import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
 import { apiErrorMessage } from '@/api/errors'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
-import type { OrderStatus, PreorderTally, Product, SaleType, ShopOrderAdmin } from '@/types'
-import { orderNo, priceRange } from '@/types'
+import type { OrderStatus, PreorderTally, Product, SaleType, ShopOrderAdmin, ShopOrderItem } from '@/types'
+import { orderNo, priceOf, priceRange } from '@/types'
 import { formatDayMonth, formatDateTime, money } from '@/utils/format'
 import { bahtProblem, localToday, MAX_NAME } from '@/utils/limits'
 import { compressImage } from '@/utils/imageCompression'
@@ -72,6 +72,82 @@ async function move(order: ShopOrderAdmin, status: OrderStatus, note?: string): 
     products.value = p
   } catch (e) {
     actionError.value = apiErrorMessage(e, t('shopAdmin.actionFailed'))
+  } finally {
+    busy.value = null
+  }
+}
+
+// ------------------------------------------------------- fixing a line
+// A member who picked M meaning XL: the admin changes the size (or how
+// many) here. The server prices the line again at the new size and moves
+// the stock; the screen shows the difference first, so the admin knows
+// what to collect or give back.
+interface Draft {
+  size: string
+  qty: number
+}
+const fixing = ref<string | null>(null)
+const drafts = ref<Record<string, Draft>>({})
+const fixError = ref<string | null>(null)
+const lastFix = ref<{ id: string; before: number; after: number } | null>(null)
+const productOf = (item: ShopOrderItem): Product | null => products.value.find((p) => p.id === item.product_id) ?? null
+const canFix = (item: ShopOrderItem): boolean => !!item.id && !!productOf(item)
+
+function startFix(o: ShopOrderAdmin): void {
+  fixing.value = o.id
+  fixError.value = null
+  drafts.value = Object.fromEntries(o.items.filter((i) => i.id).map((i) => [i.id as string, { size: i.size, qty: i.qty }]))
+}
+function draftLine(item: ShopOrderItem): number {
+  const d = item.id ? drafts.value[item.id] : undefined
+  const p = productOf(item)
+  return d && p ? priceOf(p, d.size) * d.qty : item.line_total
+}
+const draftTotal = (o: ShopOrderAdmin): number => o.items.reduce((sum, i) => sum + draftLine(i), 0)
+const changed = (item: ShopOrderItem): boolean => {
+  const d = item.id ? drafts.value[item.id] : undefined
+  return !!d && (d.size !== item.size || d.qty !== item.qty)
+}
+/** Units of `size` that could go on this line: what's on the shelf, plus
+ *  what this line already holds of that size. A pre-order has no limit. */
+function roomFor(item: ShopOrderItem, size: string): number {
+  const p = productOf(item)
+  if (!p || item.sale_type === 'preorder') return 10
+  return (p.stock[size] ?? 0) + (size === item.size ? item.qty : 0)
+}
+function diffText(before: number, after: number): string {
+  if (after > before) return t('shopAdmin.fixCollect', { amount: money(after - before) })
+  if (after < before) return t('shopAdmin.fixRefund', { amount: money(before - after) })
+  return t('shopAdmin.fixSame')
+}
+
+async function saveFix(o: ShopOrderAdmin): Promise<void> {
+  busy.value = o.id
+  fixError.value = null
+  const before = o.total
+  let updated: ShopOrderAdmin | null = null
+  try {
+    for (const item of o.items) {
+      if (!item.id || !changed(item)) continue
+      const d = drafts.value[item.id]
+      updated = await adminApi.updateShopOrderItem(o.id, item.id, {
+        ...(d.size !== item.size ? { size: d.size } : {}),
+        ...(d.qty !== item.qty ? { qty: d.qty } : {}),
+      })
+    }
+    if (updated) {
+      const done = updated
+      orders.value = orders.value.map((x) => (x.id === done.id ? done : x))
+      lastFix.value = { id: done.id, before, after: done.total }
+      const [tl, p] = await Promise.all([adminApi.getPreorderTally(), adminApi.getAdminProducts()])
+      tally.value = tl
+      products.value = p
+    }
+    fixing.value = null
+  } catch (e) {
+    fixError.value = apiErrorMessage(e, t('shopAdmin.fixFailed'))
+    // what did go through is on the server; show it
+    orders.value = await adminApi.getShopOrders().catch(() => orders.value)
   } finally {
     busy.value = null
   }
@@ -360,7 +436,55 @@ function priceText(p: Product): string {
             </div>
           </div>
 
-          <template v-if="o.status === 'pending'">
+          <p v-if="lastFix && lastFix.id === o.id" role="status" class="rounded-xl border border-[#ffe14d]/40 bg-[#ffe14d]/8 px-3 py-2 text-sm text-[#ffe14d]">
+            {{ t('shopAdmin.fixDone', { before: money(lastFix.before), after: money(lastFix.after) }) }} · {{ diffText(lastFix.before, lastFix.after) }}
+          </p>
+
+          <!-- fixing the lines: size buttons and how many, per line -->
+          <div v-if="fixing === o.id" class="flex flex-col gap-3 rounded-xl border border-white/15 bg-white/4 p-3">
+            <div v-for="item in o.items" :key="item.id ?? item.product_name + item.size" class="flex flex-col gap-2">
+              <p class="text-sm font-medium">{{ item.product_name }}</p>
+              <p v-if="!canFix(item)" class="text-xs text-white/55">{{ t('shopAdmin.fixGone') }}</p>
+              <template v-else-if="item.id && drafts[item.id]">
+                <div v-if="productOf(item)!.sizes.length" class="flex flex-wrap gap-1.5" role="radiogroup" :aria-label="t('shop.size')">
+                  <button
+                    v-for="s in productOf(item)!.sizes"
+                    :key="s"
+                    type="button"
+                    role="radio"
+                    :aria-checked="drafts[item.id].size === s"
+                    :disabled="roomFor(item, s) < drafts[item.id].qty"
+                    class="min-h-11 min-w-12 rounded-xl border px-2.5 font-display text-sm font-bold disabled:opacity-35"
+                    :class="drafts[item.id].size === s ? 'border-white bg-white text-brand-black' : 'border-white/20 text-white/80'"
+                    @click="drafts[item.id].size = s"
+                  >
+                    {{ s }}
+                  </button>
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-1.5">
+                    <button type="button" class="tap w-11 rounded-lg border border-white/20" :aria-label="t('shop.less')" :disabled="drafts[item.id].qty <= 1" @click="drafts[item.id].qty--">−</button>
+                    <span class="min-w-6 text-center font-display font-bold" aria-live="polite">{{ drafts[item.id].qty }}</span>
+                    <button type="button" class="tap w-11 rounded-lg border border-white/20" :aria-label="t('shop.more')" :disabled="drafts[item.id].qty >= Math.min(10, roomFor(item, drafts[item.id].size))" @click="drafts[item.id].qty++">+</button>
+                  </div>
+                  <span class="text-sm" :class="changed(item) ? 'font-medium text-[#ffe14d]' : 'text-white/60'">{{ money(draftLine(item)) }}</span>
+                </div>
+              </template>
+            </div>
+            <p class="text-sm">
+              {{ t('shopAdmin.fixTotal', { before: money(o.total), after: money(draftTotal(o)) }) }}
+              <b class="text-[#ffe14d]">· {{ diffText(o.total, draftTotal(o)) }}</b>
+            </p>
+            <p v-if="fixError" class="text-sm text-status-error" role="alert">{{ fixError }}</p>
+            <div class="flex gap-2">
+              <button type="button" class="tap flex-1 rounded-full bg-brand-pink text-sm font-semibold text-brand-black disabled:opacity-50" :disabled="busy === o.id || !o.items.some(changed)" @click="saveFix(o)">
+                {{ busy === o.id ? t('common.saving') : t('shopAdmin.fixSave') }}
+              </button>
+              <button type="button" class="tap rounded-full border border-white/20 px-4 text-sm text-white/60" @click="fixing = null">{{ t('common.cancel') }}</button>
+            </div>
+          </div>
+
+          <template v-else-if="o.status === 'pending'">
             <form v-if="rejecting === o.id" class="flex flex-col gap-2" @submit.prevent="move(o, 'rejected', reason)">
               <input v-model="reason" maxlength="300" :aria-label="t('shopAdmin.rejectReason')" :placeholder="t('shopAdmin.rejectReason')" class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-black px-3 text-sm" />
               <div class="flex gap-2">
@@ -370,11 +494,13 @@ function priceText(p: Product): string {
             </form>
             <div v-else class="flex gap-2">
               <button type="button" :disabled="busy === o.id" class="tap flex-1 rounded-full bg-brand-pink text-sm font-semibold text-brand-black" @click="move(o, 'confirmed')">{{ t('shopAdmin.confirm') }}</button>
+              <button type="button" class="tap rounded-full border border-white/25 px-4 text-sm" @click="startFix(o)">{{ t('shopAdmin.fix') }}</button>
               <button type="button" class="tap rounded-full border border-status-error/50 px-4 text-sm text-status-error" @click="rejecting = o.id; reason = ''">{{ t('shopAdmin.reject') }}</button>
             </div>
           </template>
           <div v-else-if="o.status === 'confirmed'" class="flex gap-2">
             <button type="button" :disabled="busy === o.id" class="tap flex-1 rounded-full border border-[#7ff0b4]/50 bg-[#7ff0b4]/8 text-sm text-[#7ff0b4]" @click="move(o, 'delivered')">{{ t('shopAdmin.handed') }}</button>
+            <button type="button" class="tap rounded-full border border-white/25 px-4 text-sm" @click="startFix(o)">{{ t('shopAdmin.fix') }}</button>
             <button type="button" :disabled="busy === o.id" class="tap rounded-full border border-white/20 px-4 text-sm text-white/60" @click="move(o, 'pending')">{{ t('shopAdmin.undo') }}</button>
           </div>
           <button v-else-if="o.status === 'delivered'" type="button" :disabled="busy === o.id" class="tap self-start rounded-full border border-white/20 px-4 text-sm text-white/60" @click="move(o, 'confirmed')">{{ t('shopAdmin.undo') }}</button>

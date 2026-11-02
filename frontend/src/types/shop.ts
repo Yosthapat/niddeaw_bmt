@@ -38,6 +38,7 @@ export interface ProductFields {
 }
 
 export interface ShopOrderItem {
+  id?: string | null
   product_id: string | null
   product_name: string
   sale_type: SaleType

@@ -78,6 +78,7 @@ class Product(BaseModel):
 
 
 class OrderItem(BaseModel):
+    id: UUID | None = None
     product_id: UUID | None = None
     product_name: str
     sale_type: SaleType
@@ -138,6 +139,13 @@ class Quote(BaseModel):
     total: float
     ok: bool
     """Every line can be bought as it is."""
+
+
+class OrderItemUpdate(BaseModel):
+    """The admin fixing a line a member got wrong: the size, or how many."""
+
+    size: Annotated[str, StringConstraints(strip_whitespace=True, max_length=12)] | None = None
+    qty: Annotated[int, Field(ge=1, le=MAX_LINE_QTY)] | None = None
 
 
 class OrderUpdate(BaseModel):
