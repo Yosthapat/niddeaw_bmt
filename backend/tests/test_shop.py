@@ -307,7 +307,7 @@ def test_the_cart_says_which_line_cannot_be_had(client: TestClient, shelf: Shelf
         "/api/shop/quote", json={"items": cart((PRODUCT_ID, "M", 2), (PRODUCT_ID, "XL", 1), (PRODUCT_ID, "S", 1))}
     ).json()
     problems = {line["size"]: line["problem"] for line in body["lines"]}
-    assert problems == {"M": "เหลือแค่ 1 ตัว", "XL": "หมดแล้ว", "S": "ไม่มีไซร์นี้แล้ว — เลือกใหม่"}
+    assert problems == {"M": "เหลือแค่ 1 ตัว", "XL": "หมดแล้ว", "S": "ไม่มีไซส์นี้แล้ว — เลือกใหม่"}
     assert body["ok"] is False
 
 
@@ -417,12 +417,12 @@ def test_ordered_counts_skip_refused_orders(shelf: Shelf) -> None:
     ("payload", "why"),
     [
         ({"name": "เสื้อ", "price": 390, "sale_type": "preorder", "sizes": ["M"]}, "วันปิดรับ"),
-        ({"name": "เสื้อ", "price": 390, "sale_type": "stock", "sizes": ["M", "L"], "stock": {"M": 3}}, "ครบทุกไซร์"),
-        ({"name": "เสื้อ", "price": 390, "sale_type": "stock", "sizes": ["M"]}, "ครบทุกไซร์"),
+        ({"name": "เสื้อ", "price": 390, "sale_type": "stock", "sizes": ["M", "L"], "stock": {"M": 3}}, "ครบทุกไซส์"),
+        ({"name": "เสื้อ", "price": 390, "sale_type": "stock", "sizes": ["M"]}, "ครบทุกไซส์"),
         (
             {"name": "เสื้อ", "price": 390, "sale_type": "stock", "sizes": ["M"], "stock": {"M": 1},
              "size_prices": {"XL": 420}},
-            "เฉพาะไซร์ที่มีขาย",
+            "เฉพาะไซส์ที่มีขาย",
         ),
     ],
 )

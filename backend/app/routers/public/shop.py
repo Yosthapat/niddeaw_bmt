@@ -115,9 +115,9 @@ def build_quote(supabase: SupabaseDep, cart: Cart) -> Quote:
         problem: str | None = None
         available: int | None = None
         if sizes and size not in sizes:
-            problem = "ไม่มีไซร์นี้แล้ว — เลือกใหม่"
+            problem = "ไม่มีไซส์นี้แล้ว — เลือกใหม่"
         elif qty > MAX_LINE_QTY:
-            problem = f"สั่งได้สูงสุด {MAX_LINE_QTY} ตัวต่อไซร์"
+            problem = f"สั่งได้สูงสุด {MAX_LINE_QTY} ตัวต่อไซส์"
         elif product["sale_type"] == "preorder":
             if not product["open"]:
                 problem = "ปิดรับพรีออเดอร์แล้ว"
@@ -213,7 +213,7 @@ async def place_order(
         label = f"{short['product_name']} {short['size']}".strip()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"{label}: ของหมดพอดี — เหลือไม่พอตามจำนวนที่สั่ง ลองลดจำนวนหรือเลือกไซร์อื่น",
+            detail=f"{label}: ของหมดพอดี — เหลือไม่พอตามจำนวนที่สั่ง ลองลดจำนวนหรือเลือกไซส์อื่น",
         )
 
     order_id: str | None = None

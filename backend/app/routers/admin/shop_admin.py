@@ -49,10 +49,10 @@ def _check(merged: dict[str, Any], stock: dict[str, int] | None) -> None:
     if stock is not None and merged["sale_type"] == "stock":
         expected = set(merged["sizes"]) or {ONE_SIZE}
         if set(stock) != expected:
-            raise _bad("ใส่จำนวนสต็อกให้ครบทุกไซร์")
+            raise _bad("ใส่จำนวนสต็อกให้ครบทุกไซส์")
     prices = merged.get("size_prices") or {}
     if set(prices) - set(merged["sizes"]):
-        raise _bad("ตั้งราคาได้เฉพาะไซร์ที่มีขาย")
+        raise _bad("ตั้งราคาได้เฉพาะไซส์ที่มีขาย")
 
 
 def _write_stock(supabase: SupabaseDep, product_id: str, stock: dict[str, int]) -> None:
@@ -94,7 +94,7 @@ def create_product(payload: ProductCreate, supabase: SupabaseDep, admin: AdminDe
     fields.setdefault("sizes", [])
     fields.setdefault("size_prices", {})
     if payload.sale_type == "stock" and payload.stock is None:
-        raise _bad("ใส่จำนวนสต็อกให้ครบทุกไซร์")
+        raise _bad("ใส่จำนวนสต็อกให้ครบทุกไซส์")
     _check(fields, payload.stock)
     if fields["sale_type"] == "stock":
         fields.pop("preorder_closes_on", None)
