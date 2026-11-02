@@ -22,7 +22,12 @@ const checkins = ref<Checkin[]>([])
 const closing = ref(false)
 const billingPlayerId = ref<string | null>(null)
 const paymentInfoByBillingId = ref<Record<string, PaymentInfoResponse>>({})
-const editingAdjust = ref<Record<string, string>>({})
+// What the admin has typed per bill. Vue hands a number input's value back
+// as a number, so 0 — a member who was hurt and never played — arrives as
+// the number 0, which is falsy: "has something been typed" is undefined or
+// '' (a cleared box), never a truthiness test.
+const editingAdjust = ref<Record<string, string | number>>({})
+const hasTyped = (id: string): boolean => editingAdjust.value[id] !== undefined && editingAdjust.value[id] !== ''
 // Next to the row it belongs to — the page-level error sits above a list
 // that can be twenty bills long, out of sight of the box just typed in.
 const adjustError = ref<Record<string, string>>({})
@@ -132,6 +137,8 @@ async function saveAdjust(billing: Billing, clear = false): Promise<void> {
     const updated = await adminApi.adjustBilling(billing.id, amount)
     billings.value = billings.value.map((b) => (b.id === updated.id ? updated : b))
     delete editingAdjust.value[billing.id]
+    // An open QR was drawn for the old amount.
+    delete paymentInfoByBillingId.value[billing.id]
   } catch (e) {
     adjustError.value[billing.id] = apiErrorMessage(e, t('billing.adjustFailed'))
   }
@@ -282,7 +289,7 @@ onMounted(async () => {
             />
             <button
               class="tap px-1 text-brand-pink underline disabled:no-underline disabled:opacity-40"
-              :disabled="!editingAdjust[b.id]"
+              :disabled="!hasTyped(b.id)"
               @click="saveAdjust(b)"
             >
               {{ t('billing.saveAdjustment') }}
@@ -294,14 +301,15 @@ onMounted(async () => {
             >
               {{ t('billing.useCalculated') }}
             </button>
-            <button class="tap px-1 text-brand-pink underline" @click="showQr(b)">
+            <!-- nothing to pay, nothing to scan -->
+            <button v-if="effectiveAmount(b) > 0" class="tap px-1 text-brand-pink underline" @click="showQr(b)">
               {{ paymentInfoByBillingId[b.id] ? t('billing.hideQr') : t('billing.showQr') }}
             </button>
           </div>
 
           <p v-if="adjustError[b.id]" class="mt-1 text-xs text-status-error" role="alert">{{ adjustError[b.id] }}</p>
 
-          <div v-if="paymentInfoByBillingId[b.id]" class="mt-3 flex flex-col items-center gap-2 text-center">
+          <div v-if="paymentInfoByBillingId[b.id] && effectiveAmount(b) > 0" class="mt-3 flex flex-col items-center gap-2 text-center">
             <img
               v-if="paymentInfoByBillingId[b.id].data_uri"
               :src="paymentInfoByBillingId[b.id].data_uri!"
