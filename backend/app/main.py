@@ -6,6 +6,7 @@ from app.middleware.activity_log import AdminActivityLogMiddleware
 from app.middleware.unhandled_errors import UnhandledErrorsMiddleware
 from app.routers.admin import activity_log as admin_activity_log
 from app.routers.admin import auth as admin_auth
+from app.routers.admin import backup as admin_backup
 from app.routers.admin import billing as admin_billing
 from app.routers.admin import checkins as admin_checkins
 from app.routers.admin import expenses as admin_expenses
@@ -71,6 +72,7 @@ app.include_router(admin_activity_log.router)
 app.include_router(admin_stats_audit.router)
 app.include_router(admin_sponsors.router)
 app.include_router(admin_shop.router)
+app.include_router(admin_backup.router)
 
 
 @app.get("/health")

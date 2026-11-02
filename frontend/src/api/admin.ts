@@ -1,4 +1,4 @@
-import { ApiError, request } from './client'
+import { ApiError, request, requestBlob } from './client'
 import type {
   Admin,
   LogoPreview,
@@ -562,4 +562,20 @@ export async function updateShopOrder(id: string, status: OrderStatus, note?: st
 
 export async function getPreorderTally(): Promise<PreorderTally[]> {
   return request('/api/admin/shop/preorder-tally')
+}
+
+/** The last backup an admin downloaded, read back from the activity log. */
+export interface LastBackup {
+  at: string | null
+  by: string | null
+  rows: number | null
+}
+
+export async function getLastBackup(): Promise<LastBackup> {
+  return request('/api/admin/backup/last')
+}
+
+/** Every table as one ZIP (data.json + a CSV per table). */
+export async function downloadBackup(): Promise<Blob> {
+  return requestBlob('/api/admin/backup', { method: 'POST' })
 }

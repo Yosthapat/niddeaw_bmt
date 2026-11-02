@@ -38,7 +38,7 @@ function actionLabel(entry: AdminActivityLogEntry): string {
 }
 
 function detailSummary(entry: AdminActivityLogEntry): string {
-  return readableDetail(entry.detail)
+  return readableDetail(entry.detail, (key, n) => t(`activityLog.count.${key}`, { n: n.toLocaleString() }))
 }
 
 async function loadEntries(): Promise<void> {

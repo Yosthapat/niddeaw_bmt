@@ -8,8 +8,9 @@ import type { ClubSettings, PaymentMethod, PromptPayType } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import { bahtProblem, MAX_HANDLE, promptpayIdProblem } from '@/utils/limits'
 import { apiErrorMessage } from '@/api/errors'
+import { formatDateTime } from '@/utils/format'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { confirm } = useConfirmDialog()
 
 // Baked in at build time by vite.config.ts.
@@ -25,6 +26,66 @@ const saveError = ref<string | null>(null)
 
 const uploadingQr = ref(false)
 const qrUploadError = ref<string | null>(null)
+
+// Supabase's free plan keeps no backups of its own, so the club keeps its
+// own: one ZIP of every table, downloaded by hand. The "last backup" line
+// is read from the activity log the download is recorded in, so it is the
+// same for every admin on every phone.
+const BACKUP_DUE_DAYS = 30
+const lastBackup = ref<adminApi.LastBackup | null>(null)
+const backingUp = ref(false)
+const backupError = ref<string | null>(null)
+const backupFile = ref<string | null>(null)
+
+const backupOverdue = computed(() => {
+  const at = lastBackup.value?.at
+  if (!at) return true
+  return Date.now() - new Date(at).getTime() > BACKUP_DUE_DAYS * 24 * 60 * 60 * 1000
+})
+
+async function loadLastBackup(): Promise<void> {
+  try {
+    lastBackup.value = await adminApi.getLastBackup()
+  } catch {
+    // Only the reminder line is lost; the button still works.
+  }
+}
+
+/** A file name with the club's date and time, as the backend names it. */
+function backupName(now: Date): string {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+    }).formatToParts(now).map((p) => [p.type, p.value]),
+  )
+  return `niddeaw-backup-${parts.year}-${parts.month}-${parts.day}-${parts.hour}${parts.minute}.zip`
+}
+
+async function downloadBackup(): Promise<void> {
+  backingUp.value = true
+  backupError.value = null
+  backupFile.value = null
+  try {
+    const blob = await adminApi.downloadBackup()
+    const name = backupName(new Date())
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = name
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    // Long enough for the browser (and iOS's download sheet) to take it.
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    backupFile.value = name
+    await loadLastBackup()
+  } catch (e) {
+    backupError.value = apiErrorMessage(e, t('settings.backupFailed'))
+  } finally {
+    backingUp.value = false
+  }
+}
 
 // The admin login locks out a caller after five wrong passwords, and who
 // counts as "a caller" depends on how many proxies sit in front of the
@@ -121,6 +182,7 @@ async function onQrFileSelected(event: Event): Promise<void> {
 
 
 onMounted(async () => {
+  void loadLastBackup()
   try {
     settings.value = await adminApi.getClubSettings()
   } catch (e) {
@@ -309,6 +371,42 @@ const paymentMethodOptions = computed<{ value: PaymentMethod; label: string }[]>
         {{ saving ? t('common.saving') : t('settings.saveSettings') }}
       </button>
     </form>
+
+    <section class="mt-10" aria-labelledby="backup-title">
+      <h2 id="backup-title" class="text-sm font-semibold text-white/70">{{ t('settings.backupTitle') }}</h2>
+      <p class="mt-1 text-xs text-white/50">{{ t('settings.backupHint') }}</p>
+
+      <p class="mt-3 text-sm" :class="backupOverdue ? 'text-[#ffe14d]' : 'text-white/70'">
+        <template v-if="lastBackup?.at">
+          {{ t('settings.backupLast', { when: formatDateTime(lastBackup.at, locale), who: lastBackup.by ?? '?' }) }}
+          <span v-if="lastBackup.rows !== null" class="text-white/40">
+            · {{ t('settings.backupLastRows', { n: lastBackup.rows.toLocaleString() }) }}
+          </span>
+          <span v-if="backupOverdue" class="block text-xs">{{ t('settings.backupOverdue') }}</span>
+        </template>
+        <template v-else-if="lastBackup">{{ t('settings.backupNever') }}</template>
+      </p>
+
+      <button
+        type="button"
+        :disabled="backingUp"
+        class="tap mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-brand-pink px-4 text-sm font-semibold text-brand-black disabled:opacity-50"
+        @click="downloadBackup"
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg>
+        {{ backingUp ? t('settings.backupWorking') : t('settings.backupDownload') }}
+      </button>
+
+      <p v-if="backupFile" role="status" class="mt-3 text-sm text-status-success">
+        ✓ {{ t('settings.backupDone') }}
+        <span class="block font-mono text-xs break-all text-white/60">{{ backupFile }}</span>
+        <span class="block text-xs text-white/45">{{ t('settings.backupWhere') }}</span>
+      </p>
+      <p v-if="backupError" role="alert" class="mt-3 text-sm text-status-error">{{ backupError }}</p>
+
+      <p class="mt-3 text-xs text-white/45">{{ t('settings.backupInside') }}</p>
+      <p class="mt-1 text-xs text-white/45">{{ t('settings.backupPrivate') }}</p>
+    </section>
 
     <section class="mt-10">
       <h2 class="text-sm font-semibold text-white/70">{{ t('settings.statsTitle') }}</h2>

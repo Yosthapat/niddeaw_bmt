@@ -64,6 +64,7 @@ const ROUTES: [string, RegExp, string][] = [
   ['POST', /^\/api\/admin\/players\/[^/]+\/avatar$/, 'uploadAvatar'],
   ['PUT', /^\/api\/admin\/settings$/, 'editSettings'],
   ['POST', /^\/api\/admin\/settings\/qr$/, 'uploadQr'],
+  ['POST', /^\/api\/admin\/backup$/, 'downloadBackup'],
   ['POST', /^\/api\/admin\/stats-audit\/repair$/, 'repairStats'],
 ]
 
@@ -82,7 +83,12 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
  * happened, telling the reader nothing. They are dropped rather than the
  * whole line, so a parameter that is not an id still shows.
  */
-export function readableDetail(detail: Record<string, unknown> | null): string {
+export function readableDetail(
+  detail: Record<string, unknown> | null,
+  // Words for a bare count — "17 tables", "1,234 rows" — which need the
+  // page's language; without it the number shows alone.
+  count?: (key: 'tables' | 'rows', n: number) => string,
+): string {
   if (!detail) return ''
   // A deleted order's record says what it was: S-0012, who, what, how much.
   return Object.entries(detail)
@@ -90,6 +96,7 @@ export function readableDetail(detail: Record<string, unknown> | null): string {
     .map(([key, value]) => {
       if (key === 'order_no') return orderNo(Number(value))
       if (key === 'total') return money(Number(value))
+      if (count && (key === 'tables' || key === 'rows')) return count(key, Number(value))
       return Array.isArray(value) ? value.join(' + ') : String(value)
     })
     .join(', ')
