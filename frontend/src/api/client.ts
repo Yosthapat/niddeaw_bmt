@@ -26,13 +26,14 @@ function retryAfter(response: Response): number | null {
   return Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : null
 }
 
-// A read that fails on the way — the phone's signal dropped, or the free
-// server was restarting or waking up (502/503/504 from the host in front of
-// it) — is asked again a couple of times before the page says it couldn't
-// load. Only reads: a write that failed may already have gone through, and
+// A read that fails on the way — the phone's signal dropped, the database
+// connection behind the server dropped (500), or the free server was
+// restarting or waking up (502/503/504 from the host in front of it) — is
+// asked again a couple of times before the page says it couldn't load.
+// Only reads: a write that failed may already have gone through, and
 // sending it twice could bill someone twice.
 const RETRY_DELAYS_MS = [800, 2500]
-const RETRY_STATUSES = new Set([502, 503, 504])
+const RETRY_STATUSES = new Set([500, 502, 503, 504])
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
