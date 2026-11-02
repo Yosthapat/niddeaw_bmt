@@ -847,6 +847,7 @@ export default {
       court_fee: 'Court fee',
       shuttlecock: 'Shuttlecocks',
       jersey: 'Jerseys',
+      dividend: 'Dividend',
       other: 'Other',
     },
     addTitle: 'Add expense',

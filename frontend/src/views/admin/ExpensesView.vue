@@ -15,7 +15,7 @@ import { apiErrorMessage } from '@/api/errors'
 const { t, locale } = useI18n()
 const { confirm } = useConfirmDialog()
 
-const CATEGORIES: ExpenseCategory[] = ['court_fee', 'shuttlecock', 'jersey', 'other']
+const CATEGORIES: ExpenseCategory[] = ['court_fee', 'shuttlecock', 'jersey', 'dividend', 'other']
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10)

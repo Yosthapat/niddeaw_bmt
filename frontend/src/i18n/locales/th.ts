@@ -844,6 +844,7 @@ export default {
       court_fee: 'ค่าคอร์ท',
       shuttlecock: 'ค่าลูกแบด',
       jersey: 'ค่าทำเสื้อ',
+      dividend: 'เงินปันผล',
       other: 'อื่น ๆ',
     },
     addTitle: 'เพิ่มรายจ่าย',
