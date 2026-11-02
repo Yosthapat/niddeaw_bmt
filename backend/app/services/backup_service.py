@@ -58,6 +58,9 @@ LEFT_OUT: dict[str, set[str]] = {"admins": {"password_hash"}}
 
 # PostgREST hands back at most this many rows per request by default.
 PAGE = 1000
+# A ceiling, not an expectation: a club's tables are thousands of rows. It
+# keeps a read that keeps returning full pages from running forever.
+MAX_PAGES = 500
 
 
 @dataclass(frozen=True)
@@ -74,16 +77,21 @@ class Backup:
 def read_table(supabase: Client, table: str, order_by: str) -> list[dict[str, Any]]:
     """Every row of a table, a page at a time."""
     found: list[dict[str, Any]] = []
-    start = 0
-    while True:
+    for page_no in range(MAX_PAGES):
+        start = page_no * PAGE
         query = supabase.table(table).select("*")
         for column in order_by.split(","):
             query = query.order(column)
         page = rows(query.range(start, start + PAGE - 1).execute())
         found.extend(page)
-        if len(page) < PAGE:
+        # A short page is the last one. A page longer than asked for means
+        # the range was not applied at all — everything came at once, and
+        # asking again would only bring the same rows back forever.
+        if len(page) != PAGE:
             return found
-        start += PAGE
+    raise RuntimeError(
+        f"{table}: more than {MAX_PAGES * PAGE} rows — too big to back up in one request"
+    )
 
 
 def _cell(value: Any) -> str:
@@ -97,10 +105,7 @@ def _cell(value: Any) -> str:
 
 
 def to_csv(table_rows: list[dict[str, Any]]) -> bytes:
-    # Columns in the order the first row has them, then any a later row adds.
-    columns: list[str] = []
-    for row in table_rows:
-        columns.extend(c for c in row if c not in columns)
+    columns = columns_of(table_rows)
     out = io.StringIO()
     writer = csv.writer(out)
     writer.writerow(columns)
@@ -126,8 +131,8 @@ def _readme(stamp: str, counts: dict[str, int]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def build_backup(supabase: Client, now: datetime) -> Backup:
-    """``now`` in the club's time zone — it names the file and dates it."""
+def collect(supabase: Client) -> dict[str, list[dict[str, Any]]]:
+    """Every table's rows, minus the columns that never leave (LEFT_OUT)."""
     data: dict[str, list[dict[str, Any]]] = {}
     for table, order_by in TABLES:
         dropped = LEFT_OUT.get(table, set())
@@ -135,6 +140,20 @@ def build_backup(supabase: Client, now: datetime) -> Backup:
             {k: v for k, v in row.items() if k not in dropped}
             for row in read_table(supabase, table, order_by)
         ]
+    return data
+
+
+def columns_of(table_rows: list[dict[str, Any]]) -> list[str]:
+    """Columns in the order the first row has them, then any a later row adds."""
+    columns: list[str] = []
+    for row in table_rows:
+        columns.extend(c for c in row if c not in columns)
+    return columns
+
+
+def build_backup(supabase: Client, now: datetime) -> Backup:
+    """``now`` in the club's time zone — it names the file and dates it."""
+    data = collect(supabase)
     counts = {table: len(table_rows) for table, table_rows in data.items()}
     stamp = now.strftime("%Y-%m-%d %H:%M")
 

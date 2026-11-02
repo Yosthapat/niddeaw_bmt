@@ -65,6 +65,7 @@ const ROUTES: [string, RegExp, string][] = [
   ['PUT', /^\/api\/admin\/settings$/, 'editSettings'],
   ['POST', /^\/api\/admin\/settings\/qr$/, 'uploadQr'],
   ['POST', /^\/api\/admin\/backup$/, 'downloadBackup'],
+  ['POST', /^\/api\/admin\/sheets\/sync$/, 'syncSheets'],
   ['POST', /^\/api\/admin\/stats-audit\/repair$/, 'repairStats'],
 ]
 

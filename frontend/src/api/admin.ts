@@ -579,3 +579,32 @@ export async function getLastBackup(): Promise<LastBackup> {
 export async function downloadBackup(): Promise<Blob> {
   return requestBlob('/api/admin/backup', { method: 'POST' })
 }
+
+/** The Google Sheets copy as it is set up on the server. */
+export interface SheetsStatus {
+  has_key: boolean
+  has_sheet: boolean
+  /** Whom to share the sheet with, once the key is in. */
+  account_email: string | null
+  sheet_url: string | null
+  /** The weekly GitHub Action has its secret on the server. */
+  weekly: boolean
+  problem: string | null
+  last: { at: string; by: string; rows: number | null; snapshot: string } | null
+}
+
+export interface SheetsSyncDone {
+  at: string
+  rows: number
+  snapshot: string
+  removed_snapshots: string[]
+  url: string
+}
+
+export async function getSheetsStatus(): Promise<SheetsStatus> {
+  return request('/api/admin/sheets')
+}
+
+export async function syncSheets(): Promise<SheetsSyncDone> {
+  return request('/api/admin/sheets/sync', { method: 'POST' })
+}

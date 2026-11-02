@@ -87,6 +87,56 @@ async function downloadBackup(): Promise<void> {
   }
 }
 
+// The same data copied into the club's Google Sheet, every Saturday morning
+// by a GitHub Action and whenever an admin presses the button. The setup is
+// done outside the app (Google Cloud, Render, GitHub); this shows which
+// steps are done, whom to share the sheet with, and what went wrong.
+const SETUP_GUIDE = 'https://github.com/Yosthapat/niddeaw_bmt/blob/main/docs/google-sheets-setup.md'
+const sheets = ref<adminApi.SheetsStatus | null>(null)
+const sheetsLoadFailed = ref(false)
+const syncing = ref(false)
+const syncError = ref<string | null>(null)
+const syncDone = ref<adminApi.SheetsSyncDone | null>(null)
+const emailCopied = ref(false)
+
+const sheetsReady = computed(() => !!sheets.value?.has_key && !!sheets.value?.has_sheet && !sheets.value.problem)
+
+async function loadSheets(): Promise<void> {
+  try {
+    sheets.value = await adminApi.getSheetsStatus()
+    sheetsLoadFailed.value = false
+  } catch {
+    sheetsLoadFailed.value = true
+  }
+}
+
+async function syncNow(): Promise<void> {
+  syncing.value = true
+  syncError.value = null
+  syncDone.value = null
+  try {
+    syncDone.value = await adminApi.syncSheets()
+    await loadSheets()
+  } catch (e) {
+    syncError.value = apiErrorMessage(e, t('settings.sheetsSyncFailed'))
+  } finally {
+    syncing.value = false
+  }
+}
+
+async function copyEmail(): Promise<void> {
+  const email = sheets.value?.account_email
+  if (!email) return
+  try {
+    await navigator.clipboard.writeText(email)
+    emailCopied.value = true
+    setTimeout(() => (emailCopied.value = false), 2000)
+  } catch {
+    // No clipboard (an old browser, or no permission): the address is on
+    // screen to select by hand.
+  }
+}
+
 // The admin login locks out a caller after five wrong passwords, and who
 // counts as "a caller" depends on how many proxies sit in front of the
 // app — something only the running deployment can answer. Open this on
@@ -183,6 +233,7 @@ async function onQrFileSelected(event: Event): Promise<void> {
 
 onMounted(async () => {
   void loadLastBackup()
+  void loadSheets()
   try {
     settings.value = await adminApi.getClubSettings()
   } catch (e) {
@@ -406,6 +457,82 @@ const paymentMethodOptions = computed<{ value: PaymentMethod; label: string }[]>
 
       <p class="mt-3 text-xs text-white/45">{{ t('settings.backupInside') }}</p>
       <p class="mt-1 text-xs text-white/45">{{ t('settings.backupPrivate') }}</p>
+    </section>
+
+    <section class="mt-10" aria-labelledby="sheets-title">
+      <h2 id="sheets-title" class="text-sm font-semibold text-white/70">{{ t('settings.sheetsTitle') }}</h2>
+      <p class="mt-1 text-xs text-white/50">{{ t('settings.sheetsHint') }}</p>
+
+      <p v-if="sheetsLoadFailed" class="mt-3 text-sm text-status-error">{{ t('settings.sheetsLoadFailed') }}</p>
+
+      <template v-if="sheets">
+        <!-- What is set up so far. Each step is done outside the app, so
+             the list is how an admin knows which one is left. -->
+        <ul class="mt-3 space-y-2 text-sm">
+          <li class="flex items-start gap-2">
+            <span aria-hidden="true" :class="sheets.has_key ? 'text-status-success' : 'text-white/35'">{{ sheets.has_key ? '✓' : '○' }}</span>
+            <span :class="sheets.has_key ? 'text-white/80' : 'text-white/55'">{{ t('settings.sheetsStepKey') }}</span>
+          </li>
+          <li class="flex items-start gap-2">
+            <span aria-hidden="true" :class="sheets.has_sheet ? 'text-status-success' : 'text-white/35'">{{ sheets.has_sheet ? '✓' : '○' }}</span>
+            <span :class="sheets.has_sheet ? 'text-white/80' : 'text-white/55'">{{ t('settings.sheetsStepSheet') }}</span>
+          </li>
+          <li class="flex items-start gap-2">
+            <span aria-hidden="true" :class="sheets.last ? 'text-status-success' : 'text-white/35'">{{ sheets.last ? '✓' : '○' }}</span>
+            <span class="min-w-0" :class="sheets.last ? 'text-white/80' : 'text-white/55'">
+              {{ t('settings.sheetsStepShare') }}
+              <span v-if="sheets.account_email" class="mt-1 flex flex-wrap items-center gap-2">
+                <code class="rounded bg-white/8 px-2 py-1 font-mono text-xs break-all text-brand-pink">{{ sheets.account_email }}</code>
+                <button type="button" class="tap rounded-full border border-white/20 px-3 text-xs text-white/70" @click="copyEmail">
+                  {{ emailCopied ? t('settings.sheetsCopied') : t('settings.sheetsCopy') }}
+                </button>
+              </span>
+            </span>
+          </li>
+          <li class="flex items-start gap-2">
+            <span aria-hidden="true" :class="sheets.weekly ? 'text-status-success' : 'text-white/35'">{{ sheets.weekly ? '✓' : '○' }}</span>
+            <span :class="sheets.weekly ? 'text-white/80' : 'text-white/55'">{{ t('settings.sheetsStepWeekly') }}</span>
+          </li>
+        </ul>
+
+        <p v-if="sheets.problem" role="alert" class="mt-3 text-sm text-status-error">{{ sheets.problem }}</p>
+
+        <a
+          v-if="!sheetsReady || !sheets.last"
+          :href="SETUP_GUIDE"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="mt-3 inline-flex min-h-11 items-center text-sm text-brand-pink underline underline-offset-4"
+        >{{ t('settings.sheetsGuide') }} ↗</a>
+
+        <template v-if="sheetsReady">
+          <p v-if="sheets.last" class="mt-3 text-sm text-white/70">
+            {{ t('settings.sheetsLast', { when: sheets.last.at, who: sheets.last.by }) }}
+            <span v-if="sheets.last.rows !== null" class="text-white/40">· {{ t('settings.backupLastRows', { n: sheets.last.rows.toLocaleString() }) }}</span>
+          </p>
+          <div class="mt-3 flex flex-col gap-2 min-[420px]:flex-row">
+            <button
+              type="button"
+              :disabled="syncing"
+              class="tap flex-1 rounded-full border border-brand-pink/40 px-4 text-sm font-semibold text-brand-pink disabled:opacity-50"
+              @click="syncNow"
+            >
+              {{ syncing ? t('settings.sheetsSyncing') : t('settings.sheetsSync') }}
+            </button>
+            <a
+              v-if="sheets.sheet_url"
+              :href="sheets.sheet_url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="tap inline-flex flex-1 items-center justify-center rounded-full border border-white/20 px-4 text-sm text-white/80"
+            >{{ t('settings.sheetsOpen') }} ↗</a>
+          </div>
+          <p v-if="syncDone" role="status" class="mt-3 text-sm text-status-success">
+            ✓ {{ t('settings.sheetsSynced', { n: syncDone.rows.toLocaleString(), tab: syncDone.snapshot }) }}
+          </p>
+          <p v-if="syncError" role="alert" class="mt-3 text-sm text-status-error">{{ syncError }}</p>
+        </template>
+      </template>
     </section>
 
     <section class="mt-10">

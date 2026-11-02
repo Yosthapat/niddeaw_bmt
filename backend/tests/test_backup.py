@@ -201,3 +201,16 @@ def test_last_backup_says_when_and_who(
     # Read from the log entries of this one endpoint, newest first.
     assert ("eq", ("path", "/api/admin/backup"), {}) in supabase_spy.calls
     assert ("order", ("created_at",), {"desc": True}) in supabase_spy.calls
+
+
+def test_a_source_that_ignores_the_range_cannot_loop_forever() -> None:
+    class Stuck(Paged):
+        def range(self, start: int, end: int) -> Paged:
+            self.ranges.append((start, end))
+            self._page = self.all[:1000]  # the same full page every time
+            return self
+
+    db = Stuck(1000)
+    with pytest.raises(RuntimeError, match="too big"):
+        backup_service.read_table(db, "matches", "id")  # type: ignore[arg-type]
+    assert len(db.ranges) == backup_service.MAX_PAGES

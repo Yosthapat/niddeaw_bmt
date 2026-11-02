@@ -15,6 +15,7 @@ from app.routers.admin import other_income as admin_other_income
 from app.routers.admin import players_admin
 from app.routers.admin import sessions as admin_sessions
 from app.routers.admin import settings as admin_settings
+from app.routers.admin import sheets as admin_sheets
 from app.routers.admin import shop_admin as admin_shop
 from app.routers.admin import sponsors_admin as admin_sponsors
 from app.routers.admin import stats_audit_admin as admin_stats_audit
@@ -73,6 +74,8 @@ app.include_router(admin_stats_audit.router)
 app.include_router(admin_sponsors.router)
 app.include_router(admin_shop.router)
 app.include_router(admin_backup.router)
+app.include_router(admin_sheets.router)
+app.include_router(admin_sheets.internal)
 
 
 @app.get("/health")

@@ -1,0 +1,36 @@
+name: Weekly Google Sheets sync
+
+# Copies every table into the club's Google Sheet (backend/app/services/
+# sheets_sync.py) once a week, after club night has finished: 20:23 UTC on
+# Friday is 03:23 on Saturday in Thailand (UTC+7), when the night's matches,
+# bills and orders are all in.
+#
+# The backend does the work; this only knocks on its door with the shared
+# secret. Until SHEETS_SYNC_SECRET is added to the repo's Actions secrets
+# the step is skipped, so the workflow stays green before setup is done
+# (docs/google-sheets-setup.md). Once it is set, a failed sync fails the
+# job, and GitHub emails the repo owner.
+#
+# Render's free instance may be asleep: the first request can take the
+# better part of a minute to wake it, hence the long timeout and a retry.
+
+on:
+  schedule:
+    - cron: "23 20 * * 5"
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      SHEETS_SYNC_SECRET: ${{ secrets.SHEETS_SYNC_SECRET }}
+    steps:
+      - name: Not set up yet
+        if: env.SHEETS_SYNC_SECRET == ''
+        run: echo "SHEETS_SYNC_SECRET is not set — see docs/google-sheets-setup.md. Skipping."
+      - name: Sync the club's data into Google Sheets
+        if: env.SHEETS_SYNC_SECRET != ''
+        run: |
+          curl -fsS --retry 2 --retry-delay 30 --retry-all-errors --max-time 180 \
+            -X POST -H "X-Sync-Secret: $SHEETS_SYNC_SECRET" \
+            https://niddeaw-bmt.onrender.com/api/internal/sheets-sync
