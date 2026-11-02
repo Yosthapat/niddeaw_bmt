@@ -5,13 +5,15 @@ import * as adminApi from '@/api/admin'
 import { apiErrorMessage } from '@/api/errors'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import type { OrderStatus, PreorderTally, Product, SaleType, ShopOrderAdmin } from '@/types'
-import { orderNo } from '@/types'
+import { orderNo, priceRange } from '@/types'
 import { formatDayMonth, formatDateTime, money } from '@/utils/format'
 import { bahtProblem, localToday, MAX_NAME } from '@/utils/limits'
 import { compressImage } from '@/utils/imageCompression'
 import AdminNav from '@/components/layout/AdminNav.vue'
 
 const PRESET_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']
+const MAX_SIZES = 16
+const MAX_SIZE_LEN = 12
 const MAX_PHOTOS = 4
 
 const { t, locale } = useI18n()
@@ -98,6 +100,8 @@ const form = reactive({
   hasSizes: true,
   sizes: [] as string[],
   stock: {} as Record<string, number | ''>,
+  // Blank = the product's own price.
+  sizePrices: {} as Record<string, number | ''>,
   closes: '',
   delivers: '',
   active: true,
@@ -116,6 +120,9 @@ function openForm(p: Product | null): void {
   form.hasSizes = p ? p.sizes.length > 0 : true
   form.sizes = p ? [...p.sizes] : ['S', 'M', 'L', 'XL']
   form.stock = p ? { ...p.stock } : {}
+  form.sizePrices = p ? { ...p.size_prices } : {}
+  customSize.value = ''
+  sizeError.value = null
   form.closes = p?.preorder_closes_on ?? ''
   form.delivers = p?.preorder_delivers_on ?? ''
   form.active = p?.is_active ?? true
@@ -127,8 +134,32 @@ function openForm(p: Product | null): void {
   window.scrollTo({ top: 0 })
 }
 
+// The usual sizes keep their usual order; the club's own (4XL, เด็ก M,
+// สีฟ้า) follow in the order they were added.
+function ordered(sizes: string[]): string[] {
+  const presets = PRESET_SIZES.filter((x) => sizes.includes(x))
+  return [...presets, ...sizes.filter((x) => !PRESET_SIZES.includes(x))]
+}
 function toggleSize(s: string): void {
-  form.sizes = form.sizes.includes(s) ? form.sizes.filter((x) => x !== s) : PRESET_SIZES.filter((x) => x === s || form.sizes.includes(x))
+  form.sizes = form.sizes.includes(s) ? form.sizes.filter((x) => x !== s) : ordered([...form.sizes, s])
+}
+const customSize = ref('')
+const sizeError = ref<string | null>(null)
+const customSizes = computed(() => form.sizes.filter((x) => !PRESET_SIZES.includes(x)))
+function addCustomSize(): void {
+  const s = customSize.value.trim()
+  sizeError.value = null
+  if (!s) return
+  if (form.sizes.some((x) => x.toUpperCase() === s.toUpperCase())) {
+    sizeError.value = t('shopAdmin.sizeTaken', { size: s })
+    return
+  }
+  if (form.sizes.length >= MAX_SIZES) {
+    sizeError.value = t('shopAdmin.sizeTooMany', { n: MAX_SIZES })
+    return
+  }
+  form.sizes = ordered([...form.sizes, s])
+  customSize.value = ''
 }
 
 const stockKeys = computed(() => (form.hasSizes ? form.sizes : ['']))
@@ -139,6 +170,12 @@ const problems = computed(() => {
   if (price) p.price = t(`validation.${price}`)
   if (form.hasSizes && form.sizes.length === 0) p.sizes = t('shopAdmin.sizeRequired')
   if (form.sale_type === 'preorder' && !form.closes) p.closes = t('shopAdmin.closesRequired')
+  if (form.hasSizes) {
+    for (const k of form.sizes) {
+      const v = form.sizePrices[k] ?? ''
+      if (v !== '' && bahtProblem(v, { allowZero: false })) p.sizePrices = t('shopAdmin.sizePriceBad', { size: k })
+    }
+  }
   if (form.sale_type === 'stock') {
     for (const k of stockKeys.value) {
       // A blank box is "none yet": typing 0 into every size not in hand
@@ -185,6 +222,12 @@ async function save(): Promise<void> {
     price: Number(form.price),
     sale_type: form.sale_type,
     sizes,
+    // Only sizes that cost something other than the product's price.
+    size_prices: Object.fromEntries(
+      sizes
+        .filter((k) => (form.sizePrices[k] ?? '') !== '' && Number(form.sizePrices[k]) !== Number(form.price))
+        .map((k) => [k, Number(form.sizePrices[k])]),
+    ),
     is_active: form.active,
     preorder_closes_on: form.sale_type === 'preorder' ? form.closes : null,
     preorder_delivers_on: form.sale_type === 'preorder' ? form.delivers || null : null,
@@ -222,6 +265,10 @@ async function remove(): Promise<void> {
 }
 
 const stockTotal = (p: Product): number => Object.values(p.stock).reduce((a, b) => a + b, 0)
+function priceText(p: Product): string {
+  const [lo, hi] = priceRange(p)
+  return lo === hi ? money(lo) : `${money(lo)} – ${money(hi)}`
+}
 </script>
 
 <template>
@@ -302,7 +349,12 @@ const stockTotal = (p: Product): number => Object.values(p.stock).reduce((a, b) 
                 <span class="font-medium">{{ o.player_nickname }} <span class="text-xs font-normal text-white/55">{{ o.player_code }}</span></span>
                 <span class="font-display font-bold text-brand-pink-light">{{ money(o.total) }}</span>
               </div>
-              <p class="text-sm text-white/75">{{ o.product_name }}<template v-if="o.size"> · {{ o.size }}</template> × {{ o.qty }}</p>
+              <ul class="text-sm text-white/80">
+                <li v-for="(item, i) in o.items" :key="i" class="flex justify-between gap-2">
+                  <span class="min-w-0">{{ item.product_name }}<template v-if="item.size"> · <b class="font-display">{{ item.size }}</b></template> × {{ item.qty }}</span>
+                  <span class="shrink-0 text-white/55">{{ money(item.line_total) }}</span>
+                </li>
+              </ul>
               <p class="text-xs text-white/50">{{ orderNo(o.order_no) }} · {{ formatDateTime(o.created_at, lang) }}</p>
               <p v-if="o.note" class="mt-1 text-xs text-status-error">{{ o.note }}</p>
             </div>
@@ -337,12 +389,12 @@ const stockTotal = (p: Product): number => Object.values(p.stock).reduce((a, b) 
       <ul class="mt-4 space-y-2">
         <li v-for="p in products" :key="p.id">
           <button type="button" class="hud-panel flex w-full items-center gap-3 border border-brand-pink/20 bg-brand-surface p-2 text-left" :class="{ 'opacity-60': !p.is_active }" @click="openForm(p)">
-            <img v-if="p.image_urls[0]" :src="p.image_urls[0]" alt="" class="h-14 w-14 shrink-0 rounded-xl object-cover" />
+            <img v-if="p.image_urls[0]" :src="p.image_urls[0]" alt="" class="h-14 w-14 shrink-0 rounded-xl bg-[#f3eaf1] object-contain" />
             <span v-else class="h-14 w-14 shrink-0 rounded-xl bg-white/8" />
             <span class="min-w-0 flex-1">
               <span class="block truncate font-medium">{{ p.name }}</span>
               <span class="block text-xs text-white/60">
-                {{ money(p.price) }} ·
+                {{ priceText(p) }} ·
                 {{ !p.is_active ? t('shopAdmin.hidden') : p.sale_type === 'preorder' ? t('shopAdmin.preorderBadge', { n: p.ordered }) : t('shopAdmin.stockBadge', { n: stockTotal(p) }) }}
               </span>
             </span>
@@ -361,12 +413,12 @@ const stockTotal = (p: Product): number => Object.values(p.stock).reduce((a, b) 
         <p class="text-sm text-white/75">{{ t('shopAdmin.photos') }}</p>
         <div class="mt-2 flex flex-wrap gap-2">
           <div v-for="(url, i) in editing?.image_urls ?? []" :key="url" class="relative h-20 w-20">
-            <img :src="url" alt="" class="h-full w-full rounded-xl object-cover" :class="{ 'ring-2 ring-brand-pink': i === 0 }" />
+            <img :src="url" alt="" class="h-full w-full rounded-xl bg-[#f3eaf1] object-contain" :class="{ 'ring-2 ring-brand-pink': i === 0 }" />
             <span v-if="i === 0" class="absolute bottom-1 left-1 rounded bg-black/60 px-1 text-[10px]">{{ t('shopAdmin.cover') }}</span>
             <button type="button" class="absolute -top-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/80 text-white" :aria-label="t('shopAdmin.removePhoto')" @click="removeSaved(url)">×</button>
           </div>
           <div v-for="(x, i) in newPhotos" :key="x.url" class="relative h-20 w-20">
-            <img :src="x.url" alt="" class="h-full w-full rounded-xl object-cover opacity-80" />
+            <img :src="x.url" alt="" class="h-full w-full rounded-xl bg-[#f3eaf1] object-contain opacity-80" />
             <button type="button" class="absolute -top-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/80 text-white" :aria-label="t('shopAdmin.removePhoto')" @click="newPhotos.splice(i, 1)">×</button>
           </div>
           <label v-if="photoCount < MAX_PHOTOS" class="flex h-20 w-20 cursor-pointer items-center justify-center rounded-xl border border-dashed border-white/35 text-2xl text-white/70" :aria-label="t('shopAdmin.addPhoto')">
@@ -383,7 +435,7 @@ const stockTotal = (p: Product): number => Object.values(p.stock).reduce((a, b) 
         <span v-if="tried && problems.name" class="text-xs text-status-error">{{ problems.name }}</span>
       </label>
       <label class="flex flex-col gap-1 text-sm text-white/75">
-        {{ t('shopAdmin.price') }}
+        {{ form.hasSizes ? t('shopAdmin.priceBase') : t('shopAdmin.price') }}
         <input v-model.number="form.price" type="number" inputmode="decimal" min="1" :aria-invalid="tried && !!problems.price" class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-black px-3 text-white" />
         <span v-if="tried && problems.price" class="text-xs text-status-error">{{ problems.price }}</span>
       </label>
@@ -422,18 +474,61 @@ const stockTotal = (p: Product): number => Object.values(p.stock).reduce((a, b) 
         <p class="text-sm text-white/75">{{ t('shopAdmin.sizesOpen') }}</p>
         <div class="mt-1.5 flex flex-wrap gap-2">
           <button v-for="s in PRESET_SIZES" :key="s" type="button" class="min-h-11 min-w-12 rounded-xl border px-3 font-display font-bold" :class="form.sizes.includes(s) ? 'border-white bg-white text-brand-black' : 'border-white/20 text-white/75'" :aria-pressed="form.sizes.includes(s)" @click="toggleSize(s)">{{ s }}</button>
+          <span v-for="s in customSizes" :key="s" class="flex min-h-11 items-center gap-1 rounded-xl border border-white bg-white pl-3 font-display font-bold text-brand-black">
+            {{ s }}
+            <button type="button" class="flex h-11 w-9 items-center justify-center text-lg" :aria-label="t('shopAdmin.removeSize', { size: s })" @click="toggleSize(s)">×</button>
+          </span>
         </div>
+        <div class="mt-2 flex gap-2">
+          <input
+            v-model="customSize"
+            :maxlength="MAX_SIZE_LEN"
+            :aria-label="t('shopAdmin.customSize')"
+            :placeholder="t('shopAdmin.customSizeHint')"
+            class="min-h-11 min-w-0 flex-1 rounded-lg border border-brand-pink/25 bg-brand-black px-3 text-white"
+            @keydown.enter.prevent="addCustomSize"
+          />
+          <button type="button" class="tap rounded-full border border-white/30 px-4 text-sm" @click="addCustomSize">+ {{ t('shopAdmin.addSize') }}</button>
+        </div>
+        <span v-if="sizeError" class="text-xs text-status-error">{{ sizeError }}</span>
         <span v-if="tried && problems.sizes" class="text-xs text-status-error">{{ problems.sizes }}</span>
       </div>
 
-      <div v-if="form.sale_type === 'stock' && stockKeys.length">
-        <p class="text-sm text-white/75">{{ form.hasSizes ? t('shopAdmin.stockPerSize') : t('shopAdmin.stockOne') }}</p>
-        <div class="mt-1.5 grid grid-cols-3 gap-2">
-          <label v-for="k in stockKeys" :key="k" class="flex min-h-12 items-center justify-between gap-2 rounded-xl border border-white/15 bg-white/4 pr-1.5 pl-3">
-            <span class="font-display font-bold">{{ k || '#' }}</span>
-            <input v-model.number="form.stock[k]" type="number" inputmode="numeric" min="0" :aria-label="`${t('shopAdmin.stockOne')} ${k}`" placeholder="0" class="h-9 w-16 rounded-lg border border-brand-pink/30 bg-brand-black text-center font-display font-bold" />
-          </label>
+      <!-- one row per size: what it costs (blank = the price above) and,
+           for stock, how many are on the shelf -->
+      <div v-if="form.hasSizes && form.sizes.length">
+        <p class="text-sm text-white/75">{{ form.sale_type === 'stock' ? t('shopAdmin.perSize') : t('shopAdmin.perSizePrice') }}</p>
+        <p class="text-xs text-white/50">{{ form.sale_type === 'stock' ? t('shopAdmin.perSizeHint') : t('shopAdmin.perSizeHintPrice') }}</p>
+        <div class="mt-1.5 flex flex-col gap-1.5">
+          <div v-for="k in form.sizes" :key="k" class="flex min-h-12 items-center gap-2 rounded-xl border border-white/15 bg-white/4 px-3">
+            <span class="w-16 shrink-0 font-display font-bold">{{ k }}</span>
+            <label class="flex flex-1 items-center gap-1.5 text-xs text-white/60">
+              ฿
+              <input
+                v-model.number="form.sizePrices[k]"
+                type="number"
+                inputmode="decimal"
+                min="1"
+                :placeholder="form.price === '' ? '—' : String(form.price)"
+                :aria-label="t('shopAdmin.sizePrice', { size: k })"
+                class="h-9 w-full min-w-0 rounded-lg border border-brand-pink/30 bg-brand-black px-2 text-center font-display text-base font-bold text-white"
+              />
+            </label>
+            <label v-if="form.sale_type === 'stock'" class="flex items-center gap-1.5 text-xs text-white/60">
+              {{ t('shopAdmin.stockShort') }}
+              <input v-model.number="form.stock[k]" type="number" inputmode="numeric" min="0" :aria-label="`${t('shopAdmin.stockOne')} ${k}`" placeholder="0" class="h-9 w-16 rounded-lg border border-brand-pink/30 bg-brand-black text-center font-display text-base font-bold text-white" />
+            </label>
+          </div>
         </div>
+        <span v-if="tried && problems.sizePrices" class="text-xs text-status-error">{{ problems.sizePrices }}</span>
+        <span v-if="tried && problems.stock" class="text-xs text-status-error">{{ problems.stock }}</span>
+      </div>
+
+      <div v-if="!form.hasSizes && form.sale_type === 'stock'">
+        <label class="flex min-h-12 items-center justify-between gap-2 rounded-xl border border-white/15 bg-white/4 pr-1.5 pl-3 text-sm">
+          {{ t('shopAdmin.stockOne') }}
+          <input v-model.number="form.stock['']" type="number" inputmode="numeric" min="0" :aria-label="t('shopAdmin.stockOne')" placeholder="0" class="h-9 w-20 rounded-lg border border-brand-pink/30 bg-brand-black text-center font-display font-bold" />
+        </label>
         <span v-if="tried && problems.stock" class="text-xs text-status-error">{{ problems.stock }}</span>
       </div>
 

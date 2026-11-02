@@ -84,10 +84,17 @@ const router = createRouter({
       component: () => import('../views/public/ShopProductView.vue'),
     },
     {
-      path: '/shop/:id/order',
-      name: 'shop-order',
-      component: () => import('../views/public/ShopOrderView.vue'),
+      path: '/shop/cart',
+      name: 'shop-cart',
+      component: () => import('../views/public/ShopCartView.vue'),
     },
+    {
+      path: '/shop/checkout',
+      name: 'shop-checkout',
+      component: () => import('../views/public/ShopCheckoutView.vue'),
+    },
+    // Links from before the cart (one product per order) land in the cart.
+    { path: '/shop/:id/order', redirect: '/shop/cart' },
 
     // Admin — guarded except login.
     {

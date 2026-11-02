@@ -41,15 +41,15 @@ const TONE: Record<OrderStatus, string> = {
         class="hud-panel glass-panel flex flex-col gap-1 border border-brand-pink/20 px-4 py-3"
       >
         <div class="flex items-start justify-between gap-3">
-          <div class="min-w-0">
-            <p class="truncate font-medium">{{ o.product_name }}</p>
-            <p class="text-xs text-white/60">
-              {{ orderNo(o.order_no) }} · {{ formatDayMonth(o.created_at, locale as 'th' | 'en') }} ·
-              {{ o.size ? t('shop.summary', { size: o.size, qty: o.qty }) : t('shop.summaryOne', { qty: o.qty }) }}
-            </p>
-          </div>
+          <p class="text-xs text-white/60">{{ orderNo(o.order_no) }} · {{ formatDayMonth(o.created_at, locale as 'th' | 'en') }}</p>
           <span class="shrink-0 font-display font-bold">{{ money(o.total) }}</span>
         </div>
+        <ul class="flex flex-col gap-0.5 text-sm">
+          <li v-for="(item, i) in o.items" :key="i" class="flex justify-between gap-3">
+            <span class="min-w-0 truncate">{{ item.product_name }}<span v-if="item.size" class="text-white/60"> · {{ item.size }}</span></span>
+            <span class="shrink-0 text-white/70">× {{ item.qty }}</span>
+          </li>
+        </ul>
         <span class="self-start rounded-full px-2.5 py-1 text-xs leading-none font-medium" :class="TONE[o.status]">
           {{ t(`shop.status.${o.status}`) }}
         </span>

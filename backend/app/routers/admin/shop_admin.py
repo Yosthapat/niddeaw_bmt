@@ -26,8 +26,9 @@ router = APIRouter(prefix="/api/admin/shop", tags=["admin-shop"])
 
 SHOP_BUCKET = "shop"
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
-# Drawn at most ~420 CSS px wide on a product page; twice that for retina.
-IMAGE_MAX_PX = 900
+# Opened full screen on a phone (the product page's photo viewer), so kept
+# large enough to read the print on a shirt at retina density.
+IMAGE_MAX_PX = 1600
 IMAGE_CACHE_SECONDS = "31536000"  # random object names, so a year is safe
 
 
@@ -36,8 +37,9 @@ def _bad(detail: str) -> HTTPException:
 
 
 def _check(merged: dict[str, Any], stock: dict[str, int] | None) -> None:
-    """The rules that span fields: a pre-order needs its closing date, and
-    stock must be given for exactly the sizes the product has."""
+    """The rules that span fields: a pre-order needs its closing date, stock
+    must be given for exactly the sizes the product has, and a size can only
+    have its own price if the product has that size."""
     if merged["sale_type"] == "preorder":
         if not merged.get("preorder_closes_on"):
             raise _bad("พรีออเดอร์ต้องมีวันปิดรับ")
@@ -47,7 +49,10 @@ def _check(merged: dict[str, Any], stock: dict[str, int] | None) -> None:
     if stock is not None and merged["sale_type"] == "stock":
         expected = set(merged["sizes"]) or {ONE_SIZE}
         if set(stock) != expected:
-            raise _bad("ใส่จำนวนสต็อกให้ครบทุกไซซ์")
+            raise _bad("ใส่จำนวนสต็อกให้ครบทุกไซส์")
+    prices = merged.get("size_prices") or {}
+    if set(prices) - set(merged["sizes"]):
+        raise _bad("ตั้งราคาได้เฉพาะไซส์ที่มีขาย")
 
 
 def _write_stock(supabase: SupabaseDep, product_id: str, stock: dict[str, int]) -> None:
@@ -87,8 +92,9 @@ def list_products(supabase: SupabaseDep, admin: AdminDep) -> list[Product]:
 def create_product(payload: ProductCreate, supabase: SupabaseDep, admin: AdminDep) -> Product:
     fields = payload.model_dump(mode="json", exclude={"stock"}, exclude_none=True)
     fields.setdefault("sizes", [])
+    fields.setdefault("size_prices", {})
     if payload.sale_type == "stock" and payload.stock is None:
-        raise _bad("ใส่จำนวนสต็อกให้ครบทุกไซซ์")
+        raise _bad("ใส่จำนวนสต็อกให้ครบทุกไซส์")
     _check(fields, payload.stock)
     if fields["sale_type"] == "stock":
         fields.pop("preorder_closes_on", None)
@@ -106,6 +112,10 @@ def update_product(
 ) -> Product:
     current = _product(supabase, str(product_id))
     updates = payload.model_dump(mode="json", exclude_unset=True, exclude={"stock"})
+    if "sizes" in updates and "size_prices" not in updates:
+        # A size taken off the list takes its own price with it.
+        kept = set(updates["sizes"] or [])
+        updates["size_prices"] = {k: v for k, v in (current.get("size_prices") or {}).items() if k in kept}
     merged = {**current, **updates}
     _check(merged, payload.stock)
     if not updates and payload.stock is None:
@@ -126,8 +136,10 @@ def delete_product(product_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> 
     """Deleting is for a product added by mistake. One that has orders keeps
     its history: stop selling it (is_active) instead."""
     product = _product(supabase, str(product_id))
-    orders = supabase.table("shop_orders").select("id").eq("product_id", str(product_id)).limit(1).execute()
-    if rows(orders):
+    orders = (
+        supabase.table("shop_order_items").select("id, product_id").eq("product_id", str(product_id)).limit(1).execute()
+    )
+    if [o for o in rows(orders) if str(o.get("product_id")) == str(product_id)]:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="สินค้านี้มีออเดอร์แล้ว ลบไม่ได้ — ปิด \"ขายอยู่\" แทน",
@@ -195,6 +207,7 @@ def remove_image(
 
 
 def _with_players(supabase: SupabaseDep, order_rows: list[dict[str, Any]]) -> list[OrderAdmin]:
+    order_rows = shop_service.with_items(supabase, order_rows)
     ids = sorted({str(o["player_id"]) for o in order_rows})
     names: dict[str, dict[str, Any]] = {}
     if ids:
@@ -243,18 +256,22 @@ def update_order(order_id: UUID, payload: OrderUpdate, supabase: SupabaseDep, ad
             status_code=status.HTTP_409_CONFLICT, detail="เปลี่ยนสถานะแบบนี้ไม่ได้ — รีเฟรชหน้าแล้วลองใหม่"
         )
 
-    # Stock follows the order: a refused one puts its units back, and one
-    # brought back from refused takes them again (if they are still there).
-    product_id = order.get("product_id")
-    if order["sale_type"] == "stock" and product_id and after != before:
+    # Stock follows the order: a refused one puts every line's units back,
+    # and one brought back from refused takes them all again — or none, if
+    # one of them has gone meanwhile.
+    if after != before and "rejected" in (before, after):
+        lines = shop_service.items_by_order(supabase, [str(order_id)]).get(str(order_id), [])
+        lines = [line for line in lines if str(line.get("order_id")) == str(order_id)]
         if after == "rejected":
-            shop_service.give_back(supabase, str(product_id), order["size"], int(order["qty"]))
-        elif before == "rejected" and not shop_service.take(
-            supabase, str(product_id), order["size"], int(order["qty"])
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail="ของหมดแล้ว — เอาออเดอร์นี้กลับมาไม่ได้"
-            )
+            shop_service.give_back_lines(supabase, lines)
+        else:
+            short = shop_service.take_lines(supabase, lines)
+            if short is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"{short['product_name']} {short['size']}".strip()
+                    + ": ของหมดแล้ว — เอาออเดอร์นี้กลับมาไม่ได้",
+                )
 
     updates: dict[str, Any] = {"status": after, "updated_at": datetime.now(UTC).isoformat()}
     # The note says why a slip was refused; it means nothing on any other state.

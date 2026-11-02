@@ -9,7 +9,7 @@ from app.models.fields import Name, PositiveBaht
 SaleType = Literal["stock", "preorder"]
 OrderStatus = Literal["pending", "confirmed", "delivered", "rejected"]
 
-Size = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=10)]
+Size = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=12)]
 Description = Annotated[str, StringConstraints(strip_whitespace=True, max_length=1000)]
 StockQty = Annotated[int, Field(ge=0, le=10000)]
 
@@ -17,7 +17,9 @@ ONE_SIZE = ""
 """The size key of a product that has none — a sticker set, a keychain."""
 
 MAX_IMAGES = 4
-MAX_SIZES = 12
+MAX_SIZES = 16
+MAX_CART_LINES = 20
+MAX_LINE_QTY = 10
 
 
 class ProductFields(BaseModel):
@@ -33,6 +35,9 @@ class ProductFields(BaseModel):
     # Stock per size ("" for one size). Only meaningful for sale_type
     # 'stock'; the router checks it matches the sizes.
     stock: dict[str, StockQty] | None = None
+    # Price per size where it isn't `price` (XL +20). The router checks the
+    # keys are sizes the product has.
+    size_prices: dict[str, PositiveBaht] | None = None
     is_active: bool | None = None
 
     @model_validator(mode="after")
@@ -61,6 +66,8 @@ class Product(BaseModel):
     is_active: bool
     sort_order: int
     created_at: datetime
+    size_prices: dict[str, float] = {}
+    """Per size where it isn't `price`; see unit_price()."""
     stock: dict[str, int] = {}
     """Per size, for sale_type 'stock'; empty for a pre-order."""
     ordered: int = 0
@@ -70,15 +77,22 @@ class Product(BaseModel):
     pre-order that hasn't closed."""
 
 
+class OrderItem(BaseModel):
+    product_id: UUID | None = None
+    product_name: str
+    sale_type: SaleType
+    size: str
+    qty: int
+    unit_price: float
+    line_total: float
+
+
 class OrderPublic(BaseModel):
     """What a member sees of an order: no slip, no other member's data."""
 
     id: UUID
     order_no: int
-    product_name: str
-    sale_type: SaleType
-    size: str
-    qty: int
+    items: list[OrderItem]
     total: float
     status: OrderStatus
     note: str | None = None
@@ -89,10 +103,41 @@ class OrderAdmin(OrderPublic):
     player_id: UUID
     player_nickname: str
     player_code: str
-    product_id: UUID | None = None
-    unit_price: float
     slip_url: str
     updated_at: datetime
+
+
+class CartLine(BaseModel):
+    product_id: UUID
+    size: Annotated[str, StringConstraints(strip_whitespace=True, max_length=12)] = ONE_SIZE
+    qty: Annotated[int, Field(ge=1, le=MAX_LINE_QTY)]
+
+
+class Cart(BaseModel):
+    items: list[CartLine] = Field(min_length=1, max_length=MAX_CART_LINES)
+
+
+class QuoteLine(BaseModel):
+    product_id: UUID
+    product_name: str
+    image_url: str | None = None
+    sale_type: SaleType
+    size: str
+    qty: int
+    unit_price: float
+    line_total: float
+    problem: str | None = None
+    """Why this line can't be bought as it is (sold out, closed, gone) —
+    the cart shows it beside the line. None when it's fine."""
+    available: int | None = None
+    """For a stock line: how many of that size are left."""
+
+
+class Quote(BaseModel):
+    lines: list[QuoteLine]
+    total: float
+    ok: bool
+    """Every line can be bought as it is."""
 
 
 class OrderUpdate(BaseModel):
@@ -106,3 +151,11 @@ class PreorderTally(BaseModel):
     preorder_closes_on: date | None
     by_size: dict[str, int]
     total: int
+
+
+def unit_price(product: dict[str, object], size: str) -> float:
+    """What one of `size` costs: its own price if it has one, else the
+    product's."""
+    prices = product.get("size_prices") or {}
+    own = prices.get(size) if isinstance(prices, dict) else None
+    return round(float(str(own if own is not None else product["price"])), 2)

@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { getShopProducts } from '@/api/public'
 import type { Product, SaleType } from '@/types'
 import ProductCard from '@/components/shop/ProductCard.vue'
+import CartLink from '@/components/shop/CartLink.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 
 const { t } = useI18n()
@@ -37,9 +38,12 @@ const chips = computed<{ id: SaleType | 'all'; label: string }[]>(() => [
 
 <template>
   <main class="mx-auto max-w-6xl px-4 py-6 sm:py-10">
-    <RouterLink to="/" class="inline-flex min-h-11 items-center gap-1 text-sm text-white/70 hover:text-white">
-      <span aria-hidden="true">←</span> {{ t('shop.backHome') }}
-    </RouterLink>
+    <div class="flex items-center justify-between gap-3">
+      <RouterLink to="/" class="inline-flex min-h-11 items-center gap-1 text-sm text-white/70 hover:text-white">
+        <span aria-hidden="true">←</span> {{ t('shop.backHome') }}
+      </RouterLink>
+      <CartLink />
+    </div>
 
     <div class="mt-1 flex flex-wrap items-end justify-between gap-4">
       <div>

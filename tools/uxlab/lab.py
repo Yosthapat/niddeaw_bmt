@@ -152,16 +152,17 @@ def seed() -> MiniSupabase:
     db.tables["products"] = [
         {"id": shirt, "name": "เสื้อก๊วน นิดเดียว 2026", "description": "ผ้าไมโคร ใส่ตีแบดสบาย\nสกรีนแมวมงกุฎด้านหลัง",
          "price": 390.0, "sale_type": "preorder", "sizes": ["S", "M", "L", "XL", "2XL"],
+         "size_prices": {"XL": 410.0, "2XL": 430.0},
          "preorder_closes_on": (today + timedelta(days=9)).isoformat(),
          "preorder_delivers_on": (today + timedelta(days=30)).isoformat(),
-         "image_urls": ["/hero/cat-color.webp"], "is_active": True, "sort_order": 0,
+         "image_urls": ["/hero/cat-color.webp", "/ads/friday-night.webp"], "is_active": True, "sort_order": 0,
          "created_at": _iso(60 * 24 * 3)},
-        {"id": cap, "name": "หมวกแก๊ป BMT", "description": None, "price": 250.0,
+        {"id": cap, "name": "หมวกแก๊ป BMT", "description": None, "price": 250.0, "size_prices": {},
          "sale_type": "stock", "sizes": [], "preorder_closes_on": None,
          "preorder_delivers_on": None, "image_urls": [], "is_active": True, "sort_order": 1,
          "created_at": _iso(60 * 24 * 2)},
         {"id": towel, "name": "ผ้าเช็ดหน้า นิดเดียว", "description": "ผ้าคอตตอน 30×30 ซม.",
-         "price": 120.0, "sale_type": "stock", "sizes": ["ฟ้า", "ชมพู"],
+         "price": 120.0, "sale_type": "stock", "sizes": ["ฟ้า", "ชมพู"], "size_prices": {},
          "preorder_closes_on": None, "preorder_delivers_on": None, "image_urls": [],
          "is_active": True, "sort_order": 2, "created_at": _iso(60 * 24)},
     ]
@@ -171,20 +172,29 @@ def seed() -> MiniSupabase:
         {"product_id": towel, "size": "ชมพู", "qty": 5},
     ]
 
-    def order(no: int, who: int, product: str, name: str, kind: str, size: str, qty: int,
-              price: float, status: str, minutes: int) -> dict[str, Any]:
-        return {"id": str(uuid.uuid4()), "order_no": no, "player_id": pid[who],
-                "product_id": product, "product_name": name, "sale_type": kind, "size": size,
-                "qty": qty, "unit_price": price, "total": price * qty,
-                "slip_url": "/hero/cat-color.webp", "status": status,
-                "note": "ยอดในสลิปไม่ตรง" if status == "rejected" else None,
-                "created_at": _iso(minutes), "updated_at": _iso(minutes)}
+    orders: list[dict[str, Any]] = []
+    items: list[dict[str, Any]] = []
 
-    db.tables["shop_orders"] = [
-        order(1, 0, shirt, "เสื้อก๊วน นิดเดียว 2026", "preorder", "M", 2, 390.0, "pending", 30),
-        order(2, 1, shirt, "เสื้อก๊วน นิดเดียว 2026", "preorder", "L", 1, 390.0, "confirmed", 300),
-        order(3, 0, cap, "หมวกแก๊ป BMT", "stock", "", 1, 250.0, "rejected", 900),
-    ]
+    def order(no: int, who: int, lines: list[tuple[str, str, str, str, int, float]], status: str,
+              minutes: int) -> None:
+        oid = str(uuid.uuid4())
+        total = sum(price * qty for *_, qty, price in lines)
+        orders.append({"id": oid, "order_no": no, "player_id": pid[who], "total": total,
+                       "slip_url": "/hero/cat-color.webp", "status": status,
+                       "note": "ยอดในสลิปไม่ตรง" if status == "rejected" else None,
+                       "created_at": _iso(minutes), "updated_at": _iso(minutes)})
+        for product, name, kind, size, qty, price in lines:
+            items.append({"id": str(uuid.uuid4()), "order_id": oid, "product_id": product,
+                          "product_name": name, "sale_type": kind, "size": size, "qty": qty,
+                          "unit_price": price, "line_total": price * qty, "created_at": _iso(minutes)})
+
+    shirt_name = "เสื้อก๊วน นิดเดียว 2026"
+    order(1, 0, [(shirt, shirt_name, "preorder", "M", 2, 390.0), (cap, "หมวกแก๊ป BMT", "stock", "", 1, 250.0)],
+          "pending", 30)
+    order(2, 1, [(shirt, shirt_name, "preorder", "XL", 1, 410.0)], "confirmed", 300)
+    order(3, 0, [(cap, "หมวกแก๊ป BMT", "stock", "", 1, 250.0)], "rejected", 900)
+    db.tables["shop_orders"] = orders
+    db.tables["shop_order_items"] = items
     for table in ("locked_pairs", "pairing_history", "admin_activity_log"):
         db.tables.setdefault(table, [])
     return db

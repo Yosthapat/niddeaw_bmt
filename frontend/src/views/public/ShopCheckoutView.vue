@@ -1,25 +1,30 @@
 <script setup lang="ts">
+/**
+ * Paying for the whole cart in one go: who is buying, one transfer and its
+ * slip, then the order number. What is being paid for always comes from
+ * the server (quoteCart), so the amount in the QR is the products' prices
+ * now, not whatever the page last showed.
+ */
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute } from 'vue-router'
-import { getPlayers, getShopPayment, getShopProduct, placeShopOrder } from '@/api/public'
+import { useRouter } from 'vue-router'
+import { getCartPayment, getPlayers, placeShopOrder, quoteCart } from '@/api/public'
 import { apiErrorMessage } from '@/api/errors'
-import type { PaymentInfoResponse, PlayerStats, Product, ShopOrder } from '@/types'
+import type { PaymentInfoResponse, PlayerStats, Quote, ShopOrder } from '@/types'
 import { orderNo } from '@/types'
-import { formatDayMonth, money } from '@/utils/format'
+import { money } from '@/utils/format'
 import { compressImage } from '@/utils/imageCompression'
+import { useCartStore } from '@/stores/cart'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 
 // Remembered on this phone, so a member's next order starts on their name.
 const LAST_BUYER_KEY = 'niddeaw_shop_buyer'
 
-const route = useRoute()
-const { t, locale } = useI18n()
-const productId = String(route.params.id)
-const size = typeof route.query.size === 'string' ? route.query.size : ''
-const qty = Math.min(10, Math.max(1, Number(route.query.qty) || 1))
+const router = useRouter()
+const { t } = useI18n()
+const cart = useCartStore()
 
-const product = ref<Product | null>(null)
+const quote = ref<Quote | null>(null)
 const members = ref<PlayerStats[]>([])
 const loadError = ref<string | null>(null)
 const step = ref<1 | 2 | 3>(1)
@@ -35,9 +40,19 @@ const tried = ref(false)
 const placed = ref<ShopOrder | null>(null)
 
 onMounted(async () => {
+  // Nothing to pay for: back to the cart, which says so.
+  if (cart.lines.length === 0) {
+    router.replace('/shop/cart')
+    return
+  }
   try {
-    const [p, m] = await Promise.all([getShopProduct(productId), getPlayers()])
-    product.value = p
+    const [q, m] = await Promise.all([quoteCart(cart.lines), getPlayers()])
+    // A line that can't be had is fixed on the cart page, not here.
+    if (!q.ok) {
+      router.replace('/shop/cart')
+      return
+    }
+    quote.value = q
     members.value = m
     let remembered: string | null = null
     try {
@@ -62,9 +77,8 @@ const found = computed(() => {
     .sort((a, b) => Number(b.player.id === buyerId.value) - Number(a.player.id === buyerId.value) || a.player.nickname.localeCompare(b.player.nickname))
     .slice(0, 30)
 })
-const total = computed(() => (product.value ? product.value.price * qty : 0))
-const isPre = computed(() => product.value?.sale_type === 'preorder')
-const day = (iso: string | null): string => (iso ? formatDayMonth(iso, locale.value as 'th' | 'en') : '—')
+const units = computed(() => quote.value?.lines.reduce((n, l) => n + l.qty, 0) ?? 0)
+const hasPreorder = computed(() => (placed.value?.items ?? quote.value?.lines ?? []).some((l) => l.sale_type === 'preorder'))
 
 async function toPay(): Promise<void> {
   if (!buyerId.value) return
@@ -77,7 +91,7 @@ async function toPay(): Promise<void> {
   window.scrollTo({ top: 0 })
   if (pay.value) return
   try {
-    pay.value = await getShopPayment(productId, qty)
+    pay.value = await getCartPayment(cart.lines)
   } catch (e) {
     payError.value = apiErrorMessage(e, t('shop.payFailed'))
   }
@@ -98,7 +112,8 @@ async function send(): Promise<void> {
   sending.value = true
   sendError.value = null
   try {
-    placed.value = await placeShopOrder({ productId, playerId: buyerId.value, size, qty, slip: slip.value })
+    placed.value = await placeShopOrder({ playerId: buyerId.value, items: cart.lines, slip: slip.value })
+    cart.clear()
     step.value = 3
     window.scrollTo({ top: 0 })
   } catch (e) {
@@ -112,8 +127,8 @@ async function send(): Promise<void> {
 <template>
   <main class="mx-auto max-w-md px-4 pt-3 pb-8">
     <div class="flex items-center justify-between">
-      <RouterLink v-if="step === 1" :to="`/shop/${productId}`" class="inline-flex min-h-11 items-center gap-1 text-sm text-white/70">
-        <span aria-hidden="true">←</span> {{ product?.name ?? t('shop.back') }}
+      <RouterLink v-if="step === 1" to="/shop/cart" class="inline-flex min-h-11 items-center gap-1 text-sm text-white/70">
+        <span aria-hidden="true">←</span> {{ t('shop.cart') }}
       </RouterLink>
       <button v-else-if="step === 2" type="button" class="inline-flex min-h-11 items-center gap-1 text-sm text-white/70" @click="step = 1">
         <span aria-hidden="true">←</span> {{ t('shop.whoTitle') }}
@@ -127,19 +142,21 @@ async function send(): Promise<void> {
 
     <p v-if="loadError" class="mt-6 text-status-error">{{ loadError }}</p>
 
-    <template v-else-if="product">
-      <!-- the order, always in view -->
-      <div class="mt-4 flex items-center gap-3 rounded-2xl border border-white/12 bg-white/5 p-2.5">
-        <img v-if="product.image_urls[0]" :src="product.image_urls[0]" alt="" class="h-13 w-13 shrink-0 rounded-lg object-cover" />
-        <div class="min-w-0 flex-1">
-          <p class="truncate text-sm font-medium">{{ product.name }}</p>
-          <p class="text-xs text-white/65">
-            <template v-if="isPre">{{ t('shop.filterPreorder') }} · </template>
-            {{ size ? t('shop.summary', { size, qty }) : t('shop.summaryOne', { qty }) }}
-          </p>
-        </div>
-        <span class="font-display font-bold text-brand-pink-light">{{ money(total) }}</span>
-      </div>
+    <template v-else-if="quote">
+      <!-- what is being paid for, always in view -->
+      <details v-if="step !== 3" class="mt-4 rounded-2xl border border-white/12 bg-white/5">
+        <summary class="flex min-h-14 cursor-pointer list-none items-center gap-3 px-3">
+          <span class="flex-1 text-sm">{{ t('shop.cartSummary', { lines: quote.lines.length, n: units }) }}</span>
+          <span class="font-display text-lg font-bold text-brand-pink-light">{{ money(quote.total) }}</span>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="chev text-white/60" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+        </summary>
+        <ul class="flex flex-col gap-1.5 border-t border-white/10 px-3 py-2.5 text-sm">
+          <li v-for="l in quote.lines" :key="`${l.product_id}-${l.size}`" class="flex justify-between gap-3">
+            <span class="min-w-0 truncate">{{ l.product_name }}<span v-if="l.size" class="text-white/60"> · {{ l.size }}</span> × {{ l.qty }}</span>
+            <span class="shrink-0">{{ money(l.line_total) }}</span>
+          </li>
+        </ul>
+      </details>
 
       <!-- 1 · who -->
       <section v-if="step === 1" class="mt-5 flex flex-col gap-3">
@@ -190,7 +207,7 @@ async function send(): Promise<void> {
             <p class="text-sm text-white/70">{{ t('shop.payAmount') }}</p>
             <p class="font-display text-3xl font-bold text-brand-pink-light">{{ money(pay.amount) }}</p>
           </div>
-          <a v-if="pay.data_uri" :href="pay.data_uri" :download="`niddeaw-${product.id.slice(0, 6)}.png`" class="ghost">{{ t('shop.saveQr') }}</a>
+          <a v-if="pay.data_uri" :href="pay.data_uri" download="niddeaw-shop-qr.png" class="ghost">{{ t('shop.saveQr') }}</a>
         </template>
         <p v-else class="text-sm text-white/60">{{ t('common.loading') }}</p>
 
@@ -203,7 +220,10 @@ async function send(): Promise<void> {
           </label>
           <span v-if="tried && !slip" class="text-xs text-status-error">{{ t('shop.slipRequired') }}</span>
         </div>
-        <p v-if="sendError" class="w-full text-sm text-status-error" role="alert">{{ sendError }}</p>
+        <p v-if="sendError" class="w-full text-sm text-status-error" role="alert">
+          {{ sendError }}
+          <RouterLink to="/shop/cart" class="underline">{{ t('shop.backToCart') }}</RouterLink>
+        </p>
         <button type="button" class="cta mt-2 w-full" :disabled="sending" @click="send">
           {{ sending ? t('shop.sending') : t('shop.send') }}
         </button>
@@ -214,9 +234,18 @@ async function send(): Promise<void> {
         <img src="/pwa-icons/pwa-192x192.png" alt="" class="h-28 w-28 rounded-full shadow-[0_0_30px_rgb(234_76_164/0.5)]" />
         <h1 class="font-display text-2xl font-bold">{{ t('shop.doneTitle') }}</h1>
         <span class="rounded-full border border-white/20 bg-white/8 px-4 py-1.5 font-display font-bold">{{ orderNo(placed.order_no) }}</span>
+        <ul class="flex w-full flex-col gap-1 text-left text-sm text-white/80">
+          <li v-for="(l, i) in placed.items" :key="i" class="flex justify-between gap-3">
+            <span class="min-w-0 truncate">{{ l.product_name }}<span v-if="l.size" class="text-white/60"> · {{ l.size }}</span> × {{ l.qty }}</span>
+            <span class="shrink-0">{{ money(l.line_total) }}</span>
+          </li>
+          <li class="flex justify-between gap-3 border-t border-white/12 pt-1 font-medium">
+            <span>{{ t('shop.total') }}</span><span>{{ money(placed.total) }}</span>
+          </li>
+        </ul>
         <ul class="flex w-full flex-col gap-2 rounded-2xl border border-white/12 bg-white/5 p-4 text-left text-sm">
           <li class="flex gap-2.5"><span class="text-[#ffe14d]">●</span>{{ t('shop.doneCheck') }}</li>
-          <li v-if="isPre" class="flex gap-2.5"><span class="text-white/40">●</span>{{ t('shop.donePreorder', { closes: day(product.preorder_closes_on), delivers: day(product.preorder_delivers_on) }) }}</li>
+          <li v-if="hasPreorder" class="flex gap-2.5"><span class="text-white/40">●</span>{{ t('shop.donePreorderCart') }}</li>
           <li class="flex gap-2.5"><span class="text-white/40">●</span>{{ t('shop.donePickup', { name: buyer?.nickname ?? '' }) }}</li>
         </ul>
         <p class="text-xs text-white/60">{{ t('shop.doneProfile') }}</p>
@@ -230,6 +259,9 @@ async function send(): Promise<void> {
 </template>
 
 <style scoped>
+details[open] .chev {
+  rotate: 180deg;
+}
 .who-btn {
   display: flex;
   min-height: 56px;
