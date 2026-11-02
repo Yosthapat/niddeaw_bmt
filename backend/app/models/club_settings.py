@@ -2,13 +2,17 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from app.models.fields import Baht, Handle
+from app.models.fields import Baht, EditForm, Handle
 
 PromptPayType = Literal["phone", "national_id", "ewallet"]
 PaymentMethod = Literal["promptpay", "bank_account", "bank_account_qr", "uploaded_qr"]
 
 
-class ClubSettingsUpdate(BaseModel):
+class ClubSettingsUpdate(EditForm):
+    NOT_NULL = frozenset(
+        {"payment_method", "promptpay_id", "promptpay_type", "default_court_fee_per_person", "default_shuttlecock_price_per_game"}
+    )
+
     payment_method: PaymentMethod | None = None
     promptpay_id: Handle | None = None
     promptpay_type: PromptPayType | None = None

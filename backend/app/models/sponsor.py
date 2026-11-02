@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from app.models.fields import Name
+from app.models.fields import EditForm, Name
 
 
 def normalise_link(raw: str | None) -> str | None:
@@ -31,7 +31,9 @@ def normalise_link(raw: str | None) -> str | None:
     return text
 
 
-class SponsorUpdate(BaseModel):
+class SponsorUpdate(EditForm):
+    NOT_NULL = frozenset({"name", "is_visible"})
+
     name: Name | None = None
     href: str | None = None
     """Run through normalise_link by the router, which turns a bad one

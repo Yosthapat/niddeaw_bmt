@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, StringConstraints, model_validator
 
-from app.models.fields import Name, PositiveBaht
+from app.models.fields import EditForm, Name, PositiveBaht
 
 SaleType = Literal["stock", "preorder"]
 OrderStatus = Literal["pending", "confirmed", "delivered", "rejected"]
@@ -22,8 +22,10 @@ MAX_CART_LINES = 20
 MAX_LINE_QTY = 10
 
 
-class ProductFields(BaseModel):
+class ProductFields(EditForm):
     """What the admin form sends, on create and (all optional) on edit."""
+
+    NOT_NULL = frozenset({"name", "price", "sale_type", "sizes", "size_prices", "is_active"})
 
     name: Name | None = None
     description: Description | None = None

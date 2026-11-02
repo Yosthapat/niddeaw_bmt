@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app import db_errors
 from app.config import get_settings
 from app.middleware.activity_log import AdminActivityLogMiddleware
 from app.middleware.unhandled_errors import UnhandledErrorsMiddleware
@@ -31,6 +32,7 @@ from app.routers.public import (
 )
 
 app = FastAPI(title="นิดเดียว Badminton Club API")
+db_errors.register(app)
 
 settings = get_settings()
 app.add_middleware(AdminActivityLogMiddleware)
