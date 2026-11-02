@@ -160,9 +160,22 @@ usePolling(refresh, 7000)
               <ol v-if="live.queued.length" class="mt-3 space-y-2">
                 <li v-for="(m, i) in live.queued" :key="m.match_id" class="queue-row">
                   <span class="num">{{ i + 1 }}</span>
-                  <span class="min-w-0 truncate text-right text-sm">{{ teamNames(m.team1_player_ids) }}</span>
-                  <span class="font-display text-[11px] font-bold text-[#ff9fd6]">VS</span>
-                  <span class="min-w-0 truncate text-sm">{{ teamNames(m.team2_player_ids) }}</span>
+                  <!-- faces then names, mirrored on the right so both teams
+                       face the VS; on a phone the names drop under the faces -->
+                  <span v-for="(ids, k) in [m.team1_player_ids, m.team2_player_ids]" :key="k" class="q-team" :class="k === 0 ? 'q-left' : 'q-right'">
+                    <span class="flex shrink-0">
+                      <PlayerAvatar
+                        v-for="(pid, j) in ids"
+                        :key="pid"
+                        :name="nameOf(pid)"
+                        :avatar-url="avatarOf(pid)"
+                        size="sm"
+                        round
+                        :class="j > 0 ? '-ml-2' : ''"
+                      />
+                    </span>
+                    <span class="min-w-0 max-w-full truncate text-sm">{{ teamNames(ids) }}</span>
+                  </span>
                 </li>
               </ol>
               <p v-else class="mt-2 text-sm text-white/55">{{ t('live.noneUpNext') }}</p>
@@ -294,15 +307,50 @@ usePolling(refresh, 7000)
   }
 }
 .queue-row {
+  position: relative;
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: 30px minmax(0, 1fr) 26px minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
-  min-height: 48px;
+  gap: 8px;
+  min-height: 56px;
   padding: 8px 12px;
   border: 1px solid rgb(255 255 255 / 0.1);
   border-radius: 14px;
   background: rgb(255 255 255 / 0.05);
+}
+.queue-row::after {
+  content: 'VS';
+  grid-row: 1;
+  grid-column: 3;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  color: #ff9fd6;
+}
+.q-team {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  grid-row: 1;
+}
+.q-left {
+  grid-column: 2;
+}
+.q-right {
+  grid-column: 4;
+}
+@media (min-width: 640px) {
+  .q-team {
+    flex-direction: row;
+    gap: 8px;
+  }
+  .q-left {
+    flex-direction: row-reverse;
+    justify-content: flex-start;
+  }
 }
 .num {
   display: flex;
