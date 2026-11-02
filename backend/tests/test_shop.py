@@ -489,3 +489,73 @@ def test_admin_orders_list_their_lines_and_who(client: TestClient, shelf: Shelf)
 
 def test_only_an_admin_manages_the_shop(client: TestClient, supabase_rows: dict[str, Any]) -> None:
     assert client.get("/api/admin/shop/orders").status_code == 401
+
+
+# ------------------------------------------------------- fixing an order line
+
+
+def _line(shelf: Shelf) -> dict[str, Any]:
+    return next(i for i in shelf.tables["shop_order_items"] if i["order_id"] == ORDER_ID)
+
+
+def test_fixing_the_size_reprices_the_line_and_moves_the_stock(client: TestClient, shelf: Shelf) -> None:
+    seed(shelf, stock=5, xl=4)
+    line = _line(shelf)
+    response = client.patch(
+        f"/api/admin/shop/orders/{ORDER_ID}/items/{line['id']}", json={"size": "XL"}, headers=auth()
+    )
+    assert response.status_code == 200
+    assert (line["size"], line["unit_price"], line["line_total"]) == ("XL", 420, 840)
+    assert response.json()["total"] == 840  # was 780: the admin collects 60 more
+    assert (qty_of(shelf, "M"), qty_of(shelf, "XL")) == (7, 2)
+
+
+def test_fixing_how_many_takes_or_returns_only_the_difference(client: TestClient, shelf: Shelf) -> None:
+    seed(shelf, stock=5)
+    line = _line(shelf)
+    url = f"/api/admin/shop/orders/{ORDER_ID}/items/{line['id']}"
+    assert client.patch(url, json={"qty": 3}, headers=auth()).json()["total"] == 1170
+    assert qty_of(shelf, "M") == 4
+    assert client.patch(url, json={"qty": 1}, headers=auth()).json()["total"] == 390
+    assert qty_of(shelf, "M") == 6
+
+
+def test_a_size_that_has_run_out_is_refused_and_nothing_moves(client: TestClient, shelf: Shelf) -> None:
+    seed(shelf, stock=5, xl=1)
+    line = _line(shelf)
+    response = client.patch(
+        f"/api/admin/shop/orders/{ORDER_ID}/items/{line['id']}", json={"size": "XL"}, headers=auth()
+    )
+    assert response.status_code == 409 and "XL" in response.json()["detail"]
+    assert (qty_of(shelf, "M"), qty_of(shelf, "XL"), line["size"]) == (5, 1, "M")
+
+
+def test_a_handed_over_order_is_not_edited(client: TestClient, shelf: Shelf) -> None:
+    seed(shelf)
+    shelf.tables["shop_orders"] = [order_row(status="delivered")]
+    line = _line(shelf)
+    response = client.patch(
+        f"/api/admin/shop/orders/{ORDER_ID}/items/{line['id']}", json={"size": "XL"}, headers=auth()
+    )
+    assert response.status_code == 409
+
+
+def test_a_size_already_on_the_order_is_not_doubled(client: TestClient, shelf: Shelf) -> None:
+    seed(shelf)
+    shelf.tables["shop_order_items"].append(item_row(size="XL", qty=1, unit_price=420, line_total=420))
+    line = _line(shelf)
+    response = client.patch(
+        f"/api/admin/shop/orders/{ORDER_ID}/items/{line['id']}", json={"size": "XL"}, headers=auth()
+    )
+    assert response.status_code == 409 and "XL" in response.json()["detail"]
+
+
+def test_fixing_a_preorder_line_touches_no_stock(client: TestClient, shelf: Shelf) -> None:
+    seed(shelf, prod=product(sale_type="preorder", preorder_closes_on="2026-12-01"))
+    line = _line(shelf)
+    line["sale_type"] = "preorder"
+    response = client.patch(
+        f"/api/admin/shop/orders/{ORDER_ID}/items/{line['id']}", json={"size": "XL"}, headers=auth()
+    )
+    assert response.status_code == 200 and response.json()["total"] == 840
+    assert (qty_of(shelf, "M"), qty_of(shelf, "XL")) == (5, 4)

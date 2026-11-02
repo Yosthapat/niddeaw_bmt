@@ -12,12 +12,14 @@ from app.models.shop import (
     MAX_IMAGES,
     ONE_SIZE,
     OrderAdmin,
+    OrderItemUpdate,
     OrderStatus,
     OrderUpdate,
     PreorderTally,
     Product,
     ProductCreate,
     ProductFields,
+    unit_price,
 )
 from app.services import shop_service
 from app.services.image_service import resize_jpeg, storage_path_from_url
@@ -277,6 +279,86 @@ def update_order(order_id: UUID, payload: OrderUpdate, supabase: SupabaseDep, ad
     # The note says why a slip was refused; it means nothing on any other state.
     updates["note"] = (payload.note or None) if after == "rejected" else None
     saved = supabase.table("shop_orders").update(updates).eq("id", str(order_id)).execute()
+    return _with_players(supabase, rows(saved))[0]
+
+
+# A line can be fixed while the order is still in the admin's hands. A
+# delivered order has been handed over; a refused one holds no stock, so it
+# is reopened first and fixed then.
+EDITABLE = {"pending", "confirmed"}
+
+
+@router.patch("/orders/{order_id}/items/{item_id}", response_model=OrderAdmin)
+def update_order_item(
+    order_id: UUID, item_id: UUID, payload: OrderItemUpdate, supabase: SupabaseDep, admin: AdminDep
+) -> OrderAdmin:
+    """Fix one line of an order — a member who picked M meaning XL. The line
+    is priced again at the new size's price and the order's total follows,
+    so the admin sees what to collect or give back. Stock moves with it: the
+    old size goes back on the shelf and the new one is taken."""
+    found = rows(supabase.table("shop_orders").select("*").eq("id", str(order_id)).limit(1).execute())
+    if not found:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+    order = found[0]
+    if order["status"] not in EDITABLE:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="แก้ได้เฉพาะออเดอร์ที่รอตรวจหรือยืนยันแล้ว — ถ้าปฏิเสธไปแล้ว ให้เปิดกลับมาก่อน",
+        )
+    lines = [
+        line
+        for line in shop_service.items_by_order(supabase, [str(order_id)]).get(str(order_id), [])
+        if str(line.get("order_id")) == str(order_id)
+    ]
+    line = next((x for x in lines if str(x["id"]) == str(item_id)), None)
+    if line is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order item not found")
+    if not line.get("product_id"):
+        raise _bad("สินค้านี้ถูกลบไปแล้ว แก้รายการนี้ไม่ได้")
+    product = _product(supabase, str(line["product_id"]))
+
+    sizes: list[str] = list(product.get("sizes") or [])
+    size = line["size"] if payload.size is None else payload.size
+    qty = int(line["qty"]) if payload.qty is None else payload.qty
+    if sizes and size not in sizes:
+        raise _bad("สินค้านี้ไม่มีไซส์นี้")
+    if not sizes:
+        size = ONE_SIZE
+    if size == line["size"] and qty == int(line["qty"]):
+        raise _bad("No fields to update")
+    if size != line["size"] and any(
+        str(x.get("product_id")) == str(line["product_id"]) and x["size"] == size for x in lines if x is not line
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"ออเดอร์นี้มีไซส์ {size} อยู่แล้ว — แก้จำนวนของบรรทัดนั้นแทน",
+        )
+
+    # Stock first, so a size that has run out stops the edit before
+    # anything is written. The new units are taken before the old ones go
+    # back: if taking fails, nothing has moved.
+    if line["sale_type"] == "stock":
+        pid = str(line["product_id"])
+        if size != line["size"]:
+            if not shop_service.take(supabase, pid, size, qty):
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"ไซส์ {size} เหลือไม่พอ")
+            shop_service.give_back(supabase, pid, line["size"], int(line["qty"]))
+        elif qty > int(line["qty"]):
+            if not shop_service.take(supabase, pid, size, qty - int(line["qty"])):
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"ไซส์ {size} เหลือไม่พอ")
+        else:
+            shop_service.give_back(supabase, pid, size, int(line["qty"]) - qty)
+
+    price = unit_price(product, size)
+    changes = {"size": size, "qty": qty, "unit_price": price, "line_total": round(price * qty, 2)}
+    supabase.table("shop_order_items").update(changes).eq("id", str(item_id)).execute()
+    total = round(sum(float(changes["line_total"]) if x is line else float(x["line_total"]) for x in lines), 2)
+    saved = (
+        supabase.table("shop_orders")
+        .update({"total": total, "updated_at": datetime.now(UTC).isoformat()})
+        .eq("id", str(order_id))
+        .execute()
+    )
     return _with_players(supabase, rows(saved))[0]
 
 

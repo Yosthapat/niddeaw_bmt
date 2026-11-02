@@ -543,6 +543,14 @@ export async function getShopOrders(status?: OrderStatus): Promise<ShopOrderAdmi
   return request(`/api/admin/shop/orders${status ? `?status=${status}` : ''}`)
 }
 
+export async function updateShopOrderItem(
+  orderId: string,
+  itemId: string,
+  change: { size?: string; qty?: number },
+): Promise<ShopOrderAdmin> {
+  return request(`/api/admin/shop/orders/${orderId}/items/${itemId}`, { method: 'PATCH', body: JSON.stringify(change) })
+}
+
 export async function updateShopOrder(id: string, status: OrderStatus, note?: string): Promise<ShopOrderAdmin> {
   return request(`/api/admin/shop/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ status, note }) })
 }
