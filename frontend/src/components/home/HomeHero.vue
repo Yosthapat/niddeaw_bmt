@@ -15,30 +15,13 @@
  * (above the words on a phone, beside them from 900px wide). The CSS cat is
  * drawn inside it, and the 3D camera is aimed so its cat fills it too.
  */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
-import type { EloTier } from '@/types'
-import TierMascot from '@/components/players/TierMascot.vue'
 import SponsorBand from './SponsorBand.vue'
 import type { HeroScene } from './heroScene'
 
-const emit = defineEmits<{ reveal: [tier: EloTier] }>()
-
 const { t } = useI18n()
-
-// Ordered by rising alcohol content — matches elo_service.py's
-// _TIER_THRESHOLDS order.
-const tiers: { tier: EloTier; label: string }[] = [
-  { tier: 'milk', label: 'Milk' },
-  { tier: 'beer', label: 'Beer' },
-  { tier: 'highball', label: 'Highball' },
-  { tier: 'wine', label: 'Wine' },
-  { tier: 'soju', label: 'Soju' },
-  { tier: 'whisky', label: 'Whisky' },
-  { tier: 'vodka', label: 'Vodka' },
-  { tier: 'absinthe', label: 'Absinthe' },
-]
 
 // ------------------------------------------------------------------ scene
 const hero = ref<HTMLElement | null>(null)
@@ -48,8 +31,6 @@ const anchor = ref<HTMLElement | null>(null)
 type Mode = 'css' | 'loading' | 'gl'
 const mode = ref<Mode>('css')
 const reason = ref('')
-const wide = ref(false)
-const trayMascot = computed(() => (wide.value ? 44 : 30))
 
 // `?hero=stats` shows what this device got and how fast it runs, for
 // trying the hero on real phones.
@@ -83,7 +64,6 @@ function measure(): void {
   const box = h.getBoundingClientRect()
   const r = a.getBoundingClientRect()
   const rel = new DOMRect(r.left - box.left, r.top - box.top, r.width, r.height)
-  wide.value = box.width >= 900
   // The CSS scene's sun, ring and horizon are placed from these.
   h.style.setProperty('--ax', `${rel.x + rel.width / 2}px`)
   h.style.setProperty('--aw', `${rel.width}px`)
@@ -237,21 +217,6 @@ onBeforeUnmount(() => {
             {{ t('home.hero.ctaLive') }}
           </RouterLink>
         </div>
-        <div class="flex flex-col items-center gap-2 min-[900px]:items-start">
-          <span class="text-[13px] text-white/65">{{ t('home.hero.tiersLabel') }}</span>
-          <div class="glass-bar flex gap-0.5 rounded-[18px] px-2 py-1.5 min-[900px]:gap-1.5 min-[900px]:px-3 min-[900px]:py-2">
-            <button
-              v-for="tier in tiers"
-              :key="tier.tier"
-              type="button"
-              class="flex min-h-11 items-center justify-center rounded-xl transition-transform hover:-translate-y-0.5"
-              :aria-label="`${tier.label} tier — เปิดฉากเต็มจอ`"
-              @click="emit('reveal', tier.tier)"
-            >
-              <TierMascot :tier="tier.tier" :size="trayMascot" :interactive="false" />
-            </button>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -259,7 +224,7 @@ onBeforeUnmount(() => {
       {{ stats }}
     </p>
 
-    <SponsorBand class="mt-8 min-[900px]:mt-12" />
+    <SponsorBand class="mt-8 min-[900px]:mt-6" />
   </section>
 </template>
 
@@ -285,15 +250,17 @@ onBeforeUnmount(() => {
   width: min(78vw, 360px);
   aspect-ratio: 1;
 }
+/* Kept short on a desktop — a 460px cat rather than 560 — so the grid
+   under it starts inside the first screen instead of a scroll away. */
 @media (min-width: 900px) {
   .hero-grid {
-    padding-top: calc(var(--header-h) + 24px);
+    padding-top: calc(var(--header-h) + 8px);
     grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
     column-gap: 32px;
   }
   .hero-anchor {
     order: 2;
-    width: min(100%, 560px);
+    width: min(100%, 460px);
     justify-self: end;
   }
   .hero-copy {
