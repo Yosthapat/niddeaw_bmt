@@ -410,10 +410,17 @@ export async function createHeroScene(opts: HeroSceneOptions): Promise<HeroScene
       ? [[1.45, 0.95, 2.2, 0.7], [2.4, 3.1, -0.8, 0.62], [-3.3, 0.25, -1.5, 0.75]]
       : [[-1.45, 3.75, 1.6, 0.62], [1.75, 2.35, -0.9, 0.5], [-3.6, 5.2, -6, 0.8]]
     placements.sprites = wide
-      ? [[-3.0, 3.6, -3.4, 0.95], [2.0, 3.9, -1.2, 1.05], [3.0, 2.1, -2.2, 0.85], [-1.85, 0.8, 1.6, 0.9]]
+      ? // Beer first, at scale 0: beside the cat's ear it landed on the
+        // headline's last word, and projected across 900–1906px wide every
+        // other free spot is either on the cat's face or off the right edge.
+        // Three mascots read as plenty beside the words.
+        [[-3.0, 3.6, -3.4, 0], [2.0, 3.9, -1.2, 1.05], [3.0, 2.1, -2.2, 0.85], [-1.85, 0.8, 1.6, 0.9]]
       : [[-1.75, 1.75, -2.4, 0.75], [1.55, 3.95, -1.1, 0.78], [2.25, 0.95, -2.6, 0.62], [1.5, 1.0, 1.5, 0.72]]
     shuttles.forEach((s, i) => s.scale.setScalar(placements.shuttles[i][3]))
-    sprites.forEach((s, i) => s.scale.setScalar(placements.sprites[i][3]))
+    sprites.forEach((s, i) => {
+      s.scale.setScalar(placements.sprites[i][3])
+      s.visible = placements.sprites[i][3] > 0
+    })
   }
 
   // --- motion

@@ -9,7 +9,7 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <div class="grid grid-cols-2 gap-2.5 sm:gap-4">
+  <div class="grid grid-cols-2 gap-2.5 sm:gap-4 min-[900px]:gap-5">
     <RouterLink to="/tournament" class="home-card border-[#ffe14d]/50 bg-[linear-gradient(140deg,#3b0f5c,#1a0838_70%)] [--glow:rgb(255_207_63/0.4)]">
       <span class="card-blink self-start rounded-full border border-[#ffe14d] px-2 py-1 font-display text-[10px] leading-none font-bold tracking-[1.5px] text-[#ffe14d] sm:text-xs">
         COMING SOON
@@ -84,6 +84,20 @@ const { t } = useI18n()
 @keyframes card-blink {
   50% {
     opacity: 0.45;
+  }
+}
+/* In the desktop grid the two doors share a row with the podium's lower
+   half, so they stand taller and their art grows with them. */
+@media (min-width: 900px) {
+  .home-card {
+    min-height: 190px;
+    padding: 24px;
+    gap: 8px;
+  }
+  .card-art {
+    right: 22px;
+    bottom: 20px;
+    scale: 1.9;
   }
 }
 @media (prefers-reduced-motion: reduce) {

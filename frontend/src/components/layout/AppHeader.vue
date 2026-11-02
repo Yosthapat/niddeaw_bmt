@@ -32,6 +32,7 @@ const publicLinks = computed(() => [
   { to: '/ranking', label: t('nav.ranking') },
   { to: '/live', label: t('nav.live') },
   { to: '/matches', label: t('nav.matches') },
+  { to: '/shop', label: t('nav.shop') },
 ])
 
 // A member's profile is still "Members", a match's detail still "Matches".
