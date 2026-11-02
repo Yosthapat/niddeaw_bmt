@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // One finished match as a scoreboard: the two teams stacked, the winners
-// lit gold with a WIN plate, the losers dimmed, a draw grey on both sides,
-// and what the result did to each side's ELO. Used by the match log
+// lit gold with a WIN plate, the losers dimmed, a draw grey on both sides.
+// Only the result — the club records who won, not a score. Used by the match log
 // (grouped under each night, so it shows the time) and a member's own
 // season history (not grouped, so it shows the date as well).
 import { computed } from 'vue'
@@ -19,22 +19,13 @@ const avatarOf = (id: string): string | null => props.playersById[id]?.avatar_ur
 
 type Result = 'win' | 'draw' | 'lose' | null
 
-function side(ids: string[], me: 'team1' | 'team2', delta: number | null) {
+function side(ids: string[], me: 'team1' | 'team2') {
   const w = props.match.winner
   const result: Result = !w ? null : w === 'draw' ? 'draw' : w === me ? 'win' : 'lose'
-  return {
-    ids,
-    names: ids.map(nameOf).join(' & '),
-    result,
-    // `typeof`: a backend older than the ELO-delta columns leaves them out
-    delta: typeof delta === 'number' ? Math.round(delta) : null,
-  }
+  return { ids, names: ids.map(nameOf).join(' & '), result }
 }
 
-const teams = computed(() => [
-  side(props.match.team1_player_ids, 'team1', props.match.elo_delta_team1),
-  side(props.match.team2_player_ids, 'team2', props.match.elo_delta_team2),
-])
+const teams = computed(() => [side(props.match.team1_player_ids, 'team1'), side(props.match.team2_player_ids, 'team2')])
 
 const minutes = computed(() => {
   if (props.match.status !== 'completed') return null
@@ -44,9 +35,6 @@ const minutes = computed(() => {
 const when = computed(() =>
   props.withDate ? formatDateTime(props.match.created_at, locale.value) : formatTime(props.match.created_at, locale.value),
 )
-const sets = computed(() => (props.match.sets?.length ? props.match.sets.map(([a, b]) => `${a}-${b}`).join(', ') : null))
-
-const deltaLabel = (d: number): string => (d > 0 ? `+${d}` : d < 0 ? `−${Math.abs(d)}` : '±0')
 </script>
 
 <template>
@@ -55,7 +43,6 @@ const deltaLabel = (d: number): string => (d > 0 ? `+${d}` : d < 0 ? `−${Math.
       <span class="min-w-0 truncate">
         <span v-if="typeof match.match_no === 'number'" class="no">#{{ match.match_no }}</span>
         <template v-if="match.court"> · {{ t('home.live.court', { court: match.court }) }}</template>
-        <template v-if="sets"> · {{ sets }}</template>
       </span>
       <span class="shrink-0">
         <template v-if="minutes">{{ minutes }} {{ t('matches.minutes') }} · </template>{{ when }}
@@ -71,9 +58,6 @@ const deltaLabel = (d: number): string => (d > 0 ? `+${d}` : d < 0 ? `−${Math.
         </div>
         <span class="min-w-0 truncate pl-1 font-display text-[15px] font-semibold sm:text-base">{{ team.names }}</span>
         <span v-if="team.result" class="plate">{{ t(`matches.${team.result}`) }}</span>
-        <span v-if="team.delta !== null" class="delta" :class="team.delta > 0 ? 'up' : team.delta < 0 ? 'down' : ''">
-          {{ deltaLabel(team.delta) }}
-        </span>
       </div>
     </template>
   </RouterLink>
@@ -110,7 +94,7 @@ const deltaLabel = (d: number): string => (d > 0 ? `+${d}` : d < 0 ? `−${Math.
 }
 .team {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   min-height: 62px;
@@ -156,20 +140,6 @@ const deltaLabel = (d: number): string => (d > 0 ? `+${d}` : d < 0 ? `−${Math.
   border-color: rgb(255 255 255 / 0.2);
   background: rgb(255 255 255 / 0.12);
   color: rgb(255 255 255 / 0.85);
-}
-.delta {
-  min-width: 34px;
-  text-align: right;
-  font-family: var(--font-display);
-  font-size: 13px;
-  font-weight: 700;
-  color: rgb(255 255 255 / 0.5);
-}
-.delta.up {
-  color: #7ff0b4;
-}
-.delta.down {
-  color: #ff8a9a;
 }
 @media (prefers-reduced-motion: reduce) {
   .card {
