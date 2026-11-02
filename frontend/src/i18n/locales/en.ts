@@ -200,7 +200,6 @@ export default {
     onCourt: 'On court',
     noSessionLong: 'No session is open right now · once one opens, every court shows up here',
     waitingForSession: 'Waiting for an admin to open the session · every court will show up here',
-    avgMatch: 'About {n} min a match',
     inProgress: 'In Progress',
     playing: 'Playing',
     noneInProgress: 'No matches in progress right now',

@@ -172,14 +172,10 @@ usePolling(refresh, 7000)
               <h2 id="live-waiting" class="font-display text-xl font-bold">
                 {{ t('live.inQueue') }} <span class="text-sm font-normal text-white/55">({{ live.waiting.length }})</span>
               </h2>
-              <p v-if="live.avg_match_duration_minutes" class="mt-0.5 text-xs text-white/55">
-                {{ t('live.avgMatch', { n: Math.round(live.avg_match_duration_minutes) }) }}
-              </p>
               <ul v-if="live.waiting.length" class="mt-3 flex flex-wrap gap-2">
                 <li v-for="w in live.waiting" :key="w.player_id" class="wait-chip">
                   <PlayerAvatar :name="nameOf(w.player_id)" :avatar-url="avatarOf(w.player_id)" size="sm" round />
                   {{ nameOf(w.player_id) }}
-                  <span class="text-xs text-[#ff9fd6]">~{{ Math.round(w.estimated_wait_minutes) }} {{ t('matches.minutes') }}</span>
                 </li>
               </ul>
               <p v-else class="mt-2 text-sm text-white/55">{{ t('live.noneWaiting') }}</p>
