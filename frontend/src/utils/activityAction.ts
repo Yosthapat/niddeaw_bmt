@@ -14,6 +14,9 @@
  * falls back to whatever the backend stored, which is never nothing.
  */
 
+import { orderNo } from '@/types'
+import { money } from '@/utils/format'
+
 /** [method, path pattern, i18n key under `activityLog.actions`] */
 const ROUTES: [string, RegExp, string][] = [
   ['POST', /^\/api\/admin\/sessions$/, 'createSession'],
@@ -49,6 +52,7 @@ const ROUTES: [string, RegExp, string][] = [
   ['DELETE', /^\/api\/admin\/shop\/products\/[^/]+\/images$/, 'removeProductImage'],
   ['PATCH', /^\/api\/admin\/shop\/orders\/[^/]+$/, 'updateShopOrder'],
   ['PATCH', /^\/api\/admin\/shop\/orders\/[^/]+\/items\/[^/]+$/, 'editShopOrderItem'],
+  ['POST', /^\/api\/admin\/shop\/orders\/[^/]+\/delete$/, 'deleteShopOrder'],
   ['POST', /^\/api\/admin\/sponsors$/, 'addSponsor'],
   ['PATCH', /^\/api\/admin\/sponsors\/[^/]+$/, 'editSponsor'],
   ['DELETE', /^\/api\/admin\/sponsors\/[^/]+$/, 'deleteSponsor'],
@@ -78,9 +82,15 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
  * happened, telling the reader nothing. They are dropped rather than the
  * whole line, so a parameter that is not an id still shows.
  */
-export function readableDetail(detail: Record<string, string> | null): string {
+export function readableDetail(detail: Record<string, unknown> | null): string {
   if (!detail) return ''
-  return Object.values(detail)
-    .filter((value) => !UUID.test(String(value)))
+  // A deleted order's record says what it was: S-0012, who, what, how much.
+  return Object.entries(detail)
+    .filter(([key, value]) => key !== 'status' && !UUID.test(String(value)))
+    .map(([key, value]) => {
+      if (key === 'order_no') return orderNo(Number(value))
+      if (key === 'total') return money(Number(value))
+      return Array.isArray(value) ? value.join(' + ') : String(value)
+    })
     .join(', ')
 }

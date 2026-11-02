@@ -20,6 +20,7 @@ from app.models.shop import (
     Product,
     Quote,
     QuoteLine,
+    phone_digits,
     unit_price,
 )
 from app.services import login_throttle, payment_info_service, shop_service
@@ -169,11 +170,17 @@ async def place_order(
     request: Request,
     supabase: SupabaseDep,
     file: UploadFile,
-    player_id: Annotated[UUID, Form()],
     items: Annotated[str, Form(max_length=4000)],
+    player_id: Annotated[UUID | None, Form()] = None,
+    guest_name: Annotated[str | None, Form(max_length=200)] = None,
+    guest_phone: Annotated[str | None, Form(max_length=40)] = None,
 ) -> OrderPublic:
-    """A member's whole cart as one order, with the slip of the one transfer
-    they have just made. It waits as 'pending' until an admin checks it."""
+    """A whole cart as one order, with the slip of the one transfer just
+    made. It waits as 'pending' until an admin checks it.
+
+    Bought either by a member (`player_id`) or by someone from outside the
+    club, who gives a name and a phone number instead (`guest_name`,
+    `guest_phone`) — one or the other, never both."""
     _throttle(request)
     try:
         cart = Cart.model_validate({"items": json.loads(items)})
@@ -183,12 +190,7 @@ async def place_order(
     if not priced.ok:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_first_problem(priced))
 
-    member = (
-        supabase.table("players").select("id, is_active").eq("id", str(player_id)).limit(1).execute()
-    )
-    member_rows = rows(member)
-    if not member_rows or not member_rows[0].get("is_active", True):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="ไม่พบชื่อสมาชิกนี้ในก๊วน")
+    buyer = _buyer(supabase, player_id, guest_name, guest_phone)
 
     contents = await file.read()
     if len(contents) > MAX_SLIP_BYTES:
@@ -224,7 +226,7 @@ async def place_order(
         slip_url: str = bucket.get_public_url(path)
         order = rows(
             supabase.table("shop_orders")
-            .insert({"player_id": str(player_id), "total": priced.total, "slip_url": slip_url})
+            .insert({**buyer, "total": priced.total, "slip_url": slip_url})
             .execute()
         )[0]
         order_id = str(order["id"])
@@ -239,6 +241,35 @@ async def place_order(
                 supabase.table("shop_orders").delete().eq("id", order_id).execute()
         raise
     return OrderPublic.model_validate({**order, "items": saved})
+
+
+GUEST_NAME_MAX = 80
+
+
+def _buyer(
+    supabase: SupabaseDep, player_id: UUID | None, guest_name: str | None, guest_phone: str | None
+) -> dict[str, str | None]:
+    """Who the order is for, as the columns that say so."""
+    name = (guest_name or "").strip()
+    if player_id is not None:
+        if name or guest_phone:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="เลือกอย่างใดอย่างหนึ่ง: สมาชิกก๊วน หรือคนนอก"
+            )
+        member = rows(supabase.table("players").select("id, is_active").eq("id", str(player_id)).limit(1).execute())
+        if not member or not member[0].get("is_active", True):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="ไม่พบชื่อสมาชิกนี้ในก๊วน")
+        return {"player_id": str(player_id), "guest_name": None, "guest_phone": None}
+    if not name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="ใส่ชื่อที่ใช้รับของ")
+    if len(name) > GUEST_NAME_MAX:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="ชื่อยาวเกินไป")
+    phone = phone_digits(guest_phone or "")
+    if phone is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="เบอร์โทรไม่ถูกต้อง — ใส่ 10 หลัก ขึ้นต้นด้วย 0"
+        )
+    return {"player_id": None, "guest_name": name, "guest_phone": phone}
 
 
 @router.get("/orders", response_model=list[OrderPublic])

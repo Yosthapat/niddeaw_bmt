@@ -551,6 +551,11 @@ export async function updateShopOrderItem(
   return request(`/api/admin/shop/orders/${orderId}/items/${itemId}`, { method: 'PATCH', body: JSON.stringify(change) })
 }
 
+/** Gone for good: the admin's own password is asked again. */
+export async function deleteShopOrder(id: string, password: string): Promise<void> {
+  return request(`/api/admin/shop/orders/${id}/delete`, { method: 'POST', body: JSON.stringify({ password }) })
+}
+
 export async function updateShopOrder(id: string, status: OrderStatus, note?: string): Promise<ShopOrderAdmin> {
   return request(`/api/admin/shop/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ status, note }) })
 }

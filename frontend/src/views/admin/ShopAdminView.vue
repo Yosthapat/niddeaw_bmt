@@ -5,7 +5,8 @@ import * as adminApi from '@/api/admin'
 import { apiErrorMessage } from '@/api/errors'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import type { OrderStatus, PreorderTally, Product, SaleType, ShopOrderAdmin, ShopOrderItem } from '@/types'
-import { orderNo, priceOf, priceRange } from '@/types'
+import { formatPhone, orderNo, priceOf, priceRange } from '@/types'
+import { ApiError } from '@/api/client'
 import { formatDayMonth, formatDateTime, money } from '@/utils/format'
 import { bahtProblem, localToday, MAX_NAME } from '@/utils/limits'
 import { compressImage } from '@/utils/imageCompression'
@@ -148,6 +149,51 @@ async function saveFix(o: ShopOrderAdmin): Promise<void> {
     fixError.value = apiErrorMessage(e, t('shopAdmin.fixFailed'))
     // what did go through is on the server; show it
     orders.value = await adminApi.getShopOrders().catch(() => orders.value)
+  } finally {
+    busy.value = null
+  }
+}
+
+// ------------------------------------------------------- deleting an order
+// For a test, a duplicate, a mistake. Gone for good, so the sheet says what
+// happens and asks for the admin's own password again.
+const deleting = ref<ShopOrderAdmin | null>(null)
+const deletePassword = ref('')
+const deleteError = ref<string | null>(null)
+const deletedNote = ref<string | null>(null)
+const passwordBox = ref<HTMLInputElement | null>(null)
+
+function askDelete(o: ShopOrderAdmin): void {
+  deleting.value = o
+  deletePassword.value = ''
+  deleteError.value = null
+  setTimeout(() => passwordBox.value?.focus(), 50)
+}
+function stockBack(o: ShopOrderAdmin): string[] {
+  if (o.status === 'rejected') return []
+  return o.items.filter((i) => i.sale_type === 'stock').map((i) => [i.product_name, i.size, `× ${i.qty}`].filter(Boolean).join(' '))
+}
+
+async function confirmDelete(): Promise<void> {
+  const o = deleting.value
+  if (!o || !deletePassword.value) return
+  busy.value = o.id
+  deleteError.value = null
+  try {
+    await adminApi.deleteShopOrder(o.id, deletePassword.value)
+    orders.value = orders.value.filter((x) => x.id !== o.id)
+    deletedNote.value = t('shopAdmin.deletedNote', { no: orderNo(o.order_no) })
+    deleting.value = null
+    const [tl, p] = await Promise.all([adminApi.getPreorderTally(), adminApi.getAdminProducts()])
+    tally.value = tl
+    products.value = p
+  } catch (e) {
+    deleteError.value =
+      e instanceof ApiError && e.status === 403
+        ? t('shopAdmin.deleteWrongPassword')
+        : apiErrorMessage(e, t('shopAdmin.deleteFailed'))
+    deletePassword.value = ''
+    passwordBox.value?.focus()
   } finally {
     busy.value = null
   }
@@ -413,6 +459,7 @@ function priceText(p: Product): string {
       </div>
 
       <p v-if="actionError" class="mt-3 text-sm text-status-error" role="alert">{{ actionError }}</p>
+      <p v-if="deletedNote" class="mt-3 rounded-xl border border-[#7ff0b4]/45 bg-[#7ff0b4]/10 px-3 py-2 text-sm text-[#7ff0b4]" role="status">✓ {{ deletedNote }}</p>
       <p v-if="shownOrders.length === 0" class="mt-6 text-center text-sm text-white/55">{{ t('shopAdmin.noOrders') }}</p>
       <ul class="mt-3 space-y-2">
         <li v-for="o in shownOrders" :key="o.id" class="hud-panel flex flex-col gap-2.5 border border-brand-pink/20 bg-brand-surface p-3">
@@ -422,7 +469,11 @@ function priceText(p: Product): string {
             </a>
             <div class="min-w-0 flex-1">
               <div class="flex justify-between gap-2">
-                <span class="font-medium">{{ o.player_nickname }} <span class="text-xs font-normal text-white/55">{{ o.player_code }}</span></span>
+                <span class="font-medium">
+                  {{ o.player_nickname }}
+                  <span v-if="o.guest" class="ml-1 rounded-full bg-[#ffe14d]/16 px-2 py-0.5 text-[11px] font-normal text-[#ffe14d]">{{ t('shopAdmin.guestBadge') }}</span>
+                  <span v-else class="text-xs font-normal text-white/55">{{ o.player_code }}</span>
+                </span>
                 <span class="font-display font-bold text-brand-pink-light">{{ money(o.total) }}</span>
               </div>
               <ul class="text-sm text-white/80">
@@ -431,6 +482,10 @@ function priceText(p: Product): string {
                   <span class="shrink-0 text-white/55">{{ money(item.line_total) }}</span>
                 </li>
               </ul>
+              <a v-if="o.guest && o.guest_phone" :href="`tel:${o.guest_phone}`" class="inline-flex min-h-8 items-center gap-1 text-sm text-[#7fb6ff]" :aria-label="t('shopAdmin.callGuest', { name: o.player_nickname })">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2" /></svg>
+                {{ formatPhone(o.guest_phone) }}
+              </a>
               <p class="text-xs text-white/50">{{ orderNo(o.order_no) }} · {{ formatDateTime(o.created_at, lang) }}</p>
               <p v-if="o.note" class="mt-1 text-xs text-status-error">{{ o.note }}</p>
             </div>
@@ -505,6 +560,16 @@ function priceText(p: Product): string {
           </div>
           <button v-else-if="o.status === 'delivered'" type="button" :disabled="busy === o.id" class="tap self-start rounded-full border border-white/20 px-4 text-sm text-white/60" @click="move(o, 'confirmed')">{{ t('shopAdmin.undo') }}</button>
           <button v-else type="button" :disabled="busy === o.id" class="tap self-start rounded-full border border-white/20 px-4 text-sm text-white/60" @click="move(o, 'pending')">{{ t('shopAdmin.reopen') }}</button>
+          <button
+            v-if="fixing !== o.id"
+            type="button"
+            class="tap -mt-1 inline-flex items-center gap-1.5 self-end rounded-full px-3 text-xs text-white/45 hover:text-status-error"
+            :aria-label="t('shopAdmin.deleteOrder', { no: orderNo(o.order_no) })"
+            @click="askDelete(o)"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" /></svg>
+            {{ t('shopAdmin.deleteShort') }}
+          </button>
         </li>
       </ul>
     </template>
@@ -672,5 +737,54 @@ function priceText(p: Product): string {
       </div>
       <button v-if="editing" type="button" class="tap w-full rounded-full bg-status-error/15 text-sm font-semibold text-status-error" @click="remove">{{ t('shopAdmin.delete') }}</button>
     </form>
+
+    <!-- deleting: what goes, what comes back, and the admin's own password -->
+    <Teleport to="body">
+      <div v-if="deleting" class="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center" @click.self="deleting = null">
+        <form
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-title"
+          class="flex w-full max-w-md flex-col gap-3 rounded-t-3xl border-t border-status-error/50 bg-[#1a0d14] p-4 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:rounded-3xl sm:border"
+          @submit.prevent="confirmDelete"
+          @keydown.esc="deleting = null"
+        >
+          <h2 id="delete-title" class="font-display text-xl font-bold">{{ t('shopAdmin.deleteTitleOrder', { no: orderNo(deleting.order_no) }) }}</h2>
+          <div class="rounded-xl border border-white/12 bg-white/5 px-3 py-2.5 text-sm">
+            <div class="flex justify-between gap-3">
+              <span>{{ deleting.player_nickname }}<template v-if="deleting.guest"> ({{ t('shopAdmin.guestBadge') }})</template></span>
+              <b>{{ money(deleting.total) }}</b>
+            </div>
+            <p v-for="(item, i) in deleting.items" :key="i" class="text-white/70">{{ item.product_name }}<template v-if="item.size"> · {{ item.size }}</template> × {{ item.qty }}</p>
+            <p class="text-xs text-white/50">{{ t(`shop.status.${deleting.status}`) }} · {{ formatDateTime(deleting.created_at, lang) }}</p>
+          </div>
+          <ul class="flex flex-col gap-1.5 text-sm text-white/85">
+            <li v-if="stockBack(deleting).length">↩︎ {{ t('shopAdmin.deleteStockBack', { items: stockBack(deleting).join(', ') }) }}</li>
+            <li>🗑 {{ t('shopAdmin.deleteSlip') }}</li>
+            <li>📝 {{ t('shopAdmin.deleteLogged') }}</li>
+            <li class="text-[#ff9b9b]">⚠︎ {{ t('shopAdmin.deleteNoUndo') }}</li>
+          </ul>
+          <label class="flex flex-col gap-1.5 text-sm">
+            {{ t('shopAdmin.deletePassword') }}
+            <input
+              ref="passwordBox"
+              v-model="deletePassword"
+              type="password"
+              autocomplete="current-password"
+              :aria-invalid="!!deleteError"
+              class="min-h-12 rounded-2xl border bg-white/7 px-4 text-base text-white"
+              :class="deleteError ? 'border-status-error' : 'border-white/22'"
+            />
+            <span v-if="deleteError" role="alert" class="text-xs text-status-error">{{ deleteError }}</span>
+          </label>
+          <div class="flex gap-2">
+            <button type="submit" :disabled="!deletePassword || busy === deleting.id" class="tap flex-1 rounded-full bg-[#d94848] font-semibold text-white disabled:bg-white/12 disabled:text-white/60">
+              {{ busy === deleting.id ? t('shopAdmin.deleting') : t('shopAdmin.deleteForGood') }}
+            </button>
+            <button type="button" class="tap rounded-full border border-white/25 px-5 text-sm text-white/80" @click="deleting = null">{{ t('common.cancel') }}</button>
+          </div>
+        </form>
+      </div>
+    </Teleport>
   </main>
 </template>

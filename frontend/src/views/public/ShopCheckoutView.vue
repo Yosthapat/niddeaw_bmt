@@ -8,17 +8,20 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import { getCartPayment, getPlayers, placeShopOrder, quoteCart } from '@/api/public'
+import { getCartPayment, getPlayers, placeShopOrder, quoteCart, type ShopBuyer } from '@/api/public'
 import { apiErrorMessage } from '@/api/errors'
 import type { PaymentInfoResponse, PlayerStats, Quote, ShopOrder } from '@/types'
-import { orderNo } from '@/types'
+import { formatPhone, orderNo, phoneDigits } from '@/types'
 import { money } from '@/utils/format'
 import { compressImage } from '@/utils/imageCompression'
 import { useCartStore } from '@/stores/cart'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 
-// Remembered on this phone, so a member's next order starts on their name.
+// Remembered on this phone, so the next order starts on the same name: the
+// member picked last time, or the name and number a guest typed.
 const LAST_BUYER_KEY = 'niddeaw_shop_buyer'
+const LAST_GUEST_KEY = 'niddeaw_shop_guest'
+const LINE_OA = 'https://line.me/R/ti/p/@369iojcn'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -30,6 +33,10 @@ const loadError = ref<string | null>(null)
 const step = ref<1 | 2 | 3>(1)
 const query = ref('')
 const buyerId = ref<string | null>(null)
+// A member of the club, or someone from outside it giving a name and phone.
+const mode = ref<'member' | 'guest'>('member')
+const guestName = ref('')
+const guestPhone = ref('')
 const pay = ref<PaymentInfoResponse | null>(null)
 const payError = ref<string | null>(null)
 const slip = ref<File | null>(null)
@@ -61,6 +68,17 @@ onMounted(async () => {
       // private mode: just start unpicked
     }
     if (remembered && m.some((s) => s.player.id === remembered)) buyerId.value = remembered
+    try {
+      const guest = JSON.parse(localStorage.getItem(LAST_GUEST_KEY) ?? 'null') as { name?: unknown; phone?: unknown } | null
+      if (guest && typeof guest.name === 'string' && typeof guest.phone === 'string') {
+        guestName.value = guest.name
+        guestPhone.value = guest.phone
+        // last time it was a guest order and no member is remembered
+        if (!buyerId.value) mode.value = 'guest'
+      }
+    } catch {
+      // nothing remembered
+    }
   } catch (e) {
     loadError.value = apiErrorMessage(e, t('shop.loadFailed'))
   }
@@ -77,13 +95,35 @@ const found = computed(() => {
     .sort((a, b) => Number(b.player.id === buyerId.value) - Number(a.player.id === buyerId.value) || a.player.nickname.localeCompare(b.player.nickname))
     .slice(0, 30)
 })
+const phone = computed(() => phoneDigits(guestPhone.value))
+const guestReady = computed(() => guestName.value.trim().length > 0 && guestName.value.trim().length <= 80 && phone.value !== null)
+const phoneHint = computed(() => {
+  if (!guestPhone.value.trim()) return { text: t('shop.guestPhoneHint'), cls: 'text-white/55' }
+  return phone.value
+    ? { text: `✓ ${formatPhone(phone.value)}`, cls: 'text-[#7ff0b4]' }
+    : { text: t('shop.guestPhoneBad'), cls: 'text-status-error' }
+})
+/** The name the order goes under, member or guest. */
+const buyerName = computed(() => (mode.value === 'guest' ? guestName.value.trim() : (buyer.value?.nickname ?? '')))
+const ready = computed(() => (mode.value === 'guest' ? guestReady.value : !!buyer.value))
+const nextLabel = computed(() => {
+  if (mode.value === 'member') return buyer.value ? t('shop.whoNext', { name: buyer.value.nickname }) : t('shop.whoFirst')
+  if (!guestName.value.trim()) return t('shop.guestNameFirst')
+  if (!phone.value) return t('shop.guestPhoneFirst')
+  return t('shop.whoNext', { name: guestName.value.trim() })
+})
+const isGuestOrder = computed(() => mode.value === 'guest')
 const units = computed(() => quote.value?.lines.reduce((n, l) => n + l.qty, 0) ?? 0)
 const hasPreorder = computed(() => (placed.value?.items ?? quote.value?.lines ?? []).some((l) => l.sale_type === 'preorder'))
 
 async function toPay(): Promise<void> {
-  if (!buyerId.value) return
+  if (!ready.value) return
   try {
-    localStorage.setItem(LAST_BUYER_KEY, buyerId.value)
+    if (mode.value === 'member' && buyerId.value) {
+      localStorage.setItem(LAST_BUYER_KEY, buyerId.value)
+    } else {
+      localStorage.setItem(LAST_GUEST_KEY, JSON.stringify({ name: guestName.value.trim(), phone: phone.value }))
+    }
   } catch {
     // not remembering is fine
   }
@@ -108,11 +148,15 @@ async function onSlip(event: Event): Promise<void> {
 
 async function send(): Promise<void> {
   tried.value = true
-  if (!slip.value || !buyerId.value) return
+  if (!slip.value || !ready.value) return
   sending.value = true
   sendError.value = null
+  const who: ShopBuyer =
+    mode.value === 'guest'
+      ? { guestName: guestName.value.trim(), guestPhone: phone.value ?? '' }
+      : { playerId: buyerId.value ?? '' }
   try {
-    placed.value = await placeShopOrder({ playerId: buyerId.value, items: cart.lines, slip: slip.value })
+    placed.value = await placeShopOrder({ buyer: who, items: cart.lines, slip: slip.value })
     cart.clear()
     step.value = 3
     window.scrollTo({ top: 0 })
@@ -161,6 +205,50 @@ async function send(): Promise<void> {
       <!-- 1 · who -->
       <section v-if="step === 1" class="mt-5 flex flex-col gap-3">
         <h1 class="font-display text-2xl font-bold">{{ t('shop.whoTitle') }}</h1>
+        <!-- a club member, or someone from outside -->
+        <div role="radiogroup" :aria-label="t('shop.whoTitle')" class="flex gap-1 rounded-2xl bg-white/7 p-1">
+          <button
+            v-for="m in (['member', 'guest'] as const)"
+            :key="m"
+            type="button"
+            role="radio"
+            :aria-checked="mode === m"
+            class="min-h-11 flex-1 rounded-xl text-sm"
+            :class="mode === m ? 'bg-white font-medium text-brand-black' : 'text-white/75'"
+            @click="mode = m"
+          >
+            {{ m === 'member' ? t('shop.whoMember') : t('shop.whoGuest') }}
+          </button>
+        </div>
+      </section>
+      <section v-if="step === 1 && mode === 'guest'" class="mt-3 flex flex-col gap-3">
+        <p class="text-sm text-white/70">{{ t('shop.guestHint') }}</p>
+        <label class="flex flex-col gap-1.5 text-sm">
+          {{ t('shop.guestName') }}
+          <input v-model="guestName" type="text" autocomplete="name" maxlength="80" :placeholder="t('shop.guestNamePlaceholder')" class="min-h-12 rounded-2xl border border-white/22 bg-white/7 px-4 text-base outline-none focus:border-brand-pink" />
+        </label>
+        <label class="flex flex-col gap-1.5 text-sm">
+          {{ t('shop.guestPhone') }}
+          <input
+            v-model="guestPhone"
+            type="tel"
+            inputmode="numeric"
+            autocomplete="tel"
+            maxlength="20"
+            placeholder="08x-xxx-xxxx"
+            :aria-invalid="!!guestPhone.trim() && !phone"
+            class="min-h-12 rounded-2xl border bg-white/7 px-4 text-base outline-none focus:border-brand-pink"
+            :class="guestPhone.trim() && !phone ? 'border-status-error' : 'border-white/22'"
+          />
+          <span class="text-xs" :class="phoneHint.cls" aria-live="polite">{{ phoneHint.text }}</span>
+        </label>
+        <ul class="flex flex-col gap-2 rounded-2xl border border-white/12 bg-white/5 p-3.5 text-[13px] text-white/80">
+          <li class="flex gap-2"><span class="text-brand-pink">●</span>{{ t('shop.guestPickup') }}</li>
+          <li class="flex gap-2"><span class="text-brand-pink">●</span>{{ t('shop.guestPrivacy') }}</li>
+        </ul>
+        <button type="button" class="cta mt-2" :disabled="!ready" @click="toPay">{{ nextLabel }}</button>
+      </section>
+      <section v-if="step === 1 && mode === 'member'" class="mt-3 flex flex-col gap-3">
         <p class="text-sm text-white/70">{{ t('shop.whoHint') }}</p>
         <input
           v-model="query"
@@ -185,13 +273,11 @@ async function send(): Promise<void> {
           </button>
         </div>
         <p class="text-xs text-white/55">{{ t('shop.whoMissing') }}</p>
-        <button type="button" class="cta mt-2" :disabled="!buyer" @click="toPay">
-          {{ buyer ? t('shop.whoNext', { name: buyer.nickname }) : t('shop.whoFirst') }}
-        </button>
+        <button type="button" class="cta mt-2" :disabled="!ready" @click="toPay">{{ nextLabel }}</button>
       </section>
 
       <!-- 2 · pay -->
-      <section v-else-if="step === 2" class="mt-5 flex flex-col items-center gap-3">
+      <section v-if="step === 2" class="mt-5 flex flex-col items-center gap-3">
         <h1 class="self-start font-display text-2xl font-bold">{{ t('shop.payTitle') }}</h1>
         <p v-if="payError" class="self-start text-sm text-status-error">{{ payError }}</p>
         <template v-else-if="pay">
@@ -233,7 +319,14 @@ async function send(): Promise<void> {
       <section v-else-if="placed" class="mt-6 flex flex-col items-center gap-3 text-center">
         <img src="/pwa-icons/pwa-192x192.png" alt="" class="h-28 w-28 rounded-full shadow-[0_0_30px_rgb(234_76_164/0.5)]" />
         <h1 class="font-display text-2xl font-bold">{{ t('shop.doneTitle') }}</h1>
-        <span class="rounded-full border border-white/20 bg-white/8 px-4 py-1.5 font-display font-bold">{{ orderNo(placed.order_no) }}</span>
+        <!-- with no profile, the number is a guest's only handle on the order -->
+        <div v-if="isGuestOrder" class="flex w-full flex-col items-center gap-1 rounded-2xl border border-[#ffe14d]/50 bg-white/7 p-4">
+          <span class="text-xs text-white/70">{{ t('shop.guestOrderNo') }}</span>
+          <span class="font-display text-4xl font-bold tracking-wide text-[#ffe14d] [text-shadow:0_0_16px_rgb(255_225_77/0.45)]">{{ orderNo(placed.order_no) }}</span>
+          <span class="text-sm">{{ buyerName }} · {{ phone ? formatPhone(phone) : '' }}</span>
+          <span class="mt-1 rounded-full bg-[#ffe14d]/14 px-3 py-1 text-xs text-[#ffe14d]">{{ t('shop.guestScreenshot') }}</span>
+        </div>
+        <span v-else class="rounded-full border border-white/20 bg-white/8 px-4 py-1.5 font-display font-bold">{{ orderNo(placed.order_no) }}</span>
         <ul class="flex w-full flex-col gap-1 text-left text-sm text-white/80">
           <li v-for="(l, i) in placed.items" :key="i" class="flex justify-between gap-3">
             <span class="min-w-0 truncate">{{ l.product_name }}<span v-if="l.size" class="text-white/60"> · {{ l.size }}</span> × {{ l.qty }}</span>
@@ -246,11 +339,14 @@ async function send(): Promise<void> {
         <ul class="flex w-full flex-col gap-2 rounded-2xl border border-white/12 bg-white/5 p-4 text-left text-sm">
           <li class="flex gap-2.5"><span class="text-[#ffe14d]">●</span>{{ t('shop.doneCheck') }}</li>
           <li v-if="hasPreorder" class="flex gap-2.5"><span class="text-white/40">●</span>{{ t('shop.donePreorderCart') }}</li>
-          <li class="flex gap-2.5"><span class="text-white/40">●</span>{{ t('shop.donePickup', { name: buyer?.nickname ?? '' }) }}</li>
+          <li v-if="isGuestOrder" class="flex gap-2.5"><span class="text-white/40">●</span>{{ t('shop.guestDonePickup', { no: orderNo(placed.order_no), name: buyerName }) }}</li>
+          <li v-else class="flex gap-2.5"><span class="text-white/40">●</span>{{ t('shop.donePickup', { name: buyerName }) }}</li>
+          <li v-if="isGuestOrder" class="flex gap-2.5"><span class="text-white/40">●</span>{{ t('shop.guestDoneAsk') }}</li>
         </ul>
-        <p class="text-xs text-white/60">{{ t('shop.doneProfile') }}</p>
+        <p v-if="!isGuestOrder" class="text-xs text-white/60">{{ t('shop.doneProfile') }}</p>
         <div class="mt-2 flex w-full flex-col gap-2">
-          <RouterLink v-if="buyer" :to="`/members/${buyer.id}`" class="cta">{{ t('shop.toProfile') }}</RouterLink>
+          <a v-if="isGuestOrder" :href="LINE_OA" target="_blank" rel="noopener noreferrer" class="cta line-cta">{{ t('shop.guestLine') }}</a>
+          <RouterLink v-else-if="buyer" :to="`/members/${buyer.id}`" class="cta">{{ t('shop.toProfile') }}</RouterLink>
           <RouterLink to="/shop" class="ghost">{{ t('shop.backToShop') }}</RouterLink>
         </div>
       </section>
@@ -259,6 +355,10 @@ async function send(): Promise<void> {
 </template>
 
 <style scoped>
+.line-cta {
+  background: #037f36;
+  box-shadow: 0 5px 0 #014a1f;
+}
 details[open] .chev {
   rotate: 180deg;
 }

@@ -72,7 +72,8 @@ DEFAULTS: dict[str, Row] = {
     "products": {"description": None, "sizes": [], "preorder_closes_on": None,
                  "preorder_delivers_on": None, "image_urls": [], "is_active": True,
                  "sort_order": 0, "size_prices": {}},
-    "shop_orders": {"status": "pending", "note": None},
+    "shop_orders": {"status": "pending", "note": None, "player_id": None, "guest_name": None,
+                    "guest_phone": None},
 }
 
 

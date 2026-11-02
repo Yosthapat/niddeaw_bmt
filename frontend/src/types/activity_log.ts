@@ -6,6 +6,6 @@ export interface AdminActivityLogEntry {
   action: string
   method: string
   path: string
-  detail: Record<string, string> | null
+  detail: Record<string, unknown> | null
   created_at: string
 }

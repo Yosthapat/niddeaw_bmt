@@ -44,6 +44,11 @@ class AdminActivityLogMiddleware(BaseHTTPMiddleware):
             return
 
         detail: dict[str, Any] = dict(request.path_params)
+        # What an endpoint wants remembered beyond its URL — e.g. what an
+        # order held, when the order itself has just been deleted.
+        extra = getattr(request.state, "activity_detail", None)
+        if isinstance(extra, dict):
+            detail.update(extra)
         try:
             get_supabase_client().table("admin_activity_log").insert(
                 {
