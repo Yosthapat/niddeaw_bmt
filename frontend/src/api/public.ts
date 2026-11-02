@@ -3,6 +3,8 @@ import type {
   PaymentInfoResponse,
   Product,
   ShopOrder,
+  CartLine,
+  Quote,
   Sponsor,
   LiveQueueResponse,
   Match,
@@ -130,22 +132,18 @@ export async function getShopProduct(id: string): Promise<Product> {
   return request(`/api/shop/products/${id}`)
 }
 
-export async function getShopPayment(productId: string, qty: number): Promise<PaymentInfoResponse> {
-  return request(`/api/shop/products/${productId}/payment?qty=${qty}`)
+export async function quoteCart(items: CartLine[]): Promise<Quote> {
+  return request('/api/shop/quote', { method: 'POST', body: JSON.stringify({ items }) })
 }
 
-export async function placeShopOrder(order: {
-  productId: string
-  playerId: string
-  size: string
-  qty: number
-  slip: File
-}): Promise<ShopOrder> {
+export async function getCartPayment(items: CartLine[]): Promise<PaymentInfoResponse> {
+  return request('/api/shop/payment', { method: 'POST', body: JSON.stringify({ items }) })
+}
+
+export async function placeShopOrder(order: { playerId: string; items: CartLine[]; slip: File }): Promise<ShopOrder> {
   const form = new FormData()
-  form.append('product_id', order.productId)
   form.append('player_id', order.playerId)
-  form.append('size', order.size)
-  form.append('qty', String(order.qty))
+  form.append('items', JSON.stringify(order.items))
   form.append('file', order.slip)
   return request('/api/shop/orders', { method: 'POST', body: form })
 }

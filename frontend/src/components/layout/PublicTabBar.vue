@@ -15,10 +15,12 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute } from 'vue-router'
 import { useLiveNow } from '@/composables/useLiveNow'
+import { useCartStore } from '@/stores/cart'
 
 const route = useRoute()
 const { t } = useI18n()
 const { playing } = useLiveNow()
+const cart = useCartStore()
 
 // 24x24 stroke icons in the same hand as the rest of the site's line icons.
 const tabs = computed(() => [
@@ -61,7 +63,13 @@ function isActive(to: string): boolean {
       <a
         :href="href"
         :aria-current="isActive(tab.to) ? 'page' : undefined"
-        :aria-label="tab.to === '/live' && playing ? t('nav.liveNow') : tab.label"
+        :aria-label="
+          tab.to === '/live' && playing
+            ? t('nav.liveNow')
+            : tab.to === '/shop' && cart.count
+              ? t('nav.shopWithCart', { n: cart.count })
+              : tab.label
+        "
         :title="tab.label"
         class="relative flex min-w-0 items-center justify-center rounded-full transition-colors"
         :class="isActive(tab.to) ? 'glass-drop text-white' : 'text-white/80 hover:text-white'"
@@ -84,6 +92,13 @@ function isActive(to: string): boolean {
           class="live-dot absolute top-2 right-[calc(50%-17px)] h-2 w-2 rounded-full bg-[#ff4d6d] shadow-[0_0_6px_#ff4d6d]"
           aria-hidden="true"
         />
+        <span
+          v-if="tab.to === '/shop' && cart.count"
+          class="absolute top-1.5 right-[calc(50%-22px)] min-w-[18px] rounded-full bg-brand-pink px-1 py-0.5 text-center font-display text-[10px] leading-none font-bold text-white"
+          aria-hidden="true"
+        >
+          {{ cart.count > 99 ? '99+' : cart.count }}
+        </span>
       </a>
     </RouterLink>
   </nav>

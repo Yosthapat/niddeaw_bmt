@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Product } from '@/types'
+import { priceRange } from '@/types'
 import { formatDayMonth, money } from '@/utils/format'
 import { BADGE_CLASS, productBadge } from './productBadge'
 
@@ -13,6 +14,10 @@ const badge = computed(() => {
   const params = { ...b.params }
   if (typeof params.date === 'string' && params.date) params.date = formatDayMonth(params.date, locale.value as 'th' | 'en')
   return { text: t(b.key, params), cls: BADGE_CLASS[b.tone], out: b.tone === 'out' }
+})
+const priceLine = computed(() => {
+  const [lo, hi] = priceRange(props.product)
+  return lo === hi ? money(lo) : t('shop.priceFrom', { price: money(lo) })
 })
 const sizesLine = computed(() => {
   const s = props.product.sizes
@@ -27,14 +32,16 @@ const sizesLine = computed(() => {
     class="product-card flex h-full flex-col gap-2 rounded-[18px] border border-white/14 p-2 pb-3 transition-colors hover:border-brand-pink/60"
     :class="{ 'opacity-55': badge.out }"
   >
-    <div class="relative flex aspect-[1/0.95] items-center justify-center overflow-hidden rounded-xl bg-[radial-gradient(circle_at_50%_40%,rgb(234_76_164/0.45),#1a0d33_75%)]">
+    <!-- the whole photo, never cropped: product shots carry their own
+         layout (front and back, a feature strip) -->
+    <div class="relative flex aspect-[1/0.95] items-center justify-center overflow-hidden rounded-xl bg-[radial-gradient(circle_at_50%_40%,#fff,#f3eaf1_70%)]">
       <img
         v-if="product.image_urls[0]"
         :src="product.image_urls[0]"
         :alt="product.name"
         loading="lazy"
         decoding="async"
-        class="absolute inset-0 h-full w-full object-cover"
+        class="absolute inset-0 h-full w-full object-contain p-1"
         :class="{ grayscale: badge.out }"
       />
       <img v-else src="/pwa-icons/pwa-192x192.png" alt="" class="h-1/2 w-1/2 rounded-full object-contain opacity-70" />
@@ -46,7 +53,7 @@ const sizesLine = computed(() => {
       <span class="text-sm leading-snug font-medium">{{ product.name }}</span>
       <span class="text-xs text-white/65">{{ sizesLine }}</span>
       <span class="mt-1 font-display text-lg font-bold" :class="badge.out ? 'text-white/50' : 'text-brand-pink-light'">
-        {{ money(product.price) }}
+        {{ priceLine }}
       </span>
     </div>
   </RouterLink>

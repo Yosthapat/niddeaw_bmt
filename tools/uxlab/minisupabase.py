@@ -43,6 +43,7 @@ AUTO: dict[str, dict[str, Callable[[], Any]]] = {
     "pairing_history": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
     "admin_activity_log": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
     "products": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
+    "shop_order_items": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
     "shop_orders": {
         "id": lambda: str(uuid.uuid4()), "order_no": lambda: next(_ORDER_NO),
         "created_at": _now, "updated_at": _now,
@@ -70,7 +71,7 @@ DEFAULTS: dict[str, Row] = {
     "admin_activity_log": {"detail": None},
     "products": {"description": None, "sizes": [], "preorder_closes_on": None,
                  "preorder_delivers_on": None, "image_urls": [], "is_active": True,
-                 "sort_order": 0},
+                 "sort_order": 0, "size_prices": {}},
     "shop_orders": {"status": "pending", "note": None},
 }
 
