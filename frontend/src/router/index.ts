@@ -84,6 +84,13 @@ const router = createRouter({
       component: () => import('../views/public/TournamentView.vue'),
     },
     {
+      // Opened inside LINE (the club OA's LIFF app); no header or tab bar.
+      path: '/line',
+      name: 'line',
+      component: () => import('../views/line/LineView.vue'),
+      meta: { bare: true },
+    },
+    {
       path: '/shop',
       name: 'shop',
       component: () => import('../views/public/ShopView.vue'),

@@ -1,0 +1,272 @@
+<script setup lang="ts">
+/**
+ * What the club's LINE Official Account opens (a LIFF app): the member is
+ * signed in by LINE, and links that LINE account to their name in the club.
+ *
+ * They pick a name; an admin confirms it at the court (ManageMembersView's
+ * LineLinkPanel). Until then nothing is linked, so nobody can claim someone
+ * else. Once linked, this page is where check-in and bills will live.
+ *
+ * Who they are comes from LINE, never from the page: the ID token LIFF
+ * gives is checked by our backend with LINE before it believes it.
+ */
+import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import * as lineApi from '@/api/line'
+import type { LineStatus, LinkOption } from '@/api/line'
+import { apiErrorMessage } from '@/api/errors'
+import { liffIdToken, liffSignInAgain, liffSignedIn, closeLiff } from '@/composables/useLiff'
+import { ApiError } from '@/api/client'
+import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
+import TierMascot from '@/components/players/TierMascot.vue'
+
+const { t } = useI18n()
+
+type Phase = 'loading' | 'off' | 'error' | 'ready'
+const phase = ref<Phase>('loading')
+const problem = ref('')
+const token = ref('')
+const me = ref<LineStatus | null>(null)
+const options = ref<LinkOption[]>([])
+const query = ref('')
+const picked = ref<string | null>(null)
+const sending = ref(false)
+const actionError = ref('')
+
+async function start(): Promise<void> {
+  phase.value = 'loading'
+  try {
+    const config = await lineApi.getLineConfig()
+    if (!config.enabled || !config.liff_id) {
+      phase.value = 'off'
+      return
+    }
+    const idToken = await liffIdToken(config.liff_id)
+    if (!idToken) return // LINE is taking them to log in; the page comes back
+    let status: LineStatus
+    try {
+      status = await lineApi.startLineSession(idToken)
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401 && liffSignInAgain()) return
+      throw e
+    }
+    liffSignedIn()
+    token.value = status.token ?? ''
+    me.value = status
+    if (!status.player && !status.pending) await loadOptions()
+    phase.value = 'ready'
+  } catch (e) {
+    problem.value = apiErrorMessage(e, t('line.startFailed'))
+    phase.value = 'error'
+  }
+}
+
+async function loadOptions(): Promise<void> {
+  options.value = await lineApi.getLinkOptions(token.value)
+}
+
+const shown = computed(() => {
+  const q = query.value.trim().toLowerCase()
+  const list = q
+    ? options.value.filter((o) => o.nickname.toLowerCase().includes(q) || o.member_code.toLowerCase().includes(q))
+    : options.value
+  return list.slice(0, 60)
+})
+const pickedOption = computed(() => options.value.find((o) => o.id === picked.value) ?? null)
+
+async function confirm(): Promise<void> {
+  if (!pickedOption.value || sending.value) return
+  sending.value = true
+  actionError.value = ''
+  try {
+    me.value = await lineApi.requestLink(token.value, pickedOption.value.id)
+  } catch (e) {
+    actionError.value = apiErrorMessage(e, t('line.pickFailed'))
+    await loadOptions()
+  } finally {
+    sending.value = false
+  }
+}
+
+async function pickAgain(): Promise<void> {
+  sending.value = true
+  try {
+    me.value = await lineApi.cancelLink(token.value)
+    picked.value = null
+    query.value = ''
+    await loadOptions()
+  } catch (e) {
+    actionError.value = apiErrorMessage(e, t('line.pickFailed'))
+  } finally {
+    sending.value = false
+  }
+}
+
+onMounted(start)
+</script>
+
+<template>
+  <main class="home-world min-h-dvh">
+    <div class="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 pt-5 pb-[calc(20px+env(safe-area-inset-bottom,0px))]">
+      <div class="flex items-center gap-2.5">
+        <img src="/pwa-icons/pwa-64x64.png" alt="" width="36" height="36" class="h-9 w-9 rounded-full" />
+        <span class="font-display text-lg font-bold">นิดเดียว<span class="text-brand-pink">BMT</span></span>
+      </div>
+
+      <!-- starting -->
+      <div v-if="phase === 'loading'" class="world-card flex flex-1 items-center justify-center p-8 text-white/65" role="status">
+        {{ t('line.starting') }}
+      </div>
+
+      <!-- LINE not set up on the server yet -->
+      <div v-else-if="phase === 'off'" class="world-card p-6 text-center">
+        <img src="/hero/cat-color.webp" alt="" width="120" height="120" class="mx-auto h-28 w-28 object-contain" />
+        <h1 class="world-title mt-3 text-xl">{{ t('line.offTitle') }}</h1>
+        <p class="mt-2 text-sm text-white/70">{{ t('line.offBody') }}</p>
+      </div>
+
+      <div v-else-if="phase === 'error'" class="world-card p-6 text-center">
+        <h1 class="world-title text-xl">{{ t('line.errorTitle') }}</h1>
+        <p class="mt-2 text-sm text-white/70" role="alert">{{ problem }}</p>
+        <button type="button" class="glass-pill mx-auto mt-4" @click="start">{{ t('line.retry') }}</button>
+      </div>
+
+      <template v-else-if="me">
+        <div class="flex items-center gap-3 rounded-2xl border border-[#06c755]/40 bg-[#06c755]/10 p-3">
+          <span class="ring-line shrink-0 rounded-full">
+            <PlayerAvatar :name="me.line_name" :avatar-url="me.line_picture" size="md" round />
+          </span>
+          <span class="min-w-0">
+            <span class="block text-xs text-white/65">{{ t('line.signedInAs') }}</span>
+            <span class="block truncate font-medium">{{ me.line_name }}</span>
+          </span>
+        </div>
+
+        <!-- linked: who they are, and what's coming -->
+        <section v-if="me.player" class="world-card flex flex-col items-center gap-3 p-6 text-center">
+          <p class="world-eyebrow">LINKED</p>
+          <PlayerAvatar :name="me.player.nickname" :avatar-url="me.player.avatar_url" size="lg" round />
+          <h1 class="world-title text-2xl">{{ me.player.nickname }}</h1>
+          <span class="inline-flex items-center gap-1.5 text-sm text-white/70">
+            <TierMascot :tier="me.player.elo_level" :size="22" :interactive="false" />
+            {{ me.player.member_code }}
+          </span>
+          <p class="text-sm text-white/70">{{ t('line.linkedBody') }}</p>
+          <RouterLink :to="`/members/${me.player.id}`" class="glass-pill">{{ t('line.myProfile') }}</RouterLink>
+        </section>
+
+        <!-- picked, waiting for the admin -->
+        <section v-else-if="me.pending" class="flex flex-1 flex-col items-center gap-3 text-center">
+          <img src="/hero/cat-color.webp" alt="" width="140" height="140" class="h-32 w-32 object-contain drop-shadow-[0_14px_18px_rgb(234_76_164/0.45)]" />
+          <h1 class="world-title text-2xl">{{ t('line.sentTitle') }}</h1>
+          <p class="text-white/80">
+            {{ t('line.sentFor') }}
+            <b class="font-medium text-[#ff9fd6]">{{ me.pending.player.nickname }} ({{ me.pending.player.member_code }})</b>
+          </p>
+          <ul class="world-card w-full space-y-2 p-4 text-left text-sm">
+            <li><span class="text-[#ffd34d]">●</span> {{ t('line.sentWait') }}</li>
+            <li><span class="text-white/40">●</span> {{ t('line.sentAfter') }}</li>
+          </ul>
+          <p v-if="actionError" class="text-sm text-status-error" role="alert">{{ actionError }}</p>
+          <button type="button" class="glass-pill mt-auto w-full justify-center" :disabled="sending" @click="pickAgain">
+            {{ t('line.pickAgain') }}
+          </button>
+        </section>
+
+        <!-- who are you? -->
+        <section v-else class="flex flex-1 flex-col gap-3">
+          <div>
+            <p class="world-eyebrow">LINK LINE</p>
+            <h1 class="world-title mt-1 text-2xl">{{ t('line.whoTitle') }}</h1>
+            <p class="mt-1 text-sm text-white/70">{{ t('line.whoBody') }}</p>
+          </div>
+          <input
+            v-model="query"
+            type="search"
+            :placeholder="t('line.searchPlaceholder')"
+            :aria-label="t('line.searchPlaceholder')"
+            class="min-h-12 rounded-2xl border border-white/20 bg-white/10 px-4 text-base text-white outline-none placeholder:text-white/50 focus:border-brand-pink"
+          />
+          <ul class="flex flex-col gap-2" role="radiogroup" :aria-label="t('line.whoTitle')">
+            <li v-for="o in shown" :key="o.id">
+              <button
+                type="button"
+                role="radio"
+                :aria-checked="picked === o.id"
+                :disabled="o.taken"
+                class="pick flex min-h-16 w-full items-center gap-3 rounded-2xl border px-3 py-2 text-left disabled:opacity-45"
+                :class="picked === o.id ? 'on' : ''"
+                @click="picked = o.id"
+              >
+                <PlayerAvatar :name="o.nickname" :avatar-url="o.avatar_url" size="md" round />
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate font-display font-bold">{{ o.nickname }}</span>
+                  <span class="block text-xs text-white/60">
+                    {{ o.member_code }} · {{ o.taken ? t('line.taken') : t('line.games', { n: o.games }) }}
+                  </span>
+                </span>
+                <TierMascot :tier="o.elo_level" :size="30" :interactive="false" />
+                <span class="radio" aria-hidden="true" />
+              </button>
+            </li>
+            <li v-if="shown.length === 0" class="world-card p-4 text-center text-sm text-white/60">{{ t('line.noMatch') }}</li>
+          </ul>
+          <div class="sticky bottom-0 mt-auto flex flex-col gap-2 bg-gradient-to-t from-[#0b0518] via-[#0b0518]/95 to-transparent pt-4 pb-1">
+            <p v-if="actionError" class="text-sm text-status-error" role="alert">{{ actionError }}</p>
+            <button
+              type="button"
+              class="cta min-h-14 rounded-2xl font-display text-base font-bold"
+              :disabled="!pickedOption || sending"
+              @click="confirm"
+            >
+              {{ pickedOption ? t('line.itsMe', { name: pickedOption.nickname }) : t('line.pickFirst') }}
+            </button>
+            <p class="text-center text-xs text-white/55">{{ t('line.notListed') }}</p>
+          </div>
+        </section>
+
+        <button v-if="me.player" type="button" class="glass-pill mt-auto w-full justify-center" @click="closeLiff">{{ t('line.close') }}</button>
+      </template>
+    </div>
+  </main>
+</template>
+
+<style scoped>
+.ring-line {
+  box-shadow: 0 0 0 2px #06c755;
+}
+.pick {
+  border-color: rgb(255 255 255 / 0.12);
+  background: rgb(255 255 255 / 0.05);
+}
+.pick.on {
+  border-color: #ff8fd0;
+  background: rgb(234 76 164 / 0.16);
+  box-shadow: 0 0 0 1px rgb(255 143 208 / 0.4);
+}
+.radio {
+  display: flex;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid rgb(255 255 255 / 0.35);
+}
+.on .radio {
+  border-color: #ff8fd0;
+  background: #ff8fd0;
+  box-shadow: inset 0 0 0 4px #2a0d22;
+}
+.cta {
+  background: linear-gradient(#ff8fd0, #ea4ca4);
+  color: #1a0410;
+  box-shadow: 0 8px 22px rgb(234 76 164 / 0.45);
+}
+/* Solid, not faded: the list scrolls under this bar, and a see-through
+   button let the names behind it show through its label. */
+.cta:disabled {
+  background: #3a1d3a;
+  color: rgb(255 255 255 / 0.5);
+  box-shadow: none;
+}
+</style>

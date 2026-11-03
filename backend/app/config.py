@@ -19,6 +19,15 @@ class Settings(BaseSettings):
     sheets_spreadsheet_id: str | None = None
     # What the weekly GitHub Action sends to /api/internal/sheets-sync.
     sheets_sync_secret: str | None = None
+    # LINE Login (app/services/line_auth.py). The channel id is what an ID
+    # token from LINE must have been issued for; the LIFF id is the app the
+    # /line page opens as inside LINE. Both unset: the LINE pages say they
+    # are not set up yet.
+    line_login_channel_id: str | None = None
+    line_liff_id: str | None = None
+    # How long a member stays signed in on the /line page before LINE is
+    # asked again. Opening it from LINE asks again anyway.
+    line_token_minutes: int = 720
 
     @property
     def cors_origin_list(self) -> list[str]:
