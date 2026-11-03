@@ -27,6 +27,11 @@ class Billing(BaseModel):
     paid_status: PaidStatus
     promptpay_ref: str | None = None
     updated_at: datetime
+    slip_url: str | None = None
+    """A transfer slip the member attached from LINE, for the admin to check."""
+    slip_sent_at: datetime | None = None
+    slip_rejected_at: datetime | None = None
+    """The admin refused their last slip; they are asked for a new one."""
 
     @property
     def effective_amount(self) -> float:

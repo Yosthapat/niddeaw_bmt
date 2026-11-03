@@ -1,5 +1,5 @@
 import { request } from './client'
-import type { Player } from '@/types'
+import type { PaymentInfoResponse, Player } from '@/types'
 
 /** Calls made from the /line page, with the member's LINE token rather than
  *  the admin's (api/client.ts keeps an Authorization it is given). */
@@ -103,4 +103,61 @@ export function getCheckin(token: string, code: string): Promise<LineCheckinStat
 
 export function checkInTonight(token: string, code: string): Promise<LineCheckinState> {
   return request('/api/line/checkin', { ...auth(token), method: 'POST', body: JSON.stringify({ code }) })
+}
+
+export interface LineNight {
+  id: string
+  date: string
+  location: string
+}
+
+export interface LineBill {
+  id: string
+  night: LineNight
+  game_count: number
+  amount: number
+  paid_status: 'unpaid' | 'paid'
+  slip_url: string | null
+  slip_sent_at: string | null
+  slip_rejected_at: string | null
+}
+
+export interface LineTonight {
+  state: 'none' | 'in' | 'out'
+  night: LineNight | null
+  player: Player | null
+  games: number
+  court_fee: number
+  shuttle_price: number
+  amount: number
+  busy: boolean
+  bill: LineBill | null
+}
+
+export interface LineBills {
+  player: Player
+  due: number
+  bills: LineBill[]
+}
+
+export function getTonight(token: string): Promise<LineTonight> {
+  return request('/api/line/tonight', auth(token))
+}
+
+export function checkOut(token: string, sessionId: string): Promise<LineTonight> {
+  return request('/api/line/checkout', { ...auth(token), method: 'POST', body: JSON.stringify({ session_id: sessionId }) })
+}
+
+export function getBills(token: string): Promise<LineBills> {
+  return request('/api/line/bills', auth(token))
+}
+
+export function getPayInfo(token: string, billId: string): Promise<PaymentInfoResponse> {
+  return request(`/api/line/bills/${billId}/pay`, auth(token))
+}
+
+export function sendSlip(token: string, billId: string, file: File): Promise<LineBill> {
+  const body = new FormData()
+  body.append('file', file)
+  return request(`/api/line/bills/${billId}/slip`, { ...auth(token), method: 'POST', body })
 }

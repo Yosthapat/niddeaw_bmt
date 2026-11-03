@@ -8,7 +8,9 @@ token. A link is only ever requested here; an admin approves it
 """
 
 import re
+from datetime import UTC, datetime
 from typing import Any
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, HTTPException, UploadFile, status
 from supabase import Client
@@ -20,20 +22,34 @@ from app.models.line import (
     CheckinNight,
     JoinApplication,
     JoinIn,
+    LineBill,
+    LineBills,
     LineCheckinIn,
     LineCheckinState,
+    LineCheckoutIn,
     LineConfig,
     LineContext,
     LineSessionIn,
     LineStatus,
+    LineTonight,
     LinkOption,
     LinkPick,
     LinkRequest,
 )
+from app.models.payment import PaymentInfoResponse
 from app.models.player import Player
 from app.routers.admin.players_admin import check_nickname
 from app.security import create_line_token
-from app.services import checkin_service, line_auth, line_checkin, line_join
+from app.services import (
+    billing_service,
+    checkin_service,
+    line_auth,
+    line_checkin,
+    line_join,
+    night_bill,
+    payment_info_service,
+)
+from app.services.image_service import resize_jpeg
 
 router = APIRouter(prefix="/api/line", tags=["line"])
 
@@ -352,3 +368,208 @@ def checkin(
     return LineCheckinState(
         state="in", night=now.night, player=now.player, checkin_time=done["checkin_time"]
     )
+
+
+# --- checking out, paying, and the member's own bills ------------------------
+
+MAX_SLIP_BYTES = 5 * 1024 * 1024
+SLIP_MAX_PX = 1600  # read back for its small print; keep it legible
+
+
+def _member(supabase: Client, member: LineContext) -> Player:
+    linked = rows(
+        supabase.table("players")
+        .select("*")
+        .eq("line_user_id", member.line_user_id)
+        .eq("is_active", True)
+        .limit(1)
+        .execute()
+    )
+    if not linked:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="LINE นี้ยังไม่ได้ผูกกับสมาชิกในก๊วน"
+        )
+    return Player.model_validate(linked[0])
+
+
+def _bill(row: dict[str, Any], session: dict[str, Any]) -> LineBill:
+    return LineBill(
+        id=row["id"],
+        night=CheckinNight.model_validate(session),
+        game_count=row["game_count"],
+        amount=billing_service.effective_amount(row["amount_calc"], row.get("amount_adjusted")),
+        paid_status=row["paid_status"],
+        slip_url=row.get("slip_url"),
+        slip_sent_at=row.get("slip_sent_at"),
+        slip_rejected_at=row.get("slip_rejected_at"),
+    )
+
+
+@router.get("/tonight", response_model=LineTonight)
+def tonight(supabase: SupabaseDep, member: LineMemberDep) -> LineTonight:
+    """Their night so far: the open night (tonight, or last night for one
+    that ran past midnight) they checked in to."""
+    player = _member(supabase, member)
+    mine = rows(supabase.table("checkins").select("*").eq("player_id", str(player.id)).execute())
+    by_night = {str(c["session_id"]): c for c in mine}
+    nights = (
+        rows(supabase.table("sessions").select("*").in_("id", list(by_night)).execute())
+        if by_night
+        else []
+    )
+    current = sorted(
+        (n for n in nights if line_checkin.is_current(n)),
+        key=lambda n: str(n["date"]),
+        reverse=True,
+    )
+    if not current:
+        return LineTonight(state="none", player=player)
+    session = current[0]
+    checkin = by_night[str(session["id"])]
+    when = CheckinNight.model_validate(session)
+    if checkin.get("checkout_time") is None:
+        games, amount = night_bill.so_far(supabase, session, player.id)
+        return LineTonight(
+            state="in",
+            night=when,
+            player=player,
+            games=games,
+            court_fee=session["court_fee_per_person"],
+            shuttle_price=session["shuttlecock_price_per_game"],
+            amount=amount,
+            busy=night_bill.is_busy(supabase, UUID(str(session["id"])), player.id),
+        )
+    billed = rows(
+        supabase.table("billings")
+        .select("*")
+        .eq("session_id", str(session["id"]))
+        .eq("player_id", str(player.id))
+        .limit(1)
+        .execute()
+    )
+    return LineTonight(
+        state="out",
+        night=when,
+        player=player,
+        bill=_bill(billed[0], session) if billed else None,
+    )
+
+
+@router.post("/checkout", response_model=LineTonight)
+def checkout(payload: LineCheckoutIn, supabase: SupabaseDep, member: LineMemberDep) -> LineTonight:
+    """Check themselves out, and be billed for the night there and then.
+    Only their own check-in, in an open current night."""
+    player = _member(supabase, member)
+    session = night_bill.night(supabase, payload.session_id)
+    if not line_checkin.is_current(session):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail='คืนนี้ปิดไปแล้ว — บิลอยู่ที่ "บิลของฉัน"'
+        )
+    active = rows(
+        supabase.table("checkins")
+        .select("id")
+        .eq("session_id", str(payload.session_id))
+        .eq("player_id", str(player.id))
+        .is_("checkout_time", "null")
+        .limit(1)
+        .execute()
+    )
+    if not active:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="คุณยังไม่ได้เช็คอินคืนนี้")
+    if night_bill.is_busy(supabase, payload.session_id, player.id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="ยังมีแมตช์ของคุณที่ยังไม่จบ — จบแมตช์แล้วค่อยเช็คเอาท์นะ",
+        )
+    night_bill.bill_one(supabase, payload.session_id, player.id)
+    return tonight(supabase, member)
+
+
+@router.get("/bills", response_model=LineBills)
+def my_bills(supabase: SupabaseDep, member: LineMemberDep) -> LineBills:
+    """Their own bills, newest night first — including nights they forgot
+    to check out of, billed when the admin closed the night."""
+    player = _member(supabase, member)
+    billed = rows(supabase.table("billings").select("*").eq("player_id", str(player.id)).execute())
+    ids = list({str(b["session_id"]) for b in billed})
+    nights = (
+        {
+            str(n["id"]): n
+            for n in rows(supabase.table("sessions").select("*").in_("id", ids).execute())
+        }
+        if ids
+        else {}
+    )
+    bills = sorted(
+        (_bill(b, nights[str(b["session_id"])]) for b in billed if str(b["session_id"]) in nights),
+        key=lambda b: b.night.date,
+        reverse=True,
+    )[:40]
+    due = sum(b.amount for b in bills if b.paid_status == "unpaid" and not b.slip_url)
+    return LineBills(player=player, due=round(due, 2), bills=bills)
+
+
+def _own_bill(supabase: Client, member: LineContext, bill_id: UUID) -> dict[str, Any]:
+    player = _member(supabase, member)
+    found = rows(supabase.table("billings").select("*").eq("id", str(bill_id)).limit(1).execute())
+    # Someone else's bill reads as not found, not as forbidden.
+    if not found or str(found[0]["player_id"]) != str(player.id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ไม่พบบิลนี้")
+    return found[0]
+
+
+def _payable(row: dict[str, Any]) -> float:
+    amount = billing_service.effective_amount(row["amount_calc"], row.get("amount_adjusted"))
+    if row["paid_status"] == "paid":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="บิลนี้จ่ายแล้ว")
+    if amount <= 0:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="บิลนี้ไม่คิดเงิน")
+    return amount
+
+
+@router.get("/bills/{bill_id}/pay", response_model=PaymentInfoResponse)
+def pay_info(bill_id: UUID, supabase: SupabaseDep, member: LineMemberDep) -> PaymentInfoResponse:
+    """How to pay it: the club's PromptPay QR with the amount in it, or the
+    bank account — whichever the admin set in Settings."""
+    row = _own_bill(supabase, member, bill_id)
+    return payment_info_service.payment_info(supabase, _payable(row))
+
+
+@router.post("/bills/{bill_id}/slip", response_model=LineBill)
+async def send_slip(
+    bill_id: UUID, file: UploadFile, supabase: SupabaseDep, member: LineMemberDep
+) -> LineBill:
+    """The slip of their transfer, for an admin to check and mark paid.
+    Sending again replaces the slip they sent before."""
+    row = _own_bill(supabase, member, bill_id)
+    _payable(row)
+    contents = await file.read()
+    if len(contents) > MAX_SLIP_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="รูปใหญ่เกินไป (ไม่เกิน 5MB)"
+        )
+    try:
+        slip = resize_jpeg(contents, SLIP_MAX_PX)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="ไฟล์นี้ไม่ใช่รูปภาพ"
+        ) from None
+    path = f"bill-slip-{uuid4().hex}.jpg"
+    bucket = supabase.storage.from_(night_bill.SLIP_BUCKET)
+    bucket.upload(path, slip, {"content-type": "image/jpeg", "upsert": "false"})
+    url = str(bucket.get_public_url(path))
+    updated = rows(
+        supabase.table("billings")
+        .update(
+            {
+                "slip_url": url,
+                "slip_sent_at": datetime.now(UTC).isoformat(),
+                "slip_rejected_at": None,
+            }
+        )
+        .eq("id", str(bill_id))
+        .execute()
+    )
+    night_bill.forget_slip(supabase, row.get("slip_url"))
+    session = night_bill.night(supabase, UUID(str(row["session_id"])))
+    return _bill(updated[0], session)

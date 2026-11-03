@@ -155,3 +155,46 @@ class CheckinQr(BaseModel):
     url: str
     qr: str
     """A PNG data URI of `url`."""
+
+
+class LineBill(BaseModel):
+    """One of the member's own bills, as they see it."""
+
+    id: UUID
+    night: CheckinNight
+    game_count: int
+    amount: float
+    """What they owe for it: the admin's adjustment if there is one."""
+    paid_status: Literal["unpaid", "paid"]
+    slip_url: str | None = None
+    slip_sent_at: datetime | None = None
+    slip_rejected_at: datetime | None = None
+
+
+class LineTonight(BaseModel):
+    """The member's night so far, for checking out.
+
+    none: not checked in to an open night. in: checked in — `games` and
+    `amount` are what checking out now would bill, `busy` that a match of
+    theirs isn't finished yet. out: checked out, `bill` is the bill."""
+
+    state: Literal["none", "in", "out"]
+    night: CheckinNight | None = None
+    player: Player | None = None
+    games: int = 0
+    court_fee: float = 0
+    shuttle_price: float = 0
+    amount: float = 0
+    busy: bool = False
+    bill: LineBill | None = None
+
+
+class LineCheckoutIn(BaseModel):
+    session_id: UUID
+
+
+class LineBills(BaseModel):
+    player: Player
+    due: float
+    """Unpaid and not waiting on a slip check."""
+    bills: list[LineBill]

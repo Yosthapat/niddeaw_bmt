@@ -479,3 +479,144 @@ def test_only_tonights_open_night_and_only_linked_members(
         client.get(f"/api/admin/line/checkin-qr?session_id={sid}", headers=admin()).status_code
         == 409
     )
+
+
+# --- checking out, paying, and the member's own bills ------------------------
+
+
+def match(
+    db: MiniSupabase, sid: str, players: list[str], status: str = "completed"
+) -> dict[str, Any]:
+    row = {
+        "id": str(uuid4()),
+        "session_id": sid,
+        "type": "double",
+        "team1_player_ids": players[:2],
+        "team2_player_ids": players[2:],
+        "status": status,
+        "created_at": "2026-01-01T00:00:00Z",
+    }
+    db.tables.setdefault("matches", []).append(row)
+    return row
+
+
+def settings(db: MiniSupabase) -> None:
+    db.tables["club_settings"] = [
+        {
+            "id": 1,
+            "promptpay_id": "0812345678",
+            "promptpay_type": "phone",
+            "payment_method": "promptpay",
+            "bank_name": None,
+            "bank_account_number": None,
+            "bank_account_name": None,
+            "uploaded_qr_url": None,
+        }
+    ]
+
+
+def test_check_out_pay_and_have_the_slip_checked(client: TestClient, db: MiniSupabase) -> None:
+    settings(db)
+    sid = night(db)
+    bam, ball, bank = pid(db, "Bam"), pid(db, "Ball"), pid(db, "Bank")
+    client.post("/api/admin/checkins", json={"session_id": sid, "player_id": bam}, headers=admin())
+    match(db, sid, [bam, ball, bank, ball])
+    match(db, sid, [bam, bank, ball, bank])
+    now = client.get("/api/line/tonight", headers=member(BAM)).json()
+    assert (now["state"], now["games"], now["amount"], now["busy"]) == ("in", 2, 80 + 2 * 29, False)
+
+    playing = match(db, sid, [bam, ball, bank, ball], status="in_progress")
+    assert client.get("/api/line/tonight", headers=member(BAM)).json()["busy"] is True
+    refused = client.post("/api/line/checkout", json={"session_id": sid}, headers=member(BAM))
+    assert refused.status_code == 409
+    playing["status"] = "completed"
+
+    out = client.post("/api/line/checkout", json={"session_id": sid}, headers=member(BAM)).json()
+    assert out["state"] == "out" and out["bill"]["amount"] == 80 + 3 * 29
+    assert all(c["checkout_time"] for c in db.tables["checkins"] if c["player_id"] == bam)
+    bill_id = out["bill"]["id"]
+
+    pay = client.get(f"/api/line/bills/{bill_id}/pay", headers=member(BAM)).json()
+    assert pay["method"] == "promptpay" and pay["amount"] == 167 and pay["data_uri"]
+    # Nobody else can see or pay it.
+    next(p for p in db.tables["players"] if p["nickname"] == "Bank")["line_user_id"] = BANK
+    assert client.get(f"/api/line/bills/{bill_id}/pay", headers=member(BANK)).status_code == 404
+
+    sent = client.post(
+        f"/api/line/bills/{bill_id}/slip",
+        files={"file": ("s.png", _png(), "image/png")},
+        headers=member(BAM),
+    ).json()
+    assert sent["slip_url"] and sent["paid_status"] == "unpaid"
+    mine = client.get("/api/line/bills", headers=member(BAM)).json()
+    assert mine["due"] == 0  # waiting on the admin, not owed
+    assert [b["id"] for b in mine["bills"]] == [bill_id]
+
+    # The admin sees the slip on the bill, refuses it; the member is asked again.
+    listed = client.get(f"/api/admin/billing?session_id={sid}", headers=admin()).json()
+    assert listed[0]["slip_url"] == sent["slip_url"]
+    refused_slip = client.post(f"/api/admin/billing/{bill_id}/reject-slip", headers=admin()).json()
+    assert refused_slip["slip_url"] is None and refused_slip["slip_rejected_at"]
+    assert db.storage_files == {}
+    again = client.get("/api/line/bills", headers=member(BAM)).json()
+    assert again["due"] == 167 and again["bills"][0]["slip_rejected_at"]
+
+    client.post(
+        f"/api/line/bills/{bill_id}/slip",
+        files={"file": ("s.png", _png(), "image/png")},
+        headers=member(BAM),
+    )
+    client.patch(
+        f"/api/admin/billing/{bill_id}/paid-status", json={"paid_status": "paid"}, headers=admin()
+    )
+    assert (
+        client.get("/api/line/bills", headers=member(BAM)).json()["bills"][0]["paid_status"]
+        == "paid"
+    )
+    assert client.get(f"/api/line/bills/{bill_id}/pay", headers=member(BAM)).status_code == 409
+
+
+def test_a_free_night_and_a_forgotten_checkout(client: TestClient, db: MiniSupabase) -> None:
+    settings(db)
+    bam = pid(db, "Bam")
+    # Never played: checking out costs nothing, and there is nothing to pay.
+    sid = night(db)
+    client.post("/api/admin/checkins", json={"session_id": sid, "player_id": bam}, headers=admin())
+    out = client.post("/api/line/checkout", json={"session_id": sid}, headers=member(BAM)).json()
+    assert out["bill"]["amount"] == 0
+    assert (
+        client.get(f"/api/line/bills/{out['bill']['id']}/pay", headers=member(BAM)).status_code
+        == 409
+    )
+
+    # Forgot to check out: the admin closes the night, and the bill is theirs to pay later.
+    late = night(db, days_ago=1)
+    client.post("/api/admin/checkins", json={"session_id": late, "player_id": bam}, headers=admin())
+    match(db, late, [bam, pid(db, "Ball"), pid(db, "Bank"), pid(db, "Ball")])
+    client.post(f"/api/admin/billing/close-session/{late}", headers=admin())
+    assert client.get("/api/line/tonight", headers=member(BAM)).json()["state"] in ("out", "none")
+    mine = client.get("/api/line/bills", headers=member(BAM)).json()
+    assert mine["due"] == 80 + 29
+    assert (
+        client.post(
+            "/api/line/checkout", json={"session_id": late}, headers=member(BAM)
+        ).status_code
+        == 409
+    )
+
+
+def test_checkout_is_for_linked_members_checked_in_tonight(
+    client: TestClient, db: MiniSupabase
+) -> None:
+    sid = night(db)
+    assert client.get("/api/line/tonight", headers=member(BALL)).status_code == 403
+    assert client.get("/api/line/bills", headers=member(BALL)).status_code == 403
+    assert client.get("/api/line/tonight", headers=member(BAM)).json()["state"] == "none"
+    assert (
+        client.post("/api/line/checkout", json={"session_id": sid}, headers=member(BAM)).status_code
+        == 409
+    )
+    assert (
+        client.post("/api/line/checkout", json={"session_id": sid}, headers=admin()).status_code
+        == 401
+    )
