@@ -52,6 +52,7 @@ TABLES: list[tuple[str, str]] = [
     ("shop_order_items", "id"),
     ("admin_activity_log", "id"),
     ("line_link_requests", "id"),
+    ("line_join_requests", "id"),
 ]
 
 # Columns never written to a backup, per table.

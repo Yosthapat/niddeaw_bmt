@@ -61,6 +61,8 @@ _ROUTE_LABELS: list[tuple[str, str, re.Pattern[str]]] = [
     ("POST", "ยืนยันผูก LINE", re.compile(r"^/api/admin/line/requests/[^/]+/approve$")),
     ("POST", "ปฏิเสธคำขอผูก LINE", re.compile(r"^/api/admin/line/requests/[^/]+/reject$")),
     ("POST", "ยกเลิกการผูก LINE", re.compile(r"^/api/admin/line/players/[^/]+/unlink$")),
+    ("POST", "รับสมาชิกใหม่จาก LINE", re.compile(r"^/api/admin/line/joins/[^/]+/approve$")),
+    ("POST", "ปฏิเสธใบสมัครจาก LINE", re.compile(r"^/api/admin/line/joins/[^/]+/reject$")),
     ("POST", "ดาวน์โหลดไฟล์สำรองข้อมูล", re.compile(r"^/api/admin/backup$")),
     ("POST", "ซิงก์ข้อมูลเข้า Google Sheets", re.compile(r"^/api/admin/sheets/sync$")),
     ("POST", "ซ่อมสถิติให้ตรงกับแมตช์", re.compile(r"^/api/admin/stats-audit/repair$")),

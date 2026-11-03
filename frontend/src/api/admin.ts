@@ -642,3 +642,30 @@ export async function getLineLinks(): Promise<LineLink[]> {
 export async function unlinkLine(playerId: string): Promise<Player> {
   return request(`/api/admin/line/players/${playerId}/unlink`, { method: 'POST' })
 }
+
+export interface LineJoinRequest {
+  id: string
+  line_name: string
+  nickname: string
+  dominant_hand: 'left' | 'right' | null
+  instagram: string | null
+  tiktok: string | null
+  quote: string | null
+  photo_url: string | null
+  created_at: string
+}
+
+export async function getLineJoins(): Promise<LineJoinRequest[]> {
+  return request('/api/admin/line/joins')
+}
+
+export async function approveLineJoin(joinId: string, eloScore: number | null): Promise<Player> {
+  return request(`/api/admin/line/joins/${joinId}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ elo_score: eloScore }),
+  })
+}
+
+export async function rejectLineJoin(joinId: string): Promise<void> {
+  return request(`/api/admin/line/joins/${joinId}/reject`, { method: 'POST' })
+}

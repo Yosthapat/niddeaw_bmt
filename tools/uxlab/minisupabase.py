@@ -44,6 +44,7 @@ AUTO: dict[str, dict[str, Callable[[], Any]]] = {
     "admin_activity_log": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
     "products": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
     "line_link_requests": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
+    "line_join_requests": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
     "shop_order_items": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
     "shop_orders": {
         "id": lambda: str(uuid.uuid4()), "order_no": lambda: next(_ORDER_NO),
@@ -62,6 +63,9 @@ DEFAULTS: dict[str, Row] = {
     },
     "line_link_requests": {"line_picture": None, "status": "pending", "decided_at": None,
                            "decided_by": None},
+    "line_join_requests": {"dominant_hand": None, "instagram": None, "tiktok": None, "quote": None,
+                           "photo_url": None, "status": "pending", "player_id": None,
+                           "decided_at": None, "decided_by": None},
     "sessions": {"status": "open", "shuttlecock_price_per_game": 0},
     "checkins": {"checkout_time": None},
     "matches": {

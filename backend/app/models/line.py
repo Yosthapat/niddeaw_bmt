@@ -4,7 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, StringConstraints
 
-from app.models.player import Player
+from app.models.fields import EloScore, Handle, Note
+from app.models.player import DominantHand, Player
 
 LineUserId = Annotated[str, StringConstraints(pattern=r"^U[0-9a-f]{32}$")]
 
@@ -36,6 +37,32 @@ class LinkRequest(BaseModel):
     created_at: datetime
 
 
+class JoinApplication(BaseModel):
+    """A sign-up from someone not in the club yet, as they filled it in."""
+
+    id: UUID
+    nickname: str
+    dominant_hand: DominantHand | None = None
+    instagram: str | None = None
+    tiktok: str | None = None
+    quote: str | None = None
+    photo_url: str | None = None
+    created_at: datetime
+
+
+class JoinIn(BaseModel):
+    """The sign-up form. The nickname follows the club's rules
+    (services/nickname_service.py), checked by the router."""
+
+    nickname: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
+    dominant_hand: DominantHand | None = None
+    instagram: Handle | None = None
+    tiktok: Handle | None = None
+    quote: Note | None = None
+    use_line_photo: bool = True
+    """No photo of their own: use their LINE picture."""
+
+
 class LineStatus(BaseModel):
     """Who this LINE account is in the club, as far as it has got."""
 
@@ -44,6 +71,8 @@ class LineStatus(BaseModel):
     player: Player | None = None
     """Set once an admin has approved the link."""
     pending: LinkRequest | None = None
+    application: JoinApplication | None = None
+    """A sign-up waiting for an admin (they are not in the club yet)."""
     token: str | None = None
     """Only on POST /api/line/session: what the page sends from then on."""
 
@@ -80,3 +109,14 @@ class LineLink(BaseModel):
 
     player_id: UUID
     line_name: str | None = None
+
+
+class JoinRequestAdmin(JoinApplication):
+    """An application as the admin sees it, with who sent it on LINE."""
+
+    line_name: str
+
+
+class JoinApprove(BaseModel):
+    elo_score: EloScore | None = None
+    """Starting rating; the club default (1000) when omitted."""

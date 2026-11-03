@@ -51,7 +51,7 @@ def list_all_players(supabase: SupabaseDep, admin: AdminDep) -> list[Player]:
 
 
 
-def _check_nickname(supabase: Client, raw: str, *, exclude_id: str | None = None) -> str:
+def check_nickname(supabase: Client, raw: str, *, exclude_id: str | None = None) -> str:
     """Validate a nickname and make sure nobody else has it. Returns the
     normalised name to store.
 
@@ -89,7 +89,7 @@ def _check_nickname(supabase: Client, raw: str, *, exclude_id: str | None = None
 
 @router.post("", response_model=Player, status_code=status.HTTP_201_CREATED)
 def create_player(payload: PlayerCreate, supabase: SupabaseDep, admin: AdminDep) -> Player:
-    nickname = _check_nickname(supabase, payload.nickname)
+    nickname = check_nickname(supabase, payload.nickname)
     elo_score = max(SCORE_FLOOR, payload.elo_score) if payload.elo_score is not None else STARTING_SCORE
     row = {
         **payload.model_dump(mode="json", exclude={"elo_score"}),
@@ -113,7 +113,7 @@ def update_player(
     # someone's Instagram handle has no business failing over the name they
     # have had since before the rules existed.
     if updates.get("nickname") is not None:
-        updates["nickname"] = _check_nickname(
+        updates["nickname"] = check_nickname(
             supabase, updates["nickname"], exclude_id=str(player_id)
         )
     if "elo_score" in updates and updates["elo_score"] is not None:
