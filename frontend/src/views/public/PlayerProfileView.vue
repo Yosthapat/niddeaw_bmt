@@ -76,12 +76,11 @@ const bannerSub = computed(() => {
     .filter(Boolean)
     .join(' · ')
 })
-const mascot = computed(() => `/tiers/${profile.value?.player.elo_level ?? 'milk'}.webp`)
 </script>
 
 <template>
   <main class="pb-12 sm:pb-20">
-    <PageBanner :eyebrow="eyebrow" :title="profile?.player.nickname ?? t('nav.members')" :sub="bannerSub" :mascot="mascot">
+    <PageBanner :eyebrow="eyebrow" :title="profile?.player.nickname ?? t('nav.members')" :sub="bannerSub" mascot="/hero/cat-color.webp">
       <div class="flex flex-wrap items-center gap-2">
         <RouterLink to="/members" class="glass-pill"><span aria-hidden="true">←</span> {{ t('profile.backToMembers') }}</RouterLink>
         <span v-if="profile?.player.tiktok" class="glass-pill">TikTok {{ profile.player.tiktok }}</span>
