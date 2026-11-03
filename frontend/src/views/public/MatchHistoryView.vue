@@ -7,11 +7,10 @@ import type { Match, Player } from '@/types'
 import MatchScoreCard from '@/components/matches/MatchScoreCard.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 import PageBanner from '@/components/common/PageBanner.vue'
-import { formatDateWithWeekday } from '@/utils/format'
 
 const PAGE_SIZE = 20
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
@@ -63,20 +62,6 @@ function goToPage(page: number): void {
   router.push({ query: { ...route.query, page: page > 1 ? String(page) : undefined } })
 }
 
-// One heading per club night. Grouped by session rather than by calendar
-// day, so a night that runs past midnight stays one night; it is dated by
-// its first match (the list is newest-first, so the last one here).
-const nights = computed(() => {
-  const groups: { key: string; label: string; matches: Match[] }[] = []
-  for (const m of matches.value) {
-    const last = groups[groups.length - 1]
-    if (last && last.key === m.session_id) last.matches.push(m)
-    else groups.push({ key: m.session_id, label: '', matches: [m] })
-  }
-  for (const g of groups) g.label = formatDateWithWeekday(g.matches[g.matches.length - 1].created_at, locale.value)
-  return groups
-})
-
 watch(currentPage, (page) => loadPage(page))
 onMounted(() => loadPage(currentPage.value))
 </script>
@@ -94,17 +79,12 @@ onMounted(() => loadPage(currentPage.value))
         <p v-else-if="matches.length === 0" class="world-card p-5 text-white/65">{{ t('matches.empty') }}</p>
 
         <template v-else>
-          <section v-for="night in nights" :key="night.key" class="mb-7" :aria-label="night.label">
-            <h2 class="night">
-              <span class="world-title font-display text-lg font-bold sm:text-[22px]">{{ night.label }}</span>
-              <span class="shrink-0 text-[13px] text-white/55">{{ t('matches.count', { n: night.matches.length }) }}</span>
-            </h2>
-            <ul class="grid gap-2.5 sm:gap-4 lg:grid-cols-2">
-              <li v-for="(m, i) in night.matches" :key="m.id" v-reveal="i">
-                <MatchScoreCard :match="m" :players-by-id="playersById" />
-              </li>
-            </ul>
-          </section>
+          <!-- One list, newest first: no heading per night, as the club asked. -->
+          <ul class="mb-7 grid gap-2.5 sm:gap-4 lg:grid-cols-2">
+            <li v-for="(m, i) in matches" :key="m.id" v-reveal="i">
+              <MatchScoreCard :match="m" :players-by-id="playersById" />
+            </li>
+          </ul>
 
           <div class="flex items-center justify-center gap-3">
             <button
@@ -132,18 +112,6 @@ onMounted(() => loadPage(currentPage.value))
 </template>
 
 <style scoped>
-.night {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 6px 0 14px;
-}
-.night::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(90deg, rgb(255 108 192 / 0.5), transparent);
-}
 .pager {
   min-height: 44px;
   padding: 0 18px;
