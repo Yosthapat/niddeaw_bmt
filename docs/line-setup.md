@@ -97,3 +97,28 @@ LINE ให้ user id คนละชุดในแต่ละ **provider** �
 | "LINE gave no ID token" | LIFF ไม่ได้ติ๊ก scope **openid** |
 | คนอื่น login ไม่ได้ แต่แอดมินได้ | ช่องทางยังเป็น Developing ให้ Publish (ข้อ 4) |
 | เปิดแล้วไปหน้าอื่น | Endpoint URL ต้องลงท้ายด้วย `/line` |
+
+## 8. ข้อความเตือนเช็คอินคืนวันศุกร์ (ไม่บังคับ)
+
+ทุกคืนศุกร์ เวลา 19:30 ระบบจะส่ง LINE เตือนเช็คอิน ถ้ายังไม่เปิดคืนก๊วน ระบบจะลองใหม่ตอน 20:00 และ 20:30 คืนหนึ่งส่งครั้งเดียว ส่งให้คนที่:
+- ผูก LINE แล้ว
+- ยังไม่ได้เช็คอินคืนนั้น
+- มาเล่นอย่างน้อย 1 ใน 4 คืนล่าสุด
+
+ก่อนส่ง ระบบเช็คโควตาข้อความที่เหลือของ OA ก่อน ไม่ส่งเกินที่เหลือ แพ็กเกจฟรีได้เดือนละ 300 ข้อความ
+
+1. เข้า [LINE Developers](https://developers.line.biz/console/) › provider ของก๊วน › ช่องทาง **Messaging API** (ชื่อเดียวกับ OA)
+2. แท็บ **Messaging API** › **Channel access token (long-lived)** › กด **Issue** แล้วคัดลอก
+3. ใน Render › Environment ใส่:
+
+   | Key | Value |
+   | --- | --- |
+   | `LINE_MESSAGING_TOKEN` | token จากข้อ 2 |
+   | `LINE_REMINDER_SECRET` | รหัสยาว ๆ ที่ตั้งเอง (ใช้ซ้ำในข้อ 4) |
+
+4. ใน GitHub › repo › **Settings** › **Secrets and variables** › **Actions** › **New repository secret**
+   ชื่อ `LINE_REMINDER_SECRET` ค่าเดียวกับข้อ 3
+5. ทดลอง: เปิดคืนก๊วนวันนี้ในหน้าแอดมิน แล้วไปที่ GitHub › **Actions** › **Friday LINE check-in reminder** › **Run workflow**
+   ในผลลัพธ์จะบอกว่าส่งให้กี่คน หรือบอกเหตุผลที่ไม่ได้ส่ง
+
+คนที่ยังไม่ได้เพิ่ม OA เป็นเพื่อน หรือบล็อก OA ไว้ จะไม่ได้รับข้อความ

@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     # How long a member stays signed in on the /line page before LINE is
     # asked again. Opening it from LINE asks again anyway.
     line_token_minutes: int = 720
+    # The OA's Messaging API channel access token, for the Friday check-in
+    # reminder (app/services/line_reminder.py), and the secret the GitHub
+    # Action sends with it. Either unset: no reminder goes out.
+    line_messaging_token: str | None = None
+    line_reminder_secret: str | None = None
 
     @property
     def cors_origin_list(self) -> list[str]:

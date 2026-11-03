@@ -1,0 +1,36 @@
+name: Friday LINE check-in reminder
+
+# Knocks on the backend to send the "don't forget to check in" message
+# through the club's LINE OA (backend/app/services/line_reminder.py) to
+# members on the way who haven't checked in yet. It goes out once per night,
+# so three knocks cover an admin who opens the night late: 19:30, 20:00 and
+# 20:30 Bangkok time (UTC+7). Each is set a few minutes early because
+# GitHub's scheduled runs usually start late.
+#
+# Until LINE_REMINDER_SECRET is added to the repo's Actions secrets (and the
+# same value, plus LINE_MESSAGING_TOKEN, to the backend on Render), the step
+# is skipped and the workflow stays green.
+
+on:
+  schedule:
+    - cron: "25 12 * * 5"
+    - cron: "55 12 * * 5"
+    - cron: "25 13 * * 5"
+  workflow_dispatch: {}
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    env:
+      LINE_REMINDER_SECRET: ${{ secrets.LINE_REMINDER_SECRET }}
+    steps:
+      - name: Not set up yet
+        if: env.LINE_REMINDER_SECRET == ''
+        run: echo "LINE_REMINDER_SECRET is not set — see docs/line-setup.md. Skipping."
+      - name: Send tonight's check-in reminder
+        if: env.LINE_REMINDER_SECRET != ''
+        run: |
+          curl -fsS --retry 2 --retry-delay 30 --retry-all-errors --max-time 120 \
+            -X POST -H "X-Reminder-Secret: $LINE_REMINDER_SECRET" \
+            https://niddeaw-bmt.onrender.com/api/internal/line-checkin-reminder
+          echo

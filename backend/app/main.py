@@ -6,7 +6,7 @@ from app.config import get_settings
 from app.middleware.activity_log import AdminActivityLogMiddleware
 from app.middleware.body_limit import BodyLimitMiddleware
 from app.middleware.unhandled_errors import UnhandledErrorsMiddleware
-from app.routers import line
+from app.routers import internal_line, line
 from app.routers.admin import activity_log as admin_activity_log
 from app.routers.admin import auth as admin_auth
 from app.routers.admin import backup as admin_backup
@@ -85,6 +85,7 @@ app.include_router(admin_backup.router)
 app.include_router(admin_sheets.router)
 app.include_router(admin_line.router)
 app.include_router(admin_sheets.internal)
+app.include_router(internal_line.router)
 
 
 @app.get("/health")
