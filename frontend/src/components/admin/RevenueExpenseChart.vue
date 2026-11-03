@@ -1,5 +1,8 @@
 <script setup lang="ts">
 // Grouped bar chart: revenue vs. expenses, bucketed by day, month or year.
+// The revenue bar is a stack — session dues, with the shop's sales on top
+// (confirmed + delivered orders, on the Bangkok day they were placed) — so
+// its height is everything that came in.
 // Self-contained (fetches its own data) so DashboardView just drops in
 // <RevenueExpenseChart /> — same spirit as SessionPicker.vue.
 //
@@ -20,8 +23,10 @@
 // 2 (orange), dark-mode steps since this app is dark-only — not the brand
 // pink, deliberately: pink already means "primary action" everywhere else
 // in the UI, so reusing it as a data-series color would blur the two.
-// Validated: node scripts/validate_palette.js "#3987e5,#d95926" --mode dark
-// -> all checks pass (worst adjacent ΔE 26.8 CVD / 31.8 normal-vision).
+// The shop is slot 3 (aqua), stacked between the two.
+// Validated: node scripts/validate_palette.js "#3987e5,#199e70,#d95926" --mode dark
+// -> all checks pass (worst adjacent ΔE 9.4 CVD / 20.9 normal-vision); the
+// legend and the breakdown line under the plot carry identity too.
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
@@ -33,6 +38,7 @@ const { t } = useI18n()
 
 const REVENUE_COLOR = '#3987e5'
 const EXPENSE_COLOR = '#d95926'
+const SHOP_COLOR = '#199e70'
 
 type Period = 'day' | 'month' | 'year'
 
@@ -45,7 +51,7 @@ const BARS_SHOWN: Record<Period, number> = { day: 14, month: 6, year: 20 }
 const period = ref<Period>('month')
 
 const finance = useFinanceStore()
-const { dailyRevenue, expenses, loading } = storeToRefs(finance)
+const { dailyRevenue, expenses, shop, loading } = storeToRefs(finance)
 
 const error = computed(() => {
   const e = finance.error
@@ -57,6 +63,7 @@ interface Bar {
   key: string
   label: string
   revenue: number
+  shop: number
   expense: number
 }
 
@@ -86,18 +93,24 @@ const bars = computed<Bar[]>(() => {
     const key = bucketKey(entry.date, p)
     revenueBy.set(key, (revenueBy.get(key) ?? 0) + entry.total_amount)
   }
+  const shopBy = new Map<string, number>()
+  for (const day of shop.value?.daily ?? []) {
+    const key = bucketKey(day.date, p)
+    shopBy.set(key, (shopBy.get(key) ?? 0) + day.amount)
+  }
   const expenseBy = new Map<string, number>()
   for (const expense of expenses.value) {
     const key = bucketKey(expense.expense_date, p)
     expenseBy.set(key, (expenseBy.get(key) ?? 0) + expense.amount)
   }
-  return Array.from(new Set([...revenueBy.keys(), ...expenseBy.keys()]))
+  return Array.from(new Set([...revenueBy.keys(), ...shopBy.keys(), ...expenseBy.keys()]))
     .sort()
     .slice(-BARS_SHOWN[p])
     .map((key) => ({
       key,
       label: bucketLabel(key, p),
       revenue: revenueBy.get(key) ?? 0,
+      shop: shopBy.get(key) ?? 0,
       expense: expenseBy.get(key) ?? 0,
     }))
 })
@@ -121,10 +134,11 @@ const PAD_TOP = 12
 const innerW = VIEW_W - PAD_LEFT - 8
 const innerH = VIEW_H - PAD_TOP - PAD_BOTTOM
 const BAR_GAP = 3 // surface gap between the two bars in a group
+const STACK_GAP = 2 // and between the dues and shop segments of one
 const GROUP_GAP = 14
 
 const maxValue = computed(() => {
-  const values = bars.value.flatMap((b) => [b.revenue, b.expense])
+  const values = bars.value.flatMap((b) => [b.revenue + b.shop, b.expense])
   const max = Math.max(0, ...values)
   return max > 0 ? max : 1
 })
@@ -147,21 +161,47 @@ function groupX(index: number): number {
   return PAD_LEFT + index * (groupWidth.value + GROUP_GAP)
 }
 
+type Series = 'revenue' | 'shop' | 'expense'
 interface HoveredBar {
   key: string
-  series: 'revenue' | 'expense'
+  series: Series
 }
 const hovered = ref<HoveredBar | null>(null)
 
-function toggleHover(key: string, series: 'revenue' | 'expense'): void {
+function toggleHover(key: string, series: Series): void {
   hovered.value = hovered.value?.key === key && hovered.value?.series === series ? null : { key, series }
 }
 function hoveredValue(): number | null {
   if (!hovered.value) return null
   const bar = bars.value.find((b) => b.key === hovered.value?.key)
   if (!bar) return null
-  return hovered.value.series === 'revenue' ? bar.revenue : bar.expense
+  return bar[hovered.value.series]
 }
+/** Where the floating value sits: over the top of the hovered bar's column. */
+function hoveredTop(bar: Bar): number {
+  return hovered.value?.series === 'expense' ? barHeight(bar.expense) : stackHeight(bar)
+}
+/** The shop segment's height, and the whole stack's with the gap between. */
+function shopHeight(bar: Bar): number {
+  return bar.shop > 0 ? Math.max(barHeight(bar.shop), 1) : 0
+}
+function stackHeight(bar: Bar): number {
+  return barHeight(bar.revenue) + (bar.shop > 0 ? STACK_GAP + shopHeight(bar) : 0)
+}
+// Hover follows a mouse only. A tap also sends pointerenter before its
+// click, and letting it set the pin would have the click's toggle take it
+// straight back off — on a phone the bar would never stay picked.
+function onEnter(event: PointerEvent, key: string, series: Series): void {
+  if (event.pointerType === 'mouse') hovered.value = { key, series }
+}
+function onLeave(event: PointerEvent): void {
+  if (event.pointerType === 'mouse') hovered.value = null
+}
+const hoveredBar = computed(() => bars.value.find((b) => b.key === hovered.value?.key) ?? null)
+/** The breakdown under the plot: the picked bucket, else the newest. */
+const shownBar = computed(() => hoveredBar.value ?? bars.value.at(-1) ?? null)
+/** Any shop sales on screen: without them the third legend entry is noise. */
+const anyShop = computed(() => bars.value.some((b) => b.shop > 0))
 
 // Day view packs 14 labels into the same axis six months use. Printing every
 // other one keeps them apart; the bars themselves stay one per bucket.
@@ -177,7 +217,7 @@ function formatBaht(n: number): string {
   return moneyShort(n)
 }
 
-const totalRevenue = computed(() => bars.value.reduce((sum, b) => sum + b.revenue, 0))
+const totalRevenue = computed(() => bars.value.reduce((sum, b) => sum + b.revenue + b.shop, 0))
 const totalExpense = computed(() => bars.value.reduce((sum, b) => sum + b.expense, 0))
 const net = computed(() => totalRevenue.value - totalExpense.value)
 </script>
@@ -203,7 +243,11 @@ const net = computed(() => totalRevenue.value - totalExpense.value)
       <div class="flex items-center gap-3 text-xs text-white/60">
         <span class="flex items-center gap-1.5">
           <span class="h-2 w-2 rounded-full" :style="{ backgroundColor: REVENUE_COLOR }" />
-          {{ t('dashboard.revenue') }}
+          {{ anyShop ? t('dashboard.revenueDues') : t('dashboard.revenue') }}
+        </span>
+        <span v-if="anyShop" class="flex items-center gap-1.5">
+          <span class="h-2 w-2 rounded-full" :style="{ backgroundColor: SHOP_COLOR }" />
+          {{ t('dashboard.revenueShop') }}
         </span>
         <span class="flex items-center gap-1.5">
           <span class="h-2 w-2 rounded-full" :style="{ backgroundColor: EXPENSE_COLOR }" />
@@ -258,8 +302,22 @@ const net = computed(() => totalRevenue.value - totalExpense.value)
             rx="2"
             class="cursor-pointer"
             @click="toggleHover(bar.key, 'revenue')"
-            @mouseenter="hovered = { key: bar.key, series: 'revenue' }"
-            @mouseleave="hovered = null"
+            @pointerenter="onEnter($event, bar.key, 'revenue')"
+            @pointerleave="onLeave($event)"
+          />
+          <rect
+            v-if="bar.shop > 0"
+            :x="groupX(i)"
+            :y="PAD_TOP + innerH - stackHeight(bar)"
+            :width="barWidth"
+            :height="shopHeight(bar)"
+            :fill="SHOP_COLOR"
+            :opacity="hovered && !(hovered.key === bar.key && hovered.series === 'shop') ? 0.55 : 1"
+            rx="2"
+            class="cursor-pointer"
+            @click="toggleHover(bar.key, 'shop')"
+            @pointerenter="onEnter($event, bar.key, 'shop')"
+            @pointerleave="onLeave($event)"
           />
           <rect
             :x="groupX(i) + barWidth + BAR_GAP"
@@ -271,8 +329,8 @@ const net = computed(() => totalRevenue.value - totalExpense.value)
             rx="2"
             class="cursor-pointer"
             @click="toggleHover(bar.key, 'expense')"
-            @mouseenter="hovered = { key: bar.key, series: 'expense' }"
-            @mouseleave="hovered = null"
+            @pointerenter="onEnter($event, bar.key, 'expense')"
+            @pointerleave="onLeave($event)"
           />
           <text
             v-if="showLabel(i)"
@@ -290,7 +348,7 @@ const net = computed(() => totalRevenue.value - totalExpense.value)
           <g v-if="hovered?.key === bar.key">
             <text
               :x="groupX(i) + groupWidth / 2"
-              :y="PAD_TOP + innerH - barHeight(hovered.series === 'revenue' ? bar.revenue : bar.expense) - 6"
+              :y="PAD_TOP + innerH - hoveredTop(bar) - 6"
               text-anchor="middle"
               font-size="11"
               font-weight="700"
@@ -311,6 +369,21 @@ const net = computed(() => totalRevenue.value - totalExpense.value)
           </g>
         </g>
       </svg>
+
+      <!-- The bucket's breakdown, in words: which part of the stack is
+           which, without reading heights. -->
+      <p v-if="shownBar" class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/60" role="status">
+        <span class="font-semibold text-white/80">{{ shownBar.label }}</span>
+        <span class="flex items-center gap-1.5">
+          <span class="h-2 w-2 rounded-full" :style="{ backgroundColor: REVENUE_COLOR }" />{{ anyShop ? t('dashboard.revenueDues') : t('dashboard.revenue') }} {{ formatBaht(shownBar.revenue) }}
+        </span>
+        <span v-if="anyShop" class="flex items-center gap-1.5">
+          <span class="h-2 w-2 rounded-full" :style="{ backgroundColor: SHOP_COLOR }" />{{ t('dashboard.revenueShop') }} {{ formatBaht(shownBar.shop) }}
+        </span>
+        <span class="flex items-center gap-1.5">
+          <span class="h-2 w-2 rounded-full" :style="{ backgroundColor: EXPENSE_COLOR }" />{{ t('dashboard.expense') }} {{ formatBaht(shownBar.expense) }}
+        </span>
+      </p>
     </template>
   </div>
 </template>

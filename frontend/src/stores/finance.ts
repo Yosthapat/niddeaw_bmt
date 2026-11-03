@@ -1,11 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import * as adminApi from '@/api/admin'
-import type { DailyRevenue, Expense, OtherIncome } from '@/types'
+import type { DailyRevenue, Expense, OtherIncome, ShopRevenue } from '@/types'
 
 /**
- * The three money feeds the dashboard's charts are built from, fetched once
- * and shared.
+ * The money feeds the dashboard's charts are built from, fetched once and
+ * shared: session dues, expenses, other income and the shop's sales.
  *
  * Both charts used to fetch for themselves, which meant the dashboard asked
  * for /billing/revenue twice on every visit and additionally pulled
@@ -23,6 +23,9 @@ export const useFinanceStore = defineStore('finance', () => {
   const dailyRevenue = ref<DailyRevenue[]>([])
   const expenses = ref<Expense[]>([])
   const otherIncome = ref<OtherIncome[]>([])
+  /** null until loaded. Fetched with the rest, not apart: a balance that
+   * silently left out the shop would be a wrong number, not a smaller one. */
+  const shop = ref<ShopRevenue | null>(null)
   const loading = ref(true)
   /** The raw failure — each chart renders its own message from it, since
    * they word the error differently and one may be on screen without the
@@ -42,14 +45,16 @@ export const useFinanceStore = defineStore('finance', () => {
     loading.value = true
     error.value = null
     try {
-      const [revenue, expenseList, income] = await Promise.all([
+      const [revenue, expenseList, income, shopRevenue] = await Promise.all([
         adminApi.getRevenue(),
         adminApi.getExpenses(),
         adminApi.getOtherIncome(),
+        adminApi.getShopRevenue(),
       ])
       dailyRevenue.value = revenue
       expenses.value = expenseList
       otherIncome.value = income
+      shop.value = shopRevenue
     } catch (e) {
       // Held rather than thrown: both charts await the same promise, so a
       // rejection would surface as an unhandled rejection in whichever one
@@ -60,5 +65,5 @@ export const useFinanceStore = defineStore('finance', () => {
     }
   }
 
-  return { dailyRevenue, expenses, otherIncome, loading, error, refresh }
+  return { dailyRevenue, expenses, otherIncome, shop, loading, error, refresh }
 })

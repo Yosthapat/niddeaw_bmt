@@ -20,10 +20,11 @@ from app.models.shop import (
     Product,
     ProductCreate,
     ProductFields,
+    ShopRevenue,
     unit_price,
 )
 from app.security import verify_password
-from app.services import login_throttle, shop_service
+from app.services import login_throttle, shop_revenue, shop_service
 from app.services.image_service import resize_jpeg, storage_path_from_url
 
 router = APIRouter(prefix="/api/admin/shop", tags=["admin-shop"])
@@ -419,6 +420,13 @@ def delete_order(
         "total": order.total,
         "status": order.status,
     }
+
+
+@router.get("/revenue", response_model=ShopRevenue)
+def revenue(supabase: SupabaseDep, admin: AdminDep) -> ShopRevenue:
+    """What the shop has taken in (confirmed + delivered orders), what is
+    waiting to be checked, and what it made after the shop's costs."""
+    return shop_revenue.load(supabase)
 
 
 @router.get("/preorder-tally", response_model=list[PreorderTally])

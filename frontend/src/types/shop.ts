@@ -103,6 +103,22 @@ export interface PreorderTally {
   total: number
 }
 
+/** What the shop has taken in. Money in is confirmed + delivered orders;
+ *  pending ones are apart and in no total. cost is the shop-cost and shirt
+ *  expenses. Mirrors backend app/models/shop.py ShopRevenue. */
+export interface ShopRevenue {
+  total: number
+  orders: number
+  pending_amount: number
+  pending_orders: number
+  to_ship: number
+  cost: number
+  profit: number
+  /** newest first; dates are Bangkok days */
+  daily: { date: string; amount: number; orders: number }[]
+  top: { name: string; qty: number; amount: number }[]
+}
+
 /** A Thai phone number as its digits, or null when it isn't one: a leading
  *  0 and 9 or 10 digits. Mirrors backend app/models/shop.py phone_digits(). */
 export function phoneDigits(raw: string): string | null {
