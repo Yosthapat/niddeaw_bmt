@@ -7,6 +7,7 @@ import { tierMeta } from '@/composables/useEloTier'
 import { TIER_ORDER } from '@/utils/tierCard'
 import MemberCard from '@/components/players/MemberCard.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
+import { onRevisit } from '@/composables/useRevisit'
 import PageBanner from '@/components/common/PageBanner.vue'
 
 type Sort = 'elo' | 'name' | 'games'
@@ -57,6 +58,15 @@ const shown = computed(() => {
 
 const emptyMascot = computed(() => (tier.value === 'all' ? 'milk' : tier.value))
 const eyebrow = computed(() => (loading.value || error.value ? 'Roster' : `Roster · ${t('roster.count', { n: stats.value.length })}`))
+
+// Kept alive (App.vue): back on this page, refresh behind what it shows.
+onRevisit(async () => {
+  try {
+    stats.value = await getPlayers()
+  } catch {
+    // keep what is on screen
+  }
+})
 </script>
 
 <template>

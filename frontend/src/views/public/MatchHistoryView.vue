@@ -7,6 +7,7 @@ import type { Match, Player } from '@/types'
 import MatchScoreCard from '@/components/matches/MatchScoreCard.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 import PageBanner from '@/components/common/PageBanner.vue'
+import { onRevisit } from '@/composables/useRevisit'
 
 const PAGE_SIZE = 20
 
@@ -31,9 +32,11 @@ const currentPage = computed(() => {
   return Number.isInteger(raw) && raw >= 1 ? raw : 1
 })
 
-async function loadPage(page: number): Promise<void> {
-  loading.value = true
-  error.value = null
+async function loadPage(page: number, quiet = false): Promise<void> {
+  if (!quiet) {
+    loading.value = true
+    error.value = null
+  }
   try {
     const matchList = await getMatches({ limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE })
     // A page beyond the last one (a stale bookmark, or a hand-edited URL)
@@ -52,7 +55,7 @@ async function loadPage(page: number): Promise<void> {
     const ids = [...new Set(matchList.flatMap((m) => [...m.team1_player_ids, ...m.team2_player_ids]))]
     playersById.value = Object.fromEntries((await getPlayersByIds(ids)).map((p) => [p.id, p]))
   } catch {
-    error.value = t('matches.loadError')
+    if (!quiet) error.value = t('matches.loadError')
   } finally {
     loading.value = false
   }
@@ -62,7 +65,12 @@ function goToPage(page: number): void {
   router.push({ query: { ...route.query, page: page > 1 ? String(page) : undefined } })
 }
 
-watch(currentPage, (page) => loadPage(page))
+// Kept alive (App.vue), this page still sees the route change while it is
+// away — opening a match drops ?page — and must not reload for that.
+watch(currentPage, (page) => {
+  if (route.name === 'matches') void loadPage(page)
+})
+onRevisit(() => void loadPage(currentPage.value, true))
 onMounted(() => loadPage(currentPage.value))
 </script>
 

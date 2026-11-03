@@ -123,23 +123,18 @@ h3,
   background-color: var(--color-brand-pink);
 }
 
-/* Route transition (App.vue's <Transition name="page">) — a quick fade +
-   vertical slide between pages instead of an instant hard swap, so
-   navigating feels like moving through an app rather than reloading a
-   document. mode="out-in" finishes the leave before the enter starts. */
-.page-enter-active,
-.page-leave-active {
-  transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
+/* Route transition (App.vue's <Transition name="page">). */
+/* The page being left goes at once; only the new one fades in, quickly
+   and by opacity alone. Fading the old page out first was 200ms of a
+   screen the reader had already left, and on a phone a long page of
+   glass cards (members, 100 of them) dropped frames doing it: what showed
+   was a stall, then a blank. Opacity alone stays on the compositor;
+   moving the page as well repainted all of it every frame. */
+.page-enter-active {
+  transition: opacity 0.16s ease-out;
 }
 .page-enter-from {
   opacity: 0;
-  transform: translateY(10px);
-}
-.page-leave-to {
-  opacity: 0;
-  transform: translateY(-10px);
 }
 
 /* Shared "modal" transition (TierInfoModal.vue, ConfirmDialog.vue) —

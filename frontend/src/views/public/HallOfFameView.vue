@@ -11,6 +11,7 @@ import type { PlayerStats } from '@/types'
 import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
+import { onRevisit } from '@/composables/useRevisit'
 import CountUp from '@/components/common/CountUp.vue'
 import PageBanner from '@/components/common/PageBanner.vue'
 
@@ -36,6 +37,15 @@ const wall = computed(() => stats.value.slice(1))
 // Second and third keep their medal colour on the wall.
 const MEDAL: Record<number, string> = { 2: '#d9dde8', 3: '#e39a6a' }
 const pct = (s: PlayerStats): number => Math.round(s.score_percent)
+
+// Kept alive (App.vue): back on this page, refresh behind what it shows.
+onRevisit(async () => {
+  try {
+    stats.value = await getHallOfFame()
+  } catch {
+    // keep what is on screen
+  }
+})
 </script>
 
 <template>

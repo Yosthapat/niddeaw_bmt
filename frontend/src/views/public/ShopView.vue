@@ -6,6 +6,7 @@ import type { Product, SaleType } from '@/types'
 import ProductCard from '@/components/shop/ProductCard.vue'
 import CartLink from '@/components/shop/CartLink.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
+import { onRevisit } from '@/composables/useRevisit'
 import PageBanner from '@/components/common/PageBanner.vue'
 
 const { t } = useI18n()
@@ -35,6 +36,15 @@ const chips = computed<{ id: SaleType | 'all'; label: string }[]>(() => [
   { id: 'stock', label: t('shop.filterStock') },
   { id: 'preorder', label: t('shop.filterPreorder') },
 ])
+
+// Kept alive (App.vue): back on this page, refresh behind what it shows.
+onRevisit(async () => {
+  try {
+    products.value = await getShopProducts()
+  } catch {
+    // keep what is on screen
+  }
+})
 </script>
 
 <template>
