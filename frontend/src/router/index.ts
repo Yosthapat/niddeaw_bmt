@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { nextPage } from '@/composables/usePageSwap'
 import { useAuthStore } from '@/stores/auth'
 
 declare module 'vue-router' {
@@ -12,8 +13,17 @@ const router = createRouter({
   // Reset scroll to top on every new navigation (App.vue's page transition
   // unmounts the old view, so landing mid-scroll on the new one reads as
   // broken) — except back/forward, which restores where the user was.
-  scrollBehavior(_to, _from, savedPosition) {
-    return savedPosition ?? { top: 0 }
+  // Between two public pages the scroll waits for the new page to go in:
+  // done at once, it moved the old page while it was still fading out (see
+  // usePageSwap.ts). Anything without that fade scrolls straight away.
+  scrollBehavior(to, from, savedPosition) {
+    const target = savedPosition ?? { top: 0 }
+    const fades =
+      from.matched.length > 0 &&
+      to.path !== from.path &&
+      !to.path.startsWith('/admin') &&
+      !from.path.startsWith('/admin')
+    return fades ? nextPage().then(() => target) : target
   },
   routes: [
     // Public — read-only, no auth guard.

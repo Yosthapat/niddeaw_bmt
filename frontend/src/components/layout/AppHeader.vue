@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute } from 'vue-router'
 import { setLocale } from '@/i18n'
 import LanguageSwitcher from './LanguageSwitcher.vue'
+import { shownPath } from '@/composables/usePageSwap'
 
 const route = useRoute()
 const { t, locale } = useI18n()
@@ -16,7 +17,23 @@ const { t, locale } = useI18n()
 const isAdmin = computed(() => route.path.startsWith('/admin'))
 // The menu and search pages are full screens with their own back arrow,
 // the way Facebook opens them; the bar would only be a second way out.
-const ownBar = computed(() => route.path === '/menu' || route.path === '/search')
+// Read off the page on screen, not the route: the route changes as ☰ is
+// tapped, while the page it leaves is still fading out underneath.
+const ownBar = computed(() => {
+  const path = shownPath.value ?? route.path
+  return path === '/menu' || path === '/search'
+})
+
+// ☰ and 🔍 are the two things tapped first on a phone; fetch their pages
+// while the phone is idle, so the first tap has nothing to wait for.
+onMounted(() => {
+  const warm = (): void => {
+    void import('@/views/public/MenuView.vue')
+    void import('@/views/public/SearchView.vue')
+  }
+  if ('requestIdleCallback' in window) window.requestIdleCallback(warm)
+  else setTimeout(warm, 2000)
+})
 
 // One tap flips the language on a phone: with two languages a dropdown is
 // a tap more than it needs to be.
