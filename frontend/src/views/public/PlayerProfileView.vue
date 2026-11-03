@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { getPlayerProfile } from '@/api/public'
@@ -7,6 +7,7 @@ import type { PlayerProfile } from '@/types'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import ProfileFlipCard from '@/components/players/ProfileFlipCard.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
+import PageBanner from '@/components/common/PageBanner.vue'
 import CountUp from '@/components/common/CountUp.vue'
 import PlayerLiveStatus from '@/components/players/PlayerLiveStatus.vue'
 import PlayerSeasonMatches from '@/components/players/PlayerSeasonMatches.vue'
@@ -62,127 +63,153 @@ watch(
   },
   { immediate: true },
 )
+
+const eyebrow = computed(() => (profile.value ? `Member · ${profile.value.player.member_code}` : 'Member'))
+const bannerSub = computed(() => {
+  const p = profile.value
+  if (!p) return undefined
+  const hand = p.player.dominant_hand
+  return [
+    `${t('profile.eloRank')} #${p.elo_rank} / ${p.total_ranked_players}`,
+    hand ? (hand === 'left' ? t('profile.leftHanded') : t('profile.rightHanded')) : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+})
 </script>
 
 <template>
-  <!-- the world the rest of the site stands in, behind this page too -->
-  <div class="home-world">
-    <main class="mx-auto max-w-2xl px-4 py-8 sm:py-12">
-      <RouterLink to="/members" class="text-sm font-semibold text-brand-pink/70 hover:text-brand-pink">
-        &larr; {{ t('profile.backToMembers') }}
-      </RouterLink>
-
-      <div v-if="loading" class="mt-6 space-y-3">
-        <HudSkeletonBlock class="mx-auto h-44 w-44 sm:h-60 sm:w-60" />
-        <HudSkeletonBlock :delay="90" class="h-24" />
+  <main class="pb-12 sm:pb-20">
+    <PageBanner :eyebrow="eyebrow" :title="profile?.player.nickname ?? t('nav.members')" :sub="bannerSub" mascot="/hero/cat-color.webp">
+      <div class="flex flex-wrap items-center gap-2">
+        <RouterLink to="/members" class="glass-pill"><span aria-hidden="true">←</span> {{ t('profile.backToMembers') }}</RouterLink>
+        <span v-if="profile?.player.tiktok" class="glass-pill">TikTok {{ profile.player.tiktok }}</span>
+        <span v-if="profile?.player.instagram" class="glass-pill">IG {{ profile.player.instagram }}</span>
       </div>
-      <p v-else-if="error || !profile" class="mt-6 text-status-error">{{ error }}</p>
+    </PageBanner>
 
-      <template v-else>
-        <div v-reveal class="mt-6">
-          <ProfileFlipCard :profile="profile" />
-          <p v-if="profile.player.quote" class="mx-auto mt-4 max-w-xs text-center text-sm text-white/55 italic">
-            "{{ profile.player.quote }}"
-          </p>
-          <div class="mt-3 flex flex-wrap items-center justify-center gap-1.5 text-xs text-white/60">
-            <span>{{ t('profile.eloRank') }} <span class="font-semibold text-brand-pink">#{{ profile.elo_rank }}</span> / {{ profile.total_ranked_players }}</span>
-            <template v-if="profile.player.dominant_hand">
-              <span aria-hidden="true">·</span>
-              <span>{{ profile.player.dominant_hand === 'left' ? t('profile.leftHanded') : t('profile.rightHanded') }}</span>
-            </template>
-            <span v-if="profile.player.tiktok" class="hud-panel glass-panel border border-brand-pink/20 px-2.5 py-1">TikTok {{ profile.player.tiktok }}</span>
-            <span v-if="profile.player.instagram" class="hud-panel glass-panel border border-brand-pink/20 px-2.5 py-1">IG {{ profile.player.instagram }}</span>
-          </div>
-          <div class="mx-auto mt-4 flex max-w-xs gap-2">
-            <button type="button" class="tap flex-1 rounded-full border border-white/20 px-4 text-sm text-white/80" @click="toMatches">
-              {{ t('card.matchHistory') }}
-            </button>
-            <button type="button" class="tap flex-1 rounded-full bg-brand-pink px-4 text-sm font-semibold text-brand-black" @click="share">
-              {{ shared ? t('card.copied') : t('card.share') }}
-            </button>
-          </div>
+    <div class="home-world">
+      <div class="mx-auto max-w-[1100px] px-3 pt-5 sm:px-6 sm:pt-8">
+        <div v-if="loading" class="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
+          <HudSkeletonBlock class="mx-auto aspect-[3/4.2] w-full max-w-[340px] rounded-[22px]" />
+          <HudSkeletonBlock :delay="90" class="h-40 rounded-[22px]" />
         </div>
+        <p v-else-if="error || !profile" class="world-card p-5 text-status-error">{{ error }}</p>
 
-        <!-- Keyed on the player id: this view swaps profiles by watching the
-             route param without remounting, so without a key these two would
-             keep the previous member's polled state and match pages. -->
-        <PlayerLiveStatus :key="`live-${profile.player.id}`" :player-id="profile.player.id" />
-
-        <div v-reveal="1" class="mt-8 grid grid-cols-3 gap-2.5 sm:grid-cols-6">
-          <div class="hud-panel glass-panel border border-brand-pink/20 p-3 text-center">
-            <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('common.game') }}</p>
-            <p class="mt-1 font-display text-xl font-bold"><CountUp :value="profile.games" /></p>
-          </div>
-          <div class="hud-panel glass-panel border border-brand-pink/20 p-3 text-center">
-            <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('common.win') }}</p>
-            <p class="mt-1 font-display text-xl font-bold text-status-success"><CountUp :value="profile.wins" /></p>
-          </div>
-          <div class="hud-panel glass-panel border border-brand-pink/20 p-3 text-center">
-            <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('common.draw') }}</p>
-            <p class="mt-1 font-display text-xl font-bold text-white/70"><CountUp :value="profile.draws" /></p>
-          </div>
-          <div class="hud-panel glass-panel border border-brand-pink/20 p-3 text-center">
-            <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('common.loss') }}</p>
-            <p class="mt-1 font-display text-xl font-bold text-status-error"><CountUp :value="profile.losses" /></p>
-          </div>
-          <div class="hud-panel glass-panel border border-brand-pink/40 p-3 text-center">
-            <p class="text-xs tracking-wide text-white/40 uppercase">Pts</p>
-            <p class="mt-1 font-display text-xl font-bold text-brand-pink"><CountUp :value="profile.points" /></p>
-          </div>
-          <div class="hud-panel glass-panel border border-brand-pink/20 p-3 text-center">
-            <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('common.scorePercent') }}</p>
-            <p class="mt-1 font-display text-xl font-bold">{{ profile.score_percent.toFixed(1) }}</p>
-          </div>
-        </div>
-
-        <section v-if="profile.nemesis" v-reveal="2" class="hud-panel glass-panel mt-8 border border-brand-pink/20 p-4">
-          <h2 class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">{{ t('profile.nemesis') }}</h2>
-          <div class="mt-3 flex items-center gap-3">
-            <PlayerAvatar
-              :name="profile.nemesis.player.nickname"
-              :avatar-url="profile.nemesis.player.avatar_url"
-              size="md"
-            />
-            <div class="flex-1">
-              <RouterLink
-                :to="`/members/${profile.nemesis.player.id}`"
-                class="font-medium text-brand-pink hover:underline"
-              >
-                {{ profile.nemesis.player.nickname }}
-              </RouterLink>
-              <p class="text-xs text-white/40">
-                {{ t('profile.encountered') }} {{ profile.nemesis.encounters }} {{ t('profile.times') }} · {{ t('common.win') }}
-                {{ profile.nemesis.wins }} · {{ t('common.loss') }} {{ profile.nemesis.losses }} · {{ t('common.draw') }}
-                {{ profile.nemesis.draws }}
-              </p>
+        <div v-else class="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)] lg:items-start lg:gap-8">
+          <!-- the card stays in view on a desktop while the history scrolls -->
+          <div v-reveal class="lg:sticky lg:top-[calc(var(--header-h)+16px)]">
+            <div class="mx-auto max-w-[340px]">
+              <ProfileFlipCard :profile="profile" />
+            </div>
+            <p v-if="profile.player.quote" class="mx-auto mt-4 max-w-xs text-center text-sm text-white/65 italic">
+              "{{ profile.player.quote }}"
+            </p>
+            <div class="mx-auto mt-4 flex max-w-[340px] gap-2">
+              <button type="button" class="glass-pill flex-1 justify-center" @click="toMatches">
+                {{ t('card.matchHistory') }}
+              </button>
+              <button type="button" class="tap flex-1 rounded-full bg-gradient-to-b from-[#ff8fd0] to-[#ea4ca4] px-4 text-sm font-semibold text-[#1a0410] shadow-[0_4px_14px_rgb(234_76_164/0.5)]" @click="share">
+                {{ shared ? t('card.copied') : t('card.share') }}
+              </button>
             </div>
           </div>
-        </section>
-        <p v-else class="mt-8 text-center text-sm text-white/40">{{ t('profile.noNemesis') }}</p>
 
-        <section v-if="profile.similar_players.length > 0" class="mt-8">
-          <h2 class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">
-            {{ t('profile.similarLevel') }}
-          </h2>
-          <ul class="mt-3 flex flex-wrap gap-2">
-            <li v-for="p in profile.similar_players" :key="p.id">
-              <RouterLink
-                :to="`/members/${p.id}`"
-                class="hud-panel glass-panel hud-hover flex items-center gap-2 border border-brand-pink/20 px-3 py-1.5 hover:border-brand-pink/50"
-              >
-                <PlayerAvatar :name="p.nickname" :avatar-url="p.avatar_url" size="sm" />
-                <span class="text-sm font-medium text-white/80">{{ p.nickname }}</span>
+          <div class="min-w-0">
+            <dl v-reveal="1" class="grid grid-cols-3 gap-2.5 sm:grid-cols-6">
+              <div class="tile world-card">
+                <dt>{{ t('common.game') }}</dt>
+                <dd><CountUp :value="profile.games" /></dd>
+              </div>
+              <div class="tile world-card">
+                <dt>{{ t('common.win') }}</dt>
+                <dd class="text-status-success"><CountUp :value="profile.wins" /></dd>
+              </div>
+              <div class="tile world-card">
+                <dt>{{ t('common.draw') }}</dt>
+                <dd class="text-white/75"><CountUp :value="profile.draws" /></dd>
+              </div>
+              <div class="tile world-card">
+                <dt>{{ t('common.loss') }}</dt>
+                <dd class="text-status-error"><CountUp :value="profile.losses" /></dd>
+              </div>
+              <div class="tile world-card !border-brand-pink/45">
+                <dt>Pts</dt>
+                <dd class="text-brand-pink-light"><CountUp :value="profile.points" /></dd>
+              </div>
+              <div class="tile world-card">
+                <dt>{{ t('common.scorePercent') }}</dt>
+                <dd>{{ profile.score_percent.toFixed(1) }}</dd>
+              </div>
+            </dl>
+
+            <!-- Keyed on the player id: this view swaps profiles by watching the
+                 route param without remounting, so without a key these two would
+                 keep the previous member's polled state and match pages. -->
+            <PlayerLiveStatus :key="`live-${profile.player.id}`" :player-id="profile.player.id" />
+
+            <section v-if="profile.nemesis" v-reveal="2" class="world-card mt-6 p-5">
+              <p class="world-eyebrow">NEMESIS</p>
+              <h2 class="world-title mt-1 text-lg">{{ t('profile.nemesis') }}</h2>
+              <RouterLink :to="`/members/${profile.nemesis.player.id}`" class="mt-3 flex items-center gap-3 rounded-2xl hover:bg-white/5">
+                <PlayerAvatar :name="profile.nemesis.player.nickname" :avatar-url="profile.nemesis.player.avatar_url" size="md" round />
+                <div class="min-w-0 flex-1">
+                  <p class="truncate font-display font-bold text-brand-pink-light">{{ profile.nemesis.player.nickname }}</p>
+                  <p class="text-xs text-white/55">
+                    {{ t('profile.encountered') }} {{ profile.nemesis.encounters }} {{ t('profile.times') }} · {{ t('common.win') }}
+                    {{ profile.nemesis.wins }} · {{ t('common.loss') }} {{ profile.nemesis.losses }} · {{ t('common.draw') }}
+                    {{ profile.nemesis.draws }}
+                  </p>
+                </div>
               </RouterLink>
-            </li>
-          </ul>
-        </section>
+            </section>
+            <p v-else class="world-card mt-6 p-5 text-center text-sm text-white/55">{{ t('profile.noNemesis') }}</p>
 
-        <PlayerShopOrders :player-id="profile.player.id" />
+            <section v-if="profile.similar_players.length > 0" class="mt-6">
+              <p class="world-eyebrow">SAME LEVEL</p>
+              <h2 class="world-title mt-1 text-lg">{{ t('profile.similarLevel') }}</h2>
+              <ul class="mt-3 flex flex-wrap gap-2">
+                <li v-for="p in profile.similar_players" :key="p.id">
+                  <RouterLink :to="`/members/${p.id}`" class="glass-pill !pl-1.5">
+                    <PlayerAvatar :name="p.nickname" :avatar-url="p.avatar_url" size="sm" round />
+                    <span class="font-medium">{{ p.nickname }}</span>
+                  </RouterLink>
+                </li>
+              </ul>
+            </section>
 
-        <div ref="matchesAnchor" class="scroll-mt-24">
-          <PlayerSeasonMatches :key="`seasons-${profile.player.id}`" :player-id="profile.player.id" />
+            <PlayerShopOrders :player-id="profile.player.id" />
+
+            <div ref="matchesAnchor" class="scroll-mt-24">
+              <PlayerSeasonMatches :key="`seasons-${profile.player.id}`" :player-id="profile.player.id" />
+            </div>
+          </div>
         </div>
-      </template>
-    </main>
-  </div>
+      </div>
+    </div>
+  </main>
 </template>
+
+<style scoped>
+.tile {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 6px;
+  border-radius: 18px;
+  text-align: center;
+}
+.tile dt {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: rgb(255 255 255 / 0.55);
+  text-transform: uppercase;
+}
+.tile dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+}
+</style>

@@ -11,6 +11,7 @@ import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
+import PageBanner from '@/components/common/PageBanner.vue'
 import { apiErrorMessage } from '@/api/errors'
 
 const route = useRoute()
@@ -62,18 +63,32 @@ function statusFor(side: 'team1' | 'team2'): 'win' | 'loss' | 'draw' | null {
   return winner === side ? 'win' : 'loss'
 }
 
-function statusLabel(side: 'team1' | 'team2'): string {
+// The plate on each team's card, in the same words as the match log.
+function plate(side: 'team1' | 'team2'): string {
   const status = statusFor(side)
   if (status === 'win') return t('matches.win')
   if (status === 'draw') return t('matches.draw')
-  if (status === 'loss') return t('matches.loss')
+  if (status === 'loss') return t('matches.lose')
   return t('matches.inProgress')
 }
 
-const setsLabel = computed(() => {
-  const sets = detail.value?.match.sets
-  if (!sets || sets.length === 0) return '-'
-  return sets.map(([a, b]) => `${a}-${b}`).join('  ·  ')
+// The banner says how it ended, since there is no score to show.
+const headline = computed(() => {
+  const winner = detail.value?.match.winner
+  if (!detail.value) return t('nav.matches')
+  if (!winner) return t('matches.inProgress')
+  if (winner === 'draw') return t('common.draw')
+  return `${teamLabel(winner)} ${t('matchRecord.wins')}`
+})
+const eyebrow = computed(() => {
+  const m = detail.value?.match
+  if (!m) return 'Match'
+  return [
+    typeof m.match_no === 'number' ? `Match #${m.match_no}` : 'Match',
+    m.court ? t('home.live.court', { court: m.court }) : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
 })
 
 const durationLabel = computed(() => {
@@ -86,6 +101,7 @@ const dateLabel = computed(() => {
   if (!detail.value) return ''
   return formatDateTime(detail.value.match.created_at, locale.value)
 })
+const sub = computed(() => [dateLabel.value, durationLabel.value].filter(Boolean).join(' · '))
 
 // See PlayerProfileView.vue for why this watches the param instead of
 // onMounted.
@@ -107,182 +123,195 @@ watch(
 </script>
 
 <template>
-  <main class="mx-auto max-w-3xl px-4 py-8 sm:py-12">
-    <RouterLink to="/matches" class="text-sm font-semibold text-brand-pink/70 hover:text-brand-pink">
-      &larr; {{ t('matches.backToMatches') }}
-    </RouterLink>
+  <main class="pb-12 sm:pb-20">
+    <PageBanner :eyebrow="eyebrow" :title="headline" :sub="sub" mascot="/tiers/wine.webp">
+      <RouterLink to="/matches" class="glass-pill">
+        <span aria-hidden="true">←</span> {{ t('matches.backToMatches') }}
+      </RouterLink>
+    </PageBanner>
 
-    <div v-if="loading" class="mt-8 grid grid-cols-2 gap-4">
-      <HudSkeletonBlock class="h-64" />
-      <HudSkeletonBlock :delay="80" class="h-64" />
-    </div>
-    <p v-else-if="error || !detail" class="mt-6 text-status-error">{{ error }}</p>
-
-    <template v-else>
-      <div v-reveal class="mt-6 text-center">
-        <p
-          v-if="typeof detail.match.match_no === 'number'"
-          class="font-mono text-sm font-semibold text-brand-pink/80"
-        >
-          #{{ detail.match.match_no }}
-        </p>
-        <p class="mt-1 text-xs tracking-widest text-white/40 uppercase">
-          {{ t('matches.typeLabel') }}
-          · {{ dateLabel }}
-          <span v-if="durationLabel"> · {{ durationLabel }}</span>
-        </p>
-        <p class="mt-2 font-display text-2xl font-bold text-white">{{ setsLabel }}</p>
-        <p v-if="detail.match.winner === 'draw'" class="mt-1 text-sm text-white/40">{{ t('common.draw') }}</p>
-      </div>
-
-      <div class="mt-8 grid grid-cols-2 gap-4">
-        <div
-          v-reveal="1"
-          v-tilt="statusFor('team1') === 'win'"
-          class="hud-panel glass-panel border p-4"
-          :class="[
-            statusFor('team1') === 'win' ? 'float-idle border-brand-pink' : 'border-brand-pink/15 opacity-70',
-          ]"
-        >
-          <div class="flex justify-center">
-            <span class="stamp-badge" :class="`stamp-badge--${statusFor('team1') ?? 'pending'}`">
-              {{ statusLabel('team1') }}
-            </span>
-          </div>
-          <div v-for="stat in detail.team1" :key="stat.player.id" class="mt-4 flex flex-col items-center gap-2">
-            <RouterLink :to="`/members/${stat.player.id}`">
-              <PlayerAvatar :name="stat.player.nickname" :avatar-url="stat.player.avatar_url" size="lg" />
-            </RouterLink>
-            <RouterLink
-              :to="`/members/${stat.player.id}`"
-              class="font-display font-semibold text-white hover:text-brand-pink"
-            >
-              {{ stat.player.nickname }}
-            </RouterLink>
-            <TierMascot :tier="stat.player.elo_level" :size="32" />
-            <EloBadge :elo-score="stat.player.elo_score" show-score />
-            <dl class="mt-1 grid grid-cols-3 gap-x-3 gap-y-1 text-center text-xs text-white/50">
-              <div><dt class="uppercase">Rank</dt><dd class="font-semibold text-white/80">#{{ stat.elo_rank }}</dd></div>
-              <div><dt class="uppercase">Game</dt><dd class="font-semibold text-white/80">{{ stat.games }}</dd></div>
-              <div><dt class="uppercase">Sc%</dt><dd class="font-semibold text-white/80">{{ stat.score_percent.toFixed(0) }}</dd></div>
-              <div><dt class="uppercase">W</dt><dd class="font-semibold text-status-success">{{ stat.wins }}</dd></div>
-              <div><dt class="uppercase">D</dt><dd class="font-semibold text-white/70">{{ stat.draws }}</dd></div>
-              <div><dt class="uppercase">L</dt><dd class="font-semibold text-status-error">{{ stat.losses }}</dd></div>
-            </dl>
-          </div>
+    <div class="home-world">
+      <div class="mx-auto max-w-[1000px] px-3 pt-5 sm:px-6 sm:pt-8">
+        <div v-if="loading" class="grid gap-4 sm:grid-cols-2">
+          <HudSkeletonBlock class="h-72 rounded-[22px]" />
+          <HudSkeletonBlock :delay="80" class="h-72 rounded-[22px]" />
         </div>
+        <p v-else-if="error || !detail" class="world-card p-5 text-status-error">{{ error }}</p>
 
-        <div
-          v-reveal="2"
-          v-tilt="statusFor('team2') === 'win'"
-          class="hud-panel glass-panel border p-4"
-          :class="[
-            statusFor('team2') === 'win' ? 'float-idle border-brand-pink' : 'border-brand-pink/15 opacity-70',
-          ]"
-        >
-          <div class="flex justify-center">
-            <span class="stamp-badge" :class="`stamp-badge--${statusFor('team2') ?? 'pending'}`">
-              {{ statusLabel('team2') }}
-            </span>
-          </div>
-          <div v-for="stat in detail.team2" :key="stat.player.id" class="mt-4 flex flex-col items-center gap-2">
-            <RouterLink :to="`/members/${stat.player.id}`">
-              <PlayerAvatar :name="stat.player.nickname" :avatar-url="stat.player.avatar_url" size="lg" />
-            </RouterLink>
-            <RouterLink
-              :to="`/members/${stat.player.id}`"
-              class="font-display font-semibold text-white hover:text-brand-pink"
-            >
-              {{ stat.player.nickname }}
-            </RouterLink>
-            <TierMascot :tier="stat.player.elo_level" :size="32" />
-            <EloBadge :elo-score="stat.player.elo_score" show-score />
-            <dl class="mt-1 grid grid-cols-3 gap-x-3 gap-y-1 text-center text-xs text-white/50">
-              <div><dt class="uppercase">Rank</dt><dd class="font-semibold text-white/80">#{{ stat.elo_rank }}</dd></div>
-              <div><dt class="uppercase">Game</dt><dd class="font-semibold text-white/80">{{ stat.games }}</dd></div>
-              <div><dt class="uppercase">Sc%</dt><dd class="font-semibold text-white/80">{{ stat.score_percent.toFixed(0) }}</dd></div>
-              <div><dt class="uppercase">W</dt><dd class="font-semibold text-status-success">{{ stat.wins }}</dd></div>
-              <div><dt class="uppercase">D</dt><dd class="font-semibold text-white/70">{{ stat.draws }}</dd></div>
-              <div><dt class="uppercase">L</dt><dd class="font-semibold text-status-error">{{ stat.losses }}</dd></div>
-            </dl>
-          </div>
-        </div>
-      </div>
-
-      <section v-if="canEdit" class="mt-10 border-t border-brand-pink/15 pt-6">
-        <button
-          v-if="!editOpen"
-          type="button"
-          class="hud-hover rounded-full border border-brand-pink/40 px-4 py-1.5 text-sm font-semibold text-brand-pink hover:bg-brand-pink hover:text-brand-black"
-          @click="editOpen = true"
-        >
-          {{ t('matchRecord.editResult') }}
-        </button>
         <template v-else>
-          <p class="text-sm text-white/60">{{ t('matchRecord.editResultHint') }}</p>
-          <div class="mt-3 space-y-2">
-            <button
-              v-for="option in [
-                { winner: 'team1' as MatchWinner, label: `${teamLabel('team1')} ${t('matchRecord.wins')}` },
-                { winner: 'draw' as MatchWinner, label: t('common.draw') },
-                { winner: 'team2' as MatchWinner, label: `${teamLabel('team2')} ${t('matchRecord.wins')}` },
-              ]"
-              :key="option.winner"
-              type="button"
-              :disabled="editing"
-              class="hud-hover w-full rounded-lg border px-3 py-2.5 text-sm font-semibold disabled:opacity-50"
-              :class="
-                detail.match.winner === option.winner
-                  ? 'border-brand-pink bg-brand-pink/15 text-brand-pink'
-                  : 'border-brand-pink/25 bg-brand-surface text-white/80 hover:border-brand-pink'
-              "
-              @click="fixResult(option.winner)"
+          <div class="grid gap-4 sm:grid-cols-2 sm:gap-5">
+            <section
+              v-for="(side, i) in (['team1', 'team2'] as const)"
+              :key="side"
+              v-reveal="i"
+              class="world-card team-card p-4 sm:p-5"
+              :class="statusFor(side) ?? 'pending'"
+              :aria-label="teamLabel(side)"
             >
-              {{ option.label }}
-            </button>
+              <div class="flex items-center justify-between gap-3">
+                <p class="world-eyebrow">TEAM {{ i + 1 }}</p>
+                <span class="plate">{{ plate(side) }}</span>
+              </div>
+              <div
+                v-for="stat in side === 'team1' ? detail.team1 : detail.team2"
+                :key="stat.player.id"
+                class="player mt-4"
+              >
+                <div class="flex items-center gap-3">
+                  <RouterLink :to="`/members/${stat.player.id}`" class="ring shrink-0">
+                    <PlayerAvatar :name="stat.player.nickname" :avatar-url="stat.player.avatar_url" size="lg" round />
+                  </RouterLink>
+                  <div class="min-w-0 flex-1">
+                    <RouterLink
+                      :to="`/members/${stat.player.id}`"
+                      class="block truncate font-display text-lg font-bold text-white hover:text-brand-pink-light"
+                    >
+                      {{ stat.player.nickname }}
+                    </RouterLink>
+                    <span class="mt-1 inline-flex items-center gap-1.5">
+                      <TierMascot :tier="stat.player.elo_level" :size="24" :interactive="false" />
+                      <EloBadge :elo-score="stat.player.elo_score" show-score />
+                    </span>
+                  </div>
+                </div>
+                <dl class="stats mt-3">
+                  <div><dt>Rank</dt><dd>#{{ stat.elo_rank }}</dd></div>
+                  <div><dt>{{ t('common.game') }}</dt><dd>{{ stat.games }}</dd></div>
+                  <div><dt>Sc%</dt><dd>{{ stat.score_percent.toFixed(0) }}</dd></div>
+                  <div><dt>W</dt><dd class="text-status-success">{{ stat.wins }}</dd></div>
+                  <div><dt>D</dt><dd class="text-white/70">{{ stat.draws }}</dd></div>
+                  <div><dt>L</dt><dd class="text-status-error">{{ stat.losses }}</dd></div>
+                </dl>
+              </div>
+            </section>
           </div>
-          <button type="button" class="mt-3 text-sm text-white/50" @click="editOpen = false">
-            {{ t('common.cancel') }}
-          </button>
+
+          <section v-if="canEdit" class="world-card mt-6 p-5">
+            <button
+              v-if="!editOpen"
+              type="button"
+              class="tap rounded-full border border-brand-pink/50 px-4 text-sm font-semibold text-brand-pink-light hover:bg-brand-pink hover:text-brand-black"
+              @click="editOpen = true"
+            >
+              {{ t('matchRecord.editResult') }}
+            </button>
+            <template v-else>
+              <p class="text-sm text-white/65">{{ t('matchRecord.editResultHint') }}</p>
+              <div class="mt-3 space-y-2">
+                <button
+                  v-for="option in [
+                    { winner: 'team1' as MatchWinner, label: `${teamLabel('team1')} ${t('matchRecord.wins')}` },
+                    { winner: 'draw' as MatchWinner, label: t('common.draw') },
+                    { winner: 'team2' as MatchWinner, label: `${teamLabel('team2')} ${t('matchRecord.wins')}` },
+                  ]"
+                  :key="option.winner"
+                  type="button"
+                  :disabled="editing"
+                  class="min-h-11 w-full rounded-2xl border px-3 text-sm font-semibold disabled:opacity-50"
+                  :class="
+                    detail.match.winner === option.winner
+                      ? 'border-brand-pink bg-brand-pink/15 text-brand-pink-light'
+                      : 'border-white/15 bg-white/5 text-white/80 hover:border-brand-pink'
+                  "
+                  @click="fixResult(option.winner)"
+                >
+                  {{ option.label }}
+                </button>
+              </div>
+              <button type="button" class="tap mt-2 text-sm text-white/55" @click="editOpen = false">
+                {{ t('common.cancel') }}
+              </button>
+            </template>
+            <p v-if="editing" class="mt-3 text-sm text-white/55">{{ t('matchRecord.editing') }}</p>
+            <p v-if="editError" class="mt-3 text-sm text-status-error">{{ editError }}</p>
+            <p v-if="editDone" class="mt-3 text-sm text-status-success">{{ t('matchRecord.edited') }}</p>
+          </section>
         </template>
-        <p v-if="editing" class="mt-3 text-sm text-white/50">{{ t('matchRecord.editing') }}</p>
-        <p v-if="editError" class="mt-3 text-sm text-status-error">{{ editError }}</p>
-        <p v-if="editDone" class="mt-3 text-sm text-status-success">{{ t('matchRecord.edited') }}</p>
-      </section>
-    </template>
+      </div>
+    </div>
   </main>
 </template>
 
 <style scoped>
-.stamp-badge {
-  display: inline-block;
-  rotate: -8deg;
+/* The winners lit gold like the match log's WIN row, the losers dimmed. */
+.team-card.win {
+  border-color: rgb(255 211 77 / 0.5);
+  background:
+    radial-gradient(90% 60% at 50% 0%, rgb(255 211 77 / 0.16), transparent 70%),
+    linear-gradient(135deg, rgb(255 255 255 / 0.12), rgb(255 255 255 / 0.03) 55%, rgb(255 255 255 / 0.07)),
+    rgb(24 10 46 / 0.6);
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 0.35),
+    0 22px 44px -22px rgb(255 211 77 / 0.55),
+    0 10px 28px rgb(6 0 20 / 0.45);
+}
+.team-card.loss {
+  opacity: 0.72;
+}
+.player + .player {
+  padding-top: 16px;
+  border-top: 1px solid rgb(255 255 255 / 0.08);
+}
+.ring {
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.22);
+}
+.win .ring {
+  box-shadow:
+    0 0 0 2px #ffd34d,
+    0 0 14px rgb(255 211 77 / 0.45);
+}
+.plate {
+  display: inline-flex;
+  min-width: 64px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border: 1px solid rgb(255 255 255 / 0.14);
+  border-radius: 999px;
   font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 0.75rem;
+  font-size: 12px;
+  font-weight: 700;
   letter-spacing: 0.08em;
+  color: rgb(255 255 255 / 0.5);
+}
+.win .plate {
+  border: 0;
+  background: linear-gradient(#ffe58a, #ffc94d);
+  color: #2a1a00;
+  box-shadow: 0 0 16px rgb(255 201 77 / 0.6);
+}
+.draw .plate {
+  border-color: rgb(255 255 255 / 0.22);
+  background: rgb(255 255 255 / 0.12);
+  color: rgb(255 255 255 / 0.88);
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+  padding: 8px 6px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 14px;
+  background: rgb(255 255 255 / 0.05);
+  text-align: center;
+}
+.stats div {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+}
+.stats dt {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: rgb(255 255 255 / 0.5);
   text-transform: uppercase;
-  padding: 0.15rem 0.75rem;
-  border-radius: 0.25rem;
-  border-width: 2px;
-  border-style: solid;
 }
-.stamp-badge--win {
-  color: var(--color-status-success);
-  border-color: var(--color-status-success);
-}
-.stamp-badge--loss {
-  color: rgb(255 255 255 / 0.4);
-  border-color: rgb(255 255 255 / 0.2);
-  rotate: 8deg;
-}
-.stamp-badge--draw {
-  color: var(--color-tier-milk);
-  border-color: var(--color-tier-milk);
-}
-.stamp-badge--pending {
-  color: rgb(255 255 255 / 0.4);
-  border-color: rgb(255 255 255 / 0.2);
-  border-style: dashed;
+.stats dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
 }
 </style>

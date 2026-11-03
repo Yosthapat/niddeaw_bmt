@@ -232,7 +232,6 @@ export default {
     withPartner: 'คู่กับ',
     against: 'พบกับ',
     queuePosition: 'คิวที่ {n}',
-    estimatedWait: 'รออีกประมาณ',
     myMatches: 'แมตช์ของฉัน',
     seasonLabel: 'Season {n}',
     noSeasons: 'ยังไม่มีซีซั่น (ยังไม่มี session)',
