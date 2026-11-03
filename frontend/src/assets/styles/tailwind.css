@@ -423,6 +423,43 @@ button:not(:disabled):active {
     0 0 2px rgb(255 255 255 / 0.6);
 }
 
+/* A row of choices on glass — the period on the ranking page, what kind
+   of product in the shop. The one picked is a lit pink pill. */
+.seg {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.08);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.seg-btn {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 14px;
+  color: rgb(255 255 255 / 0.75);
+  transition: background 0.2s;
+}
+.seg-btn:hover {
+  color: #fff;
+}
+@media (max-width: 639px) {
+  .seg-btn {
+    padding: 0 12px;
+  }
+}
+.seg-btn.on {
+  background: linear-gradient(#ff8fd0, #ea4ca4);
+  color: #1a0410;
+  font-weight: 500;
+  box-shadow: 0 4px 14px rgb(234 76 164 / 0.5);
+}
+
 /* How much room the header takes at the top of the page: the solid
    phone bar, then from 900px the floating glass one. The home hero (wide
    screens only) pulls itself up by exactly this much to run underneath it. */

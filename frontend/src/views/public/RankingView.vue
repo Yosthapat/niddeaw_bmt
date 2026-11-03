@@ -151,35 +151,6 @@ const periodLabel = { all: 'ranking.allTime', year: 'ranking.thisYear', day: 'ra
 </template>
 
 <style scoped>
-.seg {
-  display: inline-flex;
-  gap: 4px;
-  padding: 4px;
-  border: 1px solid rgb(255 255 255 / 0.16);
-  border-radius: 999px;
-  background: rgb(255 255 255 / 0.08);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-}
-.seg-btn {
-  display: flex;
-  min-height: 40px;
-  align-items: center;
-  padding: 0 16px;
-  border-radius: 999px;
-  font-size: 14px;
-  color: rgb(255 255 255 / 0.75);
-  transition: background 0.2s;
-}
-.seg-btn:hover {
-  color: #fff;
-}
-.seg-btn.on {
-  background: linear-gradient(#ff8fd0, #ea4ca4);
-  color: #1a0410;
-  font-weight: 500;
-  box-shadow: 0 4px 14px rgb(234 76 164 / 0.5);
-}
 .rank-row {
   display: grid;
   grid-template-columns: 30px 44px minmax(0, 1fr) auto;

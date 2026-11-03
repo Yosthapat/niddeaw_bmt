@@ -134,123 +134,126 @@ function buyNow(): void {
 </script>
 
 <template>
-  <main class="mx-auto max-w-5xl px-4 pt-4 pb-44 sm:pb-12">
-    <div class="flex items-center justify-between gap-3">
-      <RouterLink to="/shop" class="inline-flex min-h-11 items-center gap-1 text-sm text-white/70 hover:text-white">
-        <span aria-hidden="true">←</span> {{ t('shop.back') }}
-      </RouterLink>
-      <CartLink />
-    </div>
+  <!-- the world the rest of the site stands in, behind this page too -->
+  <div class="home-world">
+    <main class="mx-auto max-w-5xl px-4 pt-4 pb-44 sm:pb-12">
+      <div class="flex items-center justify-between gap-3">
+        <RouterLink to="/shop" class="inline-flex min-h-11 items-center gap-1 text-sm text-white/70 hover:text-white">
+          <span aria-hidden="true">←</span> {{ t('shop.back') }}
+        </RouterLink>
+        <CartLink />
+      </div>
 
-    <div v-if="loading" class="mt-3 space-y-3">
-      <HudSkeletonBlock class="aspect-square max-h-80 w-full" />
-      <HudSkeletonBlock :delay="80" class="h-16" />
-    </div>
-    <p v-else-if="error || !product" class="mt-6 text-status-error">{{ error }}</p>
+      <div v-if="loading" class="mt-3 space-y-3">
+        <HudSkeletonBlock class="aspect-square max-h-80 w-full" />
+        <HudSkeletonBlock :delay="80" class="h-16" />
+      </div>
+      <p v-else-if="error || !product" class="mt-6 text-status-error">{{ error }}</p>
 
-    <div v-else class="mt-2 grid gap-6 md:grid-cols-2 md:items-start md:gap-10">
-      <ProductGallery :images="product.image_urls" :name="product.name" class="md:sticky md:top-24">
-        <span v-if="badge" class="pointer-events-none absolute top-3 left-3 rounded-full px-3 py-1.5 text-xs leading-none font-medium" :class="badge.cls">
-          {{ badge.text }}
-        </span>
-      </ProductGallery>
+      <div v-else class="mt-2 grid gap-6 md:grid-cols-2 md:items-start md:gap-10">
+        <ProductGallery :images="product.image_urls" :name="product.name" class="md:sticky md:top-24">
+          <span v-if="badge" class="pointer-events-none absolute top-3 left-3 rounded-full px-3 py-1.5 text-xs leading-none font-medium" :class="badge.cls">
+            {{ badge.text }}
+          </span>
+        </ProductGallery>
 
-      <div class="flex flex-col gap-5">
-        <div class="flex items-end justify-between gap-3">
-          <h1 class="font-display text-2xl leading-tight font-bold sm:text-3xl">{{ product.name }}</h1>
-          <span class="shrink-0 font-display text-2xl font-bold text-brand-pink-light" aria-live="polite">{{ priceLabel }}</span>
-        </div>
+        <div class="flex flex-col gap-5">
+          <div class="flex items-end justify-between gap-3">
+            <h1 class="font-display text-2xl leading-tight font-bold sm:text-3xl">{{ product.name }}</h1>
+            <span class="shrink-0 font-display text-2xl font-bold text-brand-pink-light" aria-live="polite">{{ priceLabel }}</span>
+          </div>
 
-        <dl v-if="isPre" class="grid grid-cols-3 gap-2 rounded-2xl border border-[#ffe14d]/35 bg-[#ffe14d]/8 p-3 text-center">
-          <div><dt class="text-[11px] text-white/65">{{ t('shop.closesOn') }}</dt><dd class="text-sm font-medium">{{ day(product.preorder_closes_on) }}</dd></div>
-          <div><dt class="text-[11px] text-white/65">{{ t('shop.deliversOn') }}</dt><dd class="text-sm font-medium">{{ day(product.preorder_delivers_on) }}</dd></div>
-          <div><dt class="text-[11px] text-white/65">{{ t('shop.orderedSoFar') }}</dt><dd class="text-sm font-medium">{{ t('shop.units', { n: product.ordered }) }}</dd></div>
-        </dl>
+          <dl v-if="isPre" class="grid grid-cols-3 gap-2 rounded-2xl border border-[#ffe14d]/35 bg-[#ffe14d]/8 p-3 text-center">
+            <div><dt class="text-[11px] text-white/65">{{ t('shop.closesOn') }}</dt><dd class="text-sm font-medium">{{ day(product.preorder_closes_on) }}</dd></div>
+            <div><dt class="text-[11px] text-white/65">{{ t('shop.deliversOn') }}</dt><dd class="text-sm font-medium">{{ day(product.preorder_delivers_on) }}</dd></div>
+            <div><dt class="text-[11px] text-white/65">{{ t('shop.orderedSoFar') }}</dt><dd class="text-sm font-medium">{{ t('shop.units', { n: product.ordered }) }}</dd></div>
+          </dl>
 
-        <fieldset v-if="hasSizes" ref="sizesBox" class="sizes flex scroll-mt-24 flex-col gap-2 rounded-2xl" :class="{ nudge }" @animationend="nudge = false">
-          <legend class="mb-2 text-sm font-medium">{{ t('shop.size') }}</legend>
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-for="s in product.sizes"
-              :key="s"
-              type="button"
-              class="size-btn"
-              :aria-pressed="size === s"
-              :disabled="left(s) < 1"
-              :aria-label="left(s) < 1 ? t('shop.sizeSoldOut', { size: s }) : pricesDiffer ? `${s} ${money(priceOf(product, s))}` : s"
-              @click="size = s"
-            >
-              <span>{{ s }}</span>
-              <span v-if="pricesDiffer" class="text-[11px] font-normal opacity-75">{{ money(priceOf(product, s)) }}</span>
+          <fieldset v-if="hasSizes" ref="sizesBox" class="sizes flex scroll-mt-24 flex-col gap-2 rounded-2xl" :class="{ nudge }" @animationend="nudge = false">
+            <legend class="mb-2 text-sm font-medium">{{ t('shop.size') }}</legend>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="s in product.sizes"
+                :key="s"
+                type="button"
+                class="size-btn"
+                :aria-pressed="size === s"
+                :disabled="left(s) < 1"
+                :aria-label="left(s) < 1 ? t('shop.sizeSoldOut', { size: s }) : pricesDiffer ? `${s} ${money(priceOf(product, s))}` : s"
+                @click="size = s"
+              >
+                <span>{{ s }}</span>
+                <span v-if="pricesDiffer" class="text-[11px] font-normal opacity-75">{{ money(priceOf(product, s)) }}</span>
+              </button>
+            </div>
+          </fieldset>
+
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium">{{ t('shop.qty') }}</span>
+            <div class="flex items-center gap-2.5">
+              <button type="button" class="step-btn" :aria-label="t('shop.less')" :disabled="qty <= 1" @click="qty--">−</button>
+              <span aria-live="polite" class="min-w-6 text-center font-display text-xl font-bold">{{ qty }}</span>
+              <button type="button" class="step-btn" :aria-label="t('shop.more')" :disabled="qty >= maxQty" @click="qty++">+</button>
+            </div>
+          </div>
+          <p v-if="sizePicked && inCart(chosenSize) > 0" class="-mt-3 text-right text-xs text-white/60">
+            {{ t('shop.inCartAlready', { n: inCart(chosenSize) }) }}
+          </p>
+          <p v-else-if="!isPre && sizePicked && maxQty > 0 && maxQty < MAX_LINE_QTY" class="-mt-3 text-right text-xs text-white/60">
+            {{ t('shop.maxLeft', { n: maxQty }) }}
+          </p>
+
+          <!-- desktop: the buttons sit under the choices -->
+          <div class="hidden items-center gap-3 md:flex">
+            <span class="font-display text-xl font-bold">{{ sizePicked ? money(price * qty) : priceLabel }}</span>
+            <button type="button" class="ghost-btn flex-1" :disabled="!!blocker" @click="addToCart">
+              {{ blocker ?? (sizePicked ? t('shop.addToCart') : t('shop.needSize')) }}
+            </button>
+            <button v-if="!blocker" type="button" class="buy-btn flex-1" @click="buyNow">
+              {{ isPre ? t('shop.orderPreorder') : t('shop.buyNow') }}
             </button>
           </div>
-        </fieldset>
 
-        <div class="flex items-center justify-between">
-          <span class="text-sm font-medium">{{ t('shop.qty') }}</span>
-          <div class="flex items-center gap-2.5">
-            <button type="button" class="step-btn" :aria-label="t('shop.less')" :disabled="qty <= 1" @click="qty--">−</button>
-            <span aria-live="polite" class="min-w-6 text-center font-display text-xl font-bold">{{ qty }}</span>
-            <button type="button" class="step-btn" :aria-label="t('shop.more')" :disabled="qty >= maxQty" @click="qty++">+</button>
-          </div>
+          <p v-if="product.description" class="text-sm whitespace-pre-line text-white/75">{{ product.description }}</p>
         </div>
-        <p v-if="sizePicked && inCart(chosenSize) > 0" class="-mt-3 text-right text-xs text-white/60">
-          {{ t('shop.inCartAlready', { n: inCart(chosenSize) }) }}
-        </p>
-        <p v-else-if="!isPre && sizePicked && maxQty > 0 && maxQty < MAX_LINE_QTY" class="-mt-3 text-right text-xs text-white/60">
-          {{ t('shop.maxLeft', { n: maxQty }) }}
-        </p>
+      </div>
 
-        <!-- desktop: the buttons sit under the choices -->
-        <div class="hidden items-center gap-3 md:flex">
-          <span class="font-display text-xl font-bold">{{ sizePicked ? money(price * qty) : priceLabel }}</span>
-          <button type="button" class="ghost-btn flex-1" :disabled="!!blocker" @click="addToCart">
-            {{ blocker ?? (sizePicked ? t('shop.addToCart') : t('shop.needSize')) }}
-          </button>
-          <button v-if="!blocker" type="button" class="buy-btn flex-1" @click="buyNow">
-            {{ isPre ? t('shop.orderPreorder') : t('shop.buyNow') }}
-          </button>
+      <p
+        v-if="added"
+        role="status"
+        class="added fixed inset-x-4 bottom-[calc(170px+env(safe-area-inset-bottom,0px))] z-30 mx-auto flex max-w-md items-center justify-between gap-3 rounded-2xl border border-[#7ff0b4]/40 bg-[#10241b] px-4 py-3 text-sm md:bottom-8"
+      >
+        <span>✓ {{ added }}</span>
+        <RouterLink to="/shop/cart" class="font-medium text-[#7ff0b4] underline">{{ t('shop.viewCart', { n: cart.count }) }}</RouterLink>
+      </p>
+
+      <!-- phone: the buy bar above the tab bar -->
+      <div
+        v-if="product && !loading"
+        class="fixed inset-x-0 bottom-[calc(96px+env(safe-area-inset-bottom,0px))] z-20 flex items-center gap-2.5 border-t border-white/8 bg-[#0b0518]/95 px-4 py-3 backdrop-blur md:hidden"
+      >
+        <div class="flex min-w-0 flex-col">
+          <span class="truncate text-xs text-white/65">
+            {{ hasSizes ? t('shop.summary', { size: size || '—', qty }) : t('shop.summaryOne', { qty }) }}
+          </span>
+          <span class="font-display text-lg font-bold whitespace-nowrap">{{ sizePicked ? money(price * qty) : priceLabel }}</span>
         </div>
-
-        <p v-if="product.description" class="text-sm whitespace-pre-line text-white/75">{{ product.description }}</p>
+        <template v-if="blocker">
+          <button type="button" class="buy-btn flex-1" disabled>{{ blocker }}</button>
+        </template>
+        <template v-else-if="!sizePicked">
+          <button type="button" class="buy-btn flex-1" @click="toSizes">{{ t('shop.needSize') }}</button>
+        </template>
+        <template v-else>
+          <button type="button" class="ghost-btn" :aria-label="t('shop.addToCart')" @click="addToCart">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6.2M12 9v5M9.5 11.5h5" /><circle cx="10" cy="20" r="1.2" /><circle cx="17" cy="20" r="1.2" /></svg>
+            <span class="max-[379px]:sr-only">{{ t('shop.addShort') }}</span>
+          </button>
+          <button type="button" class="buy-btn flex-1" @click="buyNow">{{ isPre ? t('shop.orderPreorder') : t('shop.buyNow') }}</button>
+        </template>
       </div>
-    </div>
-
-    <p
-      v-if="added"
-      role="status"
-      class="added fixed inset-x-4 bottom-[calc(170px+env(safe-area-inset-bottom,0px))] z-30 mx-auto flex max-w-md items-center justify-between gap-3 rounded-2xl border border-[#7ff0b4]/40 bg-[#10241b] px-4 py-3 text-sm md:bottom-8"
-    >
-      <span>✓ {{ added }}</span>
-      <RouterLink to="/shop/cart" class="font-medium text-[#7ff0b4] underline">{{ t('shop.viewCart', { n: cart.count }) }}</RouterLink>
-    </p>
-
-    <!-- phone: the buy bar above the tab bar -->
-    <div
-      v-if="product && !loading"
-      class="fixed inset-x-0 bottom-[calc(96px+env(safe-area-inset-bottom,0px))] z-20 flex items-center gap-2.5 border-t border-white/8 bg-[#0b0518]/95 px-4 py-3 backdrop-blur md:hidden"
-    >
-      <div class="flex min-w-0 flex-col">
-        <span class="truncate text-xs text-white/65">
-          {{ hasSizes ? t('shop.summary', { size: size || '—', qty }) : t('shop.summaryOne', { qty }) }}
-        </span>
-        <span class="font-display text-lg font-bold whitespace-nowrap">{{ sizePicked ? money(price * qty) : priceLabel }}</span>
-      </div>
-      <template v-if="blocker">
-        <button type="button" class="buy-btn flex-1" disabled>{{ blocker }}</button>
-      </template>
-      <template v-else-if="!sizePicked">
-        <button type="button" class="buy-btn flex-1" @click="toSizes">{{ t('shop.needSize') }}</button>
-      </template>
-      <template v-else>
-        <button type="button" class="ghost-btn" :aria-label="t('shop.addToCart')" @click="addToCart">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6.2M12 9v5M9.5 11.5h5" /><circle cx="10" cy="20" r="1.2" /><circle cx="17" cy="20" r="1.2" /></svg>
-          <span class="max-[379px]:sr-only">{{ t('shop.addShort') }}</span>
-        </button>
-        <button type="button" class="buy-btn flex-1" @click="buyNow">{{ isPre ? t('shop.orderPreorder') : t('shop.buyNow') }}</button>
-      </template>
-    </div>
-  </main>
+    </main>
+  </div>
 </template>
 
 <style scoped>

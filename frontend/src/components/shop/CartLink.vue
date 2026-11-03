@@ -3,6 +3,9 @@
 import { useI18n } from 'vue-i18n'
 import { useCartStore } from '@/stores/cart'
 
+/** On a phone, the icon and count only — beside the filter there is no
+ *  room for the word as well. */
+defineProps<{ compact?: boolean }>()
 const { t } = useI18n()
 const cart = useCartStore()
 </script>
@@ -18,7 +21,7 @@ const cart = useCartStore()
       <circle cx="10" cy="20" r="1.2" />
       <circle cx="17" cy="20" r="1.2" />
     </svg>
-    {{ t('shop.cart') }}
+    <span :class="compact ? 'max-sm:sr-only' : ''">{{ t('shop.cart') }}</span>
     <span v-if="cart.count" class="min-w-6 rounded-full bg-brand-pink px-1.5 py-0.5 text-center font-display text-xs leading-none font-bold text-white">
       {{ cart.count }}
     </span>
