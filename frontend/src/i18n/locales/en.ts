@@ -176,7 +176,6 @@ export default {
     typeLabel: 'Match',
     empty: 'No match results yet',
     sub: 'Every finished match, newest first · tap for details',
-    count: '{n} matches',
     lose: 'LOSE',
     loadError: 'Failed to load match results',
     loadMoreError: 'Failed to load more matches',
