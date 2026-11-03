@@ -621,3 +621,43 @@ def test_checkout_is_for_linked_members_checked_in_tonight(
         client.post("/api/line/checkout", json={"session_id": sid}, headers=admin()).status_code
         == 401
     )
+
+
+def test_line_sign_ins_are_throttled(
+    client: TestClient, db: MiniSupabase, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.routers import line as line_router
+
+    line_router.reset_throttle()
+    monkeypatch.setattr(line_router, "SESSIONS_PER_WINDOW", 3)
+    monkeypatch.setattr(
+        line_auth,
+        "verify_id_token",
+        lambda token, http=None: line_auth.LineProfile(user_id=BALL, name="บอล", picture=None),
+    )
+    codes = [
+        client.post("/api/line/session", json={"id_token": "x" * 40}).status_code for _ in range(4)
+    ]
+    assert codes == [200, 200, 200, 429]
+    line_router.reset_throttle()
+
+
+def test_tonight_ignores_old_closed_nights(client: TestClient, db: MiniSupabase) -> None:
+    bam = pid(db, "Bam")
+    for days in range(5, 40):
+        old = night(db, days_ago=days, status="closed")
+        db.tables.setdefault("checkins", []).append(
+            {
+                "id": str(uuid4()),
+                "session_id": old,
+                "player_id": bam,
+                "checkin_time": "2026-01-01T00:00:00Z",
+                "checkout_time": "2026-01-01T03:00:00Z",
+                "via": "admin",
+            }
+        )
+    assert client.get("/api/line/tonight", headers=member(BAM)).json()["state"] == "none"
+    sid = night(db)
+    client.post("/api/admin/checkins", json={"session_id": sid, "player_id": bam}, headers=admin())
+    now = client.get("/api/line/tonight", headers=member(BAM)).json()
+    assert now["state"] == "in" and now["night"]["id"] == sid

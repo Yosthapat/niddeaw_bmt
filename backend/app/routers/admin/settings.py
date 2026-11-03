@@ -53,7 +53,7 @@ async def upload_payment_qr(
 ) -> ClubSettings:
     """Stores an admin-uploaded payment QR (e.g. a bank's own merchant QR)
     for the "uploaded_qr" payment method — shown as-is, no amount embedded."""
-    contents = await file.read()
+    contents = await file.read(MAX_QR_BYTES + 1)  # never more than one byte past the limit
     if len(contents) > MAX_QR_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,

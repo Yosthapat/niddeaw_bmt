@@ -1106,6 +1106,8 @@ export default {
   lineCheckout: {
     open: 'Check out · Pay',
     myBills: 'My bills',
+    back: 'Back',
+    loadFailed: "Couldn't load tonight's bill — try again",
     title: "{name}'s bill tonight",
     played: 'Played',
     games: '{n} games',

@@ -8,11 +8,13 @@ token. A link is only ever requested here; an admin approves it
 """
 
 import re
+from collections import deque
 from datetime import UTC, datetime
+from time import monotonic
 from typing import Any
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, HTTPException, UploadFile, status
+from fastapi import APIRouter, HTTPException, Request, UploadFile, status
 from supabase import Client
 
 from app.config import get_settings
@@ -46,6 +48,7 @@ from app.services import (
     line_auth,
     line_checkin,
     line_join,
+    login_throttle,
     night_bill,
     payment_info_service,
 )
@@ -120,8 +123,38 @@ def config() -> LineConfig:
     return LineConfig(enabled=line_auth.configured(), liff_id=settings.line_liff_id)
 
 
+# Each sign-in asks LINE to check the token (an outbound call that can take
+# seconds), so a flood of them would tie up the server. Generous, because
+# everyone on the court's wifi shares one address and opens the page a few
+# times a night.
+SESSIONS_PER_WINDOW = 120
+SESSION_WINDOW_SECONDS = 10 * 60
+_recent_sessions: dict[str, deque[float]] = {}
+
+
+def _throttle_sessions(request: Request) -> None:
+    key = login_throttle.client_key(
+        request.headers.get("x-forwarded-for"), request.client.host if request.client else None
+    )
+    now = monotonic()
+    stamps = _recent_sessions.setdefault(key, deque())
+    while stamps and now - stamps[0] >= SESSION_WINDOW_SECONDS:
+        stamps.popleft()
+    if len(stamps) >= SESSIONS_PER_WINDOW:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="เข้าสู่ระบบบ่อยเกินไป ลองใหม่อีกครั้งในอีกสักพัก",
+        )
+    stamps.append(now)
+
+
+def reset_throttle() -> None:
+    _recent_sessions.clear()
+
+
 @router.post("/session", response_model=LineStatus)
-def start_session(payload: LineSessionIn, supabase: SupabaseDep) -> LineStatus:
+def start_session(payload: LineSessionIn, request: Request, supabase: SupabaseDep) -> LineStatus:
+    _throttle_sessions(request)
     if not line_auth.configured():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="ยังไม่ได้ตั้งค่า LINE"
@@ -290,7 +323,9 @@ async def join_photo(file: UploadFile, supabase: SupabaseDep, member: LineMember
     joining = _pending_join(supabase, member.line_user_id)
     if joining is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ยังไม่ได้ส่งใบสมัคร")
-    contents = await file.read()
+    contents = await file.read(
+        line_join.MAX_PHOTO_BYTES + 1
+    )  # never more than one byte past the limit
     if len(contents) > line_join.MAX_PHOTO_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="รูปใหญ่เกินไป (ไม่เกิน 2MB)"
@@ -410,22 +445,31 @@ def tonight(supabase: SupabaseDep, member: LineMemberDep) -> LineTonight:
     """Their night so far: the open night (tonight, or last night for one
     that ran past midnight) they checked in to."""
     player = _member(supabase, member)
-    mine = rows(supabase.table("checkins").select("*").eq("player_id", str(player.id)).execute())
-    by_night = {str(c["session_id"]): c for c in mine}
-    nights = (
-        rows(supabase.table("sessions").select("*").in_("id", list(by_night)).execute())
-        if by_night
-        else []
-    )
+    # From the open nights (a handful at most), not from every check-in
+    # they ever made: a member of some years has hundreds, and a query
+    # naming them all would outgrow the request.
+    open_nights = rows(supabase.table("sessions").select("*").eq("status", "open").execute())
     current = sorted(
-        (n for n in nights if line_checkin.is_current(n)),
+        (n for n in open_nights if line_checkin.is_current(n)),
         key=lambda n: str(n["date"]),
         reverse=True,
     )
-    if not current:
+    session: dict[str, Any] | None = None
+    checkin: dict[str, Any] | None = None
+    for candidate in current:
+        found = rows(
+            supabase.table("checkins")
+            .select("*")
+            .eq("session_id", str(candidate["id"]))
+            .eq("player_id", str(player.id))
+            .limit(1)
+            .execute()
+        )
+        if found:
+            session, checkin = candidate, found[0]
+            break
+    if session is None or checkin is None:
         return LineTonight(state="none", player=player)
-    session = current[0]
-    checkin = by_night[str(session["id"])]
     when = CheckinNight.model_validate(session)
     if checkin.get("checkout_time") is None:
         games, amount = night_bill.so_far(supabase, session, player.id)
@@ -490,7 +534,17 @@ def my_bills(supabase: SupabaseDep, member: LineMemberDep) -> LineBills:
     """Their own bills, newest night first — including nights they forgot
     to check out of, billed when the admin closed the night."""
     player = _member(supabase, member)
-    billed = rows(supabase.table("billings").select("*").eq("player_id", str(player.id)).execute())
+    # The latest bills only: years of nights would outgrow the request that
+    # fetches their dates. One still owed stays near the top — a bill is
+    # touched again whenever it is billed, adjusted or paid.
+    billed = rows(
+        supabase.table("billings")
+        .select("*")
+        .eq("player_id", str(player.id))
+        .order("updated_at", desc=True)
+        .limit(60)
+        .execute()
+    )
     ids = list({str(b["session_id"]) for b in billed})
     nights = (
         {
@@ -543,7 +597,7 @@ async def send_slip(
     Sending again replaces the slip they sent before."""
     row = _own_bill(supabase, member, bill_id)
     _payable(row)
-    contents = await file.read()
+    contents = await file.read(MAX_SLIP_BYTES + 1)  # never more than one byte past the limit
     if len(contents) > MAX_SLIP_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="รูปใหญ่เกินไป (ไม่เกิน 5MB)"

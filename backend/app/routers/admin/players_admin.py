@@ -150,7 +150,7 @@ def delete_player(player_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> No
 async def upload_avatar(
     player_id: UUID, file: UploadFile, supabase: SupabaseDep, admin: AdminDep
 ) -> Player:
-    contents = await file.read()
+    contents = await file.read(MAX_AVATAR_BYTES + 1)  # never more than one byte past the limit
     if len(contents) > MAX_AVATAR_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
