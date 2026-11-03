@@ -796,6 +796,11 @@ export default {
     currentQr: 'Current QR',
   },
   dashboard: {
+    revenueTotal: 'Money in',
+    profit: 'Profit',
+    loss: 'Loss',
+    chartLatest: 'latest',
+    chartPickHint: 'Tap or point at the chart to see each period',
     revenueDues: 'Session dues',
     revenueShop: 'Shop',
     balanceFromShop: 'Shop (confirmed + delivered)',

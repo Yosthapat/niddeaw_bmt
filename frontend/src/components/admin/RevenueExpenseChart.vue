@@ -1,8 +1,10 @@
 <script setup lang="ts">
-// Grouped bar chart: revenue vs. expenses, bucketed by day, month or year.
-// The revenue bar is a stack — session dues, with the shop's sales on top
-// (confirmed + delivered orders, on the Bangkok day they were placed) — so
-// its height is everything that came in.
+// Line chart: money in vs. money out, bucketed by day, month or year.
+// Money in is session dues plus the shop's sales (confirmed + delivered
+// orders, on the Bangkok day they were placed), so one line is everything
+// that came in. The gap between the two lines is washed green where more
+// came in than went out and red where it didn't, so profit and loss read at
+// a glance; the readout under the plot says which, in words and numbers.
 // Self-contained (fetches its own data) so DashboardView just drops in
 // <RevenueExpenseChart /> — same spirit as SessionPicker.vue.
 //
@@ -17,17 +19,19 @@
 //
 // Only buckets that actually have movement are plotted. The club plays once
 // or twice a week, so a calendar-strict day view would be mostly empty bars
-// with the real ones squeezed between them.
+// with the real ones squeezed between them. (So the x axis is evenly spaced
+// buckets, not calendar time.)
 //
 // Colors are the dataviz skill's validated categorical slots 1 (blue) and
 // 2 (orange), dark-mode steps since this app is dark-only — not the brand
 // pink, deliberately: pink already means "primary action" everywhere else
 // in the UI, so reusing it as a data-series color would blur the two.
-// The shop is slot 3 (aqua), stacked between the two.
-// Validated: node scripts/validate_palette.js "#3987e5,#199e70,#d95926" --mode dark
-// -> all checks pass (worst adjacent ΔE 9.4 CVD / 20.9 normal-vision); the
-// legend and the breakdown line under the plot carry identity too.
-import { computed, onMounted, ref } from 'vue'
+// Validated: node scripts/validate_palette.js "#3987e5,#d95926" --mode dark
+// -> all checks pass (worst adjacent ΔE 26.8 CVD / 31.8 normal-vision). The
+// shop's share is named in the readout (slot 3, aqua, as on the shop page)
+// rather than drawn as a third line. The profit / loss wash is a 14% tint of
+// the status colors, and always comes with its word in the readout.
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { apiErrorMessage } from '@/api/errors'
@@ -39,11 +43,14 @@ const { t } = useI18n()
 const REVENUE_COLOR = '#3987e5'
 const EXPENSE_COLOR = '#d95926'
 const SHOP_COLOR = '#199e70'
+const PROFIT_COLOR = '#4ade80' // --color-status-success
+const LOSS_COLOR = '#f87171' // --color-status-error
+const SURFACE = '#180e13' // --color-brand-surface: the ring around markers
 
 type Period = 'day' | 'month' | 'year'
 
 // Day is capped tighter than it could be: 14 play-days is about two months
-// of a twice-a-week club, and past that the bars are too narrow to compare.
+// of a twice-a-week club, and past that the points crowd the axis labels.
 // Year is effectively "all of them" — a cap only so the axis can't run away
 // a decade from now.
 const BARS_SHOWN: Record<Period, number> = { day: 14, month: 6, year: 20 }
@@ -118,97 +125,142 @@ const bars = computed<Bar[]>(() => {
 function setPeriod(next: Period): void {
   if (period.value === next) return
   period.value = next
-  // Switching buckets re-labels every bar, so a pin left on the old one
+  // Switching buckets re-labels every point, so a pick left on the old one
   // would point at a value that is no longer on screen.
-  hovered.value = null
+  picked.value = null
 }
 
 onMounted(finance.refresh)
 
 // --- Layout (hand-rolled SVG — no charting lib) ---
-const VIEW_W = 600
-const VIEW_H = 200
+// The viewBox is the plot's real width in CSS pixels, kept in step by a
+// ResizeObserver, so text and markers are the size written here on every
+// screen. A fixed 600-wide viewBox scaled down to a phone shrank the axis
+// labels to about 5px.
+const viewW = ref(600)
+const VIEW_H = 220
 const PAD_LEFT = 44
-const PAD_BOTTOM = 24
-const PAD_TOP = 12
-const innerW = VIEW_W - PAD_LEFT - 8
+const PAD_RIGHT = 14
+const PAD_BOTTOM = 26
+const PAD_TOP = 14
+const innerW = computed(() => viewW.value - PAD_LEFT - PAD_RIGHT)
 const innerH = VIEW_H - PAD_TOP - PAD_BOTTOM
-const BAR_GAP = 3 // surface gap between the two bars in a group
-const STACK_GAP = 2 // and between the dues and shop segments of one
-const GROUP_GAP = 14
+const INSET = 12 // first and last points sit this far in from the plot's edges
 
-const maxValue = computed(() => {
-  const values = bars.value.flatMap((b) => [b.revenue + b.shop, b.expense])
-  const max = Math.max(0, ...values)
-  return max > 0 ? max : 1
+/** Money in for a bucket: dues plus the shop. */
+const income = (b: Bar): number => b.revenue + b.shop
+
+/** A round top for the y axis — 1, 2, 2.5 or 5 × 10^k per step — so the
+ * gridlines land on numbers a person would say out loud. */
+const niceTop = computed(() => {
+  const max = Math.max(0, ...bars.value.flatMap((b) => [income(b), b.expense]))
+  if (max <= 0) return 4
+  const raw = max / 4
+  const mag = 10 ** Math.floor(Math.log10(raw))
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((v) => v >= raw) ?? 10 * mag
+  return step * 4
+})
+const yTicks = computed(() => Array.from({ length: 5 }, (_, i) => (niceTop.value / 4) * i))
+
+function y(value: number): number {
+  return PAD_TOP + innerH - (value / niceTop.value) * innerH
+}
+function x(index: number): number {
+  const n = bars.value.length
+  if (n <= 1) return PAD_LEFT + innerW.value / 2
+  return PAD_LEFT + INSET + (index * (innerW.value - INSET * 2)) / (n - 1)
+}
+
+function linePath(values: number[]): string {
+  return values.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ')
+}
+const incomePath = computed(() => linePath(bars.value.map(income)))
+const expensePath = computed(() => linePath(bars.value.map((b) => b.expense)))
+
+/** The wash between the two lines, one polygon per run, split where they
+ * cross so each piece is wholly profit or wholly loss. */
+const washes = computed(() => {
+  const out: { d: string; profit: boolean }[] = []
+  const pts = bars.value.map((b, i) => ({ x: x(i), a: income(b), e: b.expense }))
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const p = pts[i]
+    const q = pts[i + 1]
+    const d0 = p.a - p.e
+    const d1 = q.a - q.e
+    const quad = (x0: number, a0: number, e0: number, x1: number, a1: number, e1: number): string =>
+      `M${x0},${y(a0)} L${x1},${y(a1)} L${x1},${y(e1)} L${x0},${y(e0)} Z`
+    if (d0 * d1 >= 0) {
+      if (d0 !== 0 || d1 !== 0) out.push({ d: quad(p.x, p.a, p.e, q.x, q.a, q.e), profit: d0 + d1 > 0 })
+      continue
+    }
+    // they cross: split at the crossing
+    const t = d0 / (d0 - d1)
+    const cx = p.x + (q.x - p.x) * t
+    const cv = p.a + (q.a - p.a) * t
+    out.push({ d: quad(p.x, p.a, p.e, cx, cv, cv), profit: d0 > 0 })
+    out.push({ d: quad(cx, cv, cv, q.x, q.a, q.e), profit: d1 > 0 })
+  }
+  return out
 })
 
-const yTicks = computed(() => {
-  const steps = 4
-  return Array.from({ length: steps + 1 }, (_, i) => (maxValue.value / steps) * i)
-})
+// --- Picking a bucket: the crosshair snaps to the nearest one ---
+const picked = ref<number | null>(null)
+const svgEl = ref<SVGSVGElement | null>(null)
 
-const groupWidth = computed(() => {
-  const n = bars.value.length || 1
-  return (innerW - GROUP_GAP * (n - 1)) / n
-})
-const barWidth = computed(() => Math.max(4, (groupWidth.value - BAR_GAP) / 2))
-
-function barHeight(value: number): number {
-  return (value / maxValue.value) * innerH
+function nearest(event: PointerEvent): number | null {
+  const el = svgEl.value
+  if (!el || bars.value.length === 0) return null
+  const box = el.getBoundingClientRect()
+  const vx = ((event.clientX - box.left) / box.width) * viewW.value
+  let best = 0
+  for (let i = 1; i < bars.value.length; i++) if (Math.abs(x(i) - vx) < Math.abs(x(best) - vx)) best = i
+  return best
 }
-function groupX(index: number): number {
-  return PAD_LEFT + index * (groupWidth.value + GROUP_GAP)
+// A mouse picks as it moves and lets go when it leaves; a finger picks
+// where it lands and the pick stays, since there is no hover on a phone.
+function onMove(event: PointerEvent): void {
+  if (event.pointerType === 'mouse') picked.value = nearest(event)
 }
-
-type Series = 'revenue' | 'shop' | 'expense'
-interface HoveredBar {
-  key: string
-  series: Series
-}
-const hovered = ref<HoveredBar | null>(null)
-
-function toggleHover(key: string, series: Series): void {
-  hovered.value = hovered.value?.key === key && hovered.value?.series === series ? null : { key, series }
-}
-function hoveredValue(): number | null {
-  if (!hovered.value) return null
-  const bar = bars.value.find((b) => b.key === hovered.value?.key)
-  if (!bar) return null
-  return bar[hovered.value.series]
-}
-/** Where the floating value sits: over the top of the hovered bar's column. */
-function hoveredTop(bar: Bar): number {
-  return hovered.value?.series === 'expense' ? barHeight(bar.expense) : stackHeight(bar)
-}
-/** The shop segment's height, and the whole stack's with the gap between. */
-function shopHeight(bar: Bar): number {
-  return bar.shop > 0 ? Math.max(barHeight(bar.shop), 1) : 0
-}
-function stackHeight(bar: Bar): number {
-  return barHeight(bar.revenue) + (bar.shop > 0 ? STACK_GAP + shopHeight(bar) : 0)
-}
-// Hover follows a mouse only. A tap also sends pointerenter before its
-// click, and letting it set the pin would have the click's toggle take it
-// straight back off — on a phone the bar would never stay picked.
-function onEnter(event: PointerEvent, key: string, series: Series): void {
-  if (event.pointerType === 'mouse') hovered.value = { key, series }
+function onDown(event: PointerEvent): void {
+  picked.value = nearest(event)
 }
 function onLeave(event: PointerEvent): void {
-  if (event.pointerType === 'mouse') hovered.value = null
+  if (event.pointerType === 'mouse') picked.value = null
 }
-const hoveredBar = computed(() => bars.value.find((b) => b.key === hovered.value?.key) ?? null)
-/** The breakdown under the plot: the picked bucket, else the newest. */
-const shownBar = computed(() => hoveredBar.value ?? bars.value.at(-1) ?? null)
-/** Any shop sales on screen: without them the third legend entry is noise. */
+function onKey(event: KeyboardEvent): void {
+  const n = bars.value.length
+  if (!n || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return
+  event.preventDefault()
+  const at = picked.value ?? n - 1
+  picked.value = Math.min(n - 1, Math.max(0, at + (event.key === 'ArrowRight' ? 1 : -1)))
+}
+
+const plotBox = ref<HTMLElement | null>(null)
+const resize = new ResizeObserver(([entry]) => {
+  const w = Math.round(entry.contentRect.width)
+  if (w > 0) viewW.value = Math.max(260, w)
+})
+// The plot only exists once the data has loaded (and again after a period
+// switch from an empty one), so follow the element rather than observing
+// once on mount.
+watch(plotBox, (el, old) => {
+  if (old) resize.unobserve(old)
+  if (el) resize.observe(el)
+})
+onBeforeUnmount(() => resize.disconnect())
+
+/** The readout under the plot: the picked bucket, else the newest. */
+const shownIndex = computed(() => picked.value ?? bars.value.length - 1)
+const shownBar = computed(() => bars.value[shownIndex.value] ?? null)
+/** Any shop sales on screen: without them the readout's shop line is noise. */
 const anyShop = computed(() => bars.value.some((b) => b.shop > 0))
 
 // Day view packs 14 labels into the same axis six months use. Printing every
-// other one keeps them apart; the bars themselves stay one per bucket.
+// other one keeps them apart; the points themselves stay one per bucket.
 //
-// Counted from the newest bar rather than the oldest: the most recent bucket
-// is the one being read, so it must never be the one that loses its label.
-// (Counting from the oldest drops it whenever the bar count is even.)
+// Counted from the newest point rather than the oldest: the most recent
+// bucket is the one being read, so it must never be the one that loses its
+// label. (Counting from the oldest drops it whenever the count is even.)
 function showLabel(index: number): boolean {
   return bars.value.length <= 8 || (bars.value.length - 1 - index) % 2 === 0
 }
@@ -216,8 +268,12 @@ function showLabel(index: number): boolean {
 function formatBaht(n: number): string {
   return moneyShort(n)
 }
+function tickLabel(v: number): string {
+  if (v >= 1000) return `${Number((v / 1000).toFixed(1))}k`
+  return String(Math.round(v))
+}
 
-const totalRevenue = computed(() => bars.value.reduce((sum, b) => sum + b.revenue + b.shop, 0))
+const totalRevenue = computed(() => bars.value.reduce((sum, b) => sum + income(b), 0))
 const totalExpense = computed(() => bars.value.reduce((sum, b) => sum + b.expense, 0))
 const net = computed(() => totalRevenue.value - totalExpense.value)
 </script>
@@ -240,18 +296,22 @@ const net = computed(() => totalRevenue.value - totalExpense.value)
         </button>
       </div>
       <!-- Legend — always present for 2+ series, per the dataviz skill. -->
-      <div class="flex items-center gap-3 text-xs text-white/60">
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/60">
         <span class="flex items-center gap-1.5">
-          <span class="h-2 w-2 rounded-full" :style="{ backgroundColor: REVENUE_COLOR }" />
-          {{ anyShop ? t('dashboard.revenueDues') : t('dashboard.revenue') }}
-        </span>
-        <span v-if="anyShop" class="flex items-center gap-1.5">
-          <span class="h-2 w-2 rounded-full" :style="{ backgroundColor: SHOP_COLOR }" />
-          {{ t('dashboard.revenueShop') }}
+          <span class="h-0.5 w-4 rounded-full" :style="{ backgroundColor: REVENUE_COLOR }" />
+          {{ t('dashboard.revenueTotal') }}
         </span>
         <span class="flex items-center gap-1.5">
-          <span class="h-2 w-2 rounded-full" :style="{ backgroundColor: EXPENSE_COLOR }" />
+          <span class="h-0.5 w-4 rounded-full" :style="{ backgroundColor: EXPENSE_COLOR }" />
           {{ t('dashboard.expense') }}
+        </span>
+        <span class="flex items-center gap-1.5">
+          <span class="h-2.5 w-3 rounded-sm" :style="{ backgroundColor: PROFIT_COLOR, opacity: 0.35 }" />
+          {{ t('dashboard.profit') }}
+        </span>
+        <span class="flex items-center gap-1.5">
+          <span class="h-2.5 w-3 rounded-sm" :style="{ backgroundColor: LOSS_COLOR, opacity: 0.35 }" />
+          {{ t('dashboard.loss') }}
         </span>
       </div>
     </div>
@@ -268,122 +328,114 @@ const net = computed(() => totalRevenue.value - totalExpense.value)
         </span>
       </div>
 
-      <svg :viewBox="`0 0 ${VIEW_W} ${VIEW_H}`" class="mt-2 w-full select-none" role="img" :aria-label="t('dashboard.revenueExpenseChart')">
-        <!-- Gridlines + y-axis labels — recessive, muted ink. -->
+      <div ref="plotBox" class="mt-2 w-full">
+      <svg
+        ref="svgEl"
+        :viewBox="`0 0 ${viewW} ${VIEW_H}`"
+        :height="VIEW_H"
+        class="block w-full touch-pan-y select-none outline-none focus-visible:ring-2 focus-visible:ring-brand-pink/60"
+        role="img"
+        tabindex="0"
+        :aria-label="t('dashboard.revenueExpenseChart')"
+        @pointermove="onMove"
+        @pointerdown="onDown"
+        @pointerleave="onLeave"
+        @keydown="onKey"
+      >
+        <!-- Gridlines + y-axis labels — hairline, solid, recessive. -->
         <g v-for="(tick, i) in yTicks" :key="i">
-          <line
-            :x1="PAD_LEFT"
-            :x2="VIEW_W - 8"
-            :y1="PAD_TOP + innerH - barHeight(tick)"
-            :y2="PAD_TOP + innerH - barHeight(tick)"
-            stroke="rgb(255 255 255 / 0.08)"
-            stroke-width="1"
-          />
-          <text
-            :x="PAD_LEFT - 6"
-            :y="PAD_TOP + innerH - barHeight(tick) + 3"
-            text-anchor="end"
-            font-size="9"
-            fill="rgb(255 255 255 / 0.4)"
-          >
-            {{ tick >= 1000 ? `${(tick / 1000).toFixed(0)}k` : Math.round(tick) }}
-          </text>
+          <line :x1="PAD_LEFT" :x2="viewW - PAD_RIGHT" :y1="y(tick)" :y2="y(tick)" stroke="rgb(255 255 255 / 0.08)" stroke-width="1" />
+          <text :x="PAD_LEFT - 8" :y="y(tick) + 3" text-anchor="end" font-size="10" fill="rgb(255 255 255 / 0.4)">{{ tickLabel(tick) }}</text>
         </g>
 
-        <!-- Bars -->
+        <!-- Profit / loss wash between the lines -->
+        <path
+          v-for="(w, i) in washes"
+          :key="`w${i}`"
+          :d="w.d"
+          :fill="w.profit ? PROFIT_COLOR : LOSS_COLOR"
+          fill-opacity="0.14"
+          stroke="none"
+        />
+
+        <!-- Crosshair: a hairline on the picked bucket -->
+        <line
+          v-if="picked !== null"
+          :x1="x(picked)"
+          :x2="x(picked)"
+          :y1="PAD_TOP"
+          :y2="PAD_TOP + innerH"
+          stroke="rgb(255 255 255 / 0.35)"
+          stroke-width="1"
+        />
+
+        <path v-if="bars.length > 1" :d="expensePath" fill="none" :stroke="EXPENSE_COLOR" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+        <path v-if="bars.length > 1" :d="incomePath" fill="none" :stroke="REVENUE_COLOR" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+
+        <!-- Markers: filled, with a ring in the surface color so they stay
+             legible where the lines cross. The picked bucket's grow. -->
         <g v-for="(bar, i) in bars" :key="bar.key">
-          <rect
-            :x="groupX(i)"
-            :y="PAD_TOP + innerH - barHeight(bar.revenue)"
-            :width="barWidth"
-            :height="Math.max(barHeight(bar.revenue), 0.5)"
-            :fill="REVENUE_COLOR"
-            :opacity="hovered && !(hovered.key === bar.key && hovered.series === 'revenue') ? 0.55 : 1"
-            rx="2"
-            class="cursor-pointer"
-            @click="toggleHover(bar.key, 'revenue')"
-            @pointerenter="onEnter($event, bar.key, 'revenue')"
-            @pointerleave="onLeave($event)"
-          />
-          <rect
-            v-if="bar.shop > 0"
-            :x="groupX(i)"
-            :y="PAD_TOP + innerH - stackHeight(bar)"
-            :width="barWidth"
-            :height="shopHeight(bar)"
-            :fill="SHOP_COLOR"
-            :opacity="hovered && !(hovered.key === bar.key && hovered.series === 'shop') ? 0.55 : 1"
-            rx="2"
-            class="cursor-pointer"
-            @click="toggleHover(bar.key, 'shop')"
-            @pointerenter="onEnter($event, bar.key, 'shop')"
-            @pointerleave="onLeave($event)"
-          />
-          <rect
-            :x="groupX(i) + barWidth + BAR_GAP"
-            :y="PAD_TOP + innerH - barHeight(bar.expense)"
-            :width="barWidth"
-            :height="Math.max(barHeight(bar.expense), 0.5)"
-            :fill="EXPENSE_COLOR"
-            :opacity="hovered && !(hovered.key === bar.key && hovered.series === 'expense') ? 0.55 : 1"
-            rx="2"
-            class="cursor-pointer"
-            @click="toggleHover(bar.key, 'expense')"
-            @pointerenter="onEnter($event, bar.key, 'expense')"
-            @pointerleave="onLeave($event)"
-          />
+          <circle :cx="x(i)" :cy="y(bar.expense)" :r="i === shownIndex ? 5.5 : 4" :fill="EXPENSE_COLOR" :stroke="SURFACE" stroke-width="2" />
+          <circle :cx="x(i)" :cy="y(income(bar))" :r="i === shownIndex ? 5.5 : 4" :fill="REVENUE_COLOR" :stroke="SURFACE" stroke-width="2" />
+          <!-- One bucket has no line to read: say its two values beside the
+               dots, money in above, money out below. -->
+          <template v-if="bars.length === 1">
+            <text :x="x(i) + 12" :y="Math.min(y(income(bar)), y(bar.expense)) - 4" font-size="11" fill="rgb(255 255 255 / 0.85)">
+              {{ formatBaht(income(bar) >= bar.expense ? income(bar) : bar.expense) }}
+            </text>
+            <text :x="x(i) + 12" :y="Math.max(y(income(bar)), y(bar.expense)) + 14" font-size="11" fill="rgb(255 255 255 / 0.6)">
+              {{ formatBaht(income(bar) >= bar.expense ? bar.expense : income(bar)) }}
+            </text>
+          </template>
           <text
-            v-if="showLabel(i)"
-            :x="groupX(i) + groupWidth / 2"
-            :y="VIEW_H - 6"
+            v-if="showLabel(i) || i === picked"
+            :x="x(i)"
+            :y="VIEW_H - 8"
             text-anchor="middle"
-            font-size="10"
-            fill="rgb(255 255 255 / 0.5)"
+            font-size="11"
+            :fill="i === shownIndex ? 'rgb(255 255 255 / 0.85)' : 'rgb(255 255 255 / 0.5)'"
           >
             {{ bar.label }}
           </text>
-
-          <!-- Hover value label, floating above the hovered bar. Carries the
-               bucket too, since in the day view not every bar is labelled. -->
-          <g v-if="hovered?.key === bar.key">
-            <text
-              :x="groupX(i) + groupWidth / 2"
-              :y="PAD_TOP + innerH - hoveredTop(bar) - 6"
-              text-anchor="middle"
-              font-size="11"
-              font-weight="700"
-              fill="#ffffff"
-            >
-              {{ formatBaht(hoveredValue() ?? 0) }}
-            </text>
-            <text
-              v-if="!showLabel(i)"
-              :x="groupX(i) + groupWidth / 2"
-              :y="VIEW_H - 6"
-              text-anchor="middle"
-              font-size="10"
-              fill="rgb(255 255 255 / 0.8)"
-            >
-              {{ bar.label }}
-            </text>
-          </g>
         </g>
       </svg>
+      </div>
 
-      <!-- The bucket's breakdown, in words: which part of the stack is
-           which, without reading heights. -->
-      <p v-if="shownBar" class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/60" role="status">
-        <span class="font-semibold text-white/80">{{ shownBar.label }}</span>
-        <span class="flex items-center gap-1.5">
-          <span class="h-2 w-2 rounded-full" :style="{ backgroundColor: REVENUE_COLOR }" />{{ anyShop ? t('dashboard.revenueDues') : t('dashboard.revenue') }} {{ formatBaht(shownBar.revenue) }}
-        </span>
-        <span v-if="anyShop" class="flex items-center gap-1.5">
-          <span class="h-2 w-2 rounded-full" :style="{ backgroundColor: SHOP_COLOR }" />{{ t('dashboard.revenueShop') }} {{ formatBaht(shownBar.shop) }}
-        </span>
-        <span class="flex items-center gap-1.5">
-          <span class="h-2 w-2 rounded-full" :style="{ backgroundColor: EXPENSE_COLOR }" />{{ t('dashboard.expense') }} {{ formatBaht(shownBar.expense) }}
-        </span>
-      </p>
+      <!-- The readout: every series at the picked bucket (else the newest),
+           in words, so nothing rests on reading a line's height or a color. -->
+      <div v-if="shownBar" class="mt-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2.5 text-xs" role="status">
+        <div class="flex items-baseline justify-between gap-3">
+          <span class="font-semibold text-white/85">{{ shownBar.label }}</span>
+          <span class="text-white/40">{{ picked === null ? t('dashboard.chartLatest') : '' }}</span>
+        </div>
+        <dl class="mt-1.5 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1">
+          <dt class="flex items-center gap-1.5 text-white/60">
+            <span class="h-2 w-2 rounded-full" :style="{ backgroundColor: REVENUE_COLOR }" />{{ t('dashboard.revenueTotal') }}
+          </dt>
+          <dd class="text-right font-mono text-white/90">{{ formatBaht(income(shownBar)) }}</dd>
+          <template v-if="anyShop">
+            <dt class="pl-3.5 text-white/45">{{ t('dashboard.revenueDues') }}</dt>
+            <dd class="text-right font-mono text-white/60">{{ formatBaht(shownBar.revenue) }}</dd>
+            <dt class="flex items-center gap-1.5 pl-3.5 text-white/45">
+              <span class="h-1.5 w-1.5 rounded-full" :style="{ backgroundColor: SHOP_COLOR }" />{{ t('dashboard.revenueShop') }}
+            </dt>
+            <dd class="text-right font-mono text-white/60">{{ formatBaht(shownBar.shop) }}</dd>
+          </template>
+          <dt class="flex items-center gap-1.5 text-white/60">
+            <span class="h-2 w-2 rounded-full" :style="{ backgroundColor: EXPENSE_COLOR }" />{{ t('dashboard.expense') }}
+          </dt>
+          <dd class="text-right font-mono text-white/90">{{ formatBaht(shownBar.expense) }}</dd>
+        </dl>
+        <div class="mt-1.5 flex items-baseline justify-between gap-4 border-t border-white/10 pt-1.5">
+          <span class="font-medium text-white/75">
+            {{ income(shownBar) >= shownBar.expense ? t('dashboard.profit') : t('dashboard.loss') }}
+          </span>
+          <span class="font-mono font-bold" :class="income(shownBar) >= shownBar.expense ? 'text-status-success' : 'text-status-error'">
+            {{ income(shownBar) >= shownBar.expense ? '+' : '' }}{{ formatBaht(income(shownBar) - shownBar.expense) }}
+          </span>
+        </div>
+      </div>
+      <p class="mt-1.5 text-[11px] text-white/35">{{ t('dashboard.chartPickHint') }}</p>
     </template>
   </div>
 </template>
