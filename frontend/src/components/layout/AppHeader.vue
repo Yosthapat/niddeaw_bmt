@@ -24,12 +24,18 @@ const ownBar = computed(() => {
   return path === '/menu' || path === '/search'
 })
 
-// ☰ and 🔍 are the two things tapped first on a phone; fetch their pages
-// while the phone is idle, so the first tap has nothing to wait for.
+// Fetch the pages behind ☰, 🔍 and the tab bar while the phone is idle,
+// so the first tap on each has no download to wait for — that wait was a
+// blank screen between two pages. They are small, and cached after.
 onMounted(() => {
   const warm = (): void => {
     void import('@/views/public/MenuView.vue')
     void import('@/views/public/SearchView.vue')
+    void import('@/views/public/MemberListView.vue')
+    void import('@/views/public/RankingView.vue')
+    void import('@/views/public/LiveView.vue')
+    void import('@/views/public/MatchHistoryView.vue')
+    void import('@/views/public/ShopView.vue')
   }
   if ('requestIdleCallback' in window) window.requestIdleCallback(warm)
   else setTimeout(warm, 2000)

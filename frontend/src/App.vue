@@ -11,6 +11,12 @@ import PublicTabBar from '@/components/layout/PublicTabBar.vue'
 
 const route = useRoute()
 
+// The pages a phone flips between from the tab bar, kept rather than
+// rebuilt: coming back to one is instant, with its data and its scroll,
+// and each refreshes quietly behind (useRevisit.ts). A member's profile
+// or one match is not kept — there are hundreds of those.
+const KEPT = ['HomeView', 'MemberListView', 'RankingView', 'HallOfFameView', 'MatchHistoryView', 'ShopView']
+
 // See usePageSwap.ts. The admin screens have no transition, nor does the
 // first public page after one, so the page on screen is the route at once.
 watch(
@@ -43,10 +49,10 @@ watch(
            the page stuck invisible mid-transition until a manual reload.
            Public views are all single-root, so they keep the transition;
            admin routes render instantly instead. -->
-      <!-- The home page is kept rather than rebuilt when you leave it: its
-           3D hero, sponsor band and member strip took a moment to come
-           back, a blank screen and then faces popping in, every time ☰ or
-           a page and Back were tapped. Its loops pause while it is away. -->
+      <!-- The main pages are kept rather than rebuilt when you leave them
+           (KEPT): each came back as a blank screen, then skeletons, then
+           its cards, every time a tab was tapped. Their loops and polls
+           pause while they are away. -->
       <Transition
         v-if="!route.path.startsWith('/admin')"
         name="page"
@@ -54,7 +60,7 @@ watch(
         @before-enter="pageEntering(route.path)"
         @enter="pageEntered()"
       >
-        <KeepAlive include="HomeView">
+        <KeepAlive :include="KEPT" :max="8">
           <component :is="Component" :key="route.path" />
         </KeepAlive>
       </Transition>

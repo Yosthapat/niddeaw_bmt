@@ -9,6 +9,7 @@ import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 import CountUp from '@/components/common/CountUp.vue'
 import PageBanner from '@/components/common/PageBanner.vue'
+import { onRevisit } from '@/composables/useRevisit'
 import Podium from '@/components/ranking/Podium.vue'
 import { formatDate } from '@/utils/format'
 
@@ -29,9 +30,13 @@ function formatPlayDate(isoDate: string): string {
   return formatDate(isoDate, locale.value)
 }
 
-async function load(): Promise<void> {
-  loading.value = true
-  error.value = null
+/** `quiet`: a refresh behind what is already on screen — no skeleton, and
+ *  a failure keeps the figures shown rather than replacing them. */
+async function load(quiet = false): Promise<void> {
+  if (!quiet) {
+    loading.value = true
+    error.value = null
+  }
   try {
     if (period.value === 'day') {
       if (playDates.value.length === 0) {
@@ -48,7 +53,7 @@ async function load(): Promise<void> {
       stats.value = await getRanking(period.value)
     }
   } catch {
-    error.value = t('ranking.loadError')
+    if (!quiet) error.value = t('ranking.loadError')
   } finally {
     loading.value = false
   }
@@ -57,7 +62,8 @@ async function load(): Promise<void> {
 // The date picker refetches through its own @change rather than a watcher
 // on selectedDate: load() assigns the default date itself, and a watcher
 // couldn't tell that assignment apart from a real pick without a guard.
-watch(period, load, { immediate: true })
+watch(period, () => load(), { immediate: true })
+onRevisit(() => void load(true))
 
 // The podium takes the top three; the list carries on from fourth.
 const podium = computed(() => stats.value.slice(0, 3))
@@ -89,7 +95,7 @@ const periodLabel = { all: 'ranking.allTime', year: 'ranking.thisYear', day: 'ra
           v-model="selectedDate"
           :aria-label="t('ranking.pickDay')"
           class="min-h-11 rounded-full border border-white/20 bg-white/10 px-4 text-sm text-white backdrop-blur"
-          @change="load"
+          @change="load()"
         >
           <option v-for="d in playDates" :key="d" :value="d" class="bg-brand-black">{{ formatPlayDate(d) }}</option>
         </select>
