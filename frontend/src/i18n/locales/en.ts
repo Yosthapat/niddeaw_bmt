@@ -700,6 +700,8 @@ export default {
     empty: 'No sponsors yet — tap "Add sponsor" below',
   },
   settings: {
+    qrAccountName: 'Account name (shown under the QR)',
+    qrAccountNamePlaceholder: 'e.g. the PromptPay owner',
     title: 'Club Settings',
     loadFailed: 'Failed to load settings',
     saveFailed: 'Failed to save settings',
@@ -1084,7 +1086,12 @@ export default {
     notOurQr: "That isn't the club's check-in QR",
     scanFailed: "Couldn't open the scanner — try your phone's camera instead",
   },
+  brandQr: {
+    save: 'Save QR',
+    saveHint: "Couldn't save — press and hold the QR, then save the image",
+  },
   checkinQr: {
+    caption: 'Scan to check in · Niddeaw',
     show: "Show tonight's check-in QR (LINE)",
     title: 'Scan to check in',
     how: "Scan with your phone's camera, or from the club's LINE menu",

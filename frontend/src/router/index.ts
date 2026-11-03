@@ -22,7 +22,9 @@ const router = createRouter({
       from.matched.length > 0 &&
       to.path !== from.path &&
       !to.path.startsWith('/admin') &&
-      !from.path.startsWith('/admin')
+      !from.path.startsWith('/admin') &&
+      // The LINE page's screens are one page (App.vue's pageKey): no fade.
+      !(to.name === 'line' && from.name === 'line')
     return fades ? nextPage().then(() => target) : target
   },
   routes: [

@@ -14,6 +14,7 @@ import { bahtProblem } from '@/utils/limits'
 import { apiErrorMessage } from '@/api/errors'
 import { usePolling } from '@/composables/usePolling'
 import BillSlipReview from '@/components/admin/BillSlipReview.vue'
+import BrandQr from '@/components/common/BrandQr.vue'
 
 const { t } = useI18n()
 const sessionsStore = useSessionsStore()
@@ -354,8 +355,18 @@ usePolling(refreshBillings, 15000)
           <p v-if="adjustError[b.id]" class="mt-1 text-xs text-status-error" role="alert">{{ adjustError[b.id] }}</p>
 
           <div v-if="paymentInfoByBillingId[b.id] && effectiveAmount(b) > 0" class="mt-3 flex flex-col items-center gap-2 text-center">
+            <BrandQr
+              v-if="paymentInfoByBillingId[b.id].qr_modules"
+              :modules="paymentInfoByBillingId[b.id].qr_modules!"
+              :amount="paymentInfoByBillingId[b.id].amount"
+              :account-name="paymentInfoByBillingId[b.id].bank_account_name"
+              :alt="`QR ${money(paymentInfoByBillingId[b.id].amount)} — ${nameOf(b.player_id)}`"
+              saveable
+              :file-name="`niddeaw-bill-${nameOf(b.player_id)}.png`"
+              class="w-full max-w-[260px]"
+            />
             <img
-              v-if="paymentInfoByBillingId[b.id].data_uri"
+              v-else-if="paymentInfoByBillingId[b.id].data_uri"
               :src="paymentInfoByBillingId[b.id].data_uri!"
               alt="QR"
               class="h-40 w-40 rounded-lg bg-white p-2"

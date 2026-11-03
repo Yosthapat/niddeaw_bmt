@@ -38,7 +38,12 @@ def payment_info(supabase: Client, amount: float) -> PaymentInfoResponse:
             club_settings["promptpay_id"], club_settings["promptpay_type"], amount
         )
         return PaymentInfoResponse(
-            method=method, amount=amount, data_uri=promptpay_service.generate_qr_data_uri(payload)
+            method=method,
+            amount=amount,
+            data_uri=promptpay_service.generate_qr_data_uri(payload),
+            qr_modules=promptpay_service.qr_modules(payload),
+            # Shown under the QR so the payer knows whose account it is.
+            bank_account_name=club_settings.get("bank_account_name"),
         )
 
     if method in ("bank_account", "bank_account_qr"):
@@ -51,13 +56,18 @@ def payment_info(supabase: Client, amount: float) -> PaymentInfoResponse:
                 detail="Bank account not configured — set it in Admin > Settings first",
             )
         data_uri = None
+        modules = None
         if method == "bank_account_qr":
-            text = f"ธนาคาร {bank_name}\nเลขบัญชี {bank_account_number}\nชื่อบัญชี {bank_account_name or ''}"
+            text = (
+                f"ธนาคาร {bank_name}\nเลขบัญชี {bank_account_number}\nชื่อบัญชี {bank_account_name or ''}"
+            )
             data_uri = promptpay_service.generate_qr_data_uri(text)
+            modules = promptpay_service.qr_modules(text)
         return PaymentInfoResponse(
             method=method,
             amount=amount,
             data_uri=data_uri,
+            qr_modules=modules,
             bank_name=bank_name,
             bank_account_number=bank_account_number,
             bank_account_name=bank_account_name,
@@ -68,4 +78,6 @@ def payment_info(supabase: Client, amount: float) -> PaymentInfoResponse:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No QR code uploaded — upload one in Admin > Settings first",
         )
-    return PaymentInfoResponse(method=method, amount=amount, data_uri=club_settings["uploaded_qr_url"])
+    return PaymentInfoResponse(
+        method=method, amount=amount, data_uri=club_settings["uploaded_qr_url"]
+    )

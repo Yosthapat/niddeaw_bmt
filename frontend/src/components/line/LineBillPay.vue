@@ -15,6 +15,7 @@ import type { PaymentInfoResponse } from '@/types'
 import { apiErrorMessage } from '@/api/errors'
 import { compressImage } from '@/utils/imageCompression'
 import { formatDateWithWeekday, formatTime, money } from '@/utils/format'
+import BrandQr from '@/components/common/BrandQr.vue'
 import type { Locale } from '@/i18n'
 
 const props = defineProps<{ token: string; bill: LineBill }>()
@@ -86,9 +87,19 @@ async function attach(event: Event): Promise<void> {
       </p>
       <div class="world-card flex flex-col items-center gap-2 p-4">
         <span class="text-xs text-white/60">{{ info?.method === 'promptpay' ? t('lineBills.scanPromptPay') : t('lineBills.transferTo') }}</span>
-        <img v-if="info?.data_uri" :src="info.data_uri" :alt="t('lineBills.qrAlt', { amount: money(bill.amount) })" class="h-56 w-56 rounded-xl bg-white p-2" />
+        <BrandQr
+          v-if="info?.qr_modules"
+          :modules="info.qr_modules"
+          :amount="bill.amount"
+          :account-name="info.bank_account_name"
+          :alt="t('lineBills.qrAlt', { amount: money(bill.amount) })"
+          saveable
+          :file-name="`niddeaw-bill-${bill.night.date}.png`"
+          class="w-full"
+        />
+        <img v-else-if="info?.data_uri" :src="info.data_uri" :alt="t('lineBills.qrAlt', { amount: money(bill.amount) })" class="h-56 w-56 rounded-xl bg-white p-2" />
         <div v-else-if="!info && !problem" class="flex h-56 w-56 items-center justify-center rounded-xl bg-white/5 text-sm text-white/50">{{ t('common.loading') }}</div>
-        <span class="font-display text-3xl font-bold text-[#ffd34d]">{{ money(bill.amount) }}</span>
+        <span v-if="!info?.qr_modules" class="font-display text-3xl font-bold text-[#ffd34d]">{{ money(bill.amount) }}</span>
         <span v-if="info?.bank_account_number" class="text-sm text-white/80">
           {{ info.bank_name }} · <b class="font-display tracking-wide">{{ info.bank_account_number }}</b>
           <template v-if="info.bank_account_name"><br />{{ info.bank_account_name }}</template>

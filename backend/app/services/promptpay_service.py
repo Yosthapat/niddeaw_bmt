@@ -114,3 +114,14 @@ def generate_qr_data_uri(payload: str) -> str:
     img.save(buffer, format="PNG")
     encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
     return f"data:image/png;base64,{encoded}"
+
+
+def qr_modules(payload: str) -> list[str]:
+    """The QR's modules, one string of 0/1 per row, no quiet zone — for the
+    page to draw the club's styled QR card (round dots, rounded corners,
+    the cat in the middle). Error correction H: the cat covers part of the
+    middle, and H still reads with up to ~30% of the code hidden."""
+    qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_H, border=0)
+    qr.add_data(payload)
+    qr.make(fit=True)
+    return ["".join("1" if cell else "0" for cell in row) for row in qr.get_matrix()]

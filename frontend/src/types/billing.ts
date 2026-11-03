@@ -60,4 +60,6 @@ export interface PaymentInfoResponse {
   bank_name: string | null
   bank_account_number: string | null
   bank_account_name: string | null
+  /** The QR as rows of 0/1, for BrandQr (generated QRs only). */
+  qr_modules?: string[] | null
 }

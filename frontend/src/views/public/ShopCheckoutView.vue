@@ -7,6 +7,7 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import BrandQr from '@/components/common/BrandQr.vue'
 import { useRouter } from 'vue-router'
 import { getCartPayment, getPlayers, placeShopOrder, quoteCart, type ShopBuyer } from '@/api/public'
 import { apiErrorMessage } from '@/api/errors'
@@ -283,10 +284,21 @@ async function send(): Promise<void> {
           <h1 class="self-start font-display text-2xl font-bold">{{ t('shop.payTitle') }}</h1>
           <p v-if="payError" class="self-start text-sm text-status-error">{{ payError }}</p>
           <template v-else-if="pay">
-            <div v-if="pay.data_uri" class="flex flex-col items-center gap-1.5 rounded-2xl bg-white p-3.5">
+            <BrandQr
+              v-if="pay.qr_modules"
+              :modules="pay.qr_modules"
+              :amount="pay.amount"
+              :account-name="pay.bank_account_name"
+              :alt="`QR ${money(pay.amount)}`"
+              saveable
+              file-name="niddeaw-shop-qr.png"
+              class="w-full"
+            />
+            <div v-else-if="pay.data_uri" class="flex flex-col items-center gap-1.5 rounded-2xl bg-white p-3.5">
               <img :src="pay.data_uri" alt="QR PromptPay" class="h-48 w-48" />
               <span v-if="pay.method === 'promptpay'" class="text-[11px] text-[#4a3a5a]">{{ t('shop.payPromptpay') }}</span>
             </div>
+            <span v-if="pay.qr_modules && pay.method === 'promptpay'" class="text-xs text-white/60">{{ t('shop.payPromptpay') }}</span>
             <p v-if="pay.bank_name" class="text-center text-sm text-white/75">
               {{ t('shop.payBank') }} {{ pay.bank_name }} · {{ pay.bank_account_number }}
               <span v-if="pay.bank_account_name"> ({{ pay.bank_account_name }})</span>
@@ -295,7 +307,7 @@ async function send(): Promise<void> {
               <p class="text-sm text-white/70">{{ t('shop.payAmount') }}</p>
               <p class="font-display text-3xl font-bold text-brand-pink-light">{{ money(pay.amount) }}</p>
             </div>
-            <a v-if="pay.data_uri" :href="pay.data_uri" download="niddeaw-shop-qr.png" class="ghost">{{ t('shop.saveQr') }}</a>
+            <a v-if="pay.data_uri && !pay.qr_modules" :href="pay.data_uri" download="niddeaw-shop-qr.png" class="ghost">{{ t('shop.saveQr') }}</a>
           </template>
           <p v-else class="text-sm text-white/60">{{ t('common.loading') }}</p>
 

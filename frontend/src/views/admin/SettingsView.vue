@@ -343,6 +343,17 @@ const paymentMethodOptions = computed<{ value: PaymentMethod; label: string }[]>
           </select>
         </label>
         <p v-if="tried && promptpayProblem" class="-mt-2 text-xs text-status-error" role="alert">{{ promptpayProblem }}</p>
+        <!-- Printed under the QR card, so the payer can see whose account
+             it is before they transfer. -->
+        <label class="flex flex-col gap-1 text-sm">
+          {{ t('settings.qrAccountName') }}
+          <input
+            v-model="settings.bank_account_name"
+            :maxlength="MAX_HANDLE"
+            :placeholder="t('settings.qrAccountNamePlaceholder')"
+            class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-surface px-3 outline-none focus:border-brand-pink"
+          />
+        </label>
       </template>
 
       <template v-else-if="settings.payment_method === 'bank_account' || settings.payment_method === 'bank_account_qr'">

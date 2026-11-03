@@ -538,6 +538,7 @@ def test_check_out_pay_and_have_the_slip_checked(client: TestClient, db: MiniSup
 
     pay = client.get(f"/api/line/bills/{bill_id}/pay", headers=member(BAM)).json()
     assert pay["method"] == "promptpay" and pay["amount"] == 167 and pay["data_uri"]
+    assert pay["qr_modules"] and len(pay["qr_modules"]) == len(pay["qr_modules"][0])
     # Nobody else can see or pay it.
     next(p for p in db.tables["players"] if p["nickname"] == "Bank")["line_user_id"] = BANK
     assert client.get(f"/api/line/bills/{bill_id}/pay", headers=member(BANK)).status_code == 404
