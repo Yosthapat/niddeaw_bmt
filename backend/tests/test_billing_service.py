@@ -1,8 +1,13 @@
 from app.services import billing_service
 
 
-def test_court_fee_only_when_no_games_played() -> None:
-    assert billing_service.compute_amount_calc(0, 80.0, 29.0) == 80.0
+def test_nothing_is_owed_when_no_games_were_played() -> None:
+    """Checked in, hurt before the first game: the club doesn't charge."""
+    assert billing_service.compute_amount_calc(0, 80.0, 29.0) == 0.0
+
+
+def test_one_game_pays_the_court_fee_and_one_shuttlecock() -> None:
+    assert billing_service.compute_amount_calc(1, 80.0, 29.0) == 109.0
 
 
 def test_adds_flat_shuttlecock_cost_per_game_not_split() -> None:

@@ -17,6 +17,12 @@ export function effectiveAmount(billing: Billing): number {
   return billing.amount_adjusted ?? billing.amount_calc
 }
 
+/** Nothing to collect: no games played, or waived by the admin. Such a
+ *  bill is settled as it stands — there is no "paid" to wait for. */
+export function isFree(billing: Billing): boolean {
+  return effectiveAmount(billing) <= 0
+}
+
 /** Mirrors backend app/models/billing.py DailyRevenue. */
 export interface DailyRevenue {
   date: string

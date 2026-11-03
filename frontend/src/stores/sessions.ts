@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import * as adminApi from '@/api/admin'
 import type { Session } from '@/types'
+import { isFree } from '@/types'
 
 const CURRENT_SESSION_STORAGE_KEY = 'niddeaw_bmt_current_session_id'
 
@@ -70,7 +71,7 @@ export const useSessionsStore = defineStore('sessions', () => {
     let isSettled = false
     if (!hasPickedInitialSession && currentSession.value?.status === 'closed') {
       const billings = await adminApi.getBillings(currentSession.value.id)
-      isSettled = billings.every((b) => b.paid_status === 'paid')
+      isSettled = billings.every((b) => b.paid_status === 'paid' || isFree(b))
     }
     if (!stillValid || isSettled) {
       setCurrentSession(openSessions.value[0]?.id ?? null)
