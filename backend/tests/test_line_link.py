@@ -208,3 +208,155 @@ def test_verify_id_token_asks_line_for_our_channel(monkeypatch: pytest.MonkeyPat
     )
     with pytest.raises(line_auth.LineAuthError):
         line_auth.verify_id_token("bad", http)
+
+
+# --- signing up through LINE -------------------------------------------------
+
+from app.services import line_join
+
+
+def _png() -> bytes:
+    import io
+
+    from PIL import Image
+
+    out = io.BytesIO()
+    Image.new("RGB", (40, 40), (234, 76, 164)).save(out, "PNG")
+    return out.getvalue()
+
+
+def joiner(user_id: str = "U" + "d" * 32, name: str = "Tonkla LINE") -> dict[str, str]:
+    token = create_line_token(user_id, name, "https://profile.line-scdn.net/0hTonkla")
+    return {"Authorization": f"Bearer {token}"}
+
+
+def joins(db: MiniSupabase) -> list[dict[str, Any]]:
+    return db.tables.get("line_join_requests", [])
+
+
+def test_sign_up_keeps_the_club_rules_and_uses_the_line_picture(
+    client: TestClient, db: MiniSupabase, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fetched: list[str] = []
+    monkeypatch.setattr(line_join, "fetch_line_picture", lambda url: fetched.append(url) or _png())
+    form = {"nickname": "Tonkla", "dominant_hand": "right", "instagram": "tonkla.bmt"}
+
+    assert (
+        client.post(
+            "/api/line/join", json={**form, "nickname": "ต้นกล้า"}, headers=joiner()
+        ).status_code
+        == 400
+    )
+    assert (
+        client.post(
+            "/api/line/join", json={**form, "nickname": "BALL"}, headers=joiner()
+        ).status_code
+        == 409
+    )
+
+    sent = client.post("/api/line/join", json=form, headers=joiner()).json()
+    assert sent["application"]["nickname"] == "Tonkla"
+    assert sent["application"]["photo_url"].startswith(db.public_base)
+    assert fetched == ["https://profile.line-scdn.net/0hTonkla"]
+    # Someone else can't queue up behind them with the same name.
+    other = client.post("/api/line/join", json=form, headers=joiner("U" + "e" * 32, "x"))
+    assert other.status_code == 409
+    # Sending again replaces, not adds.
+    again = client.post(
+        "/api/line/join", json={**form, "quote": "ตบไม่ลง ไม่กลับบ้าน"}, headers=joiner()
+    )
+    assert again.json()["application"]["quote"] == "ตบไม่ลง ไม่กลับบ้าน"
+    assert len([j for j in joins(db) if j["status"] == "pending"]) == 1
+    # Nobody is in the club yet.
+    assert not any(p["nickname"] == "Tonkla" for p in db.tables["players"])
+
+
+def test_admin_accepts_a_sign_up_into_a_linked_member(
+    client: TestClient, db: MiniSupabase, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(line_join, "fetch_line_picture", lambda url: None)
+    client.post(
+        "/api/line/join", json={"nickname": "Tonkla", "use_line_photo": False}, headers=joiner()
+    )
+    photo = client.post(
+        "/api/line/join/photo", files={"file": ("me.png", _png(), "image/png")}, headers=joiner()
+    )
+    assert photo.json()["application"]["photo_url"]
+    bad = client.post(
+        "/api/line/join/photo", files={"file": ("x.png", b"nope", "image/png")}, headers=joiner()
+    )
+    assert bad.status_code == 400
+
+    waiting = client.get("/api/admin/line/joins", headers=admin()).json()
+    assert [(j["nickname"], j["line_name"]) for j in waiting] == [("Tonkla", "Tonkla LINE")]
+    made = client.post(
+        f"/api/admin/line/joins/{waiting[0]['id']}/approve",
+        json={"elo_score": 800},
+        headers=admin(),
+    )
+    assert made.status_code == 200
+    assert made.json()["elo_level"] == "milk"
+    assert made.json()["avatar_url"] == photo.json()["application"]["photo_url"]
+    row = next(p for p in db.tables["players"] if p["nickname"] == "Tonkla")
+    assert row["line_user_id"] == "U" + "d" * 32
+
+    me = client.get("/api/line/me", headers=joiner()).json()
+    assert me["player"]["nickname"] == "Tonkla" and me["application"] is None
+    assert (
+        client.post(
+            f"/api/admin/line/joins/{waiting[0]['id']}/approve", json={}, headers=admin()
+        ).status_code
+        == 404
+    )
+    # A member already can't sign up again.
+    assert (
+        client.post("/api/line/join", json={"nickname": "Tonkla Two"}, headers=joiner()).status_code
+        == 409
+    )
+
+
+def test_the_name_is_checked_again_when_the_admin_accepts(
+    client: TestClient, db: MiniSupabase, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(line_join, "fetch_line_picture", lambda url: None)
+    client.post("/api/line/join", json={"nickname": "Tonkla"}, headers=joiner())
+    db.tables["players"].append(player("Tonkla", 9))  # added by an admin meanwhile
+    req = client.get("/api/admin/line/joins", headers=admin()).json()[0]
+    assert (
+        client.post(
+            f"/api/admin/line/joins/{req['id']}/approve", json={}, headers=admin()
+        ).status_code
+        == 409
+    )
+
+
+def test_reject_withdraw_and_switching_between_claim_and_sign_up(
+    client: TestClient, db: MiniSupabase, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(line_join, "fetch_line_picture", lambda url: _png())
+    client.post("/api/line/join", json={"nickname": "Tonkla"}, headers=joiner())
+    req = client.get("/api/admin/line/joins", headers=admin()).json()[0]
+    assert (
+        client.post(f"/api/admin/line/joins/{req['id']}/reject", headers=admin()).status_code == 204
+    )
+    assert client.get("/api/line/me", headers=joiner()).json()["application"] is None
+    assert db.storage_files == {}  # their photo went with it
+
+    # Signing up drops a name claim, and claiming a name drops a sign-up.
+    client.post("/api/line/link", json={"player_id": pid(db, "Bank")}, headers=joiner())
+    after = client.post("/api/line/join", json={"nickname": "Tonkla"}, headers=joiner()).json()
+    assert after["pending"] is None and after["application"]["nickname"] == "Tonkla"
+    after = client.post(
+        "/api/line/link", json={"player_id": pid(db, "Bank")}, headers=joiner()
+    ).json()
+    assert after["application"] is None and after["pending"]["player"]["nickname"] == "Bank"
+    client.post("/api/line/join", json={"nickname": "Tonkla"}, headers=joiner())
+    assert client.delete("/api/line/join", headers=joiner()).json()["application"] is None
+
+
+def test_only_line_pictures_are_fetched() -> None:
+    assert line_join.is_line_picture("https://profile.line-scdn.net/0habc")
+    assert not line_join.is_line_picture("http://profile.line-scdn.net/0habc")
+    assert not line_join.is_line_picture("https://evil.example/line-scdn.net")
+    assert not line_join.is_line_picture("https://line-scdn.net.evil.example/x")
+    assert line_join.fetch_line_picture("https://169.254.169.254/latest") is None

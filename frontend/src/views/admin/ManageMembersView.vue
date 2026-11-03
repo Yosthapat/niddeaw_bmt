@@ -13,6 +13,7 @@ import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 import LineLinkPanel from '@/components/admin/LineLinkPanel.vue'
+import { STARTING_TIERS } from '@/utils/startingTiers'
 import { MAX_ELO, MAX_HANDLE, MAX_NOTE } from '@/utils/limits'
 import { apiErrorMessage } from '@/api/errors'
 
@@ -74,18 +75,7 @@ const visiblePlayers = computed(() => {
   )
 })
 
-// Representative starting score per tier — matches the boundaries in
-// backend/app/services/elo_service.py's get_tier() thresholds.
-const tierOptions: { tier: EloTier; label: string; score: number; color: string; gradient?: string }[] = [
-  { tier: 'milk', label: 'Milk', score: 800, color: 'var(--color-tier-milk)' },
-  { tier: 'beer', label: 'Beer', score: 1000, color: 'var(--color-tier-beer)' },
-  { tier: 'highball', label: 'Highball', score: 1200, color: 'var(--color-tier-highball)' },
-  { tier: 'wine', label: 'Wine', score: 1400, color: 'var(--color-tier-wine)' },
-  { tier: 'soju', label: 'Soju', score: 1600, color: 'var(--color-tier-soju)' },
-  { tier: 'whisky', label: 'Whisky', score: 1800, color: 'var(--color-tier-whisky)' },
-  { tier: 'vodka', label: 'Vodka', score: 2000, color: 'var(--color-tier-vodka)' },
-  { tier: 'absinthe', label: 'Absinthe', score: 2200, color: 'var(--color-tier-absinthe)', gradient: 'var(--gradient-tier-absinthe)' },
-]
+const tierOptions = STARTING_TIERS
 
 type HandOption = '' | 'left' | 'right'
 
@@ -399,7 +389,7 @@ onMounted(loadPlayers)
       </div>
     </form>
 
-    <LineLinkPanel @changed="loadLineLinks" />
+    <LineLinkPanel @changed="loadPlayers" />
 
     <input
       v-model="search"

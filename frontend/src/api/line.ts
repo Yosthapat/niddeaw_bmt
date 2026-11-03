@@ -15,11 +15,32 @@ export interface LinkRequest {
   created_at: string
 }
 
+export interface JoinApplication {
+  id: string
+  nickname: string
+  dominant_hand: 'left' | 'right' | null
+  instagram: string | null
+  tiktok: string | null
+  quote: string | null
+  photo_url: string | null
+  created_at: string
+}
+
+export interface JoinForm {
+  nickname: string
+  dominant_hand: 'left' | 'right' | null
+  instagram: string | null
+  tiktok: string | null
+  quote: string | null
+  use_line_photo: boolean
+}
+
 export interface LineStatus {
   line_name: string
   line_picture: string | null
   player: Player | null
   pending: LinkRequest | null
+  application: JoinApplication | null
   token?: string | null
 }
 
@@ -53,4 +74,18 @@ export function requestLink(token: string, playerId: string): Promise<LineStatus
 
 export function cancelLink(token: string): Promise<LineStatus> {
   return request('/api/line/link', { ...auth(token), method: 'DELETE' })
+}
+
+export function sendJoin(token: string, form: JoinForm): Promise<LineStatus> {
+  return request('/api/line/join', { ...auth(token), method: 'POST', body: JSON.stringify(form) })
+}
+
+export function uploadJoinPhoto(token: string, file: File): Promise<LineStatus> {
+  const body = new FormData()
+  body.append('file', file)
+  return request('/api/line/join/photo', { ...auth(token), method: 'POST', body })
+}
+
+export function cancelJoin(token: string): Promise<LineStatus> {
+  return request('/api/line/join', { ...auth(token), method: 'DELETE' })
 }

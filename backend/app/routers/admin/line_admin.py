@@ -9,12 +9,16 @@ from fastapi import APIRouter, HTTPException, Request, status
 
 from app.db_utils import rows
 from app.deps import AdminDep, SupabaseDep
-from app.models.line import LineLink, LinkRequestAdmin
+from app.models.line import JoinApprove, JoinRequestAdmin, LineLink, LinkRequestAdmin
 from app.models.player import Player
+from app.routers.admin.players_admin import check_nickname
+from app.services import line_join
+from app.services.elo_service import SCORE_FLOOR, STARTING_SCORE, get_tier
 
 router = APIRouter(prefix="/api/admin/line", tags=["admin-line"])
 
 TABLE = "line_link_requests"
+JOINS = "line_join_requests"
 
 
 def _now() -> str:
@@ -130,3 +134,86 @@ def unlink(player_id: UUID, http: Request, supabase: SupabaseDep, admin: AdminDe
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Player not found")
     http.state.activity_detail = {"player": found[0]["nickname"]}
     return Player.model_validate(found[0])
+
+
+# --- sign-ups from people not in the club yet --------------------------------
+
+
+@router.get("/joins", response_model=list[JoinRequestAdmin])
+def pending_joins(supabase: SupabaseDep, admin: AdminDep) -> list[JoinRequestAdmin]:
+    pending = rows(
+        supabase.table(JOINS).select("*").eq("status", "pending").order("created_at").execute()
+    )
+    return [JoinRequestAdmin.model_validate(r) for r in pending if r.get("status") == "pending"]
+
+
+def _join(supabase: SupabaseDep, join_id: UUID) -> dict[str, Any]:
+    found = rows(supabase.table(JOINS).select("*").eq("id", str(join_id)).limit(1).execute())
+    if not found or found[0].get("status") != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="ใบสมัครนี้ถูกจัดการไปแล้ว — รีเฟรชหน้า"
+        )
+    return found[0]
+
+
+@router.post("/joins/{join_id}/approve", response_model=Player)
+def approve_join(
+    join_id: UUID, payload: JoinApprove, http: Request, supabase: SupabaseDep, admin: AdminDep
+) -> Player:
+    """Take them into the club: the player is created here, already linked
+    to the LINE account that applied."""
+    req = _join(supabase, join_id)
+    line_user_id = str(req["line_user_id"])
+    linked = rows(
+        supabase.table("players").select("nickname").eq("line_user_id", line_user_id).execute()
+    )
+    if linked:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"LINE นี้เป็นสมาชิก {linked[0]['nickname']} อยู่แล้ว — ปฏิเสธใบสมัครนี้ได้เลย",
+        )
+    # Checked again: someone may have taken the name since they applied.
+    nickname = check_nickname(supabase, str(req["nickname"]))
+    elo_score = (
+        max(SCORE_FLOOR, payload.elo_score) if payload.elo_score is not None else STARTING_SCORE
+    )
+    created = rows(
+        supabase.table("players")
+        .insert(
+            {
+                "nickname": nickname,
+                "dominant_hand": req.get("dominant_hand"),
+                "instagram": req.get("instagram"),
+                "tiktok": req.get("tiktok"),
+                "quote": req.get("quote"),
+                "avatar_url": req.get("photo_url"),
+                "elo_score": elo_score,
+                "elo_level": get_tier(elo_score),
+                "is_active": True,
+                "line_user_id": line_user_id,
+                "line_name": req["line_name"],
+            }
+        )
+        .execute()
+    )
+    player = created[0]
+    supabase.table(JOINS).update(
+        {
+            "status": "approved",
+            "player_id": str(player["id"]),
+            "decided_at": _now(),
+            "decided_by": str(admin.admin_id),
+        }
+    ).eq("id", str(join_id)).execute()
+    http.state.activity_detail = {"player": nickname, "line": req["line_name"]}
+    return Player.model_validate(player)
+
+
+@router.post("/joins/{join_id}/reject", status_code=status.HTTP_204_NO_CONTENT)
+def reject_join(join_id: UUID, http: Request, supabase: SupabaseDep, admin: AdminDep) -> None:
+    req = _join(supabase, join_id)
+    supabase.table(JOINS).update(
+        {"status": "rejected", "decided_at": _now(), "decided_by": str(admin.admin_id)}
+    ).eq("id", str(join_id)).execute()
+    line_join.remove_photo(supabase, req.get("photo_url"))
+    http.state.activity_detail = {"nickname": req["nickname"], "line": req["line_name"]}

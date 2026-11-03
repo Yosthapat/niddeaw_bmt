@@ -11,6 +11,7 @@
  * gives is checked by our backend with LINE before it believes it.
  */
 import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import * as lineApi from '@/api/line'
 import type { LineStatus, LinkOption } from '@/api/line'
@@ -19,8 +20,10 @@ import { liffIdToken, liffSignInAgain, liffSignedIn, closeLiff } from '@/composa
 import { ApiError } from '@/api/client'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
+import LineJoinForm from '@/components/line/LineJoinForm.vue'
 
 const { t } = useI18n()
+const route = useRoute()
 
 type Phase = 'loading' | 'off' | 'error' | 'ready'
 const phase = ref<Phase>('loading')
@@ -32,6 +35,10 @@ const query = ref('')
 const picked = ref<string | null>(null)
 const sending = ref(false)
 const actionError = ref('')
+// The sign-up form is open. The OA's "สมัครสมาชิก" button opens
+// /line/register (the LIFF URL with /register on the end), straight to it.
+const joining = ref(false)
+const joinWarning = ref('')
 
 async function start(): Promise<void> {
   phase.value = 'loading'
@@ -53,7 +60,8 @@ async function start(): Promise<void> {
     liffSignedIn()
     token.value = status.token ?? ''
     me.value = status
-    if (!status.player && !status.pending) await loadOptions()
+    if (!status.player) await loadOptions()
+    joining.value = route.params.section === 'register' && !status.player && !status.pending && !status.application
     phase.value = 'ready'
   } catch (e) {
     problem.value = apiErrorMessage(e, t('line.startFailed'))
@@ -95,6 +103,25 @@ async function pickAgain(): Promise<void> {
     picked.value = null
     query.value = ''
     await loadOptions()
+  } catch (e) {
+    actionError.value = apiErrorMessage(e, t('line.pickFailed'))
+  } finally {
+    sending.value = false
+  }
+}
+
+function onSent(status: LineStatus, warning: string): void {
+  me.value = status
+  joinWarning.value = warning
+  joining.value = false
+}
+
+async function withdrawJoin(): Promise<void> {
+  sending.value = true
+  actionError.value = ''
+  try {
+    me.value = await lineApi.cancelJoin(token.value)
+    joinWarning.value = ''
   } catch (e) {
     actionError.value = apiErrorMessage(e, t('line.pickFailed'))
   } finally {
@@ -153,6 +180,46 @@ onMounted(start)
           </span>
           <p class="text-sm text-white/70">{{ t('line.linkedBody') }}</p>
           <RouterLink :to="`/members/${me.player.id}`" class="glass-pill">{{ t('line.myProfile') }}</RouterLink>
+        </section>
+
+        <!-- signing up: not in the club yet -->
+        <LineJoinForm
+          v-else-if="joining"
+          :token="token"
+          :line-name="me.line_name"
+          :line-picture="me.line_picture"
+          :application="me.application"
+          :members="options"
+          @sent="onSent"
+          @back="joining = false"
+        />
+
+        <!-- signed up, waiting for the admin -->
+        <section v-else-if="me.application" class="flex flex-1 flex-col items-center gap-3 text-center">
+          <span class="sent-ring mt-2 rounded-full">
+            <PlayerAvatar :name="me.application.nickname" :avatar-url="me.application.photo_url" size="xl" round />
+          </span>
+          <h1 class="world-title text-2xl">{{ t('lineJoin.sentTitle') }}</h1>
+          <p class="text-white/80">
+            <b class="font-display font-bold text-[#ff9fd6]">{{ me.application.nickname }}</b>
+            <template v-if="me.application.dominant_hand">
+              · {{ me.application.dominant_hand === 'left' ? t('lineJoin.leftHanded') : t('lineJoin.rightHanded') }}
+            </template>
+          </p>
+          <p v-if="joinWarning" class="text-sm text-[#ffd34d]" role="alert">{{ joinWarning }}</p>
+          <ul class="world-card w-full space-y-2 p-4 text-left text-sm">
+            <li><span class="text-[#ffd34d]">●</span> {{ t('lineJoin.sentWait') }}</li>
+            <li><span class="text-white/40">●</span> {{ t('lineJoin.sentMeanwhile') }}</li>
+          </ul>
+          <p v-if="actionError" class="text-sm text-status-error" role="alert">{{ actionError }}</p>
+          <div class="mt-auto flex w-full flex-col gap-2">
+            <button type="button" class="glass-pill w-full justify-center" :disabled="sending" @click="joining = true">
+              {{ t('lineJoin.edit') }}
+            </button>
+            <button type="button" class="min-h-11 text-sm text-white/60" :disabled="sending" @click="withdrawJoin">
+              {{ t('lineJoin.withdraw') }}
+            </button>
+          </div>
         </section>
 
         <!-- picked, waiting for the admin -->
@@ -221,7 +288,9 @@ onMounted(start)
             >
               {{ pickedOption ? t('line.itsMe', { name: pickedOption.nickname }) : t('line.pickFirst') }}
             </button>
-            <p class="text-center text-xs text-white/55">{{ t('line.notListed') }}</p>
+            <button type="button" class="min-h-11 text-sm font-medium text-[#ff9fd6] underline-offset-4 hover:underline" @click="joining = true">
+              {{ t('line.notListed') }}
+            </button>
           </div>
         </section>
 
@@ -232,6 +301,11 @@ onMounted(start)
 </template>
 
 <style scoped>
+.sent-ring {
+  box-shadow:
+    0 0 0 3px #ffd34d,
+    0 0 30px rgb(255 211 77 / 0.45);
+}
 .ring-line {
   box-shadow: 0 0 0 2px #06c755;
 }

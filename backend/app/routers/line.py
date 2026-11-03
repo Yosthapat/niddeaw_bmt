@@ -9,20 +9,32 @@ token. A link is only ever requested here; an admin approves it
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, UploadFile, status
 from supabase import Client
 
 from app.config import get_settings
 from app.db_utils import rows
 from app.deps import LineMemberDep, SupabaseDep
-from app.models.line import LineConfig, LineSessionIn, LineStatus, LinkOption, LinkPick, LinkRequest
+from app.models.line import (
+    JoinApplication,
+    JoinIn,
+    LineConfig,
+    LineContext,
+    LineSessionIn,
+    LineStatus,
+    LinkOption,
+    LinkPick,
+    LinkRequest,
+)
 from app.models.player import Player
+from app.routers.admin.players_admin import check_nickname
 from app.security import create_line_token
-from app.services import line_auth
+from app.services import line_auth, line_join
 
 router = APIRouter(prefix="/api/line", tags=["line"])
 
 TABLE = "line_link_requests"
+JOINS = "line_join_requests"
 
 
 def _player(supabase: Client, player_id: str) -> dict[str, Any] | None:
@@ -33,6 +45,18 @@ def _player(supabase: Client, player_id: str) -> dict[str, Any] | None:
 def _pending(supabase: Client, line_user_id: str) -> dict[str, Any] | None:
     found = rows(
         supabase.table(TABLE)
+        .select("*")
+        .eq("line_user_id", line_user_id)
+        .eq("status", "pending")
+        .limit(1)
+        .execute()
+    )
+    return found[0] if found else None
+
+
+def _pending_join(supabase: Client, line_user_id: str) -> dict[str, Any] | None:
+    found = rows(
+        supabase.table(JOINS)
         .select("*")
         .eq("line_user_id", line_user_id)
         .eq("status", "pending")
@@ -54,9 +78,11 @@ def status_of(
         )
     pending = _pending(supabase, line_user_id)
     claimed = _player(supabase, str(pending["player_id"])) if pending else None
+    joining = _pending_join(supabase, line_user_id)
     return LineStatus(
         line_name=line_name,
         line_picture=picture or (pending or {}).get("line_picture"),
+        application=JoinApplication.model_validate(joining) if joining else None,
         pending=LinkRequest(
             id=pending["id"],
             player=Player.model_validate(claimed),
@@ -137,6 +163,9 @@ def request_link(payload: LinkPick, supabase: SupabaseDep, member: LineMemberDep
     supabase.table(TABLE).delete().eq("line_user_id", member.line_user_id).eq(
         "status", "pending"
     ).execute()
+    # Picking a name means they are in the club after all: any sign-up
+    # they sent is withdrawn.
+    _withdraw_join(supabase, member.line_user_id)
     supabase.table(TABLE).insert(
         {
             "line_user_id": member.line_user_id,
@@ -156,3 +185,108 @@ def cancel_link(supabase: SupabaseDep, member: LineMemberDep) -> LineStatus:
         "status", "pending"
     ).execute()
     return status_of(supabase, member.line_user_id, member.line_name)
+
+
+def _withdraw_join(supabase: Client, line_user_id: str) -> None:
+    joining = _pending_join(supabase, line_user_id)
+    if joining:
+        supabase.table(JOINS).delete().eq("id", str(joining["id"])).execute()
+        line_join.remove_photo(supabase, joining.get("photo_url"))
+
+
+def _not_yet_a_member(supabase: Client, member: LineContext) -> None:
+    linked = rows(
+        supabase.table("players")
+        .select("nickname")
+        .eq("line_user_id", member.line_user_id)
+        .execute()
+    )
+    if linked:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"LINE นี้เป็นสมาชิก {linked[0]['nickname']} อยู่แล้ว",
+        )
+
+
+@router.post("/join", response_model=LineStatus)
+def join(payload: JoinIn, supabase: SupabaseDep, member: LineMemberDep) -> LineStatus:
+    """Send (or resend) a sign-up. Nobody is in the club until an admin
+    accepts it (routers/admin/line_admin.py)."""
+    _not_yet_a_member(supabase, member)
+    nickname = check_nickname(supabase, payload.nickname)
+    # Two people waiting with the same name would leave the admin to turn
+    # one down for it later; tell the second one now. The format rule has
+    # already ruled out % and _, so ilike can only match the name itself.
+    clash = rows(
+        supabase.table(JOINS)
+        .select("line_user_id")
+        .eq("status", "pending")
+        .ilike("nickname", nickname)
+        .execute()
+    )
+    if any(r["line_user_id"] != member.line_user_id for r in clash):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f'มีคนสมัครด้วยชื่อ "{nickname}" รออยู่แล้ว — ลองชื่ออื่น',
+        )
+    fields: dict[str, Any] = {
+        "line_name": member.line_name[:100] or "LINE",
+        "nickname": nickname,
+        "dominant_hand": payload.dominant_hand,
+        "instagram": payload.instagram or None,
+        "tiktok": payload.tiktok or None,
+        "quote": payload.quote or None,
+    }
+    before = _pending_join(supabase, member.line_user_id)
+    if payload.use_line_photo:
+        picture = line_join.fetch_line_picture(member.line_picture or "")
+        try:
+            fields["photo_url"] = (
+                line_join.store_photo(supabase, member.line_user_id[1:9], picture)
+                if picture
+                else None
+            )
+        except ValueError:
+            fields["photo_url"] = None
+        if before and before.get("photo_url") != fields["photo_url"]:
+            line_join.remove_photo(supabase, before.get("photo_url"))
+    if before:
+        supabase.table(JOINS).update(fields).eq("id", str(before["id"])).execute()
+    else:
+        # They are signing up rather than claiming a name: drop any claim.
+        supabase.table(TABLE).delete().eq("line_user_id", member.line_user_id).eq(
+            "status", "pending"
+        ).execute()
+        supabase.table(JOINS).insert(
+            {**fields, "line_user_id": member.line_user_id, "status": "pending"}
+        ).execute()
+    return status_of(supabase, member.line_user_id, member.line_name, member.line_picture)
+
+
+@router.post("/join/photo", response_model=LineStatus)
+async def join_photo(file: UploadFile, supabase: SupabaseDep, member: LineMemberDep) -> LineStatus:
+    """Their own photo for the sign-up they already sent."""
+    joining = _pending_join(supabase, member.line_user_id)
+    if joining is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ยังไม่ได้ส่งใบสมัคร")
+    contents = await file.read()
+    if len(contents) > line_join.MAX_PHOTO_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="รูปใหญ่เกินไป (ไม่เกิน 2MB)"
+        )
+    try:
+        url = line_join.store_photo(supabase, member.line_user_id[1:9], contents)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="ไฟล์นี้ไม่ใช่รูปภาพ"
+        ) from None
+    supabase.table(JOINS).update({"photo_url": url}).eq("id", str(joining["id"])).execute()
+    if joining.get("photo_url") != url:
+        line_join.remove_photo(supabase, joining.get("photo_url"))
+    return status_of(supabase, member.line_user_id, member.line_name, member.line_picture)
+
+
+@router.delete("/join", response_model=LineStatus)
+def cancel_join(supabase: SupabaseDep, member: LineMemberDep) -> LineStatus:
+    _withdraw_join(supabase, member.line_user_id)
+    return status_of(supabase, member.line_user_id, member.line_name, member.line_picture)
