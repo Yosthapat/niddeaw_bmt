@@ -460,6 +460,27 @@ button:not(:disabled):active {
   box-shadow: 0 4px 14px rgb(234 76 164 / 0.5);
 }
 
+/* A small glass button on the banners: back to the list, a member's
+   TikTok or Instagram. */
+.glass-pill {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 16px;
+  border: 1px solid rgb(255 255 255 / 0.2);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.1);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  font-size: 14px;
+  color: rgb(255 255 255 / 0.85);
+}
+a.glass-pill:hover {
+  color: #fff;
+  border-color: rgb(255 108 192 / 0.55);
+}
+
 /* How much room the header takes at the top of the page: the solid
    phone bar, then from 900px the floating glass one. The home hero (wide
    screens only) pulls itself up by exactly this much to run underneath it. */

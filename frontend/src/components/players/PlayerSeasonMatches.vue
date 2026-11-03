@@ -94,39 +94,35 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section class="mt-8">
-    <h2 class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">
-      {{ t('profile.myMatches') }}
-    </h2>
+  <section class="mt-6">
+    <p class="world-eyebrow">MATCHES</p>
+    <h2 class="world-title mt-1 text-lg">{{ t('profile.myMatches') }}</h2>
 
-    <p v-if="seasons.length === 0 && !loading" class="mt-3 text-sm text-white/40">
+    <p v-if="seasons.length === 0 && !loading" class="mt-3 text-sm text-white/55">
       {{ t('profile.noSeasons') }}
     </p>
 
-    <div v-if="seasons.length > 0" class="mt-3 flex flex-wrap gap-2">
+    <div v-if="seasons.length > 0" class="seg mt-3 flex-wrap" role="group" :aria-label="t('profile.myMatches')">
       <button
         v-for="s in seasons"
         :key="s.number"
         type="button"
-        class="hud-hover rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors"
-        :class="
-          s.number === selectedSeason
-            ? 'border-brand-pink bg-brand-pink text-brand-black'
-            : 'border-brand-pink/30 text-brand-pink hover:border-brand-pink/60'
-        "
+        class="seg-btn"
+        :class="{ on: s.number === selectedSeason }"
+        :aria-pressed="s.number === selectedSeason"
         @click="selectSeason(s.number)"
       >
         {{ t('profile.seasonLabel', { n: s.number }) }}
       </button>
     </div>
 
-    <p v-if="currentSeason" class="mt-2 text-xs text-white/40">{{ currentSeason.year }}</p>
+    <p v-if="currentSeason" class="mt-2 text-xs text-white/55">{{ currentSeason.year }}</p>
 
     <div v-if="loading" class="mt-4 space-y-3">
-      <HudSkeletonBlock v-for="i in 3" :key="i" :delay="i * 80" class="h-28" />
+      <HudSkeletonBlock v-for="i in 3" :key="i" :delay="i * 80" class="h-28 rounded-[20px]" />
     </div>
     <p v-else-if="error" class="mt-4 text-sm text-status-error">{{ error }}</p>
-    <p v-else-if="seasons.length > 0 && matches.length === 0" class="mt-4 text-sm text-white/40">
+    <p v-else-if="seasons.length > 0 && matches.length === 0" class="world-card mt-4 p-5 text-sm text-white/55">
       {{ t('profile.noSeasonMatches') }}
     </p>
 
@@ -140,16 +136,16 @@ onMounted(async () => {
       <button
         type="button"
         :disabled="page <= 1"
-        class="tap hud-hover rounded-full border border-brand-pink/40 px-4 text-sm font-semibold text-brand-pink hover:bg-brand-pink hover:text-brand-black disabled:pointer-events-none disabled:opacity-30"
+        class="glass-pill disabled:pointer-events-none disabled:opacity-35"
         @click="page -= 1"
       >
         {{ t('matches.prevPage') }}
       </button>
-      <span class="text-sm text-white/50">{{ t('matches.pageLabel', { n: page }) }}</span>
+      <span class="text-sm text-white/60">{{ t('matches.pageLabel', { n: page }) }}</span>
       <button
         type="button"
         :disabled="!hasNext"
-        class="tap hud-hover rounded-full border border-brand-pink/40 px-4 text-sm font-semibold text-brand-pink hover:bg-brand-pink hover:text-brand-black disabled:pointer-events-none disabled:opacity-30"
+        class="glass-pill text-[#ff9fd6] disabled:pointer-events-none disabled:opacity-35"
         @click="page += 1"
       >
         {{ t('matches.nextPage') }}

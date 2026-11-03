@@ -32,13 +32,14 @@ const TONE: Record<OrderStatus, string> = {
 </script>
 
 <template>
-  <section v-if="orders.length" class="mt-8">
-    <h2 class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">{{ t('shop.myOrders') }}</h2>
+  <section v-if="orders.length" class="mt-6">
+    <p class="world-eyebrow">ORDERS</p>
+    <h2 class="world-title mt-1 text-lg">{{ t('shop.myOrders') }}</h2>
     <ul class="mt-3 flex flex-col gap-2">
       <li
         v-for="o in orders"
         :key="o.id"
-        class="hud-panel glass-panel flex flex-col gap-1 border border-brand-pink/20 px-4 py-3"
+        class="world-card flex flex-col gap-1 !rounded-[18px] px-4 py-3"
       >
         <div class="flex items-start justify-between gap-3">
           <p class="text-xs text-white/60">{{ orderNo(o.order_no) }} · {{ formatDayMonth(o.created_at, locale as 'th' | 'en') }}</p>

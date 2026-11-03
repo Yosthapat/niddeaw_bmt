@@ -232,7 +232,6 @@ export default {
     withPartner: 'With',
     against: 'Against',
     queuePosition: 'Queue #{n}',
-    estimatedWait: 'Approx. wait',
     myMatches: 'My Matches',
     seasonLabel: 'Season {n}',
     noSeasons: 'No seasons yet (no sessions played)',

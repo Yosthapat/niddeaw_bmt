@@ -92,22 +92,20 @@ usePolling(refresh, 7000)
 </script>
 
 <template>
-  <section v-if="visible" class="hud-panel glass-panel mt-8 border border-brand-pink/40 p-4">
+  <section v-if="visible" class="world-card live mt-6 p-5">
     <div class="flex items-center gap-2">
       <span class="relative flex h-2 w-2">
         <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-pink opacity-75" />
         <span class="relative inline-flex h-2 w-2 rounded-full bg-brand-pink" />
       </span>
-      <h2 class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">
-        {{ t('profile.rightNow') }}
-      </h2>
+      <h2 class="world-eyebrow">{{ t('profile.rightNow') }}</h2>
     </div>
 
     <template v-if="entry">
       <p class="mt-3 flex flex-wrap items-center gap-2">
         <span
-          class="hud-panel border border-brand-pink/30 bg-brand-black px-2.5 py-1 text-xs font-semibold uppercase"
-          :class="playing ? 'text-status-success' : 'text-brand-pink'"
+          class="rounded-full border border-white/15 bg-white/8 px-3 py-1 text-xs font-semibold uppercase"
+          :class="playing ? 'text-status-success' : 'text-brand-pink-light'"
         >
           {{ playing ? t('live.inProgress') : t('live.upNext') }}
         </span>
@@ -139,17 +137,24 @@ usePolling(refresh, 7000)
 
     <template v-else-if="waiting">
       <p class="mt-3 flex flex-wrap items-center gap-2">
-        <span class="hud-panel border border-brand-pink/30 bg-brand-black px-2.5 py-1 text-xs font-semibold text-white/70 uppercase">
+        <span class="rounded-full border border-white/15 bg-white/8 px-3 py-1 text-xs font-semibold text-white/75 uppercase">
           {{ t('live.inQueue') }}
         </span>
         <span class="text-sm text-white/70">
           {{ t('profile.queuePosition', { n: waiting.queue_position }) }}
         </span>
       </p>
-      <p class="mt-2 text-xs text-white/40">
-        {{ t('profile.estimatedWait') }} ~{{ Math.round(waiting.estimated_wait_minutes) }}
-        {{ t('matches.minutes') }}
-      </p>
     </template>
   </section>
 </template>
+
+<style scoped>
+/* on court or in the queue right now: the pink glow the live pages use */
+.live {
+  border-color: rgb(255 108 192 / 0.5);
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 0.35),
+    0 0 0 1px rgb(255 108 192 / 0.15),
+    0 22px 44px -22px rgb(234 76 164 / 0.75);
+}
+</style>
