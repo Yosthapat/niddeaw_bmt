@@ -73,6 +73,7 @@ DEFAULTS: dict[str, Row] = {
         "elo_delta_team1": None, "elo_delta_team2": None,
     },
     "billings": {"amount_adjusted": None, "paid_status": "unpaid", "promptpay_ref": None,
+                 "slip_url": None, "slip_sent_at": None, "slip_rejected_at": None,
                  "game_count": 0},
     "expenses": {"receipt_url": None, "is_paid": False, "paid_at": None, "note": None},
     "other_income": {"slip_url": None, "note": None},

@@ -1,13 +1,13 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 
 from app.db_utils import rows
 from app.deps import AdminDep, SupabaseDep
 from app.models.billing import Billing, BillingAdjust, BillingMarkPaid, DailyRevenue
 from app.models.payment import PaymentInfoResponse
-from app.services import billing_service, payment_info_service, queue_service, revenue_service
+from app.services import billing_service, night_bill, payment_info_service, revenue_service
 
 router = APIRouter(prefix="/api/admin/billing", tags=["admin-billing"])
 
@@ -48,7 +48,7 @@ def close_session_and_bill(
     court_fee_per_person = session_rows[0]["court_fee_per_person"]
     shuttlecock_price_per_game = session_rows[0]["shuttlecock_price_per_game"]
 
-    now_iso = datetime.now(timezone.utc).isoformat()
+    now_iso = datetime.now(UTC).isoformat()
     supabase.table("checkins").update({"checkout_time": now_iso}).eq(
         "session_id", str(session_id)
     ).is_("checkout_time", "null").execute()
@@ -102,67 +102,10 @@ def close_session_and_bill(
 def bill_player(
     session_id: UUID, player_id: UUID, supabase: SupabaseDep, admin: AdminDep
 ) -> Billing:
-    """Bills a single attendee immediately, independent of session status —
-    e.g. they checked out early and shouldn't have to wait for everyone
-    else to finish. Checks them out as part of it, since being billed is
-    how a night ends for them; the admin doesn't have to remember a second
-    button. Doesn't touch the session's status or other players.
-
-    Refused while they still have a match outstanding, queued or on court:
-    the bill counts completed games, so charging now would miss the games
-    they are about to play and the club would be short."""
-    session_result = (
-        supabase.table("sessions").select("*").eq("id", str(session_id)).limit(1).execute()
-    )
-    session_rows = rows(session_result)
-    if not session_rows:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
-    court_fee_per_person = session_rows[0]["court_fee_per_person"]
-    shuttlecock_price_per_game = session_rows[0]["shuttlecock_price_per_game"]
-
-    unfinished = queue_service.players_in_progress(
-        supabase, session_id
-    ) | queue_service.players_in_queued_matches(supabase, session_id)
-    if player_id in unfinished:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="คนนี้ยังมีแมตช์ที่ยังไม่จบ (กำลังแข่ง/รอเริ่ม) — บันทึกผลหรือยกเลิกแมตช์ก่อน",
-        )
-
-    matches_result = (
-        supabase.table("matches")
-        .select("team1_player_ids, team2_player_ids")
-        .eq("session_id", str(session_id))
-        .eq("status", "completed")
-        .execute()
-    )
-    game_count = billing_service.count_games_played(str(player_id), rows(matches_result))
-    amount_calc = billing_service.compute_amount_calc(
-        game_count, court_fee_per_person, shuttlecock_price_per_game
-    )
-
-    now_iso = datetime.now(timezone.utc).isoformat()
-    # Billing them ends their night, so close the check-in too — the same
-    # thing close_session_and_bill() does for everyone at once.
-    supabase.table("checkins").update({"checkout_time": now_iso}).eq(
-        "session_id", str(session_id)
-    ).eq("player_id", str(player_id)).is_("checkout_time", "null").execute()
-
-    result = (
-        supabase.table("billings")
-        .upsert(
-            {
-                "session_id": str(session_id),
-                "player_id": str(player_id),
-                "game_count": game_count,
-                "amount_calc": amount_calc,
-                "updated_at": now_iso,
-            },
-            on_conflict="session_id,player_id",
-        )
-        .execute()
-    )
-    return Billing.model_validate(rows(result)[0])
+    """Bills a single attendee immediately and checks them out
+    (services/night_bill.py) — e.g. they went home early and shouldn't
+    have to wait for everyone else to finish."""
+    return Billing.model_validate(night_bill.bill_one(supabase, session_id, player_id))
 
 
 @router.patch("/{billing_id}/adjust", response_model=Billing)
@@ -174,7 +117,7 @@ def adjust_amount(
         .update(
             {
                 "amount_adjusted": payload.amount_adjusted,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(UTC).isoformat(),
             }
         )
         .eq("id", str(billing_id))
@@ -195,7 +138,7 @@ def set_paid_status(
         .update(
             {
                 "paid_status": payload.paid_status,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(UTC).isoformat(),
             }
         )
         .eq("id", str(billing_id))
@@ -208,7 +151,9 @@ def set_paid_status(
 
 
 @router.get("/{billing_id}/payment-info", response_model=PaymentInfoResponse)
-def get_payment_info(billing_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> PaymentInfoResponse:
+def get_payment_info(
+    billing_id: UUID, supabase: SupabaseDep, admin: AdminDep
+) -> PaymentInfoResponse:
     """Payment info for the admin to show the payer, shaped by whichever
     method the club has configured in Settings. PromptPay is the only
     method where the amount is embedded in a QR the payer's banking app
@@ -224,3 +169,31 @@ def get_payment_info(billing_id: UUID, supabase: SupabaseDep, admin: AdminDep) -
     billing = Billing.model_validate(billing_rows[0])
 
     return payment_info_service.payment_info(supabase, billing.effective_amount)
+
+
+@router.post("/{billing_id}/reject-slip", response_model=Billing)
+def reject_slip(billing_id: UUID, http: Request, supabase: SupabaseDep, admin: AdminDep) -> Billing:
+    """The slip a member sent from LINE doesn't match the account: remove
+    it, and ask them for another one. The bill stays unpaid."""
+    found = rows(
+        supabase.table("billings").select("*").eq("id", str(billing_id)).limit(1).execute()
+    )
+    if not found:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing row not found")
+    if not found[0].get("slip_url"):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="บิลนี้ไม่มีสลิปให้ตรวจแล้ว")
+    updated = rows(
+        supabase.table("billings")
+        .update(
+            {
+                "slip_url": None,
+                "slip_rejected_at": datetime.now(UTC).isoformat(),
+                "updated_at": datetime.now(UTC).isoformat(),
+            }
+        )
+        .eq("id", str(billing_id))
+        .execute()
+    )
+    night_bill.forget_slip(supabase, found[0].get("slip_url"))
+    http.state.activity_detail = {"billing_id": str(billing_id)}
+    return Billing.model_validate(updated[0])

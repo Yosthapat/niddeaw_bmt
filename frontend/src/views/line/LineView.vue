@@ -14,7 +14,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import * as lineApi from '@/api/line'
-import type { LineCheckinState, LineStatus, LinkOption } from '@/api/line'
+import type { LineCheckinState, LineStatus, LineTonight, LinkOption } from '@/api/line'
 import { apiErrorMessage } from '@/api/errors'
 import { closeLiff, liffCanScan, liffIdToken, liffScanCheckinCode, liffSignInAgain, liffSignedIn } from '@/composables/useLiff'
 import { ApiError } from '@/api/client'
@@ -22,6 +22,8 @@ import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 import LineJoinForm from '@/components/line/LineJoinForm.vue'
 import LineCheckin from '@/components/line/LineCheckin.vue'
+import LineCheckout from '@/components/line/LineCheckout.vue'
+import LineBills from '@/components/line/LineBills.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -46,6 +48,11 @@ const joinWarning = ref('')
 const checkin = ref<LineCheckinState | null>(null)
 const checkinCode = ref('')
 const canScan = ref(false)
+// A linked member's other screens: tonight's checkout and their bills
+// (/line/checkout, /line/bills — the OA menu's "เช็คเอาท์ จ่ายเงิน").
+type Screen = 'home' | 'checkout' | 'bills'
+const screen = ref<Screen>('home')
+const tonight = ref<LineTonight | null>(null)
 
 async function start(): Promise<void> {
   phase.value = 'loading'
@@ -72,6 +79,9 @@ async function start(): Promise<void> {
     joining.value = route.params.section === 'register' && !status.player && !status.pending && !status.application
     const code = typeof route.query.c === 'string' ? route.query.c : ''
     if (route.params.section === 'checkin' && code) await openCheckin(code)
+    if (status.player && (route.params.section === 'checkout' || route.params.section === 'bills')) {
+      await go(route.params.section)
+    }
     phase.value = 'ready'
   } catch (e) {
     problem.value = apiErrorMessage(e, t('line.startFailed'))
@@ -160,6 +170,13 @@ async function scan(): Promise<void> {
   }
 }
 
+async function go(next: Screen): Promise<void> {
+  actionError.value = ''
+  if (next === 'checkout') tonight.value = await lineApi.getTonight(token.value)
+  screen.value = next
+  void router.replace(next === 'home' ? '/line' : `/line/${next}`)
+}
+
 function leaveCheckin(next: 'link' | 'join' | 'done'): void {
   checkin.value = null
   joining.value = next === 'join'
@@ -222,6 +239,9 @@ onMounted(start)
           @done="leaveCheckin('done')"
         />
 
+        <LineCheckout v-else-if="me.player && screen === 'checkout' && tonight" :token="token" :initial="tonight" @bills="go('bills')" />
+        <LineBills v-else-if="me.player && screen === 'bills'" :token="token" @back="go('home')" />
+
         <!-- linked: who they are, and what's coming -->
         <section v-else-if="me.player" class="world-card flex flex-col items-center gap-3 p-6 text-center">
           <p class="world-eyebrow">LINKED</p>
@@ -236,6 +256,10 @@ onMounted(start)
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M4 12h16" /></svg>
             {{ t('lineCheckin.scan') }}
           </button>
+          <div class="grid w-full grid-cols-2 gap-2">
+            <button type="button" class="glass-pill justify-center" @click="go('checkout')">{{ t('lineCheckout.open') }}</button>
+            <button type="button" class="glass-pill justify-center" @click="go('bills')">{{ t('lineCheckout.myBills') }}</button>
+          </div>
           <p v-if="actionError" class="text-sm text-status-error" role="alert">{{ actionError }}</p>
           <RouterLink :to="`/members/${me.player.id}`" class="glass-pill">{{ t('line.myProfile') }}</RouterLink>
         </section>
@@ -352,7 +376,7 @@ onMounted(start)
           </div>
         </section>
 
-        <button v-if="me.player && !checkin" type="button" class="glass-pill mt-auto w-full justify-center" @click="closeLiff">{{ t('line.close') }}</button>
+        <button v-if="me.player && !checkin && screen === 'home'" type="button" class="glass-pill mt-auto w-full justify-center" @click="closeLiff">{{ t('line.close') }}</button>
       </template>
     </div>
   </main>

@@ -685,3 +685,7 @@ export async function getCheckinQr(sessionId: string): Promise<CheckinQr> {
 export async function rotateCheckinQr(sessionId: string): Promise<CheckinQr> {
   return request(`/api/admin/line/checkin-qr/rotate?session_id=${sessionId}`, { method: 'POST' })
 }
+
+export async function rejectBillSlip(billingId: string): Promise<Billing> {
+  return request(`/api/admin/billing/${billingId}/reject-slip`, { method: 'POST' })
+}

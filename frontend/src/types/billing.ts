@@ -10,6 +10,10 @@ export interface Billing {
   paid_status: PaidStatus
   promptpay_ref: string | null
   updated_at: string
+  /** A transfer slip the member attached from LINE, for the admin to check. */
+  slip_url?: string | null
+  slip_sent_at?: string | null
+  slip_rejected_at?: string | null
 }
 
 /** effective amount owed = amount_adjusted ?? amount_calc (mirrors Billing.effective_amount) */

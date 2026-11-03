@@ -12,6 +12,8 @@ import SessionPicker from '@/components/layout/SessionPicker.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import { bahtProblem } from '@/utils/limits'
 import { apiErrorMessage } from '@/api/errors'
+import { usePolling } from '@/composables/usePolling'
+import BillSlipReview from '@/components/admin/BillSlipReview.vue'
 
 const { t } = useI18n()
 const sessionsStore = useSessionsStore()
@@ -32,6 +34,14 @@ const hasTyped = (id: string): boolean => editingAdjust.value[id] !== undefined 
 // that can be twenty bills long, out of sight of the box just typed in.
 const adjustError = ref<Record<string, string>>({})
 const actionError = ref<string | null>(null)
+// A member paid from LINE and attached a slip: waiting for the admin to
+// check it against the account (BillSlipReview).
+const reviewing = ref<Billing | null>(null)
+const waitingSlip = (b: Billing): boolean => b.paid_status !== 'paid' && !!b.slip_url
+const slipCount = computed(() => billings.value.filter(waitingSlip).length)
+function onReviewed(updated: Billing): void {
+  billings.value = billings.value.map((b) => (b.id === updated.id ? updated : b))
+}
 
 function nameOf(playerId: string): string {
   const p = playersStore.byId(playerId)
@@ -177,6 +187,8 @@ onMounted(async () => {
   await Promise.all([sessionsStore.refresh(), playersStore.ensureLoaded()])
   await refreshBillings()
 })
+// Slips arrive from members' phones while the admin is on this screen.
+usePolling(refreshBillings, 15000)
 </script>
 
 <template>
@@ -244,6 +256,11 @@ onMounted(async () => {
             <span class="mx-1.5 text-white/20">·</span>
             <span class="text-white/40">{{ t('billing.outstanding') }}</span>
             <span class="ml-1 font-semibold text-brand-pink">{{ money(totals.due) }}</span>
+            <template v-if="slipCount > 0">
+              <span class="mx-1.5 text-white/20">·</span>
+              <span class="text-white/40">{{ t('billSlip.waiting') }}</span>
+              <span class="ml-1 font-semibold text-[#cbbfff]">{{ slipCount }}</span>
+            </template>
           </p>
         </div>
       </section>
@@ -273,6 +290,13 @@ onMounted(async () => {
             >
               {{ t('billing.free') }}
             </span>
+            <button
+              v-else-if="waitingSlip(b)"
+              class="tap rounded-full bg-[#7b5cff]/25 px-3 text-xs font-semibold text-[#cbbfff]"
+              @click="reviewing = b"
+            >
+              {{ t('billSlip.check') }}
+            </button>
             <button
               v-else
               class="tap rounded-full px-3 text-xs font-semibold"
@@ -318,6 +342,9 @@ onMounted(async () => {
             >
               {{ t('billing.waive') }}
             </button>
+            <button v-if="b.slip_url && !waitingSlip(b)" class="tap px-1 text-[#cbbfff] underline" @click="reviewing = b">
+              {{ t('billSlip.view') }}
+            </button>
             <!-- nothing to pay, nothing to scan -->
             <button v-if="effectiveAmount(b) > 0" class="tap px-1 text-brand-pink underline" @click="showQr(b)">
               {{ paymentInfoByBillingId[b.id] ? t('billing.hideQr') : t('billing.showQr') }}
@@ -347,5 +374,6 @@ onMounted(async () => {
         </li>
       </ul>
     </template>
+    <BillSlipReview v-if="reviewing" :bill="reviewing" :name="nameOf(reviewing.player_id)" @close="reviewing = null" @updated="onReviewed" />
   </main>
 </template>
