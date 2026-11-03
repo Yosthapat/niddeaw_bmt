@@ -85,8 +85,9 @@ const router = createRouter({
     },
     {
       // Opened inside LINE (the club OA's LIFF app); no header or tab bar.
-      // /line/register: the OA's sign-up button (LIFF adds the path).
-      path: '/line/:section(register)?',
+      // /line/register: the OA's sign-up button; /line/checkin?c=…: tonight's
+      // check-in QR (LIFF adds the path to the endpoint URL).
+      path: '/line/:section(register|checkin)?',
       name: 'line',
       component: () => import('../views/line/LineView.vue'),
       meta: { bare: true },

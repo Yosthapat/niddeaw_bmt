@@ -13,6 +13,7 @@ import SessionPicker from '@/components/layout/SessionPicker.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
+import CheckinQrOverlay from '@/components/admin/CheckinQrOverlay.vue'
 import { apiErrorMessage } from '@/api/errors'
 
 const { t, locale } = useI18n()
@@ -34,6 +35,8 @@ const newNameProblem = computed(() => {
 })
 const actionError = ref<string | null>(null)
 const search = ref('')
+// Tonight's QR on screen, for members to check themselves in through LINE.
+const showQr = ref(false)
 
 // Closing a session is what bills everyone, so anything added afterwards
 // is a player on court with no bill. The picker deliberately lists closed
@@ -155,6 +158,22 @@ usePolling(refreshCheckins, 8000)
       <SessionPicker />
     </div>
 
+    <button
+      v-if="sessionsStore.currentSessionId && !sessionClosed"
+      type="button"
+      class="tap hud-hover mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-[#06c755] px-4 text-sm font-semibold text-white"
+      @click="showQr = true"
+    >
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2" /></svg>
+      {{ t('checkinQr.show') }}
+    </button>
+    <CheckinQrOverlay
+      v-if="showQr && sessionsStore.currentSessionId"
+      :session-id="sessionsStore.currentSessionId"
+      :checkins="checkins"
+      @close="showQr = false"
+    />
+
     <p v-if="actionError" class="mt-4 text-sm text-status-error">{{ actionError }}</p>
 
     <div
@@ -225,7 +244,8 @@ usePolling(refreshCheckins, 8000)
               :interactive="false"
             />
             <EloBadge v-if="playersStore.byId(c.player_id)" :elo-score="playersStore.byId(c.player_id)!.elo_score" />
-            <span class="text-xs text-white/40">
+            <span class="flex flex-col items-end text-xs leading-tight text-white/40">
+              <span v-if="c.via === 'line'" class="text-[10px] font-bold text-[#06c755]" :title="t('checkinQr.selfCheckin')">LINE</span>
               {{ formatTime(c.checkin_time, locale) }}
             </span>
             <button

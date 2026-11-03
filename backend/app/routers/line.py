@@ -7,6 +7,7 @@ token. A link is only ever requested here; an admin approves it
 (routers/admin/line_admin.py), since otherwise anyone could claim anyone.
 """
 
+import re
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, UploadFile, status
@@ -16,8 +17,11 @@ from app.config import get_settings
 from app.db_utils import rows
 from app.deps import LineMemberDep, SupabaseDep
 from app.models.line import (
+    CheckinNight,
     JoinApplication,
     JoinIn,
+    LineCheckinIn,
+    LineCheckinState,
     LineConfig,
     LineContext,
     LineSessionIn,
@@ -29,12 +33,13 @@ from app.models.line import (
 from app.models.player import Player
 from app.routers.admin.players_admin import check_nickname
 from app.security import create_line_token
-from app.services import line_auth, line_join
+from app.services import checkin_service, line_auth, line_checkin, line_join
 
 router = APIRouter(prefix="/api/line", tags=["line"])
 
 TABLE = "line_link_requests"
 JOINS = "line_join_requests"
+CODE = re.compile(r"[A-Za-z0-9_-]{12,64}")
 
 
 def _player(supabase: Client, player_id: str) -> dict[str, Any] | None:
@@ -290,3 +295,60 @@ async def join_photo(file: UploadFile, supabase: SupabaseDep, member: LineMember
 def cancel_join(supabase: SupabaseDep, member: LineMemberDep) -> LineStatus:
     _withdraw_join(supabase, member.line_user_id)
     return status_of(supabase, member.line_user_id, member.line_name, member.line_picture)
+
+
+# --- checking in by scanning tonight's QR ------------------------------------
+
+
+def _checkin_state(supabase: Client, member: LineContext, code: str) -> LineCheckinState:
+    night = line_checkin.night_for(supabase, code)
+    if night is None:
+        return LineCheckinState(state="expired")
+    when = CheckinNight.model_validate(night)
+    linked = rows(
+        supabase.table("players")
+        .select("*")
+        .eq("line_user_id", member.line_user_id)
+        .eq("is_active", True)
+        .limit(1)
+        .execute()
+    )
+    if not linked:
+        return LineCheckinState(state="unlinked", night=when)
+    player = Player.model_validate(linked[0])
+    mine = rows(
+        supabase.table("checkins")
+        .select("*")
+        .eq("session_id", str(night["id"]))
+        .eq("player_id", str(player.id))
+        .limit(1)
+        .execute()
+    )
+    if mine and mine[0].get("checkout_time") is None:
+        return LineCheckinState(
+            state="in", night=when, player=player, checkin_time=mine[0]["checkin_time"]
+        )
+    return LineCheckinState(state="ready", night=when, player=player)
+
+
+@router.get("/checkin", response_model=LineCheckinState)
+def checkin_preview(c: str, supabase: SupabaseDep, member: LineMemberDep) -> LineCheckinState:
+    """What the page shows after the scan, before they tap check in."""
+    if not CODE.fullmatch(c):
+        return LineCheckinState(state="expired")
+    return _checkin_state(supabase, member, c)
+
+
+@router.post("/checkin", response_model=LineCheckinState)
+def checkin(
+    payload: LineCheckinIn, supabase: SupabaseDep, member: LineMemberDep
+) -> LineCheckinState:
+    """Check themselves in to the night this QR is for. Only ever them:
+    who they are comes from their LINE token, never from the request."""
+    now = _checkin_state(supabase, member, payload.code)
+    if now.state != "ready" or now.night is None or now.player is None:
+        return now
+    done = checkin_service.check_in(supabase, now.night.id, now.player.id, "line")
+    return LineCheckinState(
+        state="in", night=now.night, player=now.player, checkin_time=done["checkin_time"]
+    )

@@ -66,8 +66,8 @@ DEFAULTS: dict[str, Row] = {
     "line_join_requests": {"dominant_hand": None, "instagram": None, "tiktok": None, "quote": None,
                            "photo_url": None, "status": "pending", "player_id": None,
                            "decided_at": None, "decided_by": None},
-    "sessions": {"status": "open", "shuttlecock_price_per_game": 0},
-    "checkins": {"checkout_time": None},
+    "sessions": {"status": "open", "shuttlecock_price_per_game": 0, "line_checkin_code": None},
+    "checkins": {"checkout_time": None, "via": "admin"},
     "matches": {
         "sets": None, "winner": None, "status": "in_progress", "court": None,
         "elo_delta_team1": None, "elo_delta_team2": None,
