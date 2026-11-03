@@ -3,6 +3,8 @@ import { onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSessionsStore } from '@/stores/sessions'
 import { usePlayersStore } from '@/stores/players'
+import { useFinanceStore } from '@/stores/finance'
+import { moneyShort } from '@/utils/format'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import SessionPicker from '@/components/layout/SessionPicker.vue'
 import RevenueExpenseChart from '@/components/admin/RevenueExpenseChart.vue'
@@ -12,6 +14,8 @@ import CountUp from '@/components/common/CountUp.vue'
 const { t } = useI18n()
 const sessionsStore = useSessionsStore()
 const playersStore = usePlayersStore()
+// The charts below refresh it; the shop card only reads what they fetched.
+const finance = useFinanceStore()
 
 onMounted(() => {
   sessionsStore.refresh()
@@ -28,7 +32,7 @@ onMounted(() => {
       <SessionPicker allow-delete />
     </div>
 
-    <div class="mt-6 grid grid-cols-3 gap-2 sm:gap-3">
+    <div class="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
       <div class="hud-panel hud-hover flex flex-col justify-between border border-brand-pink/20 bg-brand-surface p-3">
         <div class="flex items-center gap-1.5 text-white/50">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 shrink-0">
@@ -58,6 +62,25 @@ onMounted(() => {
         </div>
         <p class="mt-2 font-display text-xl font-bold"><CountUp :value="sessionsStore.sessions.length" /></p>
       </div>
+      <RouterLink
+        to="/admin/shop"
+        class="hud-panel hud-hover flex flex-col justify-between border border-[#199e70]/50 bg-brand-surface p-3"
+      >
+        <div class="flex items-center gap-1.5 text-white/50">
+          <span class="h-2 w-2 shrink-0 rounded-full bg-[#199e70]" aria-hidden="true" />
+          <p class="text-xs leading-tight">{{ t('dashboard.shopCard') }}</p>
+        </div>
+        <p class="mt-2 font-display text-xl font-bold">
+          <CountUp :value="Math.round(finance.shop?.total ?? 0)" :format="moneyShort" />
+        </p>
+        <p class="mt-0.5 text-[11px] leading-tight" :class="finance.shop?.pending_orders ? 'text-[#ffd34d]' : 'text-white/40'">
+          {{
+            finance.shop?.pending_orders
+              ? t('dashboard.shopCardPending', { n: finance.shop.pending_orders, amount: moneyShort(finance.shop.pending_amount) })
+              : t('dashboard.shopCardNone')
+          }}
+        </p>
+      </RouterLink>
     </div>
 
     <div class="mt-6">

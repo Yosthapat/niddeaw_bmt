@@ -1,4 +1,4 @@
-export type ExpenseCategory = 'court_fee' | 'shuttlecock' | 'jersey' | 'dividend' | 'other'
+export type ExpenseCategory = 'court_fee' | 'shuttlecock' | 'jersey' | 'shop_cost' | 'dividend' | 'other'
 
 /** Mirrors backend app/models/expense.py Expense. */
 export interface Expense {

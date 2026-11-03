@@ -3,6 +3,7 @@ import type {
   Admin,
   LogoPreview,
   PreorderTally,
+  ShopRevenue,
   Product,
   ProductFields,
   ShopOrderAdmin,
@@ -558,6 +559,10 @@ export async function deleteShopOrder(id: string, password: string): Promise<voi
 
 export async function updateShopOrder(id: string, status: OrderStatus, note?: string): Promise<ShopOrderAdmin> {
   return request(`/api/admin/shop/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ status, note }) })
+}
+
+export async function getShopRevenue(): Promise<ShopRevenue> {
+  return request('/api/admin/shop/revenue')
 }
 
 export async function getPreorderTally(): Promise<PreorderTally[]> {

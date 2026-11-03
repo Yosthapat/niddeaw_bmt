@@ -185,6 +185,33 @@ class PreorderTally(BaseModel):
     total: int
 
 
+class ShopRevenueDay(BaseModel):
+    date: date
+    amount: float
+    orders: int
+
+
+class ShopTopItem(BaseModel):
+    name: str
+    qty: int
+    amount: float
+
+
+class ShopRevenue(BaseModel):
+    """Money in is confirmed + delivered orders; pending ones are apart and
+    in no total. cost is the shop-cost and shirt expenses."""
+
+    total: float
+    orders: int
+    pending_amount: float
+    pending_orders: int
+    to_ship: int
+    cost: float
+    profit: float
+    daily: list[ShopRevenueDay]
+    top: list[ShopTopItem]
+
+
 def unit_price(product: dict[str, object], size: str) -> float:
     """What one of `size` costs: its own price if it has one, else the
     product's."""

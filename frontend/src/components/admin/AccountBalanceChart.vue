@@ -2,7 +2,12 @@
 // "How much is actually in the club's account" — a donut of where the money
 // taken in has gone, with the balance as the hero number in its middle.
 //
-//   เงินเข้าทั้งหมด (ค่าก๊วนที่เก็บแล้ว + เงินทุน) = จ่ายไปแล้ว + คงเหลือ
+//   เงินเข้าทั้งหมด (ค่าก๊วนที่เก็บแล้ว + ร้านค้า + เงินทุน) = จ่ายไปแล้ว + คงเหลือ
+//
+// The shop counts its confirmed and delivered orders: their slips were
+// checked, so that money is in the account. Orders still waiting to be
+// checked are shown under the breakdown and left out of the balance. What
+// the shop's stock cost is already among the expenses.
 //
 // Two slices that sum to the whole, so the ring reads as a meter of "share
 // still held" rather than as a comparison of arc angles — the number in the
@@ -34,7 +39,7 @@ const SPENT_COLOR = '#d95926'
 
 // Shares one fetch with the bar chart above — see stores/finance.ts.
 const finance = useFinanceStore()
-const { dailyRevenue, expenses, otherIncome, loading } = storeToRefs(finance)
+const { dailyRevenue, expenses, otherIncome, shop, loading } = storeToRefs(finance)
 
 const error = computed(() => {
   const e = finance.error
@@ -47,6 +52,7 @@ const error = computed(() => {
 // number wearing the same label.
 const dues = computed(() => dailyRevenue.value.reduce((sum, d) => sum + d.paid_amount, 0))
 const funding = computed(() => otherIncome.value.reduce((sum, i) => sum + i.amount, 0))
+const shopSales = computed(() => shop.value?.total ?? 0)
 // Straight off the raw rows rather than /expenses/summary's paid_amount:
 // the bar chart already fetches these, and summing the same is_paid rows
 // here gives the same figure without a second request.
@@ -56,7 +62,7 @@ const spent = computed(() =>
 
 onMounted(finance.refresh)
 
-const inflow = computed(() => dues.value + funding.value)
+const inflow = computed(() => dues.value + shopSales.value + funding.value)
 const balance = computed(() => inflow.value - spent.value)
 /** Spending has outrun everything ever received — there is no "remaining"
  * slice to draw, so the ring goes solid and the centre carries the deficit. */
@@ -185,6 +191,10 @@ const spentDash = computed(() => {
             <dd class="font-mono text-white/80">{{ formatBaht(dues) }}</dd>
           </div>
           <div class="flex items-baseline justify-between gap-3">
+            <dt class="text-white/50">{{ t('dashboard.balanceFromShop') }}</dt>
+            <dd class="font-mono text-white/80">{{ formatBaht(shopSales) }}</dd>
+          </div>
+          <div class="flex items-baseline justify-between gap-3">
             <dt class="text-white/50">{{ t('dashboard.balanceFromFunding') }}</dt>
             <dd class="font-mono text-white/80">{{ formatBaht(funding) }}</dd>
           </div>
@@ -221,6 +231,12 @@ const spentDash = computed(() => {
 
       <p v-if="overdrawn" class="mt-3 text-xs text-status-error">
         {{ t('dashboard.balanceOverdrawn') }}
+      </p>
+      <p v-if="shop && shop.pending_orders > 0" class="mt-3 rounded-lg border border-[#ffd34d]/30 bg-[#ffd34d]/10 px-3 py-2 text-xs text-white/70">
+        <RouterLink to="/admin/shop" class="font-semibold text-[#ffd34d] underline-offset-2 hover:underline">
+          {{ t('dashboard.shopPending', { n: shop.pending_orders, amount: formatBaht(shop.pending_amount) }) }}
+        </RouterLink>
+        {{ t('dashboard.shopPendingNote') }}
       </p>
       <p class="mt-3 text-xs text-white/35">{{ t('dashboard.balanceNote') }}</p>
     </template>

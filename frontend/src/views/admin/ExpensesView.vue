@@ -15,7 +15,9 @@ import { apiErrorMessage } from '@/api/errors'
 const { t, locale } = useI18n()
 const { confirm } = useConfirmDialog()
 
-const CATEGORIES: ExpenseCategory[] = ['court_fee', 'shuttlecock', 'jersey', 'dividend', 'other']
+const CATEGORIES: ExpenseCategory[] = ['court_fee', 'shuttlecock', 'jersey', 'shop_cost', 'dividend', 'other']
+// Also taken off the shop's sales on the shop page (services/shop_revenue.py).
+const SHOP_COST: ReadonlySet<ExpenseCategory> = new Set(['shop_cost', 'jersey'])
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10)
@@ -344,6 +346,11 @@ async function saveEdit(expense: Expense): Promise<void> {
           {{ t('expenses.amount') }}
           <input v-model="form.amount" type="number" min="0" step="0.01" placeholder="0.00" class="rounded border border-brand-pink-dark/40 bg-brand-black px-2 py-1.5 text-sm text-white" />
         </label>
+
+        <p v-if="SHOP_COST.has(form.category)" class="col-span-2 flex items-start gap-2 text-xs text-white/60 sm:col-span-3">
+          <span class="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#199e70]" aria-hidden="true" />
+          {{ t('expenses.shopCostHint') }}
+        </p>
 
         <label v-if="form.category === 'other'" class="col-span-2 flex flex-col gap-1 text-xs text-white/50 sm:col-span-3">
           {{ t('expenses.category') }} ({{ categoryLabel('other') }})

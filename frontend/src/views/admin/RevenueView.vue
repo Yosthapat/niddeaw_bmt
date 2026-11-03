@@ -3,7 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
-import type { DailyRevenue, IncomeSource, OtherIncome } from '@/types'
+import type { DailyRevenue, IncomeSource, OtherIncome, ShopRevenue } from '@/types'
 import { compressImage } from '@/utils/imageCompression'
 import ReceiptThumb from '@/components/admin/ReceiptThumb.vue'
 import AdminNav from '@/components/layout/AdminNav.vue'
@@ -21,6 +21,7 @@ function todayIso(): string {
 }
 
 const daily = ref<DailyRevenue[]>([])
+const shop = ref<ShopRevenue | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 
@@ -32,12 +33,32 @@ function formatDate(isoDate: string): string {
 const billingTotal = computed(() => daily.value.reduce((sum, d) => sum + d.total_amount, 0))
 const grandPaid = computed(() => daily.value.reduce((sum, d) => sum + d.paid_amount, 0))
 const grandUnpaid = computed(() => daily.value.reduce((sum, d) => sum + d.unpaid_amount, 0))
+const shopTotal = computed(() => shop.value?.total ?? 0)
+
+/** One row per day that had either: the night's bills, the shop's
+ * confirmed + delivered orders, or both. Newest first. */
+interface Day {
+  date: string
+  dues: DailyRevenue | null
+  shop: { amount: number; orders: number } | null
+}
+const days = computed<Day[]>(() => {
+  const byDate = new Map<string, Day>()
+  const day = (date: string): Day => {
+    let found = byDate.get(date)
+    if (!found) byDate.set(date, (found = { date, dues: null, shop: null }))
+    return found
+  }
+  for (const d of daily.value) day(d.date).dues = d
+  for (const s of shop.value?.daily ?? []) day(s.date).shop = s
+  return [...byDate.values()].sort((a, b) => (a.date < b.date ? 1 : -1))
+})
 
 async function load(): Promise<void> {
   loading.value = true
   error.value = null
   try {
-    daily.value = await adminApi.getRevenue()
+    ;[daily.value, shop.value] = await Promise.all([adminApi.getRevenue(), adminApi.getShopRevenue()])
   } catch (e) {
     error.value = apiErrorMessage(e, t('revenue.loadFailed'))
   } finally {
@@ -51,7 +72,7 @@ const incomeLoading = ref(true)
 const incomeLoadError = ref<string | null>(null)
 
 const otherIncomeTotal = computed(() => otherIncome.value.reduce((sum, i) => sum + i.amount, 0))
-const grandTotal = computed(() => billingTotal.value + otherIncomeTotal.value)
+const grandTotal = computed(() => billingTotal.value + shopTotal.value + otherIncomeTotal.value)
 
 function sourceLabel(source: IncomeSource): string {
   return t(`income.sourceLabels.${source}`)
@@ -250,18 +271,24 @@ onMounted(async () => {
     <p v-else-if="error" class="mt-6 text-status-error">{{ error }}</p>
 
     <template v-else>
-      <div v-if="daily.length > 0 || otherIncome.length > 0" class="mt-6 grid grid-cols-3 gap-2.5">
-        <div class="hud-panel border border-brand-pink/40 bg-brand-surface p-3 text-center">
+      <div v-if="days.length > 0 || otherIncome.length > 0" class="mt-6 grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-2.5">
+        <div class="hud-panel col-span-3 border border-brand-pink/40 bg-brand-surface p-3 text-center sm:col-span-1">
           <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('revenue.grandTotal') }}</p>
           <p class="mt-1 font-display text-xl font-bold text-brand-pink">{{ money(grandTotal) }}</p>
         </div>
-        <div class="hud-panel border border-brand-pink/20 bg-brand-surface p-3 text-center">
+        <div class="hud-panel border border-brand-pink/20 bg-brand-surface px-2 py-3 text-center sm:p-3">
           <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('revenue.fromBilling') }}</p>
-          <p class="mt-1 font-display text-xl font-bold">{{ money(billingTotal) }}</p>
+          <p class="mt-1 font-display text-base font-bold sm:text-xl">{{ money(billingTotal) }}</p>
         </div>
-        <div class="hud-panel border border-brand-pink/20 bg-brand-surface p-3 text-center">
+        <RouterLink to="/admin/shop" class="hud-panel border border-[#199e70]/50 bg-brand-surface px-2 py-3 text-center sm:p-3">
+          <p class="flex items-center justify-center gap-1.5 text-xs tracking-wide text-white/40 uppercase">
+            <span class="h-2 w-2 rounded-full bg-[#199e70]" aria-hidden="true" />{{ t('revenue.fromShop') }}
+          </p>
+          <p class="mt-1 font-display text-base font-bold sm:text-xl">{{ money(shopTotal) }}</p>
+        </RouterLink>
+        <div class="hud-panel border border-brand-pink/20 bg-brand-surface px-2 py-3 text-center sm:p-3">
           <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('revenue.fromOtherIncome') }}</p>
-          <p class="mt-1 font-display text-xl font-bold">{{ money(otherIncomeTotal) }}</p>
+          <p class="mt-1 font-display text-base font-bold sm:text-xl">{{ money(otherIncomeTotal) }}</p>
         </div>
       </div>
 
@@ -276,26 +303,35 @@ onMounted(async () => {
         </div>
       </div>
 
-      <p v-if="daily.length === 0" class="mt-6 text-sm text-white/40">{{ t('revenue.empty') }}</p>
+      <p v-if="days.length === 0" class="mt-6 text-sm text-white/40">{{ t('revenue.empty') }}</p>
       <ul v-else class="mt-6 space-y-2">
         <li
-          v-for="d in daily"
+          v-for="d in days"
           :key="d.date"
           class="hud-panel border border-brand-pink/20 bg-brand-surface px-4 py-3"
         >
           <div class="flex items-center justify-between gap-3">
             <span class="font-medium">{{ formatDate(d.date) }}</span>
-            <span class="font-display text-lg font-bold text-brand-pink">{{ money(d.total_amount) }}</span>
+            <span class="font-display text-lg font-bold text-brand-pink">{{ money((d.dues?.total_amount ?? 0) + (d.shop?.amount ?? 0)) }}</span>
           </div>
-          <div class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/50">
-            <span>{{ d.session_count }} session{{ d.session_count > 1 ? 's' : '' }}</span>
-            <span>·</span>
-            <span>{{ d.billing_count }} {{ t('revenue.bills') }}</span>
-            <span>·</span>
-            <span class="text-status-success">{{ t('billing.paid') }} {{ money(d.paid_amount) }}</span>
-            <span v-if="d.unpaid_amount > 0" class="text-status-error">
-              {{ t('revenue.outstanding') }} {{ money(d.unpaid_amount) }}
+          <div v-if="d.dues" class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/50">
+            <span v-if="d.shop" class="flex items-center gap-1.5 text-white/70">
+              <span class="h-2 w-2 rounded-full bg-[#3987e5]" aria-hidden="true" />{{ t('revenue.fromBilling') }} {{ money(d.dues.total_amount) }}
             </span>
+            <span>{{ d.dues.session_count }} session{{ d.dues.session_count > 1 ? 's' : '' }}</span>
+            <span>·</span>
+            <span>{{ d.dues.billing_count }} {{ t('revenue.bills') }}</span>
+            <span>·</span>
+            <span class="text-status-success">{{ t('billing.paid') }} {{ money(d.dues.paid_amount) }}</span>
+            <span v-if="d.dues.unpaid_amount > 0" class="text-status-error">
+              {{ t('revenue.outstanding') }} {{ money(d.dues.unpaid_amount) }}
+            </span>
+          </div>
+          <div v-if="d.shop" class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/70">
+            <span class="flex items-center gap-1.5">
+              <span class="h-2 w-2 rounded-full bg-[#199e70]" aria-hidden="true" />{{ t('revenue.fromShop') }} {{ money(d.shop.amount) }}
+            </span>
+            <span class="text-white/50">{{ t('revenue.shopOrders', { n: d.shop.orders }) }}</span>
           </div>
         </li>
       </ul>

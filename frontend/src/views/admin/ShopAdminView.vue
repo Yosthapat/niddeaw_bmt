@@ -11,6 +11,7 @@ import { formatDayMonth, formatDateTime, money } from '@/utils/format'
 import { bahtProblem, localToday, MAX_NAME } from '@/utils/limits'
 import { compressImage } from '@/utils/imageCompression'
 import AdminNav from '@/components/layout/AdminNav.vue'
+import ShopMoneySummary from '@/components/admin/ShopMoneySummary.vue'
 
 const PRESET_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']
 const MAX_SIZES = 16
@@ -29,6 +30,8 @@ const loading = ref(true)
 const loadError = ref<string | null>(null)
 const actionError = ref<string | null>(null)
 const busy = ref<string | null>(null)
+/** Bumped after anything that moves an order's money, so the summary refetches. */
+const moneyVersion = ref(0)
 
 onMounted(async () => {
   try {
@@ -65,6 +68,7 @@ async function move(order: ShopOrderAdmin, status: OrderStatus, note?: string): 
   try {
     const updated = await adminApi.updateShopOrder(order.id, status, note)
     orders.value = orders.value.map((o) => (o.id === updated.id ? updated : o))
+    moneyVersion.value++
     rejecting.value = null
     reason.value = ''
     // a refused or restored order changes what is left and what is ordered
@@ -140,6 +144,7 @@ async function saveFix(o: ShopOrderAdmin): Promise<void> {
       const done = updated
       orders.value = orders.value.map((x) => (x.id === done.id ? done : x))
       lastFix.value = { id: done.id, before, after: done.total }
+      moneyVersion.value++
       const [tl, p] = await Promise.all([adminApi.getPreorderTally(), adminApi.getAdminProducts()])
       tally.value = tl
       products.value = p
@@ -149,6 +154,7 @@ async function saveFix(o: ShopOrderAdmin): Promise<void> {
     fixError.value = apiErrorMessage(e, t('shopAdmin.fixFailed'))
     // what did go through is on the server; show it
     orders.value = await adminApi.getShopOrders().catch(() => orders.value)
+    moneyVersion.value++
   } finally {
     busy.value = null
   }
@@ -182,6 +188,7 @@ async function confirmDelete(): Promise<void> {
   try {
     await adminApi.deleteShopOrder(o.id, deletePassword.value)
     orders.value = orders.value.filter((x) => x.id !== o.id)
+    moneyVersion.value++
     deletedNote.value = t('shopAdmin.deletedNote', { no: orderNo(o.order_no) })
     deleting.value = null
     const [tl, p] = await Promise.all([adminApi.getPreorderTally(), adminApi.getAdminProducts()])
@@ -419,6 +426,7 @@ function priceText(p: Product): string {
 
     <!-- ================================================================ orders -->
     <template v-else-if="tab === 'orders' && !formOpen">
+      <ShopMoneySummary :version="moneyVersion" />
       <section
         v-for="x in openTally"
         :key="x.product_id"
