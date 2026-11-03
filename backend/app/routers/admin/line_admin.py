@@ -9,11 +9,20 @@ from fastapi import APIRouter, HTTPException, Request, status
 
 from app.db_utils import rows
 from app.deps import AdminDep, SupabaseDep
-from app.models.line import JoinApprove, JoinRequestAdmin, LineLink, LinkRequestAdmin
+from app.models.line import (
+    CheckinNight,
+    CheckinQr,
+    JoinApprove,
+    JoinRequestAdmin,
+    LineLink,
+    LinkRequestAdmin,
+)
 from app.models.player import Player
 from app.routers.admin.players_admin import check_nickname
-from app.services import line_join
+from app.services import line_auth, line_checkin, line_join
 from app.services.elo_service import SCORE_FLOOR, STARTING_SCORE, get_tier
+from app.services.promptpay_service import generate_qr_data_uri
+from app.services.session_state import ensure_session_open
 
 router = APIRouter(prefix="/api/admin/line", tags=["admin-line"])
 
@@ -217,3 +226,44 @@ def reject_join(join_id: UUID, http: Request, supabase: SupabaseDep, admin: Admi
     ).eq("id", str(join_id)).execute()
     line_join.remove_photo(supabase, req.get("photo_url"))
     http.state.activity_detail = {"nickname": req["nickname"], "line": req["line_name"]}
+
+
+# --- tonight's check-in QR ---------------------------------------------------
+
+
+def _qr(supabase: SupabaseDep, session_id: UUID, *, fresh: bool) -> CheckinQr:
+    if not line_auth.configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="ยังไม่ได้ตั้งค่า LINE"
+        )
+    # A closed night is billed: a QR for it would check people in to nothing.
+    ensure_session_open(supabase, session_id)
+    night = rows(
+        supabase.table("sessions").select("*").eq("id", str(session_id)).limit(1).execute()
+    )[0]
+    code = night.get("line_checkin_code")
+    if fresh or not code:
+        code = line_checkin.new_code()
+        supabase.table("sessions").update({"line_checkin_code": code}).eq(
+            "id", str(session_id)
+        ).execute()
+    url = line_checkin.checkin_url(code)
+    return CheckinQr(
+        night=CheckinNight.model_validate(night), code=code, url=url, qr=generate_qr_data_uri(url)
+    )
+
+
+@router.get("/checkin-qr", response_model=CheckinQr)
+def checkin_qr(session_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> CheckinQr:
+    """Tonight's QR, made the first time it is asked for."""
+    return _qr(supabase, session_id, fresh=False)
+
+
+@router.post("/checkin-qr/rotate", response_model=CheckinQr)
+def rotate_checkin_qr(
+    session_id: UUID, http: Request, supabase: SupabaseDep, admin: AdminDep
+) -> CheckinQr:
+    """A new QR for tonight; the old one stops working (it was shared)."""
+    made = _qr(supabase, session_id, fresh=True)
+    http.state.activity_detail = {"session": str(made.night.date)}
+    return made

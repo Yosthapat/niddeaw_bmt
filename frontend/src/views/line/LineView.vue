@@ -11,19 +11,21 @@
  * gives is checked by our backend with LINE before it believes it.
  */
 import { computed, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import * as lineApi from '@/api/line'
-import type { LineStatus, LinkOption } from '@/api/line'
+import type { LineCheckinState, LineStatus, LinkOption } from '@/api/line'
 import { apiErrorMessage } from '@/api/errors'
-import { liffIdToken, liffSignInAgain, liffSignedIn, closeLiff } from '@/composables/useLiff'
+import { closeLiff, liffCanScan, liffIdToken, liffScanCheckinCode, liffSignInAgain, liffSignedIn } from '@/composables/useLiff'
 import { ApiError } from '@/api/client'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 import LineJoinForm from '@/components/line/LineJoinForm.vue'
+import LineCheckin from '@/components/line/LineCheckin.vue'
 
 const { t } = useI18n()
 const route = useRoute()
+const router = useRouter()
 
 type Phase = 'loading' | 'off' | 'error' | 'ready'
 const phase = ref<Phase>('loading')
@@ -39,6 +41,11 @@ const actionError = ref('')
 // /line/register (the LIFF URL with /register on the end), straight to it.
 const joining = ref(false)
 const joinWarning = ref('')
+// Tonight's QR, scanned: /line/checkin?c=<code> (or LINE's own scanner,
+// from the linked card). Shown over everything else until they close it.
+const checkin = ref<LineCheckinState | null>(null)
+const checkinCode = ref('')
+const canScan = ref(false)
 
 async function start(): Promise<void> {
   phase.value = 'loading'
@@ -58,10 +65,13 @@ async function start(): Promise<void> {
       throw e
     }
     liffSignedIn()
+    canScan.value = liffCanScan()
     token.value = status.token ?? ''
     me.value = status
     if (!status.player) await loadOptions()
     joining.value = route.params.section === 'register' && !status.player && !status.pending && !status.application
+    const code = typeof route.query.c === 'string' ? route.query.c : ''
+    if (route.params.section === 'checkin' && code) await openCheckin(code)
     phase.value = 'ready'
   } catch (e) {
     problem.value = apiErrorMessage(e, t('line.startFailed'))
@@ -129,6 +139,34 @@ async function withdrawJoin(): Promise<void> {
   }
 }
 
+async function openCheckin(code: string): Promise<void> {
+  checkinCode.value = code
+  checkin.value = await lineApi.getCheckin(token.value, code)
+}
+
+async function scan(): Promise<void> {
+  actionError.value = ''
+  try {
+    const code = await liffScanCheckinCode()
+    if (!code) {
+      actionError.value = t('lineCheckin.notOurQr')
+      checkin.value = null
+      return
+    }
+    void router.replace({ path: '/line/checkin', query: { c: code } })
+    await openCheckin(code)
+  } catch (e) {
+    actionError.value = apiErrorMessage(e, t('lineCheckin.scanFailed'))
+  }
+}
+
+function leaveCheckin(next: 'link' | 'join' | 'done'): void {
+  checkin.value = null
+  joining.value = next === 'join'
+  void router.replace('/line')
+  if (next === 'done') void closeLiff()
+}
+
 onMounted(start)
 </script>
 
@@ -169,8 +207,23 @@ onMounted(start)
           </span>
         </div>
 
+        <!-- tonight's QR, scanned -->
+        <LineCheckin
+          v-if="checkin"
+          :key="checkinCode"
+          :token="token"
+          :code="checkinCode"
+          :initial="checkin"
+          :waiting="!!(me.pending || me.application)"
+          :can-scan="canScan"
+          @link="leaveCheckin('link')"
+          @join="leaveCheckin('join')"
+          @scan="scan"
+          @done="leaveCheckin('done')"
+        />
+
         <!-- linked: who they are, and what's coming -->
-        <section v-if="me.player" class="world-card flex flex-col items-center gap-3 p-6 text-center">
+        <section v-else-if="me.player" class="world-card flex flex-col items-center gap-3 p-6 text-center">
           <p class="world-eyebrow">LINKED</p>
           <PlayerAvatar :name="me.player.nickname" :avatar-url="me.player.avatar_url" size="lg" round />
           <h1 class="world-title text-2xl">{{ me.player.nickname }}</h1>
@@ -178,7 +231,12 @@ onMounted(start)
             <TierMascot :tier="me.player.elo_level" :size="22" :interactive="false" />
             {{ me.player.member_code }}
           </span>
-          <p class="text-sm text-white/70">{{ t('line.linkedBody') }}</p>
+          <p class="text-sm text-white/70">{{ canScan ? t('line.linkedBodyScan') : t('line.linkedBody') }}</p>
+          <button v-if="canScan" type="button" class="scan-cta flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl font-display text-base font-bold" @click="scan">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M4 12h16" /></svg>
+            {{ t('lineCheckin.scan') }}
+          </button>
+          <p v-if="actionError" class="text-sm text-status-error" role="alert">{{ actionError }}</p>
           <RouterLink :to="`/members/${me.player.id}`" class="glass-pill">{{ t('line.myProfile') }}</RouterLink>
         </section>
 
@@ -294,13 +352,18 @@ onMounted(start)
           </div>
         </section>
 
-        <button v-if="me.player" type="button" class="glass-pill mt-auto w-full justify-center" @click="closeLiff">{{ t('line.close') }}</button>
+        <button v-if="me.player && !checkin" type="button" class="glass-pill mt-auto w-full justify-center" @click="closeLiff">{{ t('line.close') }}</button>
       </template>
     </div>
   </main>
 </template>
 
 <style scoped>
+.scan-cta {
+  background: linear-gradient(#5dffa0, #06c755);
+  color: #02240f;
+  box-shadow: 0 8px 22px rgb(6 199 85 / 0.4);
+}
 .sent-ring {
   box-shadow:
     0 0 0 3px #ffd34d,

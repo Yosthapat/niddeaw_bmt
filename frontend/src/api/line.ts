@@ -89,3 +89,18 @@ export function uploadJoinPhoto(token: string, file: File): Promise<LineStatus> 
 export function cancelJoin(token: string): Promise<LineStatus> {
   return request('/api/line/join', { ...auth(token), method: 'DELETE' })
 }
+
+export interface LineCheckinState {
+  state: 'ready' | 'in' | 'expired' | 'unlinked'
+  night: { id: string; date: string; location: string } | null
+  player: Player | null
+  checkin_time: string | null
+}
+
+export function getCheckin(token: string, code: string): Promise<LineCheckinState> {
+  return request(`/api/line/checkin?c=${encodeURIComponent(code)}`, auth(token))
+}
+
+export function checkInTonight(token: string, code: string): Promise<LineCheckinState> {
+  return request('/api/line/checkin', { ...auth(token), method: 'POST', body: JSON.stringify({ code }) })
+}

@@ -16,6 +16,8 @@ interface Liff {
   getIDToken(): string | null
   isInClient(): boolean
   closeWindow(): void
+  isApiAvailable?(api: string): boolean
+  scanCodeV2?(): Promise<{ value: string | null }>
 }
 
 declare global {
@@ -90,4 +92,34 @@ export function liffSignedIn(): void {
 export async function closeLiff(): Promise<void> {
   const liff = window.liff
   if (liff?.isInClient()) liff.closeWindow()
+}
+
+/** Whether LINE's own QR scanner can be opened from here: inside LINE,
+ *  with "Scan QR" switched on for the LIFF app (docs/line-setup.md). */
+export function liffCanScan(): boolean {
+  try {
+    return window.liff?.isApiAvailable?.('scanCodeV2') === true
+  } catch {
+    return false
+  }
+}
+
+/** The check-in code from tonight's QR, scanned with LINE's camera; null
+ *  when they back out or scan something that isn't one. */
+export async function liffScanCheckinCode(): Promise<string | null> {
+  const liff = window.liff
+  if (!liff?.scanCodeV2) return null
+  const { value } = await liff.scanCodeV2()
+  return checkinCodeFrom(value ?? '')
+}
+
+/** Pulls `c` out of a check-in link (https://liff.line.me/<id>/checkin?c=…). */
+export function checkinCodeFrom(text: string): string | null {
+  try {
+    const url = new URL(text)
+    const code = url.searchParams.get('c') ?? ''
+    return /^[A-Za-z0-9_-]{12,64}$/.test(code) && url.pathname.endsWith('/checkin') ? code : null
+  } catch {
+    return null
+  }
 }

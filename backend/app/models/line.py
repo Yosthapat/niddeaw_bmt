@@ -1,5 +1,5 @@
-from datetime import datetime
-from typing import Annotated
+from datetime import date, datetime
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, StringConstraints
@@ -120,3 +120,38 @@ class JoinRequestAdmin(JoinApplication):
 class JoinApprove(BaseModel):
     elo_score: EloScore | None = None
     """Starting rating; the club default (1000) when omitted."""
+
+
+class CheckinNight(BaseModel):
+    """The night a check-in QR is for."""
+
+    id: UUID
+    date: date
+    location: str
+
+
+class LineCheckinState(BaseModel):
+    """What scanning tonight's QR leads to.
+
+    ready: a linked member, not in yet. in: checked in (checkin_time set).
+    expired: the code is not tonight's (closed night, old or replaced QR).
+    unlinked: this LINE is nobody in the club yet."""
+
+    state: Literal["ready", "in", "expired", "unlinked"]
+    night: CheckinNight | None = None
+    player: Player | None = None
+    checkin_time: datetime | None = None
+
+
+class LineCheckinIn(BaseModel):
+    code: Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{12,64}$")]
+
+
+class CheckinQr(BaseModel):
+    """Tonight's QR as the admin shows it at the court."""
+
+    night: CheckinNight
+    code: str
+    url: str
+    qr: str
+    """A PNG data URI of `url`."""

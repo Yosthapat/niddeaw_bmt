@@ -669,3 +669,19 @@ export async function approveLineJoin(joinId: string, eloScore: number | null): 
 export async function rejectLineJoin(joinId: string): Promise<void> {
   return request(`/api/admin/line/joins/${joinId}/reject`, { method: 'POST' })
 }
+
+// Tonight's check-in QR (members scan it in LINE).
+export interface CheckinQr {
+  night: { id: string; date: string; location: string }
+  code: string
+  url: string
+  qr: string
+}
+
+export async function getCheckinQr(sessionId: string): Promise<CheckinQr> {
+  return request(`/api/admin/line/checkin-qr?session_id=${sessionId}`)
+}
+
+export async function rotateCheckinQr(sessionId: string): Promise<CheckinQr> {
+  return request(`/api/admin/line/checkin-qr/rotate?session_id=${sessionId}`, { method: 'POST' })
+}

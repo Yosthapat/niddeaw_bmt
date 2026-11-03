@@ -360,3 +360,122 @@ def test_only_line_pictures_are_fetched() -> None:
     assert not line_join.is_line_picture("https://evil.example/line-scdn.net")
     assert not line_join.is_line_picture("https://line-scdn.net.evil.example/x")
     assert line_join.fetch_line_picture("https://169.254.169.254/latest") is None
+
+
+# --- checking in by scanning tonight's QR ------------------------------------
+
+from datetime import timedelta
+
+from app.services import line_checkin
+
+BAM = "U" + "c" * 32  # Bam is linked in the fixture
+
+
+def night(db: MiniSupabase, *, days_ago: int = 0, status: str = "open") -> str:
+    sid = str(uuid4())
+    day = line_checkin._today() - timedelta(days=days_ago)
+    db.tables.setdefault("sessions", []).append(
+        {
+            "id": sid,
+            "date": day.isoformat(),
+            "location": "KB court",
+            "court_fee_per_person": 80,
+            "shuttlecock_price_per_game": 29,
+            "status": status,
+            "created_by": str(uuid4()),
+            "created_at": "2026-01-01T00:00:00Z",
+            "line_checkin_code": None,
+        }
+    )
+    return sid
+
+
+def test_admin_qr_is_kept_for_the_night_until_replaced(
+    client: TestClient, db: MiniSupabase
+) -> None:
+    sid = night(db)
+    first = client.get(f"/api/admin/line/checkin-qr?session_id={sid}", headers=admin()).json()
+    assert first["url"] == f"https://liff.line.me/1234567890-AbCdEfGh/checkin?c={first['code']}"
+    assert first["qr"].startswith("data:image/png;base64,")
+    again = client.get(f"/api/admin/line/checkin-qr?session_id={sid}", headers=admin()).json()
+    assert again["code"] == first["code"]
+
+    new = client.post(f"/api/admin/line/checkin-qr/rotate?session_id={sid}", headers=admin()).json()
+    assert new["code"] != first["code"]
+    old = client.get(f"/api/line/checkin?c={first['code']}", headers=member(BAM, "Bam")).json()
+    assert old["state"] == "expired"
+    assert (
+        client.get(f"/api/line/checkin?c={new['code']}", headers=member(BAM, "Bam")).json()["state"]
+        == "ready"
+    )
+
+
+def test_a_linked_member_checks_themselves_in_once(client: TestClient, db: MiniSupabase) -> None:
+    sid = night(db)
+    code = client.get(f"/api/admin/line/checkin-qr?session_id={sid}", headers=admin()).json()[
+        "code"
+    ]
+
+    ready = client.get(f"/api/line/checkin?c={code}", headers=member(BAM, "Bam")).json()
+    assert ready["state"] == "ready" and ready["player"]["nickname"] == "Bam"
+    assert ready["night"]["location"] == "KB court"
+    done = client.post("/api/line/checkin", json={"code": code}, headers=member(BAM, "Bam")).json()
+    assert done["state"] == "in" and done["checkin_time"]
+    twice = client.post("/api/line/checkin", json={"code": code}, headers=member(BAM, "Bam")).json()
+    assert twice["state"] == "in"
+    rows_ = [c for c in db.tables["checkins"] if c["session_id"] == sid]
+    assert len(rows_) == 1 and rows_[0]["via"] == "line"
+
+    # The admin sees who came in through LINE.
+    listed = client.get(f"/api/admin/checkins?session_id={sid}", headers=admin()).json()
+    assert [c["via"] for c in listed] == ["line"]
+
+
+def test_only_tonights_open_night_and_only_linked_members(
+    client: TestClient, db: MiniSupabase
+) -> None:
+    sid = night(db)
+    code = client.get(f"/api/admin/line/checkin-qr?session_id={sid}", headers=admin()).json()[
+        "code"
+    ]
+    # Not linked to anyone in the club: nothing to check in.
+    stranger = client.post("/api/line/checkin", json={"code": code}, headers=member(BALL)).json()
+    assert stranger["state"] == "unlinked"
+    assert not db.tables.get("checkins")
+    # Nonsense or unknown codes, and an admin token, get nowhere.
+    assert (
+        client.get("/api/line/checkin?c=%27%20or%201=1", headers=member(BAM)).json()["state"]
+        == "expired"
+    )
+    assert (
+        client.get("/api/line/checkin?c=" + "x" * 16, headers=member(BAM)).json()["state"]
+        == "expired"
+    )
+    assert client.post("/api/line/checkin", json={"code": code}, headers=admin()).status_code == 401
+
+    # A QR from an old night still open, or from a closed night, checks nobody in.
+    old = night(db, days_ago=3)
+    old_code = client.get(f"/api/admin/line/checkin-qr?session_id={old}", headers=admin()).json()[
+        "code"
+    ]
+    assert (
+        client.get(f"/api/line/checkin?c={old_code}", headers=member(BAM)).json()["state"]
+        == "expired"
+    )
+    late = night(db, days_ago=1)
+    late_code = client.get(f"/api/admin/line/checkin-qr?session_id={late}", headers=admin()).json()[
+        "code"
+    ]
+    assert (
+        client.get(f"/api/line/checkin?c={late_code}", headers=member(BAM)).json()["state"]
+        == "ready"
+    )
+    next(s for s in db.tables["sessions"] if s["id"] == sid)["status"] = "closed"
+    assert (
+        client.post("/api/line/checkin", json={"code": code}, headers=member(BAM)).json()["state"]
+        == "expired"
+    )
+    assert (
+        client.get(f"/api/admin/line/checkin-qr?session_id={sid}", headers=admin()).status_code
+        == 409
+    )

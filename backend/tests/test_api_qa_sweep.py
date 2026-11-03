@@ -101,7 +101,7 @@ def test_checking_a_checked_out_member_back_in_reopens_their_check_in(
     supabase_rows["checkins"] = [checkin("2026-10-09T14:00:00Z")]
     response = client.post("/api/admin/checkins", json={"session_id": SESSION_ID, "player_id": PLAYER_ID}, headers=auth())
     assert response.status_code == 201, response.text
-    assert ("update", ({"checkout_time": None},), {}) in supabase_spy.calls
+    assert ("update", ({"checkout_time": None, "via": "admin"},), {}) in supabase_spy.calls
     assert not [c for c in supabase_spy.calls if c[0] == "insert"]
 
 

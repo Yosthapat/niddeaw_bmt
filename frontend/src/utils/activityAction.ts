@@ -69,6 +69,7 @@ const ROUTES: [string, RegExp, string][] = [
   ['POST', /^\/api\/admin\/line\/players\/[^/]+\/unlink$/, 'unlinkLine'],
   ['POST', /^\/api\/admin\/line\/joins\/[^/]+\/approve$/, 'approveLineJoin'],
   ['POST', /^\/api\/admin\/line\/joins\/[^/]+\/reject$/, 'rejectLineJoin'],
+  ['POST', /^\/api\/admin\/line\/checkin-qr\/rotate$/, 'rotateCheckinQr'],
   ['POST', /^\/api\/admin\/backup$/, 'downloadBackup'],
   ['POST', /^\/api\/admin\/sheets\/sync$/, 'syncSheets'],
   ['POST', /^\/api\/admin\/stats-audit\/repair$/, 'repairStats'],
