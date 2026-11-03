@@ -793,6 +793,11 @@ export default {
     currentQr: 'QR ปัจจุบัน',
   },
   dashboard: {
+    revenueTotal: 'รายรับรวม',
+    profit: 'กำไร',
+    loss: 'ขาดทุน',
+    chartLatest: 'ล่าสุด',
+    chartPickHint: 'แตะหรือชี้ที่กราฟเพื่อดูแต่ละช่วง',
     revenueDues: 'ค่าก๊วน',
     revenueShop: 'ร้านค้า',
     balanceFromShop: 'ร้านค้า (ยืนยัน + ส่งแล้ว)',

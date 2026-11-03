@@ -52,6 +52,59 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.closePath()
 }
 
+/**
+ * One line of text, centred on cx by its drawn pixels.
+ *
+ * Not textAlign = 'center': WebKit (iPhone Safari, LINE's in-app browser)
+ * has drawn that left-aligned at cx — as if the text were zero wide — so
+ * the amount and the name started at the middle of the card and ran off to
+ * the right. measureText can't be trusted there for the same reason. So the
+ * line is drawn left-aligned on a scratch canvas, its inked columns are
+ * found, and that strip is placed with its middle on cx.
+ */
+function drawCentered(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  font: string,
+  color: string,
+  cx: number,
+  cy: number,
+  maxWidth: number,
+): void {
+  const pad = 24
+  const size = Number(/(\d+)px/.exec(font)?.[1] ?? 40)
+  const scratch = document.createElement('canvas')
+  scratch.width = Math.ceil(maxWidth + pad * 2)
+  scratch.height = Math.ceil(size * 2.2)
+  const s = scratch.getContext('2d', { willReadFrequently: true })
+  if (s && text.trim()) {
+    s.font = font
+    s.fillStyle = color
+    s.textAlign = 'left'
+    s.textBaseline = 'middle'
+    s.fillText(text, pad, scratch.height / 2, maxWidth)
+    const { data, width, height } = s.getImageData(0, 0, scratch.width, scratch.height)
+    const inked = (x: number): boolean => {
+      for (let y = 0; y < height; y++) if (data[(y * width + x) * 4 + 3] > 0) return true
+      return false
+    }
+    let left = 0
+    while (left < width && !inked(left)) left++
+    let right = width - 1
+    while (right > left && !inked(right)) right--
+    if (left < width) {
+      ctx.drawImage(scratch, Math.round(cx - (left + right + 1) / 2), Math.round(cy - scratch.height / 2))
+      return
+    }
+  }
+  // nothing inked (no 2D context, or nothing to draw): the plain way
+  ctx.font = font
+  ctx.fillStyle = color
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(text, cx, cy, maxWidth)
+}
+
 function loadImage(url: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     const img = new Image()
@@ -146,22 +199,16 @@ async function draw(): Promise<void> {
     ctx.fillStyle = INK
     roundRect(ctx, pad, ly, qrSize, labelH, labelH / 2 > 60 ? 48 : labelH / 2)
     ctx.fill()
-    ctx.fillStyle = LABEL_TEXT
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
     const cx = W / 2
+    const fit = qrSize - 60
     if (props.amount !== null) {
       const big = money(props.amount)
-      ctx.font = '700 56px "Chakra Petch", Mitr, sans-serif'
-      ctx.fillText(big, cx, props.accountName ? ly + 52 : ly + labelH / 2 + 2, qrSize - 60)
+      drawCentered(ctx, big, '700 56px "Chakra Petch", Mitr, sans-serif', LABEL_TEXT, cx, props.accountName ? ly + 52 : ly + labelH / 2 + 2, fit)
       if (props.accountName) {
-        ctx.fillStyle = '#ffffff'
-        ctx.font = '500 30px Mitr, sans-serif'
-        ctx.fillText(props.accountName, cx, ly + 108, qrSize - 60)
+        drawCentered(ctx, props.accountName, '500 30px Mitr, sans-serif', '#ffffff', cx, ly + 108, fit)
       }
     } else {
-      ctx.font = '600 44px Mitr, sans-serif'
-      ctx.fillText(props.caption ?? props.accountName ?? '', cx, ly + labelH / 2 + 2, qrSize - 60)
+      drawCentered(ctx, props.caption ?? props.accountName ?? '', '600 44px Mitr, sans-serif', LABEL_TEXT, cx, ly + labelH / 2 + 2, fit)
     }
   }
 
