@@ -114,7 +114,7 @@ def mark_expense_paid(expense_id: UUID, supabase: SupabaseDep, admin: AdminDep) 
 async def upload_receipt(
     expense_id: UUID, file: UploadFile, supabase: SupabaseDep, admin: AdminDep
 ) -> Expense:
-    contents = await file.read()
+    contents = await file.read(MAX_RECEIPT_BYTES + 1)  # never more than one byte past the limit
     if len(contents) > MAX_RECEIPT_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,

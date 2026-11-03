@@ -172,7 +172,14 @@ async function scan(): Promise<void> {
 
 async function go(next: Screen): Promise<void> {
   actionError.value = ''
-  if (next === 'checkout') tonight.value = await lineApi.getTonight(token.value)
+  try {
+    if (next === 'checkout') tonight.value = await lineApi.getTonight(token.value)
+  } catch (e) {
+    // Stay where they are and say why, rather than a button that does nothing.
+    actionError.value = apiErrorMessage(e, t('lineCheckout.loadFailed'))
+    if (phase.value === 'ready') return
+    next = 'home'
+  }
   screen.value = next
   void router.replace(next === 'home' ? '/line' : `/line/${next}`)
 }
@@ -239,7 +246,13 @@ onMounted(start)
           @done="leaveCheckin('done')"
         />
 
-        <LineCheckout v-else-if="me.player && screen === 'checkout' && tonight" :token="token" :initial="tonight" @bills="go('bills')" />
+        <template v-else-if="me.player && screen === 'checkout' && tonight">
+          <button type="button" class="-mb-2 flex min-h-11 w-fit items-center gap-1 text-sm text-white/70" @click="go('home')">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+            {{ t('lineCheckout.back') }}
+          </button>
+          <LineCheckout :token="token" :initial="tonight" @bills="go('bills')" />
+        </template>
         <LineBills v-else-if="me.player && screen === 'bills'" :token="token" @back="go('home')" />
 
         <!-- linked: who they are, and what's coming -->

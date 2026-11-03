@@ -1103,6 +1103,8 @@ export default {
   lineCheckout: {
     open: 'เช็คเอาท์ · จ่ายเงิน',
     myBills: 'บิลของฉัน',
+    back: 'กลับหน้าแรก',
+    loadFailed: 'โหลดบิลคืนนี้ไม่สำเร็จ ลองอีกครั้ง',
     title: 'บิลคืนนี้ของ {name}',
     played: 'เล่นไป',
     games: '{n} เกม',

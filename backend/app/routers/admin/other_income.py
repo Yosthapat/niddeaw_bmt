@@ -67,7 +67,7 @@ async def upload_slip(
     if not rows(existing):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Income entry not found")
 
-    contents = await file.read()
+    contents = await file.read(MAX_SLIP_BYTES + 1)  # never more than one byte past the limit
     if len(contents) > MAX_SLIP_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,

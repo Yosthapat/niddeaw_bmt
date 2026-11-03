@@ -33,7 +33,7 @@ def _name(raw: str) -> str:
 
 
 async def _silhouette(file: UploadFile) -> logo_service.Logo:
-    contents = await file.read()
+    contents = await file.read(MAX_LOGO_BYTES + 1)  # never more than one byte past the limit
     if len(contents) > MAX_LOGO_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Logo file too large (max 5MB)",

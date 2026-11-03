@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import db_errors
 from app.config import get_settings
 from app.middleware.activity_log import AdminActivityLogMiddleware
+from app.middleware.body_limit import BodyLimitMiddleware
 from app.middleware.unhandled_errors import UnhandledErrorsMiddleware
 from app.routers import line
 from app.routers.admin import activity_log as admin_activity_log
@@ -41,6 +42,8 @@ app.add_middleware(AdminActivityLogMiddleware)
 # Added after the activity log and before CORS, so it sits between them: a
 # crash is turned into a 500 inside CORSMiddleware and keeps its headers.
 app.add_middleware(UnhandledErrorsMiddleware)
+# Also inside CORS: an oversized body is refused before anything reads it.
+app.add_middleware(BodyLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,

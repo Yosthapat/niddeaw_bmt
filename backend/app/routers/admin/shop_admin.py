@@ -169,7 +169,7 @@ async def add_image(
     urls: list[str] = list(product.get("image_urls") or [])
     if len(urls) >= MAX_IMAGES:
         raise _bad(f"ใส่รูปได้สูงสุด {MAX_IMAGES} รูป — ลบรูปเก่าก่อน")
-    contents = await file.read()
+    contents = await file.read(MAX_IMAGE_BYTES + 1)  # never more than one byte past the limit
     if len(contents) > MAX_IMAGE_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Image file too large (max 5MB)"
