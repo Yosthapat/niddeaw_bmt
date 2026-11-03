@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { pageEntered, pageEntering } from '@/composables/usePageSwap'
 import AppHeader from '@/components/layout/AppHeader.vue'
@@ -15,6 +15,10 @@ const route = useRoute()
 // rebuilt: coming back to one is instant, with its data and its scroll,
 // and each refreshes quietly behind (useRevisit.ts). A member's profile
 // or one match is not kept — there are hundreds of those.
+// Pages opened inside LINE (meta.bare) stand alone: no site header or tab
+// bar around them, since LINE draws its own frame.
+const bare = computed(() => route.meta.bare === true)
+
 const KEPT = ['HomeView', 'MemberListView', 'RankingView', 'HallOfFameView', 'MatchHistoryView', 'ShopView']
 
 // See usePageSwap.ts. The admin screens have no transition, nor does the
@@ -40,7 +44,7 @@ watch(
        `overflow: clip` just ignore the line and behave as before. -->
   <div class="min-h-dvh overflow-x-clip">
     <AmbientBackground v-if="!route.path.startsWith('/admin')" />
-    <AppHeader />
+    <AppHeader v-if="!bare" />
     <RouterView v-slot="{ Component, route }">
       <!-- Admin views render <AdminNav /> and <main> as two sibling root
            nodes (no wrapping <div>), which <Transition> can't track — it
@@ -66,10 +70,10 @@ watch(
       </Transition>
       <component :is="Component" v-else :key="route.path" />
     </RouterView>
-    <div class="signature-stripe" aria-hidden="true" />
+    <div v-if="!bare" class="signature-stripe" aria-hidden="true" />
     <!-- Room at the end of every public page for the tab bar floating
          over it, so the last line can scroll clear of the bar. -->
-    <template v-if="!route.path.startsWith('/admin')">
+    <template v-if="!route.path.startsWith('/admin') && !bare">
       <div class="h-[calc(96px+env(safe-area-inset-bottom,0px))] min-[900px]:hidden" aria-hidden="true" />
       <PublicTabBar />
     </template>

@@ -12,6 +12,7 @@ import AdminNav from '@/components/layout/AdminNav.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
+import LineLinkPanel from '@/components/admin/LineLinkPanel.vue'
 import { MAX_ELO, MAX_HANDLE, MAX_NOTE } from '@/utils/limits'
 import { apiErrorMessage } from '@/api/errors'
 
@@ -138,6 +139,43 @@ async function loadPlayers(): Promise<void> {
     error.value = t('members.loadListError')
   } finally {
     loading.value = false
+  }
+  void loadLineLinks()
+}
+
+// Whose LINE is linked, by player id, shown as a badge on their row. Kept
+// apart from the player list: a LINE id is nobody else's business, so the
+// players API never carries it.
+const lineNames = ref<Map<string, string>>(new Map())
+const unlinkingId = ref<string | null>(null)
+
+async function loadLineLinks(): Promise<void> {
+  try {
+    const links = await adminApi.getLineLinks()
+    lineNames.value = new Map(links.map((l) => [l.player_id, l.line_name ?? 'LINE']))
+  } catch {
+    lineNames.value = new Map() // LINE not set up yet
+  }
+}
+
+async function unlinkLine(player: Player): Promise<void> {
+  const ok = await confirm({
+    title: t('lineAdmin.unlink'),
+    message: t('lineAdmin.unlinkConfirm', { name: player.nickname }),
+    confirmLabel: t('lineAdmin.unlink'),
+    danger: true,
+  })
+  if (!ok) return
+  unlinkingId.value = player.id
+  editError.value = null
+  try {
+    await adminApi.unlinkLine(player.id)
+    await loadLineLinks()
+    rowNotice.value = t('lineAdmin.unlinked')
+  } catch (e) {
+    editError.value = apiErrorMessage(e, t('lineAdmin.failed'))
+  } finally {
+    unlinkingId.value = null
   }
 }
 
@@ -361,6 +399,8 @@ onMounted(loadPlayers)
       </div>
     </form>
 
+    <LineLinkPanel @changed="loadLineLinks" />
+
     <input
       v-model="search"
       type="search"
@@ -414,6 +454,13 @@ onMounted(loadPlayers)
                 class="ml-1 rounded-full bg-status-error/20 px-2 py-0.5 align-middle text-xs font-semibold text-status-error"
               >
                 {{ t('members.deletedBadge') }}
+              </span>
+              <span
+                v-if="lineNames.get(p.id)"
+                class="mt-0.5 flex w-fit max-w-full items-center gap-1 truncate rounded-full bg-[#06c755]/15 px-2 py-0.5 text-[11px] font-medium text-[#7dffb0]"
+              >
+                <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-[#06c755]" aria-hidden="true" />
+                <span class="truncate">{{ t('lineAdmin.linked', { name: lineNames.get(p.id) }) }}</span>
               </span>
             </p>
             <TierMascot :tier="p.elo_level" :size="28" :interactive="false" />
@@ -470,6 +517,17 @@ onMounted(loadPlayers)
             {{ editNameProblem }}
           </p>
           <p v-if="eloProblem" class="text-sm text-status-error sm:col-span-2">{{ eloProblem }}</p>
+          <div v-if="lineNames.get(p.id)" class="flex flex-wrap items-center gap-2 rounded-lg border border-[#06c755]/30 bg-[#06c755]/[0.06] px-3 py-2 text-sm sm:col-span-2">
+            <span class="min-w-0 flex-1 truncate text-[#7dffb0]">{{ t('lineAdmin.linked', { name: lineNames.get(p.id) }) }}</span>
+            <button
+              type="button"
+              class="tap rounded-full border border-status-error/40 px-3 text-xs font-semibold text-status-error disabled:opacity-50"
+              :disabled="unlinkingId === p.id"
+              @click="unlinkLine(p)"
+            >
+              {{ t('lineAdmin.unlink') }}
+            </button>
+          </div>
           <p v-if="editError" class="text-sm text-status-error sm:col-span-2" role="alert">{{ editError }}</p>
           <div class="flex gap-2 sm:col-span-2">
             <button

@@ -43,6 +43,7 @@ AUTO: dict[str, dict[str, Callable[[], Any]]] = {
     "pairing_history": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
     "admin_activity_log": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
     "products": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
+    "line_link_requests": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
     "shop_order_items": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
     "shop_orders": {
         "id": lambda: str(uuid.uuid4()), "order_no": lambda: next(_ORDER_NO),
@@ -57,7 +58,10 @@ DEFAULTS: dict[str, Row] = {
         "avatar_url": None, "elo_score": 1000, "elo_level": "soju", "line_id": None,
         "is_active": True, "dominant_hand": None, "tiktok": None, "instagram": None,
         "quote": None, "games": 0, "wins": 0, "draws": 0, "losses": 0,
+        "line_user_id": None, "line_name": None,
     },
+    "line_link_requests": {"line_picture": None, "status": "pending", "decided_at": None,
+                           "decided_by": None},
     "sessions": {"status": "open", "shuttlecock_price_per_game": 0},
     "checkins": {"checkout_time": None},
     "matches": {

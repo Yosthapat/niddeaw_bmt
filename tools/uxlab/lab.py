@@ -33,6 +33,12 @@ os.environ.setdefault(
     f"http://localhost:{STATIC_PORT},http://127.0.0.1:{STATIC_PORT},http://localhost:5173",
 )
 
+# LINE switched on, with a stand-in for LINE's verify endpoint below: a
+# browser test hands the page a fake LIFF whose ID token is
+# "fake:<U + 32 hex>:<display name>".
+os.environ.setdefault("LINE_LOGIN_CHANNEL_ID", "1234567890")
+os.environ.setdefault("LINE_LIFF_ID", "1234567890-uxlab")
+
 from minisupabase import MiniSupabase  # noqa: E402
 
 import app.middleware.activity_log as activity_log_mw  # noqa: E402
@@ -40,6 +46,7 @@ import app.supabase_client as supabase_client  # noqa: E402
 from app.deps import get_supabase  # noqa: E402
 from app.main import app  # noqa: E402
 from app.security import hash_password  # noqa: E402
+from app.services import line_auth  # noqa: E402
 
 ADMIN_ID = str(uuid.uuid4())
 # Names shaped like the club's real ones — English, capitalised, and
@@ -207,6 +214,16 @@ app.dependency_overrides[get_supabase] = lambda: DB
 # through the dependency, so both names have to point at the stand-in.
 supabase_client.get_supabase_client = lambda: DB  # type: ignore[assignment]
 activity_log_mw.get_supabase_client = lambda: DB  # type: ignore[assignment]
+
+
+def _fake_verify(id_token: str, http: object = None) -> line_auth.LineProfile:
+    parts = id_token.split(":", 2)
+    if len(parts) != 3 or parts[0] != "fake":
+        raise line_auth.LineAuthError("not a uxlab token")
+    return line_auth.LineProfile(user_id=parts[1], name=parts[2], picture=None)
+
+
+line_auth.verify_id_token = _fake_verify  # type: ignore[assignment]
 
 
 @app.get("/__uxlab/state")

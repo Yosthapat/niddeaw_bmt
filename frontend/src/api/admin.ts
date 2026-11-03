@@ -608,3 +608,37 @@ export async function getSheetsStatus(): Promise<SheetsStatus> {
 export async function syncSheets(): Promise<SheetsSyncDone> {
   return request('/api/admin/sheets/sync', { method: 'POST' })
 }
+
+// LINE links: members pick their own name on /line; an admin confirms it.
+export interface LineLinkRequest {
+  id: string
+  line_name: string
+  line_picture: string | null
+  player: Player
+  created_at: string
+}
+
+export interface LineLink {
+  player_id: string
+  line_name: string | null
+}
+
+export async function getLineRequests(): Promise<LineLinkRequest[]> {
+  return request('/api/admin/line/requests')
+}
+
+export async function approveLineRequest(requestId: string): Promise<Player> {
+  return request(`/api/admin/line/requests/${requestId}/approve`, { method: 'POST' })
+}
+
+export async function rejectLineRequest(requestId: string): Promise<void> {
+  return request(`/api/admin/line/requests/${requestId}/reject`, { method: 'POST' })
+}
+
+export async function getLineLinks(): Promise<LineLink[]> {
+  return request('/api/admin/line/links')
+}
+
+export async function unlinkLine(playerId: string): Promise<Player> {
+  return request(`/api/admin/line/players/${playerId}/unlink`, { method: 'POST' })
+}

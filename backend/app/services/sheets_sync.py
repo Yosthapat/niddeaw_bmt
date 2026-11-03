@@ -50,6 +50,7 @@ TAB_TITLES: dict[str, str] = {
     "shop_orders": "ออเดอร์",
     "shop_order_items": "รายการในออเดอร์",
     "admin_activity_log": "ประวัติแอดมิน",
+    "line_link_requests": "คำขอผูก LINE",
 }
 assert set(TAB_TITLES) == {table for table, _ in TABLES}, "every backed-up table needs a tab"
 

@@ -5,12 +5,14 @@ from app import db_errors
 from app.config import get_settings
 from app.middleware.activity_log import AdminActivityLogMiddleware
 from app.middleware.unhandled_errors import UnhandledErrorsMiddleware
+from app.routers import line
 from app.routers.admin import activity_log as admin_activity_log
 from app.routers.admin import auth as admin_auth
 from app.routers.admin import backup as admin_backup
 from app.routers.admin import billing as admin_billing
 from app.routers.admin import checkins as admin_checkins
 from app.routers.admin import expenses as admin_expenses
+from app.routers.admin import line_admin as admin_line
 from app.routers.admin import matchmaking as admin_matchmaking
 from app.routers.admin import other_income as admin_other_income
 from app.routers.admin import players_admin
@@ -61,6 +63,7 @@ app.include_router(live.router)
 app.include_router(seasons.router)
 app.include_router(sponsors.router)
 app.include_router(shop.router)
+app.include_router(line.router)
 
 app.include_router(admin_auth.router)
 app.include_router(admin_sessions.router)
@@ -77,6 +80,7 @@ app.include_router(admin_sponsors.router)
 app.include_router(admin_shop.router)
 app.include_router(admin_backup.router)
 app.include_router(admin_sheets.router)
+app.include_router(admin_line.router)
 app.include_router(admin_sheets.internal)
 
 

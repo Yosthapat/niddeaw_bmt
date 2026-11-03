@@ -69,7 +69,9 @@ async function send(path: string, options: RequestInit): Promise<Response> {
   // Remembered, because a 401 means something different depending on it:
   // with a token it's *our* token being rejected; without one it's just an
   // endpoint that wanted auth.
-  const sentToken = authStore.token !== null
+  // A caller that sets its own Authorization (the /line page, with a
+  // member's LINE token) keeps it, and a 401 for it is not the admin's.
+  const sentToken = !headers.has('Authorization') && authStore.token !== null
   if (sentToken) {
     headers.set('Authorization', `Bearer ${authStore.token}`)
   }
