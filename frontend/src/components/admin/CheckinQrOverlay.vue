@@ -21,6 +21,7 @@ import { usePlayersStore } from '@/stores/players'
 import { formatDateWithWeekday, formatTime } from '@/utils/format'
 import type { Locale } from '@/i18n'
 import type { Checkin } from '@/types'
+import BrandQr from '@/components/common/BrandQr.vue'
 
 const props = defineProps<{ sessionId: string; checkins: Checkin[] }>()
 const emit = defineEmits<{ close: [] }>()
@@ -95,11 +96,9 @@ onBeforeUnmount(() => {
         <h2 class="font-display text-2xl font-bold">{{ t('checkinQr.title') }}</h2>
         <p class="text-sm text-white/65">{{ t('checkinQr.how') }}</p>
 
-        <div class="qr-frame mt-1 rounded-3xl bg-white p-3">
-          <img v-if="qr" :src="qr.qr" :alt="t('checkinQr.title')" width="300" height="300" class="block h-[min(300px,72vw)] w-[min(300px,72vw)] [image-rendering:pixelated]" />
-          <div v-else class="flex h-[min(300px,72vw)] w-[min(300px,72vw)] items-center justify-center text-sm text-black/50">
-            {{ problem || t('common.loading') }}
-          </div>
+        <BrandQr v-if="qr" :modules="qr.qr_modules" :caption="t('checkinQr.caption')" :alt="t('checkinQr.title')" class="mt-1 w-[min(300px,74vw)]" />
+        <div v-else class="flex h-[min(300px,72vw)] w-[min(300px,72vw)] items-center justify-center rounded-3xl bg-[#f4a6c8]/30 text-sm text-white/70">
+          {{ problem || t('common.loading') }}
         </div>
         <p v-if="qr" class="text-xs text-white/50">{{ t('checkinQr.validTonight', { place: qr.night.location }) }}</p>
         <p v-if="problem && qr" class="text-sm text-status-error" role="alert">{{ problem }}</p>
@@ -128,10 +127,5 @@ onBeforeUnmount(() => {
   background:
     radial-gradient(600px 400px at 50% 0%, rgb(234 76 164 / 0.25), transparent 70%),
     #080312;
-}
-.qr-frame {
-  box-shadow:
-    0 0 0 4px rgb(255 143 208 / 0.5),
-    0 0 50px rgb(234 76 164 / 0.45);
 }
 </style>

@@ -155,6 +155,8 @@ class CheckinQr(BaseModel):
     url: str
     qr: str
     """A PNG data URI of `url`."""
+    qr_modules: list[str]
+    """The same QR as rows of 0/1, drawn as the club's QR card."""
 
 
 class LineBill(BaseModel):

@@ -19,7 +19,7 @@ from app.models.line import (
 )
 from app.models.player import Player
 from app.routers.admin.players_admin import check_nickname
-from app.services import line_auth, line_checkin, line_join
+from app.services import line_auth, line_checkin, line_join, promptpay_service
 from app.services.elo_service import SCORE_FLOOR, STARTING_SCORE, get_tier
 from app.services.promptpay_service import generate_qr_data_uri
 from app.services.session_state import ensure_session_open
@@ -249,7 +249,11 @@ def _qr(supabase: SupabaseDep, session_id: UUID, *, fresh: bool) -> CheckinQr:
         ).execute()
     url = line_checkin.checkin_url(code)
     return CheckinQr(
-        night=CheckinNight.model_validate(night), code=code, url=url, qr=generate_qr_data_uri(url)
+        night=CheckinNight.model_validate(night),
+        code=code,
+        url=url,
+        qr=generate_qr_data_uri(url),
+        qr_modules=promptpay_service.qr_modules(url),
     )
 
 

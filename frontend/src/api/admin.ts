@@ -676,6 +676,7 @@ export interface CheckinQr {
   code: string
   url: string
   qr: string
+  qr_modules: string[]
 }
 
 export async function getCheckinQr(sessionId: string): Promise<CheckinQr> {

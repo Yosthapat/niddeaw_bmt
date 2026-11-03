@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import { pageEntered, pageEntering } from '@/composables/usePageSwap'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import TierInfoModal from '@/components/players/TierInfoModal.vue'
@@ -18,6 +19,14 @@ const route = useRoute()
 // Pages opened inside LINE (meta.bare) stand alone: no site header or tab
 // bar around them, since LINE draws its own frame.
 const bare = computed(() => route.meta.bare === true)
+
+// A page is rebuilt when its key changes. Normally that is its path, but
+// the LINE page's /line/checkout, /line/bills… are screens of one page:
+// moving between them must not rebuild it, which would sign in with LINE
+// all over again.
+function pageKey(r: RouteLocationNormalizedLoaded): string {
+  return r.name === 'line' ? 'line' : r.path
+}
 
 const KEPT = ['HomeView', 'MemberListView', 'RankingView', 'HallOfFameView', 'MatchHistoryView', 'ShopView']
 
@@ -65,7 +74,7 @@ watch(
         @enter="pageEntered()"
       >
         <KeepAlive :include="KEPT" :max="8">
-          <component :is="Component" :key="route.path" />
+          <component :is="Component" :key="pageKey(route)" />
         </KeepAlive>
       </Transition>
       <component :is="Component" v-else :key="route.path" />
