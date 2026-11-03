@@ -1,4 +1,4 @@
-import { onMounted, onUnmounted } from 'vue'
+import { onActivated, onDeactivated, onMounted, onUnmounted } from 'vue'
 
 /**
  * Generic polling composable used by live admin screens (check-in list,
@@ -27,6 +27,11 @@ export function usePolling(fetchFn: () => Promise<void>, intervalMs = 7000) {
 
   onMounted(start)
   onUnmounted(stop)
+  // On a page kept alive (App.vue): stop while it is away, and catch up
+  // the moment it is back. start() is a no-op while already running, which
+  // covers onActivated also firing on the first mount.
+  onDeactivated(stop)
+  onActivated(start)
 
   return { start, stop }
 }

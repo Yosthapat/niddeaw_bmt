@@ -1,4 +1,4 @@
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue'
 import { getLiveStatus } from '@/api/public'
 import type { LiveQueueResponse } from '@/types'
 
@@ -29,22 +29,34 @@ function onVisible(): void {
 }
 
 export function useLiveNow() {
-  onMounted(() => {
+  // A page kept alive (the home page, see App.vue) is away rather than
+  // gone: it stops counting as a user while it is, and counts again when
+  // it comes back. onActivated also runs on the first mount, hence `using`.
+  let using = false
+  function join(): void {
+    if (using) return
+    using = true
     users += 1
     if (users === 1) {
       void refresh()
       timer = setInterval(() => void refresh(), POLL_MS)
       document.addEventListener('visibilitychange', onVisible)
     }
-  })
-  onBeforeUnmount(() => {
+  }
+  function leave(): void {
+    if (!using) return
+    using = false
     users -= 1
     if (users === 0 && timer) {
       clearInterval(timer)
       timer = null
       document.removeEventListener('visibilitychange', onVisible)
     }
-  })
+  }
+  onMounted(join)
+  onActivated(join)
+  onDeactivated(leave)
+  onBeforeUnmount(leave)
   return {
     live,
     /** a match is being played right now */

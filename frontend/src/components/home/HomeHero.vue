@@ -15,7 +15,7 @@
  * (above the words on a phone, beside them from 900px wide). The CSS cat is
  * drawn inside it, and the 3D camera is aimed so its cat fills it too.
  */
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import SponsorBand from './SponsorBand.vue'
@@ -40,6 +40,8 @@ const stats = ref('')
 let scene: HeroScene | null = null
 let gone = false
 let onScreen = true
+// The home page is kept alive while another page shows (App.vue).
+let away = false
 let resizeObserver: ResizeObserver | null = null
 let visibilityObserver: IntersectionObserver | null = null
 
@@ -73,7 +75,7 @@ function measure(): void {
 }
 
 function run(): void {
-  scene?.setRunning(onScreen && !document.hidden)
+  scene?.setRunning(onScreen && !away && !document.hidden)
 }
 
 function giveUp(why: string): void {
@@ -132,6 +134,15 @@ onMounted(() => {
   if (hero.value) resizeObserver.observe(hero.value)
   document.addEventListener('visibilitychange', run)
   void startScene()
+})
+
+onDeactivated(() => {
+  away = true
+  run()
+})
+onActivated(() => {
+  away = false
+  run()
 })
 
 onBeforeUnmount(() => {

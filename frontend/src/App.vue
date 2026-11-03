@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { pageEntered, pageEntering } from '@/composables/usePageSwap'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import TierInfoModal from '@/components/players/TierInfoModal.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
@@ -8,6 +10,15 @@ import UpdateBanner from '@/components/common/UpdateBanner.vue'
 import PublicTabBar from '@/components/layout/PublicTabBar.vue'
 
 const route = useRoute()
+
+// See usePageSwap.ts. The admin screens have no transition, nor does the
+// first public page after one, so the page on screen is the route at once.
+watch(
+  () => route.path,
+  (to, from) => {
+    if (to.startsWith('/admin') || from?.startsWith('/admin')) pageEntering(to)
+  },
+)
 </script>
 
 <template>
@@ -32,8 +43,20 @@ const route = useRoute()
            the page stuck invisible mid-transition until a manual reload.
            Public views are all single-root, so they keep the transition;
            admin routes render instantly instead. -->
-      <Transition v-if="!route.path.startsWith('/admin')" name="page" mode="out-in">
-        <component :is="Component" :key="route.path" />
+      <!-- The home page is kept rather than rebuilt when you leave it: its
+           3D hero, sponsor band and member strip took a moment to come
+           back, a blank screen and then faces popping in, every time ☰ or
+           a page and Back were tapped. Its loops pause while it is away. -->
+      <Transition
+        v-if="!route.path.startsWith('/admin')"
+        name="page"
+        mode="out-in"
+        @before-enter="pageEntering(route.path)"
+        @enter="pageEntered()"
+      >
+        <KeepAlive include="HomeView">
+          <component :is="Component" :key="route.path" />
+        </KeepAlive>
       </Transition>
       <component :is="Component" v-else :key="route.path" />
     </RouterView>

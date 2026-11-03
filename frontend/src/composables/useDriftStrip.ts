@@ -14,7 +14,7 @@
 // pulling the strip back to the right has track to scroll into too, not a
 // wall at zero. The more a half outruns the strip's width, the bigger that
 // room — SponsorBand sizes its halves for it.
-import { onBeforeUnmount, onMounted, ref, type Ref } from 'vue'
+import { onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, type Ref } from 'vue'
 
 export interface DriftOptions {
   /** In pixels per second, so the pace stays the same whatever the content. */
@@ -199,14 +199,19 @@ export function useDriftStrip(strip: Ref<HTMLElement | null>, options: DriftOpti
     scrollPassive: onScroll,
   }
 
-  onMounted(() => {
-    // Same contract the rest of the site keeps (v-reveal, CountUp, the
-    // ambient blobs): no self-starting motion when the reader asked for
-    // less. The strip stays swipeable either way.
+  // Same contract the rest of the site keeps (v-reveal, CountUp, the
+  // ambient blobs): no self-starting motion when the reader asked for
+  // less. The strip stays swipeable either way.
+  function begin(): void {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    cancelAnimationFrame(frame)
     frame = requestAnimationFrame(step)
-  })
+  }
+  onMounted(begin)
   onBeforeUnmount(() => cancelAnimationFrame(frame))
+  // A page kept alive (App.vue) is off screen while away: no frames for it.
+  onDeactivated(() => cancelAnimationFrame(frame))
+  onActivated(begin)
 
   return { paused, handlers }
 }
