@@ -1,9 +1,10 @@
 """Billing math: per-game cost derivation and effective-amount resolution.
 
 Pure functions — no Supabase I/O — so the formula can be unit-tested
-directly. Each player who attends a session pays a flat court fee once,
-plus a flat shuttlecock cost per game they actually played (not split
-between teammates/opponents). Check-in/checkout times are still recorded
+directly. Each player who plays pays a flat court fee once, plus a flat
+shuttlecock cost per game they actually played (not split between
+teammates/opponents). Someone who checked in and never played a game —
+hurt in the warm-up, came to watch — owes nothing. Check-in/checkout times are still recorded
 for attendance and the matchmaking queue, but no longer feed into billing.
 """
 
@@ -11,6 +12,8 @@ for attendance and the matchmaking queue, but no longer feed into billing.
 def compute_amount_calc(
     game_count: int, court_fee_per_person: float, shuttlecock_price_per_game: float
 ) -> float:
+    if game_count <= 0:
+        return 0.0
     return round(court_fee_per_person + game_count * shuttlecock_price_per_game, 2)
 
 

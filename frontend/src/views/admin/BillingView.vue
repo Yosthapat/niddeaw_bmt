@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useSessionsStore } from '@/stores/sessions'
 import { usePlayersStore } from '@/stores/players'
 import * as adminApi from '@/api/admin'
-import { effectiveAmount } from '@/types'
+import { effectiveAmount, isFree } from '@/types'
 import type { Billing, Checkin, PaymentInfoResponse } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import { money } from '@/utils/format'
@@ -120,11 +120,12 @@ async function closeAndBill(): Promise<void> {
   }
 }
 
-/** `clear` goes back to the calculated amount; otherwise the typed one. */
-async function saveAdjust(billing: Billing, clear = false): Promise<void> {
+/** `clear` goes back to the calculated amount, `waive` makes it nothing (a
+ *  member who was hurt and never played); otherwise the typed one. */
+async function saveAdjust(billing: Billing, preset?: 'clear' | 'waive'): Promise<void> {
   delete adjustError.value[billing.id]
-  let amount: number | null = null
-  if (!clear) {
+  let amount: number | null = preset === 'waive' ? 0 : null
+  if (!preset) {
     const raw = editingAdjust.value[billing.id]
     const problem = bahtProblem(raw, { allowZero: true })
     if (problem) {
@@ -265,7 +266,15 @@ onMounted(async () => {
             <span class="flex-1 font-medium">{{ nameOf(b.player_id) }}</span>
             <span class="text-xs text-white/40">{{ b.game_count }} {{ t('common.game') }}</span>
             <span class="font-bold text-brand-pink">{{ money(effectiveAmount(b)) }}</span>
+            <!-- Nothing owed is settled as it stands: no paid/unpaid to flip. -->
+            <span
+              v-if="isFree(b)"
+              class="inline-flex min-h-11 items-center rounded-full border border-white/15 px-3 text-xs font-semibold text-white/55"
+            >
+              {{ t('billing.free') }}
+            </span>
             <button
+              v-else
               class="tap rounded-full px-3 text-xs font-semibold"
               :class="b.paid_status === 'paid' ? 'bg-status-success/20 text-status-success' : 'bg-white/10 text-white/60'"
               @click="togglePaid(b)"
@@ -297,9 +306,17 @@ onMounted(async () => {
             <button
               v-if="b.amount_adjusted !== null && b.amount_adjusted !== undefined"
               class="tap px-1 text-white/50 underline"
-              @click="saveAdjust(b, true)"
+              @click="saveAdjust(b, 'clear')"
             >
               {{ t('billing.useCalculated') }}
+            </button>
+            <button
+              v-if="!isFree(b)"
+              class="tap px-1 text-white/60 underline"
+              :aria-label="`${t('billing.waiveLabel')} — ${nameOf(b.player_id)}`"
+              @click="saveAdjust(b, 'waive')"
+            >
+              {{ t('billing.waive') }}
             </button>
             <!-- nothing to pay, nothing to scan -->
             <button v-if="effectiveAmount(b) > 0" class="tap px-1 text-brand-pink underline" @click="showQr(b)">
