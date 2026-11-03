@@ -7,7 +7,7 @@ import { tierMeta } from '@/composables/useEloTier'
 import { TIER_ORDER } from '@/utils/tierCard'
 import MemberCard from '@/components/players/MemberCard.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
-import StaggerHeading from '@/components/common/StaggerHeading.vue'
+import PageBanner from '@/components/common/PageBanner.vue'
 
 type Sort = 'elo' | 'name' | 'games'
 
@@ -56,82 +56,81 @@ const shown = computed(() => {
 })
 
 const emptyMascot = computed(() => (tier.value === 'all' ? 'milk' : tier.value))
+const eyebrow = computed(() => (loading.value || error.value ? 'Roster' : `Roster · ${t('roster.count', { n: stats.value.length })}`))
 </script>
 
 <template>
-  <main class="mx-auto max-w-6xl px-4 py-8 sm:py-12">
-    <div class="flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <p class="text-xs font-semibold tracking-widest text-brand-pink/70 uppercase">
-          Roster<template v-if="!loading && !error"> · {{ t('roster.count', { n: stats.length }) }}</template>
-        </p>
-        <h1 class="font-display text-3xl font-bold text-white sm:text-5xl"><StaggerHeading :text="t('nav.members')" /></h1>
-      </div>
-      <div class="flex w-full gap-2 sm:w-auto">
+  <main class="pb-12 sm:pb-20">
+    <PageBanner :eyebrow="eyebrow" :title="t('nav.members')" :sub="t('roster.sub')" mascot="/tiers/beer.webp">
+      <div class="flex w-full gap-2 sm:max-w-xl">
         <input
           v-model="search"
           type="search"
           :placeholder="t('roster.searchPlaceholder')"
           :aria-label="t('roster.searchPlaceholder')"
-          class="min-h-11 min-w-0 flex-1 rounded-full border border-white/20 bg-white/[0.07] px-4 text-sm outline-none focus:border-brand-pink sm:w-72"
+          class="min-h-11 min-w-0 flex-1 rounded-full border border-white/20 bg-white/10 px-4 text-sm text-white backdrop-blur outline-none placeholder:text-white/50 focus:border-brand-pink"
         />
         <select
           v-model="sort"
           :aria-label="t('roster.sortLabel')"
-          class="min-h-11 shrink-0 rounded-full border border-white/20 bg-[#140a2b] px-3 text-sm text-white"
+          class="min-h-11 shrink-0 rounded-full border border-white/20 bg-white/10 px-3 text-sm text-white backdrop-blur"
         >
-          <option value="elo">{{ t('roster.sortElo') }}</option>
-          <option value="games">{{ t('roster.sortGames') }}</option>
-          <option value="name">{{ t('roster.sortName') }}</option>
+          <option value="elo" class="bg-brand-black">{{ t('roster.sortElo') }}</option>
+          <option value="games" class="bg-brand-black">{{ t('roster.sortGames') }}</option>
+          <option value="name" class="bg-brand-black">{{ t('roster.sortName') }}</option>
         </select>
       </div>
-    </div>
+    </PageBanner>
 
-    <!-- tier filter: scrolls sideways on a phone rather than wrapping into
-         three rows above the cards -->
-    <div
-      role="group"
-      :aria-label="t('roster.filterLabel')"
-      class="tier-chips mt-5 -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0"
-    >
-      <button type="button" class="tier-chip" :aria-pressed="tier === 'all'" @click="tier = 'all'">
-        {{ t('roster.all') }}
-      </button>
-      <button
-        v-for="id in TIER_ORDER"
-        :key="id"
-        type="button"
-        class="tier-chip"
-        :aria-pressed="tier === id"
-        @click="tier = id"
-      >
-        <img :src="`/tiers/${id}.webp`" alt="" width="24" height="24" class="h-6 w-6" />
-        {{ tierMeta(id).label }}
-        <span class="text-xs text-white/45">{{ counts[id] ?? 0 }}</span>
-      </button>
-    </div>
-
-    <div v-if="loading" class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-6">
-      <HudSkeletonBlock v-for="i in 10" :key="i" :delay="i * 60" class="aspect-[3/4.4]" />
-    </div>
-    <p v-else-if="error" class="mt-6 text-status-error">{{ error }}</p>
-    <p v-else-if="stats.length === 0" class="mt-6 text-white/60">{{ t('members.empty') }}</p>
-
-    <div v-else-if="shown.length === 0" class="mt-12 flex flex-col items-center gap-3 text-center text-white/70">
-      <img :src="`/tiers/${emptyMascot}.webp`" alt="" width="96" height="96" class="h-24 w-24 opacity-80" />
-      <p>{{ search.trim() ? t('members.noSearchResults') : t('roster.emptyTier') }}</p>
-    </div>
-
-    <ul v-else class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-6">
-      <li v-for="s in shown" :key="s.player.id">
-        <RouterLink
-          :to="`/members/${s.player.id}`"
-          class="block h-full rounded-[18px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-pink"
+    <div class="home-world">
+      <div class="mx-auto max-w-[1200px] px-3 pt-4 sm:px-6 sm:pt-7">
+        <!-- tier filter: scrolls sideways on a phone rather than wrapping into
+             three rows above the cards -->
+        <div
+          role="group"
+          :aria-label="t('roster.filterLabel')"
+          class="tier-chips -mx-3 flex gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:flex-wrap sm:px-0"
         >
-          <MemberCard :player="s.player" :games="s.games" :wins="s.wins" :draws="s.draws" :losses="s.losses" />
-        </RouterLink>
-      </li>
-    </ul>
+          <button type="button" class="tier-chip" :aria-pressed="tier === 'all'" @click="tier = 'all'">
+            {{ t('roster.all') }}
+          </button>
+          <button
+            v-for="id in TIER_ORDER"
+            :key="id"
+            type="button"
+            class="tier-chip"
+            :aria-pressed="tier === id"
+            @click="tier = id"
+          >
+            <img :src="`/tiers/${id}.webp`" alt="" width="24" height="24" class="h-6 w-6" />
+            {{ tierMeta(id).label }}
+            <span class="text-xs text-white/45">{{ counts[id] ?? 0 }}</span>
+          </button>
+        </div>
+
+        <div v-if="loading" class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-6">
+          <HudSkeletonBlock v-for="i in 10" :key="i" :delay="i * 60" class="aspect-[3/4.4] rounded-[18px]" />
+        </div>
+        <p v-else-if="error" class="world-card mt-5 p-5 text-status-error">{{ error }}</p>
+        <p v-else-if="stats.length === 0" class="world-card mt-5 p-5 text-white/65">{{ t('members.empty') }}</p>
+
+        <div v-else-if="shown.length === 0" class="world-card mt-5 flex flex-col items-center gap-3 p-8 text-center text-white/70">
+          <img :src="`/tiers/${emptyMascot}.webp`" alt="" width="96" height="96" class="h-24 w-24 opacity-80" />
+          <p>{{ search.trim() ? t('members.noSearchResults') : t('roster.emptyTier') }}</p>
+        </div>
+
+        <ul v-else class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-6">
+          <li v-for="s in shown" :key="s.player.id">
+            <RouterLink
+              :to="`/members/${s.player.id}`"
+              class="block h-full rounded-[18px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-pink"
+            >
+              <MemberCard :player="s.player" :games="s.games" :wins="s.wins" :draws="s.draws" :losses="s.losses" />
+            </RouterLink>
+          </li>
+        </ul>
+      </div>
+    </div>
   </main>
 </template>
 
@@ -151,7 +150,9 @@ const emptyMascot = computed(() => (tier.value === 'all' ? 'milk' : tier.value))
   padding: 0 14px;
   border: 1px solid rgb(255 255 255 / 0.18);
   border-radius: 999px;
-  background: rgb(255 255 255 / 0.06);
+  background: rgb(255 255 255 / 0.07);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   color: rgb(255 255 255 / 0.82);
   font-size: 14px;
   white-space: nowrap;

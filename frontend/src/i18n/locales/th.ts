@@ -109,6 +109,7 @@ export default {
   roster: {
     count: '{n} คน',
     searchPlaceholder: 'ชื่อ หรือเลขสมาชิก',
+    sub: 'ทุกคนในก๊วน · แตะการ์ดเพื่อดูโปรไฟล์',
     sortLabel: 'เรียงตาม',
     sortElo: 'เรียง: ELO สูงสุด',
     sortGames: 'เรียง: เล่นมากสุด',

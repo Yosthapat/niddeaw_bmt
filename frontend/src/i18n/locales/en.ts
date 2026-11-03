@@ -108,6 +108,7 @@ export default {
   roster: {
     count: '{n} members',
     searchPlaceholder: 'Name or member no.',
+    sub: 'Everyone in the club · tap a card for their profile',
     sortLabel: 'Sort by',
     sortElo: 'Sort: highest ELO',
     sortGames: 'Sort: most games',

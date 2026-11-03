@@ -169,189 +169,192 @@ async function send(): Promise<void> {
 </script>
 
 <template>
-  <main class="mx-auto max-w-md px-4 pt-3 pb-8">
-    <div class="flex items-center justify-between">
-      <RouterLink v-if="step === 1" to="/shop/cart" class="inline-flex min-h-11 items-center gap-1 text-sm text-white/70">
-        <span aria-hidden="true">←</span> {{ t('shop.cart') }}
-      </RouterLink>
-      <button v-else-if="step === 2" type="button" class="inline-flex min-h-11 items-center gap-1 text-sm text-white/70" @click="step = 1">
-        <span aria-hidden="true">←</span> {{ t('shop.whoTitle') }}
-      </button>
-      <span v-else />
-      <span class="text-sm text-white/65">{{ step === 3 ? t('shop.done') : t('shop.stepOf', { n: step }) }}</span>
-    </div>
-    <div class="mt-1 grid grid-cols-3 gap-1.5" aria-hidden="true">
-      <span v-for="n in 3" :key="n" class="h-1.5 rounded-full" :class="n <= step ? 'bg-gradient-to-r from-[#ff8fd0] to-brand-pink' : 'bg-white/14'" />
-    </div>
-
-    <p v-if="loadError" class="mt-6 text-status-error">{{ loadError }}</p>
-
-    <template v-else-if="quote">
-      <!-- what is being paid for, always in view -->
-      <details v-if="step !== 3" class="mt-4 rounded-2xl border border-white/12 bg-white/5">
-        <summary class="flex min-h-14 cursor-pointer list-none items-center gap-3 px-3">
-          <span class="flex-1 text-sm">{{ t('shop.cartSummary', { lines: quote.lines.length, n: units }) }}</span>
-          <span class="font-display text-lg font-bold text-brand-pink-light">{{ money(quote.total) }}</span>
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="chev text-white/60" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
-        </summary>
-        <ul class="flex flex-col gap-1.5 border-t border-white/10 px-3 py-2.5 text-sm">
-          <li v-for="l in quote.lines" :key="`${l.product_id}-${l.size}`" class="flex justify-between gap-3">
-            <span class="min-w-0 truncate">{{ l.product_name }}<span v-if="l.size" class="text-white/60"> · {{ l.size }}</span> × {{ l.qty }}</span>
-            <span class="shrink-0">{{ money(l.line_total) }}</span>
-          </li>
-        </ul>
-      </details>
-
-      <!-- 1 · who -->
-      <section v-if="step === 1" class="mt-5 flex flex-col gap-3">
-        <h1 class="font-display text-2xl font-bold">{{ t('shop.whoTitle') }}</h1>
-        <!-- a club member, or someone from outside -->
-        <div role="radiogroup" :aria-label="t('shop.whoTitle')" class="flex gap-1 rounded-2xl bg-white/7 p-1">
-          <button
-            v-for="m in (['member', 'guest'] as const)"
-            :key="m"
-            type="button"
-            role="radio"
-            :aria-checked="mode === m"
-            class="min-h-11 flex-1 rounded-xl text-sm"
-            :class="mode === m ? 'bg-white font-medium text-brand-black' : 'text-white/75'"
-            @click="mode = m"
-          >
-            {{ m === 'member' ? t('shop.whoMember') : t('shop.whoGuest') }}
-          </button>
-        </div>
-      </section>
-      <section v-if="step === 1 && mode === 'guest'" class="mt-3 flex flex-col gap-3">
-        <p class="text-sm text-white/70">{{ t('shop.guestHint') }}</p>
-        <label class="flex flex-col gap-1.5 text-sm">
-          {{ t('shop.guestName') }}
-          <input v-model="guestName" type="text" autocomplete="name" maxlength="80" :placeholder="t('shop.guestNamePlaceholder')" class="min-h-12 rounded-2xl border border-white/22 bg-white/7 px-4 text-base outline-none focus:border-brand-pink" />
-        </label>
-        <label class="flex flex-col gap-1.5 text-sm">
-          {{ t('shop.guestPhone') }}
-          <input
-            v-model="guestPhone"
-            type="tel"
-            inputmode="numeric"
-            autocomplete="tel"
-            maxlength="20"
-            placeholder="08x-xxx-xxxx"
-            :aria-invalid="!!guestPhone.trim() && !phone"
-            class="min-h-12 rounded-2xl border bg-white/7 px-4 text-base outline-none focus:border-brand-pink"
-            :class="guestPhone.trim() && !phone ? 'border-status-error' : 'border-white/22'"
-          />
-          <span class="text-xs" :class="phoneHint.cls" aria-live="polite">{{ phoneHint.text }}</span>
-        </label>
-        <ul class="flex flex-col gap-2 rounded-2xl border border-white/12 bg-white/5 p-3.5 text-[13px] text-white/80">
-          <li class="flex gap-2"><span class="text-brand-pink">●</span>{{ t('shop.guestPickup') }}</li>
-          <li class="flex gap-2"><span class="text-brand-pink">●</span>{{ t('shop.guestPrivacy') }}</li>
-        </ul>
-        <button type="button" class="cta mt-2" :disabled="!ready" @click="toPay">{{ nextLabel }}</button>
-      </section>
-      <section v-if="step === 1 && mode === 'member'" class="mt-3 flex flex-col gap-3">
-        <p class="text-sm text-white/70">{{ t('shop.whoHint') }}</p>
-        <input
-          v-model="query"
-          type="search"
-          :placeholder="t('shop.whoSearch')"
-          :aria-label="t('shop.whoSearch')"
-          class="min-h-12 rounded-full border border-white/20 bg-white/7 px-4 text-base outline-none focus:border-brand-pink"
-        />
-        <div role="radiogroup" :aria-label="t('nav.members')" class="flex max-h-[46vh] flex-col gap-1.5 overflow-y-auto">
-          <button
-            v-for="s in found"
-            :key="s.player.id"
-            type="button"
-            role="radio"
-            :aria-checked="buyerId === s.player.id"
-            class="who-btn"
-            @click="buyerId = s.player.id"
-          >
-            <PlayerAvatar :name="s.player.nickname" :avatar-url="s.player.avatar_url" size="sm" />
-            <span class="flex-1 text-left">{{ s.player.nickname }}</span>
-            <span class="text-xs text-white/55">{{ s.player.member_code }}</span>
-          </button>
-        </div>
-        <p class="text-xs text-white/55">{{ t('shop.whoMissing') }}</p>
-        <button type="button" class="cta mt-2" :disabled="!ready" @click="toPay">{{ nextLabel }}</button>
-      </section>
-
-      <!-- 2 · pay -->
-      <section v-if="step === 2" class="mt-5 flex flex-col items-center gap-3">
-        <h1 class="self-start font-display text-2xl font-bold">{{ t('shop.payTitle') }}</h1>
-        <p v-if="payError" class="self-start text-sm text-status-error">{{ payError }}</p>
-        <template v-else-if="pay">
-          <div v-if="pay.data_uri" class="flex flex-col items-center gap-1.5 rounded-2xl bg-white p-3.5">
-            <img :src="pay.data_uri" alt="QR PromptPay" class="h-48 w-48" />
-            <span v-if="pay.method === 'promptpay'" class="text-[11px] text-[#4a3a5a]">{{ t('shop.payPromptpay') }}</span>
-          </div>
-          <p v-if="pay.bank_name" class="text-center text-sm text-white/75">
-            {{ t('shop.payBank') }} {{ pay.bank_name }} · {{ pay.bank_account_number }}
-            <span v-if="pay.bank_account_name"> ({{ pay.bank_account_name }})</span>
-          </p>
-          <div class="text-center">
-            <p class="text-sm text-white/70">{{ t('shop.payAmount') }}</p>
-            <p class="font-display text-3xl font-bold text-brand-pink-light">{{ money(pay.amount) }}</p>
-          </div>
-          <a v-if="pay.data_uri" :href="pay.data_uri" download="niddeaw-shop-qr.png" class="ghost">{{ t('shop.saveQr') }}</a>
-        </template>
-        <p v-else class="text-sm text-white/60">{{ t('common.loading') }}</p>
-
-        <div class="mt-1 flex w-full flex-col gap-1.5">
-          <span class="text-sm font-medium">{{ t('shop.slip') }}</span>
-          <label class="slip-pick" :class="{ 'is-set': slip }">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4 M7 9l5-5 5 5 M4 20h16" /></svg>
-            {{ slip ? t('shop.slipChange', { name: slipName }) : t('shop.slipPick') }}
-            <input type="file" accept="image/*" class="sr-only" @change="onSlip" />
-          </label>
-          <span v-if="tried && !slip" class="text-xs text-status-error">{{ t('shop.slipRequired') }}</span>
-        </div>
-        <p v-if="sendError" class="w-full text-sm text-status-error" role="alert">
-          {{ sendError }}
-          <RouterLink to="/shop/cart" class="underline">{{ t('shop.backToCart') }}</RouterLink>
-        </p>
-        <button type="button" class="cta mt-2 w-full" :disabled="sending" @click="send">
-          {{ sending ? t('shop.sending') : t('shop.send') }}
+  <!-- the world the rest of the site stands in, behind this page too -->
+  <div class="home-world">
+    <main class="mx-auto max-w-md px-4 pt-3 pb-8">
+      <div class="flex items-center justify-between">
+        <RouterLink v-if="step === 1" to="/shop/cart" class="inline-flex min-h-11 items-center gap-1 text-sm text-white/70">
+          <span aria-hidden="true">←</span> {{ t('shop.cart') }}
+        </RouterLink>
+        <button v-else-if="step === 2" type="button" class="inline-flex min-h-11 items-center gap-1 text-sm text-white/70" @click="step = 1">
+          <span aria-hidden="true">←</span> {{ t('shop.whoTitle') }}
         </button>
-      </section>
+        <span v-else />
+        <span class="text-sm text-white/65">{{ step === 3 ? t('shop.done') : t('shop.stepOf', { n: step }) }}</span>
+      </div>
+      <div class="mt-1 grid grid-cols-3 gap-1.5" aria-hidden="true">
+        <span v-for="n in 3" :key="n" class="h-1.5 rounded-full" :class="n <= step ? 'bg-gradient-to-r from-[#ff8fd0] to-brand-pink' : 'bg-white/14'" />
+      </div>
 
-      <!-- 3 · done -->
-      <section v-else-if="placed" class="mt-6 flex flex-col items-center gap-3 text-center">
-        <img src="/pwa-icons/pwa-192x192.png" alt="" class="h-28 w-28 rounded-full shadow-[0_0_30px_rgb(234_76_164/0.5)]" />
-        <h1 class="font-display text-2xl font-bold">{{ t('shop.doneTitle') }}</h1>
-        <!-- with no profile, the number is a guest's only handle on the order -->
-        <div v-if="isGuestOrder" class="flex w-full flex-col items-center gap-1 rounded-2xl border border-[#ffe14d]/50 bg-white/7 p-4">
-          <span class="text-xs text-white/70">{{ t('shop.guestOrderNo') }}</span>
-          <span class="font-display text-4xl font-bold tracking-wide text-[#ffe14d] [text-shadow:0_0_16px_rgb(255_225_77/0.45)]">{{ orderNo(placed.order_no) }}</span>
-          <span class="text-sm">{{ buyerName }} · {{ phone ? formatPhone(phone) : '' }}</span>
-          <span class="mt-1 rounded-full bg-[#ffe14d]/14 px-3 py-1 text-xs text-[#ffe14d]">{{ t('shop.guestScreenshot') }}</span>
-        </div>
-        <span v-else class="rounded-full border border-white/20 bg-white/8 px-4 py-1.5 font-display font-bold">{{ orderNo(placed.order_no) }}</span>
-        <ul class="flex w-full flex-col gap-1 text-left text-sm text-white/80">
-          <li v-for="(l, i) in placed.items" :key="i" class="flex justify-between gap-3">
-            <span class="min-w-0 truncate">{{ l.product_name }}<span v-if="l.size" class="text-white/60"> · {{ l.size }}</span> × {{ l.qty }}</span>
-            <span class="shrink-0">{{ money(l.line_total) }}</span>
-          </li>
-          <li class="flex justify-between gap-3 border-t border-white/12 pt-1 font-medium">
-            <span>{{ t('shop.total') }}</span><span>{{ money(placed.total) }}</span>
-          </li>
-        </ul>
-        <ul class="flex w-full flex-col gap-2 rounded-2xl border border-white/12 bg-white/5 p-4 text-left text-sm">
-          <li class="flex gap-2.5"><span class="text-[#ffe14d]">●</span>{{ t('shop.doneCheck') }}</li>
-          <li v-if="hasPreorder" class="flex gap-2.5"><span class="text-white/40">●</span>{{ t('shop.donePreorderCart') }}</li>
-          <li v-if="isGuestOrder" class="flex gap-2.5"><span class="text-white/40">●</span>{{ t('shop.guestDonePickup', { no: orderNo(placed.order_no), name: buyerName }) }}</li>
-          <li v-else class="flex gap-2.5"><span class="text-white/40">●</span>{{ t('shop.donePickup', { name: buyerName }) }}</li>
-          <li v-if="isGuestOrder" class="flex gap-2.5"><span class="text-white/40">●</span>{{ t('shop.guestDoneAsk') }}</li>
-        </ul>
-        <p v-if="!isGuestOrder" class="text-xs text-white/60">{{ t('shop.doneProfile') }}</p>
-        <div class="mt-2 flex w-full flex-col gap-2">
-          <a v-if="isGuestOrder" :href="LINE_OA" target="_blank" rel="noopener noreferrer" class="cta line-cta">{{ t('shop.guestLine') }}</a>
-          <RouterLink v-else-if="buyer" :to="`/members/${buyer.id}`" class="cta">{{ t('shop.toProfile') }}</RouterLink>
-          <RouterLink to="/shop" class="ghost">{{ t('shop.backToShop') }}</RouterLink>
-        </div>
-      </section>
-    </template>
-  </main>
+      <p v-if="loadError" class="mt-6 text-status-error">{{ loadError }}</p>
+
+      <template v-else-if="quote">
+        <!-- what is being paid for, always in view -->
+        <details v-if="step !== 3" class="mt-4 rounded-2xl border border-white/12 bg-white/5">
+          <summary class="flex min-h-14 cursor-pointer list-none items-center gap-3 px-3">
+            <span class="flex-1 text-sm">{{ t('shop.cartSummary', { lines: quote.lines.length, n: units }) }}</span>
+            <span class="font-display text-lg font-bold text-brand-pink-light">{{ money(quote.total) }}</span>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="chev text-white/60" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+          </summary>
+          <ul class="flex flex-col gap-1.5 border-t border-white/10 px-3 py-2.5 text-sm">
+            <li v-for="l in quote.lines" :key="`${l.product_id}-${l.size}`" class="flex justify-between gap-3">
+              <span class="min-w-0 truncate">{{ l.product_name }}<span v-if="l.size" class="text-white/60"> · {{ l.size }}</span> × {{ l.qty }}</span>
+              <span class="shrink-0">{{ money(l.line_total) }}</span>
+            </li>
+          </ul>
+        </details>
+
+        <!-- 1 · who -->
+        <section v-if="step === 1" class="mt-5 flex flex-col gap-3">
+          <h1 class="font-display text-2xl font-bold">{{ t('shop.whoTitle') }}</h1>
+          <!-- a club member, or someone from outside -->
+          <div role="radiogroup" :aria-label="t('shop.whoTitle')" class="flex gap-1 rounded-2xl bg-white/7 p-1">
+            <button
+              v-for="m in (['member', 'guest'] as const)"
+              :key="m"
+              type="button"
+              role="radio"
+              :aria-checked="mode === m"
+              class="min-h-11 flex-1 rounded-xl text-sm"
+              :class="mode === m ? 'bg-white font-medium text-brand-black' : 'text-white/75'"
+              @click="mode = m"
+            >
+              {{ m === 'member' ? t('shop.whoMember') : t('shop.whoGuest') }}
+            </button>
+          </div>
+        </section>
+        <section v-if="step === 1 && mode === 'guest'" class="mt-3 flex flex-col gap-3">
+          <p class="text-sm text-white/70">{{ t('shop.guestHint') }}</p>
+          <label class="flex flex-col gap-1.5 text-sm">
+            {{ t('shop.guestName') }}
+            <input v-model="guestName" type="text" autocomplete="name" maxlength="80" :placeholder="t('shop.guestNamePlaceholder')" class="min-h-12 rounded-2xl border border-white/22 bg-white/7 px-4 text-base outline-none focus:border-brand-pink" />
+          </label>
+          <label class="flex flex-col gap-1.5 text-sm">
+            {{ t('shop.guestPhone') }}
+            <input
+              v-model="guestPhone"
+              type="tel"
+              inputmode="numeric"
+              autocomplete="tel"
+              maxlength="20"
+              placeholder="08x-xxx-xxxx"
+              :aria-invalid="!!guestPhone.trim() && !phone"
+              class="min-h-12 rounded-2xl border bg-white/7 px-4 text-base outline-none focus:border-brand-pink"
+              :class="guestPhone.trim() && !phone ? 'border-status-error' : 'border-white/22'"
+            />
+            <span class="text-xs" :class="phoneHint.cls" aria-live="polite">{{ phoneHint.text }}</span>
+          </label>
+          <ul class="flex flex-col gap-2 rounded-2xl border border-white/12 bg-white/5 p-3.5 text-[13px] text-white/80">
+            <li class="flex gap-2"><span class="text-brand-pink">●</span>{{ t('shop.guestPickup') }}</li>
+            <li class="flex gap-2"><span class="text-brand-pink">●</span>{{ t('shop.guestPrivacy') }}</li>
+          </ul>
+          <button type="button" class="cta mt-2" :disabled="!ready" @click="toPay">{{ nextLabel }}</button>
+        </section>
+        <section v-if="step === 1 && mode === 'member'" class="mt-3 flex flex-col gap-3">
+          <p class="text-sm text-white/70">{{ t('shop.whoHint') }}</p>
+          <input
+            v-model="query"
+            type="search"
+            :placeholder="t('shop.whoSearch')"
+            :aria-label="t('shop.whoSearch')"
+            class="min-h-12 rounded-full border border-white/20 bg-white/7 px-4 text-base outline-none focus:border-brand-pink"
+          />
+          <div role="radiogroup" :aria-label="t('nav.members')" class="flex max-h-[46vh] flex-col gap-1.5 overflow-y-auto">
+            <button
+              v-for="s in found"
+              :key="s.player.id"
+              type="button"
+              role="radio"
+              :aria-checked="buyerId === s.player.id"
+              class="who-btn"
+              @click="buyerId = s.player.id"
+            >
+              <PlayerAvatar :name="s.player.nickname" :avatar-url="s.player.avatar_url" size="sm" />
+              <span class="flex-1 text-left">{{ s.player.nickname }}</span>
+              <span class="text-xs text-white/55">{{ s.player.member_code }}</span>
+            </button>
+          </div>
+          <p class="text-xs text-white/55">{{ t('shop.whoMissing') }}</p>
+          <button type="button" class="cta mt-2" :disabled="!ready" @click="toPay">{{ nextLabel }}</button>
+        </section>
+
+        <!-- 2 · pay -->
+        <section v-if="step === 2" class="mt-5 flex flex-col items-center gap-3">
+          <h1 class="self-start font-display text-2xl font-bold">{{ t('shop.payTitle') }}</h1>
+          <p v-if="payError" class="self-start text-sm text-status-error">{{ payError }}</p>
+          <template v-else-if="pay">
+            <div v-if="pay.data_uri" class="flex flex-col items-center gap-1.5 rounded-2xl bg-white p-3.5">
+              <img :src="pay.data_uri" alt="QR PromptPay" class="h-48 w-48" />
+              <span v-if="pay.method === 'promptpay'" class="text-[11px] text-[#4a3a5a]">{{ t('shop.payPromptpay') }}</span>
+            </div>
+            <p v-if="pay.bank_name" class="text-center text-sm text-white/75">
+              {{ t('shop.payBank') }} {{ pay.bank_name }} · {{ pay.bank_account_number }}
+              <span v-if="pay.bank_account_name"> ({{ pay.bank_account_name }})</span>
+            </p>
+            <div class="text-center">
+              <p class="text-sm text-white/70">{{ t('shop.payAmount') }}</p>
+              <p class="font-display text-3xl font-bold text-brand-pink-light">{{ money(pay.amount) }}</p>
+            </div>
+            <a v-if="pay.data_uri" :href="pay.data_uri" download="niddeaw-shop-qr.png" class="ghost">{{ t('shop.saveQr') }}</a>
+          </template>
+          <p v-else class="text-sm text-white/60">{{ t('common.loading') }}</p>
+
+          <div class="mt-1 flex w-full flex-col gap-1.5">
+            <span class="text-sm font-medium">{{ t('shop.slip') }}</span>
+            <label class="slip-pick" :class="{ 'is-set': slip }">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4 M7 9l5-5 5 5 M4 20h16" /></svg>
+              {{ slip ? t('shop.slipChange', { name: slipName }) : t('shop.slipPick') }}
+              <input type="file" accept="image/*" class="sr-only" @change="onSlip" />
+            </label>
+            <span v-if="tried && !slip" class="text-xs text-status-error">{{ t('shop.slipRequired') }}</span>
+          </div>
+          <p v-if="sendError" class="w-full text-sm text-status-error" role="alert">
+            {{ sendError }}
+            <RouterLink to="/shop/cart" class="underline">{{ t('shop.backToCart') }}</RouterLink>
+          </p>
+          <button type="button" class="cta mt-2 w-full" :disabled="sending" @click="send">
+            {{ sending ? t('shop.sending') : t('shop.send') }}
+          </button>
+        </section>
+
+        <!-- 3 · done -->
+        <section v-else-if="placed" class="mt-6 flex flex-col items-center gap-3 text-center">
+          <img src="/pwa-icons/pwa-192x192.png" alt="" class="h-28 w-28 rounded-full shadow-[0_0_30px_rgb(234_76_164/0.5)]" />
+          <h1 class="font-display text-2xl font-bold">{{ t('shop.doneTitle') }}</h1>
+          <!-- with no profile, the number is a guest's only handle on the order -->
+          <div v-if="isGuestOrder" class="flex w-full flex-col items-center gap-1 rounded-2xl border border-[#ffe14d]/50 bg-white/7 p-4">
+            <span class="text-xs text-white/70">{{ t('shop.guestOrderNo') }}</span>
+            <span class="font-display text-4xl font-bold tracking-wide text-[#ffe14d] [text-shadow:0_0_16px_rgb(255_225_77/0.45)]">{{ orderNo(placed.order_no) }}</span>
+            <span class="text-sm">{{ buyerName }} · {{ phone ? formatPhone(phone) : '' }}</span>
+            <span class="mt-1 rounded-full bg-[#ffe14d]/14 px-3 py-1 text-xs text-[#ffe14d]">{{ t('shop.guestScreenshot') }}</span>
+          </div>
+          <span v-else class="rounded-full border border-white/20 bg-white/8 px-4 py-1.5 font-display font-bold">{{ orderNo(placed.order_no) }}</span>
+          <ul class="flex w-full flex-col gap-1 text-left text-sm text-white/80">
+            <li v-for="(l, i) in placed.items" :key="i" class="flex justify-between gap-3">
+              <span class="min-w-0 truncate">{{ l.product_name }}<span v-if="l.size" class="text-white/60"> · {{ l.size }}</span> × {{ l.qty }}</span>
+              <span class="shrink-0">{{ money(l.line_total) }}</span>
+            </li>
+            <li class="flex justify-between gap-3 border-t border-white/12 pt-1 font-medium">
+              <span>{{ t('shop.total') }}</span><span>{{ money(placed.total) }}</span>
+            </li>
+          </ul>
+          <ul class="flex w-full flex-col gap-2 rounded-2xl border border-white/12 bg-white/5 p-4 text-left text-sm">
+            <li class="flex gap-2.5"><span class="text-[#ffe14d]">●</span>{{ t('shop.doneCheck') }}</li>
+            <li v-if="hasPreorder" class="flex gap-2.5"><span class="text-white/40">●</span>{{ t('shop.donePreorderCart') }}</li>
+            <li v-if="isGuestOrder" class="flex gap-2.5"><span class="text-white/40">●</span>{{ t('shop.guestDonePickup', { no: orderNo(placed.order_no), name: buyerName }) }}</li>
+            <li v-else class="flex gap-2.5"><span class="text-white/40">●</span>{{ t('shop.donePickup', { name: buyerName }) }}</li>
+            <li v-if="isGuestOrder" class="flex gap-2.5"><span class="text-white/40">●</span>{{ t('shop.guestDoneAsk') }}</li>
+          </ul>
+          <p v-if="!isGuestOrder" class="text-xs text-white/60">{{ t('shop.doneProfile') }}</p>
+          <div class="mt-2 flex w-full flex-col gap-2">
+            <a v-if="isGuestOrder" :href="LINE_OA" target="_blank" rel="noopener noreferrer" class="cta line-cta">{{ t('shop.guestLine') }}</a>
+            <RouterLink v-else-if="buyer" :to="`/members/${buyer.id}`" class="cta">{{ t('shop.toProfile') }}</RouterLink>
+            <RouterLink to="/shop" class="ghost">{{ t('shop.backToShop') }}</RouterLink>
+          </div>
+        </section>
+      </template>
+    </main>
+  </div>
 </template>
 
 <style scoped>

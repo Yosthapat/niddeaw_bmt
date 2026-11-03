@@ -6,6 +6,7 @@ import type { Product, SaleType } from '@/types'
 import ProductCard from '@/components/shop/ProductCard.vue'
 import CartLink from '@/components/shop/CartLink.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
+import PageBanner from '@/components/common/PageBanner.vue'
 
 const { t } = useI18n()
 const products = ref<Product[]>([])
@@ -37,74 +38,70 @@ const chips = computed<{ id: SaleType | 'all'; label: string }[]>(() => [
 </script>
 
 <template>
-  <main class="mx-auto max-w-6xl px-4 py-6 sm:py-10">
-    <div class="flex items-center justify-between gap-3">
-      <RouterLink to="/" class="inline-flex min-h-11 items-center gap-1 text-sm text-white/70 hover:text-white">
-        <span aria-hidden="true">←</span> {{ t('shop.backHome') }}
-      </RouterLink>
-      <CartLink />
-    </div>
-
-    <div class="mt-1 flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <p class="font-display text-xs font-semibold tracking-[0.25em] text-brand-pink/80">CLUB SHOP</p>
-        <h1 class="font-display text-3xl font-bold sm:text-5xl">{{ t('shop.title') }}</h1>
-        <p class="mt-1 text-sm text-white/70 sm:hidden">{{ t('shop.lead') }}</p>
+  <main class="pb-12 sm:pb-20">
+    <PageBanner eyebrow="Club Shop" :title="t('shop.title')" :sub="t('shop.lead')" mascot="/tiers/highball.webp">
+      <!-- the cart stays beside the filter: off to the right it would sit
+           on the mascot on a desktop -->
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="seg" role="group" :aria-label="t('shop.filterLabel')">
+          <button
+            v-for="chip in chips"
+            :key="chip.id"
+            type="button"
+            class="seg-btn"
+            :class="{ on: kind === chip.id }"
+            :aria-pressed="kind === chip.id"
+            @click="kind = chip.id"
+          >
+            {{ chip.label }}
+          </button>
+        </div>
+        <CartLink compact class="backdrop-blur" />
       </div>
-      <ol class="hidden gap-2.5 lg:flex">
-        <li v-for="(step, i) in [t('shop.step1'), t('shop.step2'), t('shop.step3')]" :key="i" class="flex min-h-[52px] items-center gap-2.5 rounded-2xl border border-white/14 bg-white/6 px-4 text-sm">
-          <span class="font-display font-bold text-brand-pink-light">{{ i + 1 }}</span>{{ step }}
-        </li>
-      </ol>
-    </div>
+    </PageBanner>
 
-    <div role="group" :aria-label="t('shop.filterLabel')" class="mt-5 flex gap-2 overflow-x-auto">
-      <button
-        v-for="chip in chips"
-        :key="chip.id"
-        type="button"
-        class="shop-chip"
-        :aria-pressed="kind === chip.id"
-        @click="kind = chip.id"
-      >
-        {{ chip.label }}
-      </button>
-    </div>
+    <div class="home-world">
+      <div class="mx-auto max-w-[1200px] px-3 pt-4 sm:px-6 sm:pt-7">
+        <!-- how buying works, on a screen wide enough to say it in one line -->
+        <ol class="mb-5 hidden gap-3 lg:flex">
+          <li
+            v-for="(step, i) in [t('shop.step1'), t('shop.step2'), t('shop.step3')]"
+            :key="i"
+            class="world-card flex min-h-[56px] flex-1 items-center gap-3 px-5 text-sm"
+          >
+            <span class="step-no">{{ i + 1 }}</span>{{ step }}
+          </li>
+        </ol>
 
-    <div v-if="loading" class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 lg:gap-6">
-      <HudSkeletonBlock v-for="i in 4" :key="i" :delay="i * 60" class="aspect-[3/4]" />
+        <div v-if="loading" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 lg:gap-6">
+          <HudSkeletonBlock v-for="i in 4" :key="i" :delay="i * 60" class="aspect-[3/4] rounded-[18px]" />
+        </div>
+        <p v-else-if="error" class="world-card p-5 text-status-error">{{ error }}</p>
+        <p v-else-if="products.length === 0" class="world-card p-8 text-center text-white/65">{{ t('shop.empty') }}</p>
+        <p v-else-if="shown.length === 0" class="world-card p-8 text-center text-white/65">{{ t('shop.emptyFilter') }}</p>
+        <ul v-else class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 lg:gap-6">
+          <li v-for="(p, i) in shown" :key="p.id" v-reveal="i">
+            <ProductCard :product="p" />
+          </li>
+        </ul>
+      </div>
     </div>
-    <p v-else-if="error" class="mt-6 text-status-error">{{ error }}</p>
-    <p v-else-if="products.length === 0" class="mt-10 text-center text-white/65">{{ t('shop.empty') }}</p>
-    <p v-else-if="shown.length === 0" class="mt-10 text-center text-white/65">{{ t('shop.emptyFilter') }}</p>
-    <ul v-else class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 lg:gap-6">
-      <li v-for="p in shown" :key="p.id">
-        <ProductCard :product="p" />
-      </li>
-    </ul>
   </main>
 </template>
 
 <style scoped>
-.shop-chip {
-  display: inline-flex;
-  min-height: 44px;
+.step-no {
+  display: flex;
+  width: 30px;
+  height: 30px;
   flex: none;
   align-items: center;
-  padding: 0 16px;
-  border: 1px solid rgb(255 255 255 / 0.18);
+  justify-content: center;
   border-radius: 999px;
-  background: rgb(255 255 255 / 0.06);
-  color: rgb(255 255 255 / 0.82);
-  font-size: 14px;
-}
-.shop-chip[aria-pressed='true'] {
-  border-color: rgb(255 255 255 / 0.4);
-  background: radial-gradient(120% 140% at 30% 0%, rgb(255 255 255 / 0.4), rgb(255 255 255 / 0.1) 60%);
-  box-shadow:
-    inset 0 1px 1px rgb(255 255 255 / 0.7),
-    inset 0 -3px 8px rgb(234 76 164 / 0.38),
-    0 6px 14px rgb(234 76 164 / 0.35);
-  color: #fff;
+  background: linear-gradient(#ff8fd0, #ea4ca4);
+  color: #1a0410;
+  font-family: var(--font-display);
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgb(234 76 164 / 0.45);
 }
 </style>
