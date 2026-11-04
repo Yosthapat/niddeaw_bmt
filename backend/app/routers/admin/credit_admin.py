@@ -116,7 +116,7 @@ def reject_topup(
 @router.get("/balances", response_model=CreditBalances)
 def balances(supabase: SupabaseDep, admin: AdminDep) -> CreditBalances:
     """Every member who has or had credit, most first."""
-    found = credit_service.all_rows(supabase, "player_credits", "player_id, balance")
+    found = credit_service.all_rows(supabase, "player_credits", "player_id, balance", key="player_id")
     names = _players(supabase, [str(b["player_id"]) for b in found])
     members = sorted(
         (
