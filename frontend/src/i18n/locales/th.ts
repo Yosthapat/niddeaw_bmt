@@ -802,6 +802,7 @@ export default {
   dashboard: {
     revenueCredit: 'เติมเครดิต',
     balanceFromCredit: 'เติมเครดิต (เงินที่รับจริง)',
+    creditMissing: 'โหลดข้อมูลเครดิตไม่ได้ — ยอดนี้ยังไม่รวมเงินเติมเครดิต',
     creditHeld: 'เครดิตคงค้างของสมาชิก',
     creditHeldNote: 'ในเงิน {balance} มี {held} ที่สมาชิกยังไม่ได้ใช้ · ก๊วนใช้ได้จริง ≈ {free}',
     revenueTotal: 'รายรับรวม',
