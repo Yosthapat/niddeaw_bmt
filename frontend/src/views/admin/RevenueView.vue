@@ -31,7 +31,10 @@ function formatDate(isoDate: string): string {
   return formatDateWithWeekday(isoDate, locale.value)
 }
 
-const billingTotal = computed(() => daily.value.reduce((sum, d) => sum + d.total_amount, 0))
+// Dues money: bills less what members paid with credit, whose baht is
+// counted once, under top-ups, when it came in.
+const creditUsed = computed(() => daily.value.reduce((sum, d) => sum + (d.credit_amount ?? 0), 0))
+const billingTotal = computed(() => daily.value.reduce((sum, d) => sum + d.total_amount - (d.credit_amount ?? 0), 0))
 const grandPaid = computed(() => daily.value.reduce((sum, d) => sum + d.paid_amount, 0))
 const grandUnpaid = computed(() => daily.value.reduce((sum, d) => sum + d.unpaid_amount, 0))
 const shopTotal = computed(() => shop.value?.total ?? 0)
@@ -290,6 +293,7 @@ onMounted(async () => {
         <div class="hud-panel border border-brand-pink/20 bg-brand-surface px-2 py-3 text-center sm:p-3">
           <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('revenue.fromBilling') }}</p>
           <p class="mt-1 font-display text-base font-bold sm:text-xl">{{ money(billingTotal) }}</p>
+          <p v-if="creditUsed > 0" class="mt-0.5 text-[11px] text-[#ffe9a8]/80">{{ t('revenue.paidByCredit', { amount: money(creditUsed) }) }}</p>
         </div>
         <RouterLink to="/admin/shop" class="hud-panel border border-[#199e70]/50 bg-brand-surface px-2 py-3 text-center sm:p-3">
           <p class="flex items-center justify-center gap-1.5 text-xs tracking-wide text-white/40 uppercase">
@@ -329,17 +333,18 @@ onMounted(async () => {
         >
           <div class="flex items-center justify-between gap-3">
             <span class="font-medium">{{ formatDate(d.date) }}</span>
-            <span class="font-display text-lg font-bold text-brand-pink">{{ money((d.dues?.total_amount ?? 0) + (d.shop?.amount ?? 0) + d.credit) }}</span>
+            <span class="font-display text-lg font-bold text-brand-pink">{{ money((d.dues?.total_amount ?? 0) - (d.dues?.credit_amount ?? 0) + (d.shop?.amount ?? 0) + d.credit) }}</span>
           </div>
           <div v-if="d.dues" class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/50">
             <span v-if="d.shop" class="flex items-center gap-1.5 text-white/70">
-              <span class="h-2 w-2 rounded-full bg-[#3987e5]" aria-hidden="true" />{{ t('revenue.fromBilling') }} {{ money(d.dues.total_amount) }}
+              <span class="h-2 w-2 rounded-full bg-[#3987e5]" aria-hidden="true" />{{ t('revenue.fromBilling') }} {{ money(d.dues.total_amount - (d.dues.credit_amount ?? 0)) }}
             </span>
             <span>{{ d.dues.session_count }} session{{ d.dues.session_count > 1 ? 's' : '' }}</span>
             <span>·</span>
             <span>{{ d.dues.billing_count }} {{ t('revenue.bills') }}</span>
             <span>·</span>
             <span class="text-status-success">{{ t('billing.paid') }} {{ money(d.dues.paid_amount) }}</span>
+            <span v-if="(d.dues.credit_amount ?? 0) > 0" class="text-[#ffe9a8]/80">🪙 {{ t('revenue.paidByCredit', { amount: money(d.dues.credit_amount) }) }}</span>
             <span v-if="d.dues.unpaid_amount > 0" class="text-status-error">
               {{ t('revenue.outstanding') }} {{ money(d.dues.unpaid_amount) }}
             </span>

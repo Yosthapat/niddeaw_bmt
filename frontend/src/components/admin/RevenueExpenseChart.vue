@@ -100,7 +100,8 @@ const bars = computed<Bar[]>(() => {
   const revenueBy = new Map<string, number>()
   for (const entry of dailyRevenue.value) {
     const key = bucketKey(entry.date, p)
-    revenueBy.set(key, (revenueBy.get(key) ?? 0) + entry.total_amount)
+    // Less what credit paid: that baht is counted on the day it was topped up.
+    revenueBy.set(key, (revenueBy.get(key) ?? 0) + entry.total_amount - (entry.credit_amount ?? 0))
   }
   const shopBy = new Map<string, number>()
   for (const day of shop.value?.daily ?? []) {

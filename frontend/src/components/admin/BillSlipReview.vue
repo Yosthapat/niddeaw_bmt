@@ -8,7 +8,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
 import { apiErrorMessage } from '@/api/errors'
-import { effectiveAmount } from '@/types'
+import { effectiveAmount, leftToPay } from '@/types'
 import type { Billing } from '@/types'
 import { formatDateTime, money } from '@/utils/format'
 import type { Locale } from '@/i18n'
@@ -46,7 +46,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
     <div class="fixed inset-0 z-40 flex items-end justify-center bg-black/75 p-3 backdrop-blur-sm sm:items-center" role="dialog" aria-modal="true" :aria-label="t('billSlip.title', { name })" @click.self="emit('close')">
       <div class="hud-panel flex max-h-[92dvh] w-full max-w-sm flex-col gap-3 overflow-y-auto border border-brand-pink/30 bg-brand-surface p-4 text-center">
         <p class="font-display text-xs font-bold tracking-[0.25em] text-brand-pink">SLIP · {{ name }}</p>
-        <h2 class="font-display text-2xl font-bold">{{ t('billSlip.amount', { amount: money(effectiveAmount(bill)) }) }}</h2>
+        <h2 class="font-display text-2xl font-bold">{{ t('billSlip.amount', { amount: money(leftToPay(bill)) }) }}</h2>
+        <p v-if="(bill.credit_used ?? 0) > 0" class="text-xs text-[#ffe9a8]">{{ t('billSlip.creditPart', { total: money(effectiveAmount(bill)), n: (bill.credit_used ?? 0).toLocaleString('en-US') }) }}</p>
         <a v-if="bill.slip_url" :href="bill.slip_url" target="_blank" rel="noopener" class="block">
           <img :src="bill.slip_url" :alt="t('billSlip.title', { name })" class="mx-auto max-h-[52dvh] w-auto rounded-xl bg-white object-contain" />
         </a>

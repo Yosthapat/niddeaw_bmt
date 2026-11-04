@@ -9,7 +9,7 @@ token. A link is only ever requested here; an admin approves it
 
 import re
 from collections import deque
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from time import monotonic
 from typing import Any
 from uuid import UUID, uuid4
@@ -25,6 +25,7 @@ from app.models.line import (
     JoinApplication,
     JoinIn,
     LineBill,
+    LineBillCredit,
     LineBills,
     LineCheckinIn,
     LineCheckinState,
@@ -43,8 +44,10 @@ from app.models.player import Player
 from app.routers.admin.players_admin import check_nickname
 from app.security import create_line_token
 from app.services import (
+    bill_credit,
     billing_service,
     checkin_service,
+    credit_service,
     line_auth,
     line_checkin,
     line_join,
@@ -437,6 +440,8 @@ def _bill(row: dict[str, Any], session: dict[str, Any]) -> LineBill:
         slip_url=row.get("slip_url"),
         slip_sent_at=row.get("slip_sent_at"),
         slip_rejected_at=row.get("slip_rejected_at"),
+        credit_used=bill_credit.used(row),
+        left=0 if row["paid_status"] == "paid" else bill_credit.left_to_pay(row),
     )
 
 
@@ -525,7 +530,7 @@ def checkout(payload: LineCheckoutIn, supabase: SupabaseDep, member: LineMemberD
             status_code=status.HTTP_409_CONFLICT,
             detail="ยังมีแมตช์ของคุณที่ยังไม่จบ — จบแมตช์แล้วค่อยเช็คเอาท์นะ",
         )
-    night_bill.bill_one(supabase, payload.session_id, player.id)
+    bill_credit.fit(supabase, night_bill.bill_one(supabase, payload.session_id, player.id))
     return tonight(supabase, member)
 
 
@@ -559,7 +564,7 @@ def my_bills(supabase: SupabaseDep, member: LineMemberDep) -> LineBills:
         key=lambda b: b.night.date,
         reverse=True,
     )[:40]
-    due = sum(b.amount for b in bills if b.paid_status == "unpaid" and not b.slip_url)
+    due = sum(b.left for b in bills if b.paid_status == "unpaid" and not b.slip_url)
     return LineBills(player=player, due=round(due, 2), bills=bills)
 
 
@@ -573,12 +578,28 @@ def _own_bill(supabase: Client, member: LineContext, bill_id: UUID) -> dict[str,
 
 
 def _payable(row: dict[str, Any]) -> float:
+    """What is left to transfer: the bill less any credit already on it."""
     amount = billing_service.effective_amount(row["amount_calc"], row.get("amount_adjusted"))
     if row["paid_status"] == "paid":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="บิลนี้จ่ายแล้ว")
     if amount <= 0:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="บิลนี้ไม่คิดเงิน")
-    return amount
+    left = bill_credit.left_to_pay(row)
+    if left <= 0:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="บิลนี้จ่ายด้วยเครดิตครบแล้ว")
+    return left
+
+
+@router.post("/bills/{bill_id}/credit", response_model=LineBillCredit)
+def pay_with_credit(bill_id: UUID, supabase: SupabaseDep, member: LineMemberDep) -> LineBillCredit:
+    """Pay the bill with their club credit: all of it if the balance
+    covers it, otherwise all the balance, with the rest left to transfer."""
+    row = _own_bill(supabase, member, bill_id)
+    session = night_bill.night(supabase, UUID(str(row["session_id"])))
+    night_date = date.fromisoformat(str(session["date"]))
+    note = f"คืน {night_date.day}/{night_date.month} · {row['game_count']} เกม"
+    paid = bill_credit.pay(supabase, row, note)
+    return LineBillCredit(bill=_bill(paid, session), balance=credit_service.balance(supabase, str(row["player_id"])))
 
 
 @router.get("/bills/{bill_id}/pay", response_model=PaymentInfoResponse)

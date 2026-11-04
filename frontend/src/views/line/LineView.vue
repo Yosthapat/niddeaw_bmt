@@ -253,9 +253,9 @@ onMounted(start)
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
             {{ t('lineCheckout.back') }}
           </button>
-          <LineCheckout :token="token" :initial="tonight" @bills="go('bills')" />
+          <LineCheckout :token="token" :initial="tonight" @bills="go('bills')" @credit="go('credit')" />
         </template>
-        <LineBills v-else-if="me.player && screen === 'bills'" :token="token" @back="go('home')" />
+        <LineBills v-else-if="me.player && screen === 'bills'" :token="token" @back="go('home')" @credit="go('credit')" />
 
         <LineCredit v-else-if="me.player && screen === 'credit'" :token="token" @back="go('home')" />
 

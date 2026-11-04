@@ -7,7 +7,13 @@ from app.db_utils import rows
 from app.deps import AdminDep, SupabaseDep
 from app.models.billing import Billing, BillingAdjust, BillingMarkPaid, DailyRevenue
 from app.models.payment import PaymentInfoResponse
-from app.services import billing_service, night_bill, payment_info_service, revenue_service
+from app.services import (
+    bill_credit,
+    billing_service,
+    night_bill,
+    payment_info_service,
+    revenue_service,
+)
 
 router = APIRouter(prefix="/api/admin/billing", tags=["admin-billing"])
 
@@ -24,7 +30,7 @@ def get_daily_revenue(supabase: SupabaseDep, admin: AdminDep) -> list[DailyReven
     sessions_result = supabase.table("sessions").select("id, date").execute()
     billings_result = (
         supabase.table("billings")
-        .select("session_id, amount_calc, amount_adjusted, paid_status")
+        .select("*")
         .execute()
     )
     daily = revenue_service.build_daily_revenue(rows(sessions_result), rows(billings_result))  # type: ignore[arg-type]
@@ -95,7 +101,11 @@ def close_session_and_bill(
     supabase.table("sessions").update({"status": "closed"}).eq("id", str(session_id)).execute()
 
     result = supabase.table("billings").select("*").eq("session_id", str(session_id)).execute()
-    return [Billing.model_validate(row) for row in rows(result)]
+    # Billed again: a bill credit paid for may have come out smaller.
+    return [
+        Billing.model_validate(bill_credit.fit(supabase, row, admin_id=admin.admin_id) if bill_credit.used(row) else row)
+        for row in rows(result)
+    ]
 
 
 @router.post("/player/{session_id}/{player_id}", response_model=Billing)
@@ -105,7 +115,8 @@ def bill_player(
     """Bills a single attendee immediately and checks them out
     (services/night_bill.py) — e.g. they went home early and shouldn't
     have to wait for everyone else to finish."""
-    return Billing.model_validate(night_bill.bill_one(supabase, session_id, player_id))
+    row = night_bill.bill_one(supabase, session_id, player_id)
+    return Billing.model_validate(bill_credit.fit(supabase, row, admin_id=admin.admin_id))
 
 
 @router.patch("/{billing_id}/adjust", response_model=Billing)
@@ -126,13 +137,19 @@ def adjust_amount(
     result_rows = rows(result)
     if not result_rows:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing row not found")
-    return Billing.model_validate(result_rows[0])
+    # Credit already on the bill beyond its new amount goes back to the member.
+    return Billing.model_validate(bill_credit.fit(supabase, result_rows[0], admin_id=admin.admin_id))
 
 
 @router.patch("/{billing_id}/paid-status", response_model=Billing)
 def set_paid_status(
     billing_id: UUID, payload: BillingMarkPaid, supabase: SupabaseDep, admin: AdminDep
 ) -> Billing:
+    if payload.paid_status == "unpaid":
+        found = rows(supabase.table("billings").select("*").eq("id", str(billing_id)).limit(1).execute())
+        if found and bill_credit.used(found[0]) > 0:
+            # Undoing a payment gives back the credit on it too.
+            return Billing.model_validate(bill_credit.mark_unpaid(supabase, found[0], admin.admin_id))
     result = (
         supabase.table("billings")
         .update(
@@ -166,9 +183,8 @@ def get_payment_info(
     billing_rows = rows(billing_result)
     if not billing_rows:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing row not found")
-    billing = Billing.model_validate(billing_rows[0])
-
-    return payment_info_service.payment_info(supabase, billing.effective_amount)
+    # What is left once any club credit on the bill is taken off.
+    return payment_info_service.payment_info(supabase, bill_credit.left_to_pay(billing_rows[0]))
 
 
 @router.post("/{billing_id}/reject-slip", response_model=Billing)

@@ -78,7 +78,7 @@ DEFAULTS: dict[str, Row] = {
     },
     "billings": {"amount_adjusted": None, "paid_status": "unpaid", "promptpay_ref": None,
                  "slip_url": None, "slip_sent_at": None, "slip_rejected_at": None,
-                 "game_count": 0},
+                 "game_count": 0, "credit_used": 0},
     "expenses": {"receipt_url": None, "is_paid": False, "paid_at": None, "note": None},
     "other_income": {"slip_url": None, "note": None},
     "admin_activity_log": {"detail": None},
@@ -363,6 +363,11 @@ class _Storage:
 class MiniSupabase:
     def __init__(self, tables: dict[str, list[Row]] | None = None) -> None:
         self.tables: dict[str, list[Row]] = tables if tables is not None else {}
+        # Seeded rows get the columns' defaults, as rows already in Postgres have.
+        for name, seeded in self.tables.items():
+            for row in seeded:
+                for column, value in DEFAULTS.get(name, {}).items():
+                    row.setdefault(column, value)
         self.storage_files: dict[str, int] = {}
         self.storage_bytes: dict[str, bytes] = {}
         self.public_base = "http://storage.test"

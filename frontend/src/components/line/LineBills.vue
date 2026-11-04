@@ -14,7 +14,7 @@ import type { Locale } from '@/i18n'
 import LineBillPay from '@/components/line/LineBillPay.vue'
 
 const props = defineProps<{ token: string }>()
-const emit = defineEmits<{ back: [] }>()
+const emit = defineEmits<{ back: []; credit: [] }>()
 const { t, locale } = useI18n()
 
 const data = ref<LineBills | null>(null)
@@ -55,7 +55,7 @@ function onUpdated(bill: LineBill): void {
         <h1 class="world-title mt-1 text-2xl">{{ t('lineBills.payTitle', { amount: money(open.amount) }) }}</h1>
         <p class="mt-1 text-sm text-white/65">{{ t('lineCheckout.games', { n: open.game_count }) }} · {{ open.night.location }}</p>
       </div>
-      <LineBillPay :token="token" :bill="open" @updated="onUpdated" />
+      <LineBillPay :token="token" :bill="open" @updated="onUpdated" @top-up="emit('credit')" />
       <button type="button" class="glass-pill mt-auto w-full justify-center" @click="openId = null">{{ t('lineBills.backToList') }}</button>
     </template>
 
@@ -80,7 +80,7 @@ function onUpdated(bill: LineBill): void {
           >
             <span class="min-w-0 flex-1">
               <span class="block font-medium">{{ formatDateWithWeekday(b.night.date, locale as Locale) }}</span>
-              <span class="block text-xs text-white/60">{{ t('lineCheckout.games', { n: b.game_count }) }} · {{ money(b.amount) }}</span>
+              <span class="block text-xs text-white/60">{{ t('lineCheckout.games', { n: b.game_count }) }} · {{ money(b.amount) }}<template v-if="b.credit_used > 0"> · 🪙 {{ t('lineBills.creditPart', { n: b.credit_used }) }}</template></span>
             </span>
             <span class="badge shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold" :class="badge(b)">{{ t(`lineBills.badge.${badge(b)}`) }}</span>
             <span v-if="badge(b) === 'due' || badge(b) === 'rejected'" class="pay shrink-0 rounded-full px-3 py-1.5 text-sm font-bold">{{ t('lineBills.pay') }}</span>

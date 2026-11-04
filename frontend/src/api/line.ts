@@ -120,6 +120,15 @@ export interface LineBill {
   slip_url: string | null
   slip_sent_at: string | null
   slip_rejected_at: string | null
+  /** How much of it club credit paid. */
+  credit_used: number
+  /** Still to transfer: amount less credit_used (0 once paid). */
+  left: number
+}
+
+export interface LineBillCredit {
+  bill: LineBill
+  balance: number
 }
 
 export interface LineTonight {
@@ -154,6 +163,11 @@ export function getBills(token: string): Promise<LineBills> {
 
 export function getPayInfo(token: string, billId: string): Promise<PaymentInfoResponse> {
   return request(`/api/line/bills/${billId}/pay`, auth(token))
+}
+
+/** Pay with club credit: all of it, or all the balance with the rest to transfer. */
+export function payWithCredit(token: string, billId: string): Promise<LineBillCredit> {
+  return request(`/api/line/bills/${billId}/credit`, { ...auth(token), method: 'POST' })
 }
 
 export function sendSlip(token: string, billId: string, file: File): Promise<LineBill> {

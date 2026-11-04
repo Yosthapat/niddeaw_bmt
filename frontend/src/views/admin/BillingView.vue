@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useSessionsStore } from '@/stores/sessions'
 import { usePlayersStore } from '@/stores/players'
 import * as adminApi from '@/api/admin'
-import { effectiveAmount, isFree } from '@/types'
+import { effectiveAmount, isFree, leftToPay } from '@/types'
 import type { Billing, Checkin, PaymentInfoResponse } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import { money } from '@/utils/format'
@@ -13,6 +13,7 @@ import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import { bahtProblem } from '@/utils/limits'
 import { apiErrorMessage } from '@/api/errors'
 import { usePolling } from '@/composables/usePolling'
+import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import BillSlipReview from '@/components/admin/BillSlipReview.vue'
 import BrandQr from '@/components/common/BrandQr.vue'
 
@@ -78,9 +79,10 @@ const totals = computed(() => {
   const paid = billings.value
     .filter((b) => b.paid_status === 'paid')
     .reduce((sum, b) => sum + effectiveAmount(b), 0)
+  // Still owed: less any club credit already on the bill.
   const due = billings.value
     .filter((b) => b.paid_status !== 'paid')
-    .reduce((sum, b) => sum + effectiveAmount(b), 0)
+    .reduce((sum, b) => sum + leftToPay(b), 0)
   return { paid, due, total: paid + due }
 })
 
@@ -156,8 +158,20 @@ async function saveAdjust(billing: Billing, preset?: 'clear' | 'waive'): Promise
   }
 }
 
+const { confirm } = useConfirmDialog()
+
 async function togglePaid(billing: Billing): Promise<void> {
   actionError.value = null
+  const credit = billing.credit_used ?? 0
+  // Undoing a payment gives back the credit on it: say so first.
+  if (billing.paid_status === 'paid' && credit > 0) {
+    const ok = await confirm({
+      title: t('billing.undoCreditTitle', { name: nameOf(billing.player_id) }),
+      message: t('billing.undoCreditBody', { n: credit.toLocaleString('en-US') }),
+      confirmLabel: t('billing.undoCreditOk'),
+    })
+    if (!ok) return
+  }
   try {
     const updated = await adminApi.setBillingPaidStatus(
       billing.id,
@@ -281,7 +295,12 @@ usePolling(refreshBillings, 15000)
         >
           <div class="flex items-center gap-3">
             <PlayerAvatar :name="nameOf(b.player_id)" :avatar-url="avatarOf(b.player_id)" size="sm" />
-            <span class="flex-1 font-medium">{{ nameOf(b.player_id) }}</span>
+            <span class="flex min-w-0 flex-1 flex-col">
+              <span class="font-medium">{{ nameOf(b.player_id) }}</span>
+              <span v-if="(b.credit_used ?? 0) > 0" class="text-xs text-[#ffe9a8]">
+                🪙 {{ effectiveAmount(b) - (b.credit_used ?? 0) > 0 ? t('billing.creditPart', { n: (b.credit_used ?? 0).toLocaleString('en-US'), rest: money(leftToPay(b)) }) : t('billing.creditAll') }}
+              </span>
+            </span>
             <span class="text-xs text-white/40">{{ b.game_count }} {{ t('common.game') }}</span>
             <span class="font-bold text-brand-pink">{{ money(effectiveAmount(b)) }}</span>
             <!-- Nothing owed is settled as it stands: no paid/unpaid to flip. -->

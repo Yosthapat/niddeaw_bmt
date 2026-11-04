@@ -128,7 +128,7 @@ def seed() -> MiniSupabase:
     db.tables["billings"] = [
         {"id": str(uuid.uuid4()), "session_id": session_id, "player_id": pid[7],
          "game_count": 1, "amount_calc": 109.0, "amount_adjusted": None,
-         "paid_status": "unpaid", "promptpay_ref": None, "updated_at": _iso(10)}
+         "paid_status": "unpaid", "promptpay_ref": None, "updated_at": _iso(10), "credit_used": 0}
     ]
     db.tables["expenses"] = [
         {"id": str(uuid.uuid4()), "expense_date": datetime.now().date().isoformat(),

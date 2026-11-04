@@ -32,6 +32,9 @@ class Billing(BaseModel):
     slip_sent_at: datetime | None = None
     slip_rejected_at: datetime | None = None
     """The admin refused their last slip; they are asked for a new one."""
+    credit_used: int = 0
+    """How much of the bill the member paid with club credit; the slip, if
+    any, is for the rest."""
 
     @property
     def effective_amount(self) -> float:
@@ -47,3 +50,8 @@ class DailyRevenue(BaseModel):
     unpaid_amount: float
     session_count: int
     billing_count: int
+    credit_amount: float = 0
+    """Of total_amount, what members paid with club credit — its baht was
+    counted when they topped up, so it is not money in again."""
+    paid_cash: float = 0
+    """Dues money actually received: paid bills less the credit on them."""
