@@ -200,6 +200,12 @@ def seed() -> MiniSupabase:
           "pending", 30)
     order(2, 1, [(shirt, shirt_name, "preorder", "XL", 1, 410.0)], "confirmed", 300)
     order(3, 0, [(cap, "หมวกแก๊ป BMT", "stock", "", 1, 250.0)], "rejected", 900)
+    db.tables["credit_packages"] = [
+        {"id": str(uuid.uuid4()), "credits": 1000, "price": 950.0, "is_active": True, "sort_order": 0,
+         "created_at": _iso(60 * 24 * 5)},
+        {"id": str(uuid.uuid4()), "credits": 5000, "price": 4500.0, "is_active": True, "sort_order": 1,
+         "created_at": _iso(60 * 24 * 5)},
+    ]
     db.tables["shop_orders"] = orders
     db.tables["shop_order_items"] = items
     for table in ("locked_pairs", "pairing_history", "admin_activity_log"):

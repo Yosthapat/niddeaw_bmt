@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import type { DailyRevenue, IncomeSource, OtherIncome, ShopRevenue } from '@/types'
+import type { CreditSummary } from '@/api/admin'
 import { compressImage } from '@/utils/imageCompression'
 import ReceiptThumb from '@/components/admin/ReceiptThumb.vue'
 import AdminNav from '@/components/layout/AdminNav.vue'
@@ -34,6 +35,10 @@ const billingTotal = computed(() => daily.value.reduce((sum, d) => sum + d.total
 const grandPaid = computed(() => daily.value.reduce((sum, d) => sum + d.paid_amount, 0))
 const grandUnpaid = computed(() => daily.value.reduce((sum, d) => sum + d.unpaid_amount, 0))
 const shopTotal = computed(() => shop.value?.total ?? 0)
+// Baht taken for club credit, less any paid back (what the credit later
+// pays for is not money in again).
+const credit = ref<CreditSummary | null>(null)
+const creditTotal = computed(() => (credit.value ? credit.value.cash_in - credit.value.cash_out : 0))
 
 /** One row per day that had either: the night's bills, the shop's
  * confirmed + delivered orders, or both. Newest first. */
@@ -41,16 +46,18 @@ interface Day {
   date: string
   dues: DailyRevenue | null
   shop: { amount: number; orders: number } | null
+  credit: number
 }
 const days = computed<Day[]>(() => {
   const byDate = new Map<string, Day>()
   const day = (date: string): Day => {
     let found = byDate.get(date)
-    if (!found) byDate.set(date, (found = { date, dues: null, shop: null }))
+    if (!found) byDate.set(date, (found = { date, dues: null, shop: null, credit: 0 }))
     return found
   }
   for (const d of daily.value) day(d.date).dues = d
   for (const s of shop.value?.daily ?? []) day(s.date).shop = s
+  for (const c of credit.value?.daily ?? []) day(c.date).credit += c.cash
   return [...byDate.values()].sort((a, b) => (a.date < b.date ? 1 : -1))
 })
 
@@ -58,7 +65,11 @@ async function load(): Promise<void> {
   loading.value = true
   error.value = null
   try {
-    ;[daily.value, shop.value] = await Promise.all([adminApi.getRevenue(), adminApi.getShopRevenue()])
+    ;[daily.value, shop.value, credit.value] = await Promise.all([
+      adminApi.getRevenue(),
+      adminApi.getShopRevenue(),
+      adminApi.getCreditSummary(),
+    ])
   } catch (e) {
     error.value = apiErrorMessage(e, t('revenue.loadFailed'))
   } finally {
@@ -72,7 +83,7 @@ const incomeLoading = ref(true)
 const incomeLoadError = ref<string | null>(null)
 
 const otherIncomeTotal = computed(() => otherIncome.value.reduce((sum, i) => sum + i.amount, 0))
-const grandTotal = computed(() => billingTotal.value + shopTotal.value + otherIncomeTotal.value)
+const grandTotal = computed(() => billingTotal.value + shopTotal.value + creditTotal.value + otherIncomeTotal.value)
 
 function sourceLabel(source: IncomeSource): string {
   return t(`income.sourceLabels.${source}`)
@@ -271,8 +282,8 @@ onMounted(async () => {
     <p v-else-if="error" class="mt-6 text-status-error">{{ error }}</p>
 
     <template v-else>
-      <div v-if="days.length > 0 || otherIncome.length > 0" class="mt-6 grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-2.5">
-        <div class="hud-panel col-span-3 border border-brand-pink/40 bg-brand-surface p-3 text-center sm:col-span-1">
+      <div v-if="days.length > 0 || otherIncome.length > 0" class="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-2.5">
+        <div class="hud-panel col-span-2 border border-brand-pink/40 bg-brand-surface p-3 text-center sm:col-span-1">
           <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('revenue.grandTotal') }}</p>
           <p class="mt-1 font-display text-xl font-bold text-brand-pink">{{ money(grandTotal) }}</p>
         </div>
@@ -285,6 +296,12 @@ onMounted(async () => {
             <span class="h-2 w-2 rounded-full bg-[#199e70]" aria-hidden="true" />{{ t('revenue.fromShop') }}
           </p>
           <p class="mt-1 font-display text-base font-bold sm:text-xl">{{ money(shopTotal) }}</p>
+        </RouterLink>
+        <RouterLink to="/admin/credit" class="hud-panel border border-[#ffc531]/45 bg-brand-surface px-2 py-3 text-center sm:p-3">
+          <p class="flex items-center justify-center gap-1.5 text-xs tracking-wide text-white/40 uppercase">
+            <span class="h-2 w-2 rounded-full bg-[#ffc531]" aria-hidden="true" />{{ t('revenue.fromCredit') }}
+          </p>
+          <p class="mt-1 font-display text-base font-bold sm:text-xl">{{ money(creditTotal) }}</p>
         </RouterLink>
         <div class="hud-panel border border-brand-pink/20 bg-brand-surface px-2 py-3 text-center sm:p-3">
           <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('revenue.fromOtherIncome') }}</p>
@@ -312,7 +329,7 @@ onMounted(async () => {
         >
           <div class="flex items-center justify-between gap-3">
             <span class="font-medium">{{ formatDate(d.date) }}</span>
-            <span class="font-display text-lg font-bold text-brand-pink">{{ money((d.dues?.total_amount ?? 0) + (d.shop?.amount ?? 0)) }}</span>
+            <span class="font-display text-lg font-bold text-brand-pink">{{ money((d.dues?.total_amount ?? 0) + (d.shop?.amount ?? 0) + d.credit) }}</span>
           </div>
           <div v-if="d.dues" class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/50">
             <span v-if="d.shop" class="flex items-center gap-1.5 text-white/70">
@@ -332,6 +349,9 @@ onMounted(async () => {
               <span class="h-2 w-2 rounded-full bg-[#199e70]" aria-hidden="true" />{{ t('revenue.fromShop') }} {{ money(d.shop.amount) }}
             </span>
             <span class="text-white/50">{{ t('revenue.shopOrders', { n: d.shop.orders }) }}</span>
+          </div>
+          <div v-if="d.credit !== 0" class="mt-1 flex items-center gap-1.5 text-xs text-white/70">
+            <span class="h-2 w-2 rounded-full bg-[#ffc531]" aria-hidden="true" />{{ t('revenue.fromCredit') }} {{ money(d.credit) }}
           </div>
         </li>
       </ul>

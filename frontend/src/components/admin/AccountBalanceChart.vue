@@ -39,7 +39,7 @@ const SPENT_COLOR = '#d95926'
 
 // Shares one fetch with the bar chart above — see stores/finance.ts.
 const finance = useFinanceStore()
-const { dailyRevenue, expenses, otherIncome, shop, loading } = storeToRefs(finance)
+const { dailyRevenue, expenses, otherIncome, shop, credit, loading } = storeToRefs(finance)
 
 const error = computed(() => {
   const e = finance.error
@@ -53,6 +53,10 @@ const error = computed(() => {
 const dues = computed(() => dailyRevenue.value.reduce((sum, d) => sum + d.paid_amount, 0))
 const funding = computed(() => otherIncome.value.reduce((sum, i) => sum + i.amount, 0))
 const shopSales = computed(() => shop.value?.total ?? 0)
+// Baht taken for club credit, less any paid back. Counted when it came in;
+// what the credit later pays for moves no money, so it isn't counted again.
+const creditCash = computed(() => (credit.value ? credit.value.cash_in - credit.value.cash_out : 0))
+const creditHeld = computed(() => credit.value?.outstanding ?? 0)
 // Straight off the raw rows rather than /expenses/summary's paid_amount:
 // the bar chart already fetches these, and summing the same is_paid rows
 // here gives the same figure without a second request.
@@ -62,7 +66,7 @@ const spent = computed(() =>
 
 onMounted(finance.refresh)
 
-const inflow = computed(() => dues.value + shopSales.value + funding.value)
+const inflow = computed(() => dues.value + shopSales.value + creditCash.value + funding.value)
 const balance = computed(() => inflow.value - spent.value)
 /** Spending has outrun everything ever received — there is no "remaining"
  * slice to draw, so the ring goes solid and the centre carries the deficit. */
@@ -194,6 +198,10 @@ const spentDash = computed(() => {
             <dt class="text-white/50">{{ t('dashboard.balanceFromShop') }}</dt>
             <dd class="font-mono text-white/80">{{ formatBaht(shopSales) }}</dd>
           </div>
+          <div v-if="credit && (credit.cash_in > 0 || credit.cash_out > 0)" class="flex items-baseline justify-between gap-3">
+            <dt class="flex items-center gap-1.5 text-white/50"><span class="credit-coin" aria-hidden="true">฿</span>{{ t('dashboard.balanceFromCredit') }}</dt>
+            <dd class="font-mono text-white/80">{{ formatBaht(creditCash) }}</dd>
+          </div>
           <div class="flex items-baseline justify-between gap-3">
             <dt class="text-white/50">{{ t('dashboard.balanceFromFunding') }}</dt>
             <dd class="font-mono text-white/80">{{ formatBaht(funding) }}</dd>
@@ -238,7 +246,33 @@ const spentDash = computed(() => {
         </RouterLink>
         {{ t('dashboard.shopPendingNote') }}
       </p>
+      <RouterLink v-if="creditHeld > 0" to="/admin/credit" class="credit-held mt-3 flex flex-col gap-0.5 rounded-lg px-3 py-2 text-xs">
+        <span class="flex items-center gap-1.5 text-sm text-[#ffe9a8]">
+          <span class="credit-coin" aria-hidden="true">฿</span>{{ t('dashboard.creditHeld') }}
+          <b class="ml-auto font-display text-base">{{ creditHeld.toLocaleString('en-US') }}</b>
+        </span>
+        <span class="text-white/60">{{ t('dashboard.creditHeldNote', { balance: formatBaht(balance), held: creditHeld.toLocaleString('en-US'), free: formatBaht(balance - creditHeld) }) }}</span>
+      </RouterLink>
       <p class="mt-3 text-xs text-white/35">{{ t('dashboard.balanceNote') }}</p>
     </template>
   </div>
 </template>
+
+<style scoped>
+.credit-coin {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff2b3, #ffc531 45%, #c98500);
+  color: #4a2d00;
+  font: 700 9px 'Chakra Petch', sans-serif;
+}
+.credit-held {
+  border: 1px solid rgb(255 211 77 / 0.35);
+  background: linear-gradient(135deg, rgb(255 197 49 / 0.14), rgb(255 197 49 / 0.03));
+}
+</style>

@@ -28,6 +28,8 @@ AVATAR_CACHE_SECONDS = "31536000"
 _DEPENDENT_PLAYER_COLUMNS: list[tuple[str, str]] = [
     ("checkins", "player_id"),
     ("billings", "player_id"),
+    ("credit_topups", "player_id"),
+    ("credit_ledger", "player_id"),
     ("pairing_history", "player_a_id"),
     ("pairing_history", "player_b_id"),
     ("locked_pairs", "player_a_id"),

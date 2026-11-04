@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import * as adminApi from '@/api/admin'
 import type { DailyRevenue, Expense, OtherIncome, ShopRevenue } from '@/types'
+import type { CreditSummary } from '@/api/admin'
 
 /**
  * The money feeds the dashboard's charts are built from, fetched once and
@@ -26,6 +27,8 @@ export const useFinanceStore = defineStore('finance', () => {
   /** null until loaded. Fetched with the rest, not apart: a balance that
    * silently left out the shop would be a wrong number, not a smaller one. */
   const shop = ref<ShopRevenue | null>(null)
+  /** Cash taken for club credit, and the credit members still hold. */
+  const credit = ref<CreditSummary | null>(null)
   const loading = ref(true)
   /** The raw failure — each chart renders its own message from it, since
    * they word the error differently and one may be on screen without the
@@ -45,16 +48,18 @@ export const useFinanceStore = defineStore('finance', () => {
     loading.value = true
     error.value = null
     try {
-      const [revenue, expenseList, income, shopRevenue] = await Promise.all([
+      const [revenue, expenseList, income, shopRevenue, creditSummary] = await Promise.all([
         adminApi.getRevenue(),
         adminApi.getExpenses(),
         adminApi.getOtherIncome(),
         adminApi.getShopRevenue(),
+        adminApi.getCreditSummary(),
       ])
       dailyRevenue.value = revenue
       expenses.value = expenseList
       otherIncome.value = income
       shop.value = shopRevenue
+      credit.value = creditSummary
     } catch (e) {
       // Held rather than thrown: both charts await the same promise, so a
       // rejection would surface as an unhandled rejection in whichever one
@@ -65,5 +70,5 @@ export const useFinanceStore = defineStore('finance', () => {
     }
   }
 
-  return { dailyRevenue, expenses, otherIncome, shop, loading, error, refresh }
+  return { dailyRevenue, expenses, otherIncome, shop, credit, loading, error, refresh }
 })

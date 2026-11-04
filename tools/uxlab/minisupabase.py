@@ -46,6 +46,10 @@ AUTO: dict[str, dict[str, Callable[[], Any]]] = {
     "line_link_requests": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
     "line_join_requests": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
     "shop_order_items": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
+    "credit_packages": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
+    "credit_topups": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
+    "credit_ledger": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
+    "player_credits": {"updated_at": _now},
     "shop_orders": {
         "id": lambda: str(uuid.uuid4()), "order_no": lambda: next(_ORDER_NO),
         "created_at": _now, "updated_at": _now,
@@ -81,9 +85,35 @@ DEFAULTS: dict[str, Row] = {
     "products": {"description": None, "sizes": [], "preorder_closes_on": None,
                  "preorder_delivers_on": None, "image_urls": [], "is_active": True,
                  "sort_order": 0, "size_prices": {}},
+    "credit_packages": {"is_active": True, "sort_order": 0},
+    "credit_topups": {"status": "pending", "slip_url": None, "slip_sent_at": None, "note": None,
+                      "decided_at": None},
+    "credit_ledger": {"cash": None, "ref_id": None, "note": None, "admin_id": None},
+    "player_credits": {"balance": 0},
     "shop_orders": {"status": "pending", "note": None, "player_id": None, "guest_name": None,
                     "guest_phone": None},
 }
+
+
+class ConstraintError(Exception):
+    """What Postgres would refuse: a duplicate key or a failed check."""
+
+
+def _check(table: str, row: Row, rows: list[Row]) -> None:
+    """The few constraints whose refusal the app relies on (0036_credit.sql):
+    a balance never below zero, one balance row per member, one waiting
+    top-up per member."""
+    if table == "player_credits":
+        if int(row.get("balance") or 0) < 0:
+            raise ConstraintError("player_credits_balance_check")
+        if any(r is not row and str(r.get("player_id")) == str(row.get("player_id")) for r in rows):
+            raise ConstraintError("player_credits_pkey")
+    if table == "credit_topups" and row.get("status") == "pending":
+        if any(r is not row and r.get("status") == "pending"
+               and str(r.get("player_id")) == str(row.get("player_id")) for r in rows):
+            raise ConstraintError("uq_credit_topups_pending")
+    if table == "credit_ledger" and int(row.get("balance_after") or 0) < 0:
+        raise ConstraintError("credit_ledger_balance_after_check")
 
 
 class Result:
@@ -274,6 +304,7 @@ class Query:
                     continue
                 for column, factory in AUTO.get(self._table, {}).items():
                     row.setdefault(column, factory())
+                _check(self._table, row, rows)
                 if self._table == "players" and "member_seq" not in row:
                     row["member_seq"] = 1 + max(
                         (int(r.get("member_seq") or 0) for r in rows), default=0
@@ -284,6 +315,8 @@ class Query:
 
         if self._op == "update":
             touched = self._matching(rows)
+            for row in touched:
+                _check(self._table, {**row, **self._payload}, [r for r in rows if r is not row])
             for row in touched:
                 row.update(self._payload)
                 if "updated_at" in AUTO.get(self._table, {}):

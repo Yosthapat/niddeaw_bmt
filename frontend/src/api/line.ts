@@ -161,3 +161,90 @@ export function sendSlip(token: string, billId: string, file: File): Promise<Lin
   body.append('file', file)
   return request(`/api/line/bills/${billId}/slip`, { ...auth(token), method: 'POST', body })
 }
+
+// --- club credit (routers/line_credit.py) -----------------------------------
+
+export interface CreditPackage {
+  id: string
+  credits: number
+  price: number
+  is_active: boolean
+  sort_order: number
+}
+
+export interface CreditTopup {
+  id: string
+  player_id: string
+  credits: number
+  price: number
+  slip_url: string | null
+  slip_sent_at: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  note: string | null
+  decided_at: string | null
+  created_at: string
+}
+
+export type LedgerKind = 'topup' | 'bill' | 'refund' | 'adjust'
+
+export interface LedgerEntry {
+  id: string
+  delta: number
+  balance_after: number
+  kind: LedgerKind
+  cash: number | null
+  note: string | null
+  created_at: string
+}
+
+export interface LineCredit {
+  player: Player
+  balance: number
+  packages: CreditPackage[]
+  pending: CreditTopup | null
+  rejected: CreditTopup | null
+  history: LedgerEntry[]
+}
+
+export function getCredit(token: string): Promise<LineCredit> {
+  return request('/api/line/credit', auth(token))
+}
+
+export function startTopup(token: string, packageId: string): Promise<LineCredit> {
+  return request('/api/line/credit/topups', { ...auth(token), method: 'POST', body: JSON.stringify({ package_id: packageId }) })
+}
+
+export function getTopupPayInfo(token: string, topupId: string): Promise<PaymentInfoResponse> {
+  return request(`/api/line/credit/topups/${topupId}/pay`, auth(token))
+}
+
+export function sendTopupSlip(token: string, topupId: string, file: File): Promise<LineCredit> {
+  const body = new FormData()
+  body.append('file', file)
+  return request(`/api/line/credit/topups/${topupId}/slip`, { ...auth(token), method: 'POST', body })
+}
+
+export function cancelTopup(token: string, topupId: string): Promise<LineCredit> {
+  return request(`/api/line/credit/topups/${topupId}`, { ...auth(token), method: 'DELETE' })
+}
+
+/** The member's LINE token for this tab, kept so their own profile page can
+ *  show their credit. Session storage: it ends with the tab, and the
+ *  server checks it on every call anyway. */
+const TOKEN_KEY = 'niddeaw_line_token'
+
+export function rememberLineToken(token: string): void {
+  try {
+    sessionStorage.setItem(TOKEN_KEY, token)
+  } catch {
+    // private mode / storage off: the profile just won't show credit
+  }
+}
+
+export function rememberedLineToken(): string | null {
+  try {
+    return sessionStorage.getItem(TOKEN_KEY)
+  } catch {
+    return null
+  }
+}

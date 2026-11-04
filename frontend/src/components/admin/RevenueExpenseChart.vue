@@ -58,7 +58,7 @@ const BARS_SHOWN: Record<Period, number> = { day: 14, month: 6, year: 20 }
 const period = ref<Period>('month')
 
 const finance = useFinanceStore()
-const { dailyRevenue, expenses, shop, loading } = storeToRefs(finance)
+const { dailyRevenue, expenses, shop, credit, loading } = storeToRefs(finance)
 
 const error = computed(() => {
   const e = finance.error
@@ -71,6 +71,8 @@ interface Bar {
   label: string
   revenue: number
   shop: number
+  /** baht taken for club credit (less any paid back) */
+  credit: number
   expense: number
 }
 
@@ -105,12 +107,17 @@ const bars = computed<Bar[]>(() => {
     const key = bucketKey(day.date, p)
     shopBy.set(key, (shopBy.get(key) ?? 0) + day.amount)
   }
+  const creditBy = new Map<string, number>()
+  for (const day of credit.value?.daily ?? []) {
+    const key = bucketKey(day.date, p)
+    creditBy.set(key, (creditBy.get(key) ?? 0) + day.cash)
+  }
   const expenseBy = new Map<string, number>()
   for (const expense of expenses.value) {
     const key = bucketKey(expense.expense_date, p)
     expenseBy.set(key, (expenseBy.get(key) ?? 0) + expense.amount)
   }
-  return Array.from(new Set([...revenueBy.keys(), ...shopBy.keys(), ...expenseBy.keys()]))
+  return Array.from(new Set([...revenueBy.keys(), ...shopBy.keys(), ...creditBy.keys(), ...expenseBy.keys()]))
     .sort()
     .slice(-BARS_SHOWN[p])
     .map((key) => ({
@@ -118,6 +125,7 @@ const bars = computed<Bar[]>(() => {
       label: bucketLabel(key, p),
       revenue: revenueBy.get(key) ?? 0,
       shop: shopBy.get(key) ?? 0,
+      credit: creditBy.get(key) ?? 0,
       expense: expenseBy.get(key) ?? 0,
     }))
 })
@@ -147,8 +155,8 @@ const innerW = computed(() => viewW.value - PAD_LEFT - PAD_RIGHT)
 const innerH = VIEW_H - PAD_TOP - PAD_BOTTOM
 const INSET = 12 // first and last points sit this far in from the plot's edges
 
-/** Money in for a bucket: dues plus the shop. */
-const income = (b: Bar): number => b.revenue + b.shop
+/** Money in for a bucket: dues, the shop, and cash taken for credit. */
+const income = (b: Bar): number => b.revenue + b.shop + b.credit
 
 /** A round top for the y axis — 1, 2, 2.5 or 5 × 10^k per step — so the
  * gridlines land on numbers a person would say out loud. */
@@ -253,7 +261,7 @@ onBeforeUnmount(() => resize.disconnect())
 const shownIndex = computed(() => picked.value ?? bars.value.length - 1)
 const shownBar = computed(() => bars.value[shownIndex.value] ?? null)
 /** Any shop sales on screen: without them the readout's shop line is noise. */
-const anyShop = computed(() => bars.value.some((b) => b.shop > 0))
+const anyShop = computed(() => bars.value.some((b) => b.shop > 0 || b.credit !== 0))
 
 // Day view packs 14 labels into the same axis six months use. Printing every
 // other one keeps them apart; the points themselves stay one per bucket.
@@ -420,6 +428,12 @@ const net = computed(() => totalRevenue.value - totalExpense.value)
               <span class="h-1.5 w-1.5 rounded-full" :style="{ backgroundColor: SHOP_COLOR }" />{{ t('dashboard.revenueShop') }}
             </dt>
             <dd class="text-right font-mono text-white/60">{{ formatBaht(shownBar.shop) }}</dd>
+            <template v-if="shownBar.credit !== 0">
+              <dt class="flex items-center gap-1.5 pl-3.5 text-white/45">
+                <span class="h-1.5 w-1.5 rounded-full bg-[#ffc531]" />{{ t('dashboard.revenueCredit') }}
+              </dt>
+              <dd class="text-right font-mono text-white/60">{{ formatBaht(shownBar.credit) }}</dd>
+            </template>
           </template>
           <dt class="flex items-center gap-1.5 text-white/60">
             <span class="h-2 w-2 rounded-full" :style="{ backgroundColor: EXPENSE_COLOR }" />{{ t('dashboard.expense') }}

@@ -30,6 +30,7 @@ import type {
   Player,
   Session,
 } from '@/types'
+import type { CreditPackage, CreditTopup, LedgerEntry } from './line'
 
 // Mirrors backend/app/routers/admin/{auth,sessions,checkins,matchmaking,billing,expenses,other_income,players_admin,settings}.py.
 
@@ -694,4 +695,86 @@ export async function rotateCheckinQr(sessionId: string): Promise<CheckinQr> {
 
 export async function rejectBillSlip(billingId: string): Promise<Billing> {
   return request(`/api/admin/billing/${billingId}/reject-slip`, { method: 'POST' })
+}
+
+// --- club credit (routers/admin/credit_admin.py) ----------------------------
+
+export interface CreditTopupAdmin extends CreditTopup {
+  player_nickname: string
+  player_code: string
+}
+
+export interface MemberCredit {
+  player_id: string
+  nickname: string
+  member_code: string
+  balance: number
+}
+
+export interface CreditBalances {
+  outstanding: number
+  members: MemberCredit[]
+}
+
+export interface MemberLedger {
+  player: Player
+  balance: number
+  history: LedgerEntry[]
+}
+
+/** cash_in: baht received for credit; cash_out: paid back; outstanding:
+ *  credit members still hold — money in the account that is still theirs. */
+export interface CreditSummary {
+  cash_in: number
+  cash_out: number
+  outstanding: number
+  pending_topups: number
+  daily: { date: string; cash: number }[]
+}
+
+export async function getCreditTopups(which: 'waiting' | 'done' = 'waiting'): Promise<CreditTopupAdmin[]> {
+  return request(`/api/admin/credit/topups?which=${which}`)
+}
+
+export async function approveCreditTopup(id: string): Promise<CreditTopupAdmin> {
+  return request(`/api/admin/credit/topups/${id}/approve`, { method: 'POST' })
+}
+
+export async function rejectCreditTopup(id: string, note: string | null): Promise<CreditTopupAdmin> {
+  return request(`/api/admin/credit/topups/${id}/reject`, { method: 'POST', body: JSON.stringify({ note }) })
+}
+
+export async function getCreditBalances(): Promise<CreditBalances> {
+  return request('/api/admin/credit/balances')
+}
+
+export async function getMemberLedger(playerId: string): Promise<MemberLedger> {
+  return request(`/api/admin/credit/players/${playerId}`)
+}
+
+export async function adjustCredit(
+  playerId: string,
+  body: { delta: number; cash: number | null; note: string },
+): Promise<MemberLedger> {
+  return request(`/api/admin/credit/players/${playerId}/adjust`, { method: 'POST', body: JSON.stringify(body) })
+}
+
+export async function getCreditPackages(): Promise<CreditPackage[]> {
+  return request('/api/admin/credit/packages')
+}
+
+export async function createCreditPackage(body: { credits: number; price: number; is_active: boolean; sort_order: number }): Promise<CreditPackage> {
+  return request('/api/admin/credit/packages', { method: 'POST', body: JSON.stringify(body) })
+}
+
+export async function updateCreditPackage(id: string, body: Partial<CreditPackage>): Promise<CreditPackage> {
+  return request(`/api/admin/credit/packages/${id}`, { method: 'PATCH', body: JSON.stringify(body) })
+}
+
+export async function deleteCreditPackage(id: string): Promise<void> {
+  return request(`/api/admin/credit/packages/${id}`, { method: 'DELETE' })
+}
+
+export async function getCreditSummary(): Promise<CreditSummary> {
+  return request('/api/admin/credit/summary')
 }
