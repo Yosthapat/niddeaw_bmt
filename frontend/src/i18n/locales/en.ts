@@ -805,6 +805,7 @@ export default {
   dashboard: {
     revenueCredit: 'Credit top-ups',
     balanceFromCredit: 'Credit top-ups (cash received)',
+    creditMissing: "Couldn't load credit — these totals leave out credit top-ups",
     creditHeld: 'Credit members still hold',
     creditHeldNote: 'Of {balance}, {held} is members\' unspent credit · the club\'s own ≈ {free}',
     revenueTotal: 'Money in',

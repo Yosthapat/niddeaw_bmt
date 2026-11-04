@@ -450,6 +450,7 @@ const net = computed(() => totalRevenue.value - totalExpense.value)
           </span>
         </div>
       </div>
+      <p v-if="finance.creditError" class="mt-2 text-xs text-[#ffb08a]" role="status">{{ t('dashboard.creditMissing') }}</p>
       <p class="mt-1.5 text-[11px] text-white/35">{{ t('dashboard.chartPickHint') }}</p>
     </template>
   </div>

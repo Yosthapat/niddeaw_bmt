@@ -29,6 +29,10 @@ export const useFinanceStore = defineStore('finance', () => {
   const shop = ref<ShopRevenue | null>(null)
   /** Cash taken for club credit, and the credit members still hold. */
   const credit = ref<CreditSummary | null>(null)
+  /** The credit figures failed on their own. Unlike the shop, they don't
+   * take the charts down with them: the charts still draw dues, expenses
+   * and the shop, and say that credit top-ups are missing from the total. */
+  const creditError = ref<unknown>(null)
   const loading = ref(true)
   /** The raw failure — each chart renders its own message from it, since
    * they word the error differently and one may be on screen without the
@@ -47,19 +51,30 @@ export const useFinanceStore = defineStore('finance', () => {
   async function runRefresh(): Promise<void> {
     loading.value = true
     error.value = null
+    creditError.value = null
+    // Asked for at the same time as the rest, but not waited on with it:
+    // the charts draw as soon as dues, expenses and the shop are in, and the
+    // credit figures join them when they arrive (or say they couldn't).
+    const creditSummary = adminApi.getCreditSummary().then(
+      (summary) => {
+        credit.value = summary
+      },
+      (e: unknown) => {
+        credit.value = null
+        creditError.value = e
+      },
+    )
     try {
-      const [revenue, expenseList, income, shopRevenue, creditSummary] = await Promise.all([
+      const [revenue, expenseList, income, shopRevenue] = await Promise.all([
         adminApi.getRevenue(),
         adminApi.getExpenses(),
         adminApi.getOtherIncome(),
         adminApi.getShopRevenue(),
-        adminApi.getCreditSummary(),
       ])
       dailyRevenue.value = revenue
       expenses.value = expenseList
       otherIncome.value = income
       shop.value = shopRevenue
-      credit.value = creditSummary
     } catch (e) {
       // Held rather than thrown: both charts await the same promise, so a
       // rejection would surface as an unhandled rejection in whichever one
@@ -68,7 +83,8 @@ export const useFinanceStore = defineStore('finance', () => {
     } finally {
       loading.value = false
     }
+    await creditSummary
   }
 
-  return { dailyRevenue, expenses, otherIncome, shop, credit, loading, error, refresh }
+  return { dailyRevenue, expenses, otherIncome, shop, credit, creditError, loading, error, refresh }
 })

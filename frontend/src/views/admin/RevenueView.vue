@@ -41,6 +41,7 @@ const shopTotal = computed(() => shop.value?.total ?? 0)
 // Baht taken for club credit, less any paid back (what the credit later
 // pays for is not money in again).
 const credit = ref<CreditSummary | null>(null)
+const creditFailed = ref(false)
 const creditTotal = computed(() => (credit.value ? credit.value.cash_in - credit.value.cash_out : 0))
 
 /** One row per day that had either: the night's bills, the shop's
@@ -68,11 +69,19 @@ async function load(): Promise<void> {
   loading.value = true
   error.value = null
   try {
-    ;[daily.value, shop.value, credit.value] = await Promise.all([
-      adminApi.getRevenue(),
-      adminApi.getShopRevenue(),
-      adminApi.getCreditSummary(),
-    ])
+    creditFailed.value = false
+    // Credit failing on its own leaves dues and the shop on screen, without
+    // waiting for it: the note under the totals says top-ups are missing.
+    void adminApi.getCreditSummary().then(
+      (summary) => {
+        credit.value = summary
+      },
+      () => {
+        credit.value = null
+        creditFailed.value = true
+      },
+    )
+    ;[daily.value, shop.value] = await Promise.all([adminApi.getRevenue(), adminApi.getShopRevenue()])
   } catch (e) {
     error.value = apiErrorMessage(e, t('revenue.loadFailed'))
   } finally {
@@ -283,6 +292,7 @@ onMounted(async () => {
 
     <p v-if="loading" class="mt-6 text-white/60">{{ t('common.loading') }}</p>
     <p v-else-if="error" class="mt-6 text-status-error">{{ error }}</p>
+    <p v-if="!loading && !error && creditFailed" class="mt-6 text-sm text-[#ffb08a]" role="status">{{ t('dashboard.creditMissing') }}</p>
 
     <template v-else>
       <div v-if="days.length > 0 || otherIncome.length > 0" class="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-2.5">

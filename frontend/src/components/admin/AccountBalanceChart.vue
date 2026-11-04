@@ -254,6 +254,7 @@ const spentDash = computed(() => {
         </span>
         <span class="text-white/60">{{ t('dashboard.creditHeldNote', { balance: formatBaht(balance), held: creditHeld.toLocaleString('en-US'), free: formatBaht(balance - creditHeld) }) }}</span>
       </RouterLink>
+      <p v-if="finance.creditError" class="mt-2 text-xs text-[#ffb08a]" role="status">{{ t('dashboard.creditMissing') }}</p>
       <p class="mt-3 text-xs text-white/35">{{ t('dashboard.balanceNote') }}</p>
     </template>
   </div>
