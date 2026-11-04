@@ -18,12 +18,22 @@ defineProps<{
   mascot: string
   /** A pulsing dot before the eyebrow: something is happening now. */
   live?: boolean
+  /** Shorter, for the admin's working screens: the same sky, less of it. */
+  compact?: boolean
+  /** The page already has its own <h1> (the admin screens do, for screen
+   * readers), so the banner's title is shown but not announced twice. */
+  decorativeTitle?: boolean
 }>()
 const slots = useSlots()
 </script>
 
 <template>
-  <section class="pb relative isolate overflow-hidden" aria-labelledby="page-banner-title">
+  <section
+    class="pb relative isolate overflow-hidden"
+    :class="{ 'pb--compact': compact }"
+    :aria-labelledby="decorativeTitle ? undefined : 'page-banner-title'"
+    :aria-hidden="decorativeTitle ? 'true' : undefined"
+  >
     <div class="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
       <div class="pb-stars absolute inset-0" />
       <div class="pb-sun absolute rounded-full" />
@@ -38,7 +48,8 @@ const slots = useSlots()
           <span v-if="live" class="pb-dot" aria-hidden="true" />
           {{ eyebrow }}
         </p>
-        <h1 id="page-banner-title" class="pb-title mt-1 font-display font-bold">{{ title }}</h1>
+        <p v-if="decorativeTitle" class="pb-title mt-1 font-display font-bold">{{ title }}</p>
+        <h1 v-else id="page-banner-title" class="pb-title mt-1 font-display font-bold">{{ title }}</h1>
         <p v-if="sub" class="mt-1.5 text-sm text-white/75 sm:text-[15px]">{{ sub }}</p>
       </div>
       <div v-if="slots.default" class="relative mt-4">
@@ -177,6 +188,43 @@ const slots = useSlots()
     bottom: 28px;
     width: 210px;
     height: 210px;
+  }
+}
+
+/* The admin's working screens: the same world, a shorter strip of it,
+   so the work starts high on the screen. */
+.pb--compact {
+  min-height: 150px;
+  padding: 18px 0 20px;
+}
+.pb--compact .pb-title {
+  font-size: 28px;
+}
+.pb--compact .pb-mascot {
+  top: 12px;
+  width: 88px;
+  height: 88px;
+}
+.pb--compact .pb-sun {
+  width: 120px;
+  height: 120px;
+}
+@media (min-width: 900px) {
+  .pb--compact {
+    min-height: 264px;
+    padding: calc(var(--header-h) + 22px) 0 28px;
+  }
+  .pb--compact .pb-title {
+    font-size: 40px;
+  }
+  .pb--compact .pb-sun {
+    width: 200px;
+    height: 200px;
+  }
+  .pb--compact .pb-mascot {
+    width: 140px;
+    height: 140px;
+    bottom: 18px;
   }
 }
 

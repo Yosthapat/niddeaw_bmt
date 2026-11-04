@@ -404,7 +404,7 @@ function priceText(p: Product): string {
   <AdminNav />
   <main class="mx-auto max-w-2xl px-4 py-6">
     <div class="flex items-center justify-between gap-3">
-      <h1 class="font-display text-2xl font-bold">{{ t('shopAdmin.title') }}</h1>
+      <h1 class="sr-only">{{ t('shopAdmin.title') }}</h1>
       <div v-if="!formOpen" role="tablist" class="flex gap-1.5">
         <button
           v-for="x in (['orders', 'products'] as const)"

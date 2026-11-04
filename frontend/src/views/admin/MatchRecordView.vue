@@ -52,7 +52,7 @@ onMounted(() => {
 <template>
   <AdminNav />
   <main class="mx-auto max-w-lg px-4 py-6">
-    <h1 class="text-2xl font-bold text-brand-pink">{{ t('matchRecord.title') }}</h1>
+    <h1 class="sr-only">{{ t('matchRecord.title') }}</h1>
 
     <p v-if="!matchId" class="mt-8 text-white/60">
       {{ t('matchRecord.notFound') }}

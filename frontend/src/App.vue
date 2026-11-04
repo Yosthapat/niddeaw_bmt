@@ -9,6 +9,7 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import AmbientBackground from '@/components/common/AmbientBackground.vue'
 import UpdateBanner from '@/components/common/UpdateBanner.vue'
 import PublicTabBar from '@/components/layout/PublicTabBar.vue'
+import AdminTabBar from '@/components/layout/AdminTabBar.vue'
 
 const route = useRoute()
 
@@ -19,6 +20,10 @@ const route = useRoute()
 // Pages opened inside LINE (meta.bare) stand alone: no site header or tab
 // bar around them, since LINE draws its own frame.
 const bare = computed(() => route.meta.bare === true)
+const isAdmin = computed(() => route.path.startsWith('/admin'))
+// The admin's screens sit in the hero's world too (tailwind.css .admin-world):
+// its violet sky over the top, glass panels, the bar at the bottom of a phone.
+const adminInside = computed(() => isAdmin.value && route.path !== '/admin/login')
 
 // A page is rebuilt when its key changes. Normally that is its path, but
 // the LINE page's /line/checkout, /line/bills… are screens of one page:
@@ -51,8 +56,8 @@ watch(
        page be dragged sideways on a phone. Only the off-screen part is
        clipped, so nothing that was ever visible changes. Browsers without
        `overflow: clip` just ignore the line and behave as before. -->
-  <div class="min-h-dvh overflow-x-clip">
-    <AmbientBackground v-if="!route.path.startsWith('/admin')" />
+  <div class="min-h-dvh overflow-x-clip" :class="{ 'admin-world': isAdmin }">
+    <AmbientBackground />
     <AppHeader v-if="!bare" />
     <RouterView v-slot="{ Component, route }">
       <!-- Admin views render <AdminNav /> and <main> as two sibling root
@@ -82,9 +87,13 @@ watch(
     <div v-if="!bare" class="signature-stripe" aria-hidden="true" />
     <!-- Room at the end of every public page for the tab bar floating
          over it, so the last line can scroll clear of the bar. -->
-    <template v-if="!route.path.startsWith('/admin') && !bare">
+    <template v-if="!isAdmin && !bare">
       <div class="h-[calc(96px+env(safe-area-inset-bottom,0px))] min-[900px]:hidden" aria-hidden="true" />
       <PublicTabBar />
+    </template>
+    <template v-if="adminInside">
+      <div class="h-[calc(96px+env(safe-area-inset-bottom,0px))] min-[900px]:hidden" aria-hidden="true" />
+      <AdminTabBar />
     </template>
     <TierInfoModal />
     <ConfirmDialog />

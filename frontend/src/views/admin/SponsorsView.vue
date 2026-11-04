@@ -197,7 +197,7 @@ async function remove(): Promise<void> {
   <AdminNav />
   <main class="mx-auto max-w-2xl px-4 py-6">
     <div class="flex items-end justify-between gap-3">
-      <h1 class="font-display text-2xl font-bold">{{ t('sponsors.title') }}</h1>
+      <h1 class="sr-only">{{ t('sponsors.title') }}</h1>
       <span v-if="!loading" class="text-sm text-white/60">
         {{ t('sponsors.shownCount', { shown: shown.length, total: sponsors.length }) }}
       </span>
