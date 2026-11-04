@@ -151,11 +151,14 @@ def approve_topup(supabase: Client, topup_id: UUID, admin_id: UUID | str) -> dic
     return claimed[0]
 
 
-def all_rows(supabase: Client, table: str, columns: str) -> list[dict[str, Any]]:
+def all_rows(supabase: Client, table: str, columns: str, key: str = "id") -> list[dict[str, Any]]:
+    """Every row, a page at a time, ordered by `key`: a unique column, so no
+    row is read twice or skipped between pages. player_credits has no id —
+    its key is player_id."""
     out: list[dict[str, Any]] = []
     offset = 0
     while True:
-        page = rows(supabase.table(table).select(columns).order("id").range(offset, offset + PAGE - 1).execute())
+        page = rows(supabase.table(table).select(columns).order(key).range(offset, offset + PAGE - 1).execute())
         out.extend(page)
         if len(page) < PAGE:
             return out
@@ -180,7 +183,7 @@ def summary(supabase: Client) -> CreditSummary:
         else:
             cash_out += cash
         by_day[_club_date(str(r["created_at"]))] += signed
-    balances = all_rows(supabase, "player_credits", "player_id, balance")
+    balances = all_rows(supabase, "player_credits", "player_id, balance", key="player_id")
     pending = [t for t in all_rows(supabase, "credit_topups", "id, status, slip_url") if t["status"] == "pending" and t.get("slip_url")]
     return CreditSummary(
         cash_in=round(cash_in, 2),

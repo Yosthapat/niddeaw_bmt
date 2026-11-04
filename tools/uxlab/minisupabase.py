@@ -271,6 +271,15 @@ class Query:
             rows = self._db.tables.setdefault(self._table, [])
 
         if self._op == "select":
+            # Postgres refuses to order by a column the table doesn't have
+            # (player_credits has no id), so the stand-in does too.
+            if rows:
+                known = set(DEFAULTS.get(self._table, {})) | set(AUTO.get(self._table, {}))
+                for r in rows:
+                    known |= set(r)
+                for column, _ in self._order:
+                    if column not in known:
+                        raise ConstraintError(f'column {self._table}.{column} does not exist')
             found = self._matching(rows)
             total = len(found)
             # Later keys break ties in earlier ones: stable sorts, last key first.
