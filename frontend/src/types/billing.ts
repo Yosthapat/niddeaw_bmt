@@ -14,6 +14,13 @@ export interface Billing {
   slip_url?: string | null
   slip_sent_at?: string | null
   slip_rejected_at?: string | null
+  /** How much of the bill the member paid with club credit; a slip, if any, is for the rest. */
+  credit_used?: number
+}
+
+/** What is still to transfer once the credit on the bill is taken off. */
+export function leftToPay(billing: Billing): number {
+  return Math.max(0, Math.round((effectiveAmount(billing) - (billing.credit_used ?? 0)) * 100) / 100)
 }
 
 /** effective amount owed = amount_adjusted ?? amount_calc (mirrors Billing.effective_amount) */
@@ -35,6 +42,10 @@ export interface DailyRevenue {
   unpaid_amount: number
   session_count: number
   billing_count: number
+  /** Of total_amount, what members paid with club credit — counted when they topped up. */
+  credit_amount: number
+  /** Dues money actually received: paid bills less the credit on them. */
+  paid_cash: number
 }
 
 export type PromptPayType = 'phone' | 'national_id' | 'ewallet'

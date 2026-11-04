@@ -50,7 +50,8 @@ const error = computed(() => {
 // All-time, not the window the bar chart shows: a balance is what has
 // accumulated since the club started, so a window would just be a different
 // number wearing the same label.
-const dues = computed(() => dailyRevenue.value.reduce((sum, d) => sum + d.paid_amount, 0))
+// Bills paid with club credit moved no money: their baht came in with the top-up.
+const dues = computed(() => dailyRevenue.value.reduce((sum, d) => sum + (d.paid_cash ?? d.paid_amount), 0))
 const funding = computed(() => otherIncome.value.reduce((sum, i) => sum + i.amount, 0))
 const shopSales = computed(() => shop.value?.total ?? 0)
 // Baht taken for club credit, less any paid back. Counted when it came in;

@@ -171,6 +171,17 @@ class LineBill(BaseModel):
     slip_url: str | None = None
     slip_sent_at: datetime | None = None
     slip_rejected_at: datetime | None = None
+    credit_used: int = 0
+    """How much of it club credit paid (services/bill_credit.py)."""
+    left: float = 0
+    """Still to transfer: amount less credit_used (0 once paid)."""
+
+
+class LineBillCredit(BaseModel):
+    """A bill just paid (all or part) with credit, and the balance left."""
+
+    bill: LineBill
+    balance: int
 
 
 class LineTonight(BaseModel):

@@ -15,7 +15,7 @@ import type { Locale } from '@/i18n'
 import LineBillPay from '@/components/line/LineBillPay.vue'
 
 const props = defineProps<{ token: string; initial: LineTonight }>()
-const emit = defineEmits<{ bills: [] }>()
+const emit = defineEmits<{ bills: []; credit: [] }>()
 const { t, locale } = useI18n()
 
 const now = ref<LineTonight>(props.initial)
@@ -89,7 +89,7 @@ function onPaid(bill: LineBill): void {
         <span class="text-[#7ff0b4]" aria-hidden="true">✓</span> {{ t('lineCheckout.outLine') }}
       </p>
       <div v-if="now.bill && now.bill.amount > 0" class="flex flex-col items-center gap-3">
-        <LineBillPay :token="token" :bill="now.bill" @updated="onPaid" />
+        <LineBillPay :token="token" :bill="now.bill" @updated="onPaid" @top-up="emit('credit')" />
       </div>
       <div v-else class="world-card flex flex-col items-center gap-1 p-5 text-center">
         <span class="font-display text-lg font-bold text-[#7ff0b4]">{{ t('lineCheckout.freeTitle') }}</span>

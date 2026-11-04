@@ -9,7 +9,7 @@ plain dicts in, matching the pattern in stats_service.py.
 
 from dataclasses import dataclass
 from datetime import date as date_type
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 from app.services import billing_service
 
@@ -24,6 +24,7 @@ class BillingRow(TypedDict):
     amount_calc: float
     amount_adjusted: float | None
     paid_status: str
+    credit_used: NotRequired[int]
 
 
 @dataclass
@@ -34,6 +35,8 @@ class DailyRevenue:
     unpaid_amount: float = 0.0
     session_count: int = 0
     billing_count: int = 0
+    credit_amount: float = 0.0
+    paid_cash: float = 0.0
 
 
 def build_daily_revenue(
@@ -51,11 +54,15 @@ def build_daily_revenue(
             continue
         entry = summary.setdefault(session_date, DailyRevenue(date=session_date))
         amount = billing_service.effective_amount(b["amount_calc"], b["amount_adjusted"])
+        credit = float(b.get("credit_used") or 0)
         entry.total_amount = round(entry.total_amount + amount, 2)
+        entry.credit_amount = round(entry.credit_amount + credit, 2)
         if b["paid_status"] == "paid":
             entry.paid_amount = round(entry.paid_amount + amount, 2)
+            entry.paid_cash = round(entry.paid_cash + max(0.0, amount - credit), 2)
         else:
-            entry.unpaid_amount = round(entry.unpaid_amount + amount, 2)
+            # Still owed: what credit hasn't already covered.
+            entry.unpaid_amount = round(entry.unpaid_amount + max(0.0, amount - credit), 2)
         entry.billing_count += 1
         sessions_seen_by_date.setdefault(session_date, set()).add(b["session_id"])
 
