@@ -24,6 +24,7 @@ import LineJoinForm from '@/components/line/LineJoinForm.vue'
 import LineCheckin from '@/components/line/LineCheckin.vue'
 import LineCheckout from '@/components/line/LineCheckout.vue'
 import LineBills from '@/components/line/LineBills.vue'
+import LineCredit from '@/components/line/LineCredit.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -50,7 +51,7 @@ const checkinCode = ref('')
 const canScan = ref(false)
 // A linked member's other screens: tonight's checkout and their bills
 // (/line/checkout, /line/bills — the OA menu's "เช็คเอาท์ จ่ายเงิน").
-type Screen = 'home' | 'checkout' | 'bills'
+type Screen = 'home' | 'checkout' | 'bills' | 'credit'
 const screen = ref<Screen>('home')
 const tonight = ref<LineTonight | null>(null)
 
@@ -74,12 +75,13 @@ async function start(): Promise<void> {
     liffSignedIn()
     canScan.value = liffCanScan()
     token.value = status.token ?? ''
+    if (status.token) lineApi.rememberLineToken(status.token)
     me.value = status
     if (!status.player) await loadOptions()
     joining.value = route.params.section === 'register' && !status.player && !status.pending && !status.application
     const code = typeof route.query.c === 'string' ? route.query.c : ''
     if (route.params.section === 'checkin' && code) await openCheckin(code)
-    if (status.player && (route.params.section === 'checkout' || route.params.section === 'bills')) {
+    if (status.player && (route.params.section === 'checkout' || route.params.section === 'bills' || route.params.section === 'credit')) {
       await go(route.params.section)
     }
     phase.value = 'ready'
@@ -255,6 +257,8 @@ onMounted(start)
         </template>
         <LineBills v-else-if="me.player && screen === 'bills'" :token="token" @back="go('home')" />
 
+        <LineCredit v-else-if="me.player && screen === 'credit'" :token="token" @back="go('home')" />
+
         <!-- linked: who they are, and what's coming -->
         <section v-else-if="me.player" class="world-card flex flex-col items-center gap-3 p-6 text-center">
           <p class="world-eyebrow">LINKED</p>
@@ -272,6 +276,9 @@ onMounted(start)
           <div class="grid w-full grid-cols-2 gap-2">
             <button type="button" class="glass-pill justify-center" @click="go('checkout')">{{ t('lineCheckout.open') }}</button>
             <button type="button" class="glass-pill justify-center" @click="go('bills')">{{ t('lineCheckout.myBills') }}</button>
+            <button type="button" class="credit-pill col-span-full justify-center" @click="go('credit')">
+              <span class="coin-dot" aria-hidden="true">฿</span>{{ t('lineCredit.open') }}
+            </button>
           </div>
           <p v-if="actionError" class="text-sm text-status-error" role="alert">{{ actionError }}</p>
           <RouterLink :to="`/members/${me.player.id}`" class="glass-pill">{{ t('line.myProfile') }}</RouterLink>
@@ -396,6 +403,28 @@ onMounted(start)
 </template>
 
 <style scoped>
+.credit-pill {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  border: 1px solid rgb(255 211 77 / 0.55);
+  background: linear-gradient(135deg, rgb(255 197 49 / 0.22), rgb(255 197 49 / 0.06));
+  color: #ffe9a8;
+  font-weight: 500;
+}
+.coin-dot {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff2b3, #ffc531 45%, #c98500);
+  color: #4a2d00;
+  font: 700 12px 'Chakra Petch', sans-serif;
+}
 .scan-cta {
   background: linear-gradient(#5dffa0, #06c755);
   color: #02240f;

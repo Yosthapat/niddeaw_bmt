@@ -12,6 +12,7 @@ import CountUp from '@/components/common/CountUp.vue'
 import PlayerLiveStatus from '@/components/players/PlayerLiveStatus.vue'
 import PlayerSeasonMatches from '@/components/players/PlayerSeasonMatches.vue'
 import PlayerShopOrders from '@/components/shop/PlayerShopOrders.vue'
+import ProfileCredit from '@/components/players/ProfileCredit.vue'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -146,6 +147,7 @@ const bannerSub = computed(() => {
             <!-- Keyed on the player id: this view swaps profiles by watching the
                  route param without remounting, so without a key these two would
                  keep the previous member's polled state and match pages. -->
+            <ProfileCredit :player-id="profile.player.id" />
             <PlayerLiveStatus :key="`live-${profile.player.id}`" :player-id="profile.player.id" />
 
             <section v-if="profile.nemesis" v-reveal="2" class="world-card mt-6 p-5">

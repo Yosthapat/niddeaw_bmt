@@ -89,7 +89,7 @@ const router = createRouter({
       // Opened inside LINE (the club OA's LIFF app); no header or tab bar.
       // /line/register: the OA's sign-up button; /line/checkin?c=…: tonight's
       // check-in QR (LIFF adds the path to the endpoint URL).
-      path: '/line/:section(register|checkin|checkout|bills)?',
+      path: '/line/:section(register|checkin|checkout|bills|credit)?',
       name: 'line',
       component: () => import('../views/line/LineView.vue'),
       meta: { bare: true },
@@ -175,6 +175,12 @@ const router = createRouter({
       path: '/admin/shop',
       name: 'admin-shop',
       component: () => import('../views/admin/ShopAdminView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin/credit',
+      name: 'admin-credit',
+      component: () => import('../views/admin/CreditView.vue'),
       meta: { requiresAuth: true },
     },
     {
