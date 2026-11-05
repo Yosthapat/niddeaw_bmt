@@ -65,6 +65,8 @@ class Product(BaseModel):
     preorder_closes_on: date | None = None
     preorder_delivers_on: date | None = None
     image_urls: list[str]
+    video_url: str | None = None
+    """A short clip of the product turning round; the product page opens on it."""
     is_active: bool
     sort_order: int
     created_at: datetime

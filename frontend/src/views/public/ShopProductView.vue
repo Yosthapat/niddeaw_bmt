@@ -104,7 +104,12 @@ const blocker = computed(() => {
 /** On a phone the sizes can be a long description away from the buy bar:
  *  bring them into view and make them stand out for a moment. */
 async function toSizes(): Promise<void> {
-  sizesBox.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  if (!sizesBox.value) {
+    // one size: nothing to pick, so go to the price and the buttons
+    document.querySelector('main h1')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    return
+  }
+  sizesBox.value.scrollIntoView({ behavior: 'smooth', block: 'center' })
   nudge.value = false
   await nextTick()
   nudge.value = true
@@ -131,6 +136,31 @@ function addToCart(): boolean {
 function buyNow(): void {
   if (addToCart()) router.push('/shop/cart')
 }
+
+// A product with a turnaround clip opens on it: the clip loops under a
+// spotlight, plays only while it is on screen, and waits for a tap when the
+// phone asks for less motion.
+const still = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+const clip = ref<HTMLVideoElement | null>(null)
+const playing = ref(false)
+let seen: IntersectionObserver | null = null
+function play(): void {
+  void clip.value?.play().catch(() => {})
+}
+function toggleClip(): void {
+  const v = clip.value
+  if (!v) return
+  if (v.paused) play()
+  else v.pause()
+}
+watch(clip, (v) => {
+  seen?.disconnect()
+  seen = null
+  if (!v || still || !('IntersectionObserver' in window)) return
+  seen = new IntersectionObserver(([e]) => (e?.isIntersecting ? play() : v.pause()), { threshold: 0.25 })
+  seen.observe(v)
+})
+onBeforeUnmount(() => seen?.disconnect())
 </script>
 
 <template>
@@ -143,6 +173,35 @@ function buyNow(): void {
         </RouterLink>
         <CartLink />
       </div>
+
+      <!-- the turnaround, when the product has one -->
+      <section v-if="!loading && product?.video_url" class="cine bars -mx-4 mt-3 md:mx-0" :aria-label="product.name">
+        <div class="beam" aria-hidden="true" />
+        <div class="cine-titles" aria-hidden="true">
+          <span class="cine-eyebrow">NIDDEAW BADMINTON CLUB</span>
+          <span class="cine-name">{{ product.name }}</span>
+          <span class="cine-price">{{ priceLabel }}<template v-if="isPre"> · {{ t('shop.preorderTag') }}</template></span>
+        </div>
+        <div class="screen">
+          <video
+            ref="clip"
+            :src="product.video_url"
+            :poster="product.image_urls[0]"
+            muted
+            loop
+            playsinline
+            preload="auto"
+            :autoplay="!still"
+            :aria-label="t('shop.clipLabel', { name: product.name })"
+            @play="playing = true"
+            @pause="playing = false"
+          />
+        </div>
+        <button type="button" class="cine-cue" @click="toSizes">{{ hasSizes ? t('shop.clipToSizes') : t('shop.clipToBuy') }} <span aria-hidden="true">↓</span></button>
+        <button type="button" class="cine-pp" :aria-label="playing ? t('shop.clipPause') : t('shop.clipPlay')" @click="toggleClip">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path :d="playing ? 'M7 5h3v14H7zM14 5h3v14h-3z' : 'M8 5v14l11-7z'" /></svg>
+        </button>
+      </section>
 
       <div v-if="loading" class="mt-3 space-y-3">
         <HudSkeletonBlock class="aspect-square max-h-80 w-full" />
@@ -163,10 +222,9 @@ function buyNow(): void {
             <span class="shrink-0 font-display text-2xl font-bold text-brand-pink-light" aria-live="polite">{{ priceLabel }}</span>
           </div>
 
-          <dl v-if="isPre" class="grid grid-cols-3 gap-2 rounded-2xl border border-[#ffe14d]/35 bg-[#ffe14d]/8 p-3 text-center">
+          <dl v-if="isPre" class="grid grid-cols-2 gap-2 rounded-2xl border border-[#ffe14d]/35 bg-[#ffe14d]/8 p-3 text-center">
             <div><dt class="text-[11px] text-white/65">{{ t('shop.closesOn') }}</dt><dd class="text-sm font-medium">{{ day(product.preorder_closes_on) }}</dd></div>
             <div><dt class="text-[11px] text-white/65">{{ t('shop.deliversOn') }}</dt><dd class="text-sm font-medium">{{ day(product.preorder_delivers_on) }}</dd></div>
-            <div><dt class="text-[11px] text-white/65">{{ t('shop.orderedSoFar') }}</dt><dd class="text-sm font-medium">{{ t('shop.units', { n: product.ordered }) }}</dd></div>
           </dl>
 
           <fieldset v-if="hasSizes" ref="sizesBox" class="sizes flex scroll-mt-24 flex-col gap-2 rounded-2xl" :class="{ nudge }" @animationend="nudge = false">
@@ -348,6 +406,132 @@ function buyNow(): void {
 }
 .added {
   animation: pop 0.25s ease-out;
+}
+
+/* ---- the turnaround: a dark stage, the clip under a spotlight ---- */
+.cine {
+  position: relative;
+  /* on a phone the stage fits between the header and the buy bar + tab bar */
+  height: clamp(440px, calc(100svh - 300px), 760px);
+  overflow: hidden;
+  background:
+    radial-gradient(60% 46% at 50% 54%, rgb(255 79 166 / 0.16), transparent 70%),
+    radial-gradient(80% 60% at 50% 110%, rgb(120 40 140 / 0.3), transparent 70%),
+    #07050a;
+}
+@media (min-width: 768px) {
+  .cine {
+    height: min(80svh, 760px);
+    border-radius: 24px;
+  }
+}
+.beam {
+  position: absolute;
+  top: -10%;
+  left: 50%;
+  width: 70vmax;
+  height: 120%;
+  translate: -50% 0;
+  background: conic-gradient(from 180deg at 50% 0%, transparent 168deg, rgb(255 190 230 / 0.08) 176deg, rgb(255 190 230 / 0.13) 180deg, rgb(255 190 230 / 0.08) 184deg, transparent 192deg);
+  filter: blur(6px);
+  pointer-events: none;
+}
+.bars::before,
+.bars::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  height: 4%;
+  background: #000;
+}
+.bars::before {
+  top: 0;
+}
+.bars::after {
+  bottom: 0;
+}
+.screen {
+  position: absolute;
+  left: 50%;
+  bottom: 4%;
+  height: 80%;
+  aspect-ratio: 9 / 16;
+  max-width: 100%;
+  translate: -50% 0;
+}
+.screen video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* closest-side: fully gone at the clip's own edges, so no seam shows */
+  -webkit-mask-image: radial-gradient(closest-side, #000 52%, transparent 100%);
+  mask-image: radial-gradient(closest-side, #000 52%, transparent 100%);
+}
+.cine-titles {
+  position: absolute;
+  z-index: 5;
+  top: 8%;
+  left: 16px;
+  right: 16px;
+  display: grid;
+  gap: 4px;
+  text-align: center;
+  pointer-events: none;
+}
+.cine-eyebrow {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.4em;
+  color: #ff9fd6;
+}
+.cine-name {
+  font-family: var(--font-display);
+  font-size: clamp(26px, 7.5vw, 48px);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: 0.03em;
+  text-wrap: balance;
+  text-shadow: 0 0 30px rgb(255 79 166 / 0.35);
+}
+.cine-price {
+  font-size: 13px;
+  color: rgb(255 255 255 / 0.7);
+}
+.cine-cue {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  bottom: calc(4% + 10px);
+  translate: -50% 0;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: 999px;
+  background: rgb(7 5 10 / 0.55);
+  backdrop-filter: blur(6px);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.cine-pp {
+  position: absolute;
+  z-index: 6;
+  right: 16px;
+  bottom: calc(4% + 10px);
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: 50%;
+  background: rgb(7 5 10 / 0.55);
+}
+.cine-cue:focus-visible,
+.cine-pp:focus-visible {
+  outline: 2px solid #ff9fd6;
+  outline-offset: 2px;
 }
 @keyframes pop {
   from {

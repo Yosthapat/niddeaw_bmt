@@ -44,6 +44,8 @@ _ROUTE_LABELS: list[tuple[str, str, re.Pattern[str]]] = [
     ("DELETE", "ลบสินค้า", re.compile(r"^/api/admin/shop/products/[^/]+$")),
     ("POST", "เพิ่มรูปสินค้า", re.compile(r"^/api/admin/shop/products/[^/]+/images$")),
     ("DELETE", "ลบรูปสินค้า", re.compile(r"^/api/admin/shop/products/[^/]+/images$")),
+    ("POST", "ใส่คลิปสินค้า", re.compile(r"^/api/admin/shop/products/[^/]+/video$")),
+    ("DELETE", "เอาคลิปสินค้าออก", re.compile(r"^/api/admin/shop/products/[^/]+/video$")),
     ("PATCH", "อัปเดตออเดอร์ร้านค้า", re.compile(r"^/api/admin/shop/orders/[^/]+$")),
     ("PATCH", "แก้รายการในออเดอร์ร้านค้า", re.compile(r"^/api/admin/shop/orders/[^/]+/items/[^/]+$")),
     ("POST", "ลบออเดอร์ร้านค้า", re.compile(r"^/api/admin/shop/orders/[^/]+/delete$")),

@@ -293,6 +293,8 @@ function openForm(p: Product | null): void {
   form.active = p?.is_active ?? true
   newPhotos.value.forEach((x) => URL.revokeObjectURL(x.url))
   newPhotos.value = []
+  dropNewVideo()
+  videoProblem.value = null
   formError.value = null
   tried.value = false
   formOpen.value = true
@@ -353,6 +355,41 @@ const problems = computed(() => {
   }
   return p
 })
+// The turnaround clip: picked now, sent with the save (like new photos);
+// removing a saved one happens straight away.
+const MAX_VIDEO_MB = 15
+const newVideo = ref<{ file: File; url: string } | null>(null)
+const videoProblem = ref<string | null>(null)
+function onVideo(event: Event): void {
+  const input = event.target as HTMLInputElement
+  const f = input.files?.[0]
+  input.value = ''
+  videoProblem.value = null
+  if (!f) return
+  if (!/^video\/(mp4|webm)$/.test(f.type) && !/\.(mp4|webm)$/i.test(f.name)) {
+    videoProblem.value = t('shopAdmin.videoType')
+    return
+  }
+  if (f.size > MAX_VIDEO_MB * 1024 * 1024) {
+    videoProblem.value = t('shopAdmin.videoTooBig', { mb: MAX_VIDEO_MB })
+    return
+  }
+  if (newVideo.value) URL.revokeObjectURL(newVideo.value.url)
+  newVideo.value = { file: f, url: URL.createObjectURL(f) }
+}
+function dropNewVideo(): void {
+  if (newVideo.value) URL.revokeObjectURL(newVideo.value.url)
+  newVideo.value = null
+}
+async function removeSavedVideo(): Promise<void> {
+  if (!editing.value) return
+  try {
+    editing.value = await adminApi.removeProductVideo(editing.value.id)
+    products.value = products.value.map((p) => (p.id === editing.value!.id ? editing.value! : p))
+  } catch (e) {
+    formError.value = apiErrorMessage(e, t('shopAdmin.saveFailed'))
+  }
+}
 const photoCount = computed(() => (editing.value?.image_urls.length ?? 0) + newPhotos.value.length)
 
 async function onPhoto(event: Event): Promise<void> {
@@ -405,6 +442,10 @@ async function save(): Promise<void> {
       ? await adminApi.updateProduct(editing.value.id, fields)
       : await adminApi.createProduct(fields)
     for (const photo of newPhotos.value) saved = await adminApi.addProductImage(saved.id, photo.file)
+    if (newVideo.value) {
+      saved = await adminApi.setProductVideo(saved.id, newVideo.value.file)
+      dropNewVideo()
+    }
     const exists = products.value.some((p) => p.id === saved.id)
     products.value = exists ? products.value.map((p) => (p.id === saved.id ? saved : p)) : [saved, ...products.value]
     formOpen.value = false
@@ -671,6 +712,30 @@ function priceText(p: Product): string {
           </label>
         </div>
         <p v-if="newPhotos.length" class="mt-1 text-xs text-white/50">{{ t('shopAdmin.photosAfterSave') }}</p>
+      </div>
+
+      <div>
+        <p class="text-sm text-white/75">{{ t('shopAdmin.video') }}</p>
+        <p class="mt-0.5 text-xs text-white/50">{{ t('shopAdmin.videoHint', { mb: MAX_VIDEO_MB }) }}</p>
+        <div class="mt-2 flex flex-wrap items-end gap-3">
+          <div v-if="newVideo || editing?.video_url" class="relative h-32 w-20 overflow-hidden rounded-xl bg-black">
+            <video :src="newVideo?.url ?? editing?.video_url ?? undefined" class="h-full w-full object-cover" :class="{ 'opacity-80': newVideo }" muted loop autoplay playsinline aria-hidden="true" />
+            <button
+              type="button"
+              class="absolute -top-0 -right-0 flex h-8 w-8 items-center justify-center rounded-full bg-black/80 text-white"
+              :aria-label="t('shopAdmin.removeVideo')"
+              @click="newVideo ? dropNewVideo() : removeSavedVideo()"
+            >
+              ×
+            </button>
+          </div>
+          <label class="flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-dashed border-white/35 px-4 text-sm text-white/75">
+            {{ newVideo || editing?.video_url ? t('shopAdmin.replaceVideo') : t('shopAdmin.addVideo') }}
+            <input type="file" accept="video/mp4,video/webm" class="sr-only" @change="onVideo" />
+          </label>
+        </div>
+        <p v-if="videoProblem" class="mt-1 text-xs text-status-error" role="alert">{{ videoProblem }}</p>
+        <p v-else-if="newVideo" class="mt-1 text-xs text-white/50">{{ t('shopAdmin.videoAfterSave') }}</p>
       </div>
 
       <label class="flex flex-col gap-1 text-sm text-white/75">

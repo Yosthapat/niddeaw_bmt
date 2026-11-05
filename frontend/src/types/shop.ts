@@ -13,6 +13,8 @@ export interface Product {
   preorder_closes_on: string | null
   preorder_delivers_on: string | null
   image_urls: string[]
+  /** a short clip of it turning round; the product page opens on it */
+  video_url?: string | null
   is_active: boolean
   sort_order: number
   created_at: string
