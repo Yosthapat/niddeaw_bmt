@@ -20,7 +20,7 @@ export const THRESHOLDS: Record<string, number[]> = {
   aged: [10, 50, 100, 300],
   giant: [1, 5, 10],
   unbeaten: [1, 3, 5],
-  marathon: [10, 15, 20],
+  marathon: [6, 7, 8],
   mixer: [5, 10, 20],
   buddy: [5, 10, 20],
   revenge: [1, 3],
