@@ -22,10 +22,44 @@ MAX_CART_LINES = 20
 MAX_LINE_QTY = 10
 
 
+MAX_CAPTIONS = 3
+MAX_FACTS = 8
+MAX_CHART = 12
+MAX_LOOKBOOK = 4
+
+
+class CinemaCaption(BaseModel):
+    """A caption that comes up while the clip turns ("THE CAT")."""
+
+    label: str = Field(default="", max_length=24)
+    text: str = Field(default="", max_length=60)
+
+
+class CinemaSize(BaseModel):
+    """One row of the size chart, in inches."""
+
+    size: str = Field(min_length=1, max_length=12)
+    width: float | None = Field(default=None, gt=0, le=200)
+    length: float | None = Field(default=None, gt=0, le=200)
+
+
+class Cinema(BaseModel):
+    """The words on a product's cinematic page; every part optional."""
+
+    title: str = Field(default="", max_length=40)
+    subtitle: str = Field(default="", max_length=80)
+    captions: list[CinemaCaption] = Field(default=[], max_length=MAX_CAPTIONS)
+    facts: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]] = Field(
+        default=[], max_length=MAX_FACTS
+    )
+    lookbook: list[Annotated[str, StringConstraints(max_length=500)]] = Field(default=[], max_length=MAX_LOOKBOOK)
+    chart: list[CinemaSize] = Field(default=[], max_length=MAX_CHART)
+
+
 class ProductFields(EditForm):
     """What the admin form sends, on create and (all optional) on edit."""
 
-    NOT_NULL = frozenset({"name", "price", "sale_type", "sizes", "size_prices", "is_active"})
+    NOT_NULL = frozenset({"name", "price", "sale_type", "sizes", "size_prices", "is_active", "cinema"})
 
     name: Name | None = None
     description: Description | None = None
@@ -41,6 +75,7 @@ class ProductFields(EditForm):
     # keys are sizes the product has.
     size_prices: dict[str, PositiveBaht] | None = None
     is_active: bool | None = None
+    cinema: Cinema | None = None
 
     @model_validator(mode="after")
     def _distinct_sizes(self) -> Self:
@@ -55,6 +90,19 @@ class ProductCreate(ProductFields):
     sale_type: SaleType
 
 
+MAX_DETAILS = 3
+MAX_DETAIL_LABEL = 24
+MAX_DETAIL_NOTE = 80
+
+
+class ProductDetail(BaseModel):
+    """One close-up on the cinematic product page."""
+
+    url: str
+    label: str = ""
+    note: str = ""
+
+
 class Product(BaseModel):
     id: UUID
     name: str
@@ -67,6 +115,10 @@ class Product(BaseModel):
     image_urls: list[str]
     video_url: str | None = None
     """A short clip of the product turning round; the product page opens on it."""
+    detail_images: list[ProductDetail] = []
+    """Close-ups shown under the clip, in order."""
+    cinema: Cinema = Cinema()
+    """The words on the cinematic page."""
     is_active: bool
     sort_order: int
     created_at: datetime

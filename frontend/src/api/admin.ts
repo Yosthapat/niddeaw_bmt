@@ -548,6 +548,19 @@ export async function setProductVideo(id: string, file: File): Promise<Product> 
   return request(`/api/admin/shop/products/${id}/video`, { method: 'POST', body: form })
 }
 
+/** A close-up for the cinematic page, with its label and the line under it. */
+export async function addProductDetail(id: string, file: File, label: string, note: string): Promise<Product> {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('label', label)
+  form.append('note', note)
+  return request(`/api/admin/shop/products/${id}/details`, { method: 'POST', body: form })
+}
+
+export async function removeProductDetail(id: string, url: string): Promise<Product> {
+  return request(`/api/admin/shop/products/${id}/details?url=${encodeURIComponent(url)}`, { method: 'DELETE' })
+}
+
 export async function removeProductVideo(id: string): Promise<Product> {
   return request(`/api/admin/shop/products/${id}/video`, { method: 'DELETE' })
 }

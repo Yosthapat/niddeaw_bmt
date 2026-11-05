@@ -714,3 +714,69 @@ def test_removing_the_clip_clears_it_and_the_file(client: TestClient, shelf: She
     response = client.delete(f"/api/admin/shop/products/{PRODUCT_ID}/video", headers=auth())
     assert response.status_code == 200 and response.json()["video_url"] is None
     assert shelf.storage.from_("shop").removed == [["product-video-abc.mp4"]]
+
+
+# ------------------------------------------------------------- close-ups
+
+
+def jpeg() -> bytes:
+    buf = io.BytesIO()
+    Image.new("RGB", (40, 30), (240, 170, 200)).save(buf, format="JPEG")
+    return buf.getvalue()
+
+
+def test_close_ups_keep_their_label_and_line_in_order(client: TestClient, shelf: Shelf) -> None:
+    seed(shelf)
+    for label, note in [("FRONT", "โลโก้หน้าอก"), ("BACK", "แมวดำด้านหลัง")]:
+        r = client.post(
+            f"/api/admin/shop/products/{PRODUCT_ID}/details",
+            data={"label": f"  {label} ", "note": note},
+            files={"file": ("d.jpg", jpeg(), "image/jpeg")},
+            headers=auth(),
+        )
+        assert r.status_code == 200
+    details = r.json()["detail_images"]
+    assert [(d["label"], d["note"]) for d in details] == [("FRONT", "โลโก้หน้าอก"), ("BACK", "แมวดำด้านหลัง")]
+    path, data, options = shelf.storage.from_("shop").uploaded[0]
+    assert path.startswith("product-detail-") and options["content-type"] == "image/jpeg" and data[:2] == b"\xff\xd8"
+
+
+def test_three_close_ups_at_most(client: TestClient, shelf: Shelf) -> None:
+    full = [{"url": f"https://fake.supabase.co/storage/v1/object/public/shop/product-detail-{i}.jpg", "label": "", "note": ""} for i in range(3)]
+    seed(shelf, prod=product(detail_images=full))
+    r = client.post(f"/api/admin/shop/products/{PRODUCT_ID}/details", files={"file": ("d.jpg", jpeg(), "image/jpeg")}, headers=auth())
+    assert r.status_code == 400
+    assert not shelf.storage.from_("shop").uploaded
+
+
+def test_removing_a_close_up_drops_it_and_its_file(client: TestClient, shelf: Shelf) -> None:
+    keep = {"url": "https://fake.supabase.co/storage/v1/object/public/shop/product-detail-a.jpg", "label": "FRONT", "note": ""}
+    gone = {"url": "https://fake.supabase.co/storage/v1/object/public/shop/product-detail-b.jpg", "label": "BACK", "note": ""}
+    seed(shelf, prod=product(detail_images=[keep, gone]))
+    r = client.delete(f"/api/admin/shop/products/{PRODUCT_ID}/details", params={"url": gone["url"]}, headers=auth())
+    assert r.status_code == 200 and [d["label"] for d in r.json()["detail_images"]] == ["FRONT"]
+    assert shelf.storage.from_("shop").removed == [["product-detail-b.jpg"]]
+    assert client.delete(f"/api/admin/shop/products/{PRODUCT_ID}/details", params={"url": gone["url"]}, headers=auth()).status_code == 404
+
+
+def test_only_an_admin_adds_close_ups(client: TestClient, shelf: Shelf) -> None:
+    seed(shelf)
+    r = client.post(f"/api/admin/shop/products/{PRODUCT_ID}/details", files={"file": ("d.jpg", jpeg(), "image/jpeg")})
+    assert r.status_code in (401, 403)
+
+
+def test_the_cinematic_words_are_saved_and_checked(client: TestClient, shelf: Shelf) -> None:
+    seed(shelf)
+    cinema = {
+        "title": "JERSEY #01",
+        "captions": [{"label": "THE CAT", "text": "แมวดำวิ่งเต็มแผ่นหลัง"}],
+        "facts": ["  ระบายอากาศดี "],
+        "chart": [{"size": "M", "width": 40, "length": 27}],
+    }
+    r = client.patch(f"/api/admin/shop/products/{PRODUCT_ID}", json={"cinema": cinema}, headers=auth())
+    assert r.status_code == 200
+    saved = r.json()["cinema"]
+    assert saved["title"] == "JERSEY #01" and saved["facts"] == ["ระบายอากาศดี"] and saved["chart"][0]["width"] == 40
+    four = {"captions": [{"label": str(i)} for i in range(4)]}
+    assert client.patch(f"/api/admin/shop/products/{PRODUCT_ID}", json={"cinema": four}, headers=auth()).status_code == 422
+    assert client.patch(f"/api/admin/shop/products/{PRODUCT_ID}", json={"cinema": None}, headers=auth()).status_code == 422

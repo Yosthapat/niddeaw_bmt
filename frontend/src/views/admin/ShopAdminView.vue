@@ -270,6 +270,13 @@ const form = reactive({
   closes: '',
   delivers: '',
   active: true,
+  // the cinematic page's words: three captions, a point per line, a size per line
+  cTitle: '',
+  cSubtitle: '',
+  cCaptions: [{ label: '', text: '' }, { label: '', text: '' }, { label: '', text: '' }],
+  cFacts: '',
+  cChart: '',
+  cLook: [] as string[],
 })
 const newPhotos = ref<{ file: File; url: string }[]>([])
 const formError = ref<string | null>(null)
@@ -280,6 +287,13 @@ function openForm(p: Product | null): void {
   editing.value = p
   form.name = p?.name ?? ''
   form.description = p?.description ?? ''
+  const c = p?.cinema ?? {}
+  form.cTitle = c.title ?? ''
+  form.cSubtitle = c.subtitle ?? ''
+  form.cCaptions = [0, 1, 2].map((i) => ({ label: c.captions?.[i]?.label ?? '', text: c.captions?.[i]?.text ?? '' }))
+  form.cFacts = (c.facts ?? []).join('\n')
+  form.cChart = (c.chart ?? []).map((r) => [r.size, r.width ?? '', r.length ?? ''].join(' ').trim()).join('\n')
+  form.cLook = [...(c.lookbook ?? [])]
   form.price = p?.price ?? ''
   form.sale_type = p?.sale_type ?? 'stock'
   form.hasSizes = p ? p.sizes.length > 0 : true
@@ -295,6 +309,7 @@ function openForm(p: Product | null): void {
   newPhotos.value = []
   dropNewVideo()
   videoProblem.value = null
+  clearDetail()
   formError.value = null
   tried.value = false
   formOpen.value = true
@@ -330,8 +345,26 @@ function addCustomSize(): void {
 }
 
 const stockKeys = computed(() => (form.hasSizes ? form.sizes : ['']))
+/** "XS 36 25" per line → rows; null when a line can't be read. */
+function chartRows(text: string): { size: string; width: number | null; length: number | null }[] | null {
+  const out: { size: string; width: number | null; length: number | null }[] = []
+  for (const line of text.split('\n').map((l) => l.trim()).filter(Boolean)) {
+    const [size, w, l, ...rest] = line.split(/\s+/)
+    const num = (x: string | undefined): number | null | undefined => (x === undefined ? null : Number.isFinite(Number(x)) && Number(x) > 0 ? Number(x) : undefined)
+    const width = num(w)
+    const length = num(l)
+    if (!size || size.length > 12 || rest.length || width === undefined || length === undefined) return null
+    out.push({ size, width, length })
+  }
+  return out.slice(0, 12)
+}
+function toggleLook(url: string): void {
+  form.cLook = form.cLook.includes(url) ? form.cLook.filter((u) => u !== url) : [...form.cLook, url].slice(0, 4)
+}
+
 const problems = computed(() => {
   const p: Record<string, string> = {}
+  if (chartRows(form.cChart) === null) p.cChart = t('shopAdmin.cineChartBad')
   if (!form.name.trim()) p.name = t('shopAdmin.nameRequired')
   const price = bahtProblem(form.price, { allowZero: false })
   if (price) p.price = t(`validation.${price}`)
@@ -390,6 +423,48 @@ async function removeSavedVideo(): Promise<void> {
     formError.value = apiErrorMessage(e, t('shopAdmin.saveFailed'))
   }
 }
+// Close-ups for the cinematic page: each goes up as soon as it is added
+// (it needs its label and line with it), so the product must exist first.
+const MAX_DETAILS = 3
+const detail = reactive({ file: null as File | null, url: '', label: '', note: '' })
+const detailBusy = ref(false)
+function onDetail(event: Event): void {
+  const input = event.target as HTMLInputElement
+  const f = input.files?.[0]
+  input.value = ''
+  if (!f) return
+  if (detail.url) URL.revokeObjectURL(detail.url)
+  detail.file = f
+  detail.url = URL.createObjectURL(f)
+}
+function clearDetail(): void {
+  if (detail.url) URL.revokeObjectURL(detail.url)
+  Object.assign(detail, { file: null, url: '', label: '', note: '' })
+}
+async function addDetail(): Promise<void> {
+  if (!editing.value || !detail.file) return
+  detailBusy.value = true
+  formError.value = null
+  try {
+    const file = await compressImage(detail.file)
+    editing.value = await adminApi.addProductDetail(editing.value.id, file, detail.label.trim(), detail.note.trim())
+    products.value = products.value.map((p) => (p.id === editing.value!.id ? editing.value! : p))
+    clearDetail()
+  } catch (e) {
+    formError.value = apiErrorMessage(e, t('shopAdmin.saveFailed'))
+  } finally {
+    detailBusy.value = false
+  }
+}
+async function removeDetail(url: string): Promise<void> {
+  if (!editing.value) return
+  try {
+    editing.value = await adminApi.removeProductDetail(editing.value.id, url)
+    products.value = products.value.map((p) => (p.id === editing.value!.id ? editing.value! : p))
+  } catch (e) {
+    formError.value = apiErrorMessage(e, t('shopAdmin.saveFailed'))
+  }
+}
 const photoCount = computed(() => (editing.value?.image_urls.length ?? 0) + newPhotos.value.length)
 
 async function onPhoto(event: Event): Promise<void> {
@@ -421,6 +496,15 @@ async function save(): Promise<void> {
   const fields = {
     name: form.name.trim(),
     description: form.description.trim() || null,
+    cinema: {
+      title: form.cTitle.trim(),
+      subtitle: form.cSubtitle.trim(),
+      captions: form.cCaptions.map((c) => ({ label: c.label.trim(), text: c.text.trim() })).filter((c) => c.label || c.text),
+      facts: form.cFacts.split('\n').map((f) => f.trim()).filter(Boolean).slice(0, 8),
+      chart: chartRows(form.cChart) ?? [],
+      // photos removed since stay out of it
+      lookbook: form.cLook.filter((u) => editing.value?.image_urls.includes(u)),
+    },
     price: Number(form.price),
     sale_type: form.sale_type,
     sizes,
@@ -737,6 +821,72 @@ function priceText(p: Product): string {
         <p v-if="videoProblem" class="mt-1 text-xs text-status-error" role="alert">{{ videoProblem }}</p>
         <p v-else-if="newVideo" class="mt-1 text-xs text-white/50">{{ t('shopAdmin.videoAfterSave') }}</p>
       </div>
+
+      <div>
+        <p class="text-sm text-white/75">{{ t('shopAdmin.details') }}</p>
+        <p class="mt-0.5 text-xs text-white/50">{{ t('shopAdmin.detailsHint', { n: MAX_DETAILS }) }}</p>
+        <ul v-if="editing?.detail_images?.length" class="mt-2 flex flex-col gap-2">
+          <li v-for="d in editing.detail_images" :key="d.url" class="flex items-center gap-3 rounded-xl border border-white/10 p-2">
+            <img :src="d.url" alt="" class="h-12 w-20 shrink-0 rounded-lg object-cover" />
+            <span class="min-w-0 flex-1 text-sm">
+              <b class="block truncate font-display tracking-wider">{{ d.label || '—' }}</b>
+              <span class="block truncate text-xs text-white/60">{{ d.note }}</span>
+            </span>
+            <button type="button" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/60 text-white" :aria-label="t('shopAdmin.removeDetail')" @click="removeDetail(d.url)">×</button>
+          </li>
+        </ul>
+        <p v-if="!editing" class="mt-2 text-xs text-white/50">{{ t('shopAdmin.detailsAfterCreate') }}</p>
+        <div v-else-if="(editing.detail_images?.length ?? 0) < MAX_DETAILS" class="mt-2 flex flex-col gap-2 rounded-xl border border-dashed border-white/25 p-3">
+          <div class="flex items-center gap-3">
+            <img v-if="detail.url" :src="detail.url" alt="" class="h-12 w-20 shrink-0 rounded-lg object-cover" />
+            <label class="flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-white/25 px-4 text-sm text-white/75">
+              {{ detail.file ? t('shopAdmin.replacePhoto') : t('shopAdmin.pickDetail') }}
+              <input type="file" accept="image/*" class="sr-only" @change="onDetail" />
+            </label>
+          </div>
+          <input v-model="detail.label" :maxlength="24" :placeholder="t('shopAdmin.detailLabel')" :aria-label="t('shopAdmin.detailLabel')" class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-black px-3 text-white" />
+          <input v-model="detail.note" :maxlength="80" :placeholder="t('shopAdmin.detailNote')" :aria-label="t('shopAdmin.detailNote')" class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-black px-3 text-white" />
+          <button type="button" class="min-h-11 rounded-xl bg-brand-pink/90 px-4 text-sm font-medium text-brand-black disabled:opacity-50" :disabled="!detail.file || detailBusy" @click="addDetail">
+            {{ detailBusy ? t('common.saving') : t('shopAdmin.addDetail') }}
+          </button>
+        </div>
+      </div>
+
+      <details class="rounded-xl border border-white/12 p-3" :open="!!editing?.video_url">
+        <summary class="min-h-11 cursor-pointer text-sm text-white/85">{{ t('shopAdmin.cine') }}</summary>
+        <p class="mb-3 text-xs text-white/50">{{ t('shopAdmin.cineHint') }}</p>
+        <div class="flex flex-col gap-3 text-sm text-white/75">
+          <label class="flex flex-col gap-1">{{ t('shopAdmin.cineTitle') }}
+            <input v-model="form.cTitle" maxlength="40" placeholder="JERSEY #01" class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-black px-3 text-white" />
+          </label>
+          <label class="flex flex-col gap-1">{{ t('shopAdmin.cineSubtitle') }}
+            <input v-model="form.cSubtitle" maxlength="80" class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-black px-3 text-white" />
+          </label>
+          <fieldset class="flex flex-col gap-2">
+            <legend class="mb-1">{{ t('shopAdmin.cineCaptions') }}</legend>
+            <div v-for="(c, i) in form.cCaptions" :key="i" class="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-2">
+              <input v-model="c.label" maxlength="24" :placeholder="['PINK × BLACK', 'THE CAT', 'LIGHT · DRY'][i]" :aria-label="t('shopAdmin.cineCaptionLabel', { n: i + 1 })" class="min-h-11 min-w-0 rounded-lg border border-brand-pink/25 bg-brand-black px-3 text-white" />
+              <input v-model="c.text" maxlength="60" :aria-label="t('shopAdmin.cineCaptionText', { n: i + 1 })" class="min-h-11 min-w-0 rounded-lg border border-brand-pink/25 bg-brand-black px-3 text-white" />
+            </div>
+          </fieldset>
+          <label class="flex flex-col gap-1">{{ t('shopAdmin.cineFacts') }}
+            <textarea v-model="form.cFacts" rows="3" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-white" />
+          </label>
+          <label class="flex flex-col gap-1">{{ t('shopAdmin.cineChart') }}
+            <textarea v-model="form.cChart" rows="4" placeholder="XS 36 25" :aria-invalid="tried && !!problems.cChart" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 font-mono text-white" />
+            <span v-if="tried && problems.cChart" class="text-xs text-status-error">{{ problems.cChart }}</span>
+          </label>
+          <div v-if="editing?.image_urls.length">
+            <p class="mb-1">{{ t('shopAdmin.cineLook') }}</p>
+            <div class="flex flex-wrap gap-2">
+              <button v-for="url in editing.image_urls" :key="url" type="button" class="relative h-20 w-16 overflow-hidden rounded-lg border-2" :class="form.cLook.includes(url) ? 'border-brand-pink' : 'border-transparent opacity-60'" :aria-pressed="form.cLook.includes(url)" :aria-label="t('shopAdmin.cineLookPick')" @click="toggleLook(url)">
+                <img :src="url" alt="" class="h-full w-full object-cover" />
+                <span v-if="form.cLook.includes(url)" class="absolute top-1 left-1 rounded bg-black/70 px-1 text-[10px]">{{ form.cLook.indexOf(url) + 1 }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </details>
 
       <label class="flex flex-col gap-1 text-sm text-white/75">
         {{ t('shopAdmin.name') }}

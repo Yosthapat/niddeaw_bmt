@@ -4,11 +4,14 @@ from datetime import UTC, datetime
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, Request, UploadFile, status
+from fastapi import APIRouter, Form, HTTPException, Query, Request, UploadFile, status
 
 from app.db_utils import rows
 from app.deps import AdminDep, SupabaseDep
 from app.models.shop import (
+    MAX_DETAIL_LABEL,
+    MAX_DETAIL_NOTE,
+    MAX_DETAILS,
     MAX_IMAGES,
     ONE_SIZE,
     OrderAdmin,
@@ -153,7 +156,8 @@ def delete_product(product_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> 
             detail="สินค้านี้มีออเดอร์แล้ว ลบไม่ได้ — ปิด \"ขายอยู่\" แทน",
         )
     supabase.table("products").delete().eq("id", str(product_id)).execute()
-    for url in [*(product.get("image_urls") or []), product.get("video_url")]:
+    details = [d.get("url") for d in (product.get("detail_images") or []) if isinstance(d, dict)]
+    for url in [*(product.get("image_urls") or []), product.get("video_url"), *details]:
         if url:
             _forget(supabase, url)
 
@@ -254,6 +258,59 @@ def remove_video(product_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> Pr
     result = supabase.table("products").update({"video_url": None}).eq("id", str(product_id)).execute()
     if old:
         _forget(supabase, old)
+    return _hydrated(supabase, rows(result)[0])
+
+
+def _details(product: dict[str, Any]) -> list[dict[str, str]]:
+    return [d for d in (product.get("detail_images") or []) if isinstance(d, dict) and d.get("url")]
+
+
+@router.post("/products/{product_id}/details", response_model=Product)
+async def add_detail(
+    product_id: UUID,
+    file: UploadFile,
+    supabase: SupabaseDep,
+    admin: AdminDep,
+    label: Annotated[str, Form(max_length=MAX_DETAIL_LABEL)] = "",
+    note: Annotated[str, Form(max_length=MAX_DETAIL_NOTE)] = "",
+) -> Product:
+    """A close-up for the cinematic page, with its label ("BACK") and a line under it."""
+    details = _details(_product(supabase, str(product_id)))  # before the row changes
+    if len(details) >= MAX_DETAILS:
+        raise _bad(f"ใส่ภาพใกล้ได้สูงสุด {MAX_DETAILS} รูป — ลบรูปเก่าก่อน")
+    contents = await file.read(MAX_IMAGE_BYTES + 1)
+    if len(contents) > MAX_IMAGE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Image file too large (max 5MB)"
+        )
+    try:
+        image = resize_jpeg(contents, IMAGE_MAX_PX)
+    except ValueError:
+        raise _bad("Unsupported image type") from None
+    path = f"product-detail-{uuid.uuid4().hex}.jpg"
+    bucket = supabase.storage.from_(SHOP_BUCKET)
+    bucket.upload(path, image, {"content-type": "image/jpeg", "cache-control": IMAGE_CACHE_SECONDS})
+    entry = {"url": bucket.get_public_url(path), "label": label.strip(), "note": note.strip()}
+    result = (
+        supabase.table("products").update({"detail_images": [*details, entry]}).eq("id", str(product_id)).execute()
+    )
+    return _hydrated(supabase, rows(result)[0])
+
+
+@router.delete("/products/{product_id}/details", response_model=Product)
+def remove_detail(
+    product_id: UUID, supabase: SupabaseDep, admin: AdminDep, url: Annotated[str, Query(max_length=500)]
+) -> Product:
+    details = _details(_product(supabase, str(product_id)))
+    if not any(d["url"] == url for d in details):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found")
+    result = (
+        supabase.table("products")
+        .update({"detail_images": [d for d in details if d["url"] != url]})
+        .eq("id", str(product_id))
+        .execute()
+    )
+    _forget(supabase, url)
     return _hydrated(supabase, rows(result)[0])
 
 
