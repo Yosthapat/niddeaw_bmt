@@ -13,7 +13,7 @@ import BrandQr from '@/components/common/BrandQr.vue'
 import { useRouter } from 'vue-router'
 import { getCartPayment, getPlayers, placeShopOrder, quoteCart, type ShopBuyer } from '@/api/public'
 import { apiErrorMessage } from '@/api/errors'
-import { getLineMe, rememberedLineToken } from '@/api/line'
+import { getLineConfig, getLineMe, rememberedLineToken } from '@/api/line'
 import type { PaymentInfoResponse, PlayerStats, Quote, ShopOrder } from '@/types'
 import { formatPhone, orderNo, phoneDigits } from '@/types'
 import { money } from '@/utils/format'
@@ -43,6 +43,13 @@ const guestName = ref('')
 const guestPhone = ref('')
 // The member this tab's LINE account is linked to: the buyer unless they change it.
 const linePlayerId = ref<string | null>(null)
+// Not linked yet: a note under the picker asks them to link their name in
+// LINE once, so the next order skips it. `lineWaiting`: they asked, and an
+// admin hasn't confirmed it yet. `lineHref`: where linking starts, the LINE
+// page in this tab when it came from LINE, else the club's LIFF link.
+const lineWaiting = ref(false)
+const lineHref = ref<string | null>(null)
+const fromLine = rememberedLineToken() !== null
 const pay = ref<PaymentInfoResponse | null>(null)
 const payError = ref<string | null>(null)
 const slip = ref<File | null>(null)
@@ -59,7 +66,7 @@ onMounted(async () => {
     return
   }
   try {
-    const [q, m, line] = await Promise.all([quoteCart(cart.lines), getPlayers(), linkedPlayerId()])
+    const [q, m, line] = await Promise.all([quoteCart(cart.lines), getPlayers(), lineState(), linkStart()])
     // A line that can't be had is fixed on the cart page, not here.
     if (!q.ok) {
       router.replace('/shop/cart')
@@ -97,14 +104,26 @@ onMounted(async () => {
 })
 
 /** The member this tab's LINE account is linked to, if it came from LINE. */
-async function linkedPlayerId(): Promise<string | null> {
+async function lineState(): Promise<string | null> {
   const token = rememberedLineToken()
   if (!token) return null
   try {
-    return (await getLineMe(token)).player?.id ?? null
+    const me = await getLineMe(token)
+    lineWaiting.value = !me.player && !!(me.pending || me.application)
+    return me.player?.id ?? null
   } catch {
     // an expired or refused token: pick the name as usual
     return null
+  }
+}
+
+/** Where linking a name to LINE starts; nothing when LINE isn't switched on. */
+async function linkStart(): Promise<void> {
+  try {
+    const config = await getLineConfig()
+    if (config.enabled && config.liff_id) lineHref.value = fromLine ? '/line' : `https://liff.line.me/${config.liff_id}`
+  } catch {
+    // no note, then
   }
 }
 
@@ -300,6 +319,21 @@ async function send(): Promise<void> {
             </button>
           </div>
           <p class="text-xs text-white/55">{{ t('shop.whoMissing') }}</p>
+          <div v-if="lineHref && !linePlayerId" class="line-nudge">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true" class="mt-0.5 flex-none text-[#06c755]"><path d="M12 3C6.5 3 2 6.6 2 11c0 3.9 3.5 7.2 8.3 7.9.3.1.8.2.9.5.1.3.1.7 0 1l-.1.9c0 .3-.2 1 .9.5 1.1-.5 5.9-3.5 8-5.9C21.4 14.3 22 12.7 22 11c0-4.4-4.5-8-10-8Z" /></svg>
+            <div class="min-w-0 flex-1">
+              <template v-if="lineWaiting">
+                <p class="font-semibold text-white/90">{{ t('shop.lineWaitTitle') }}</p>
+                <p class="mt-0.5 text-white/65">{{ t('shop.lineWaitText') }}</p>
+              </template>
+              <template v-else>
+                <p class="font-semibold text-white/90">{{ t('shop.lineNudgeTitle') }}</p>
+                <p class="mt-0.5 text-white/65">{{ t('shop.lineNudgeText') }}</p>
+                <RouterLink v-if="fromLine" :to="lineHref" class="line-link">{{ t('shop.lineNudgeGo') }}</RouterLink>
+                <a v-else :href="lineHref" class="line-link">{{ t('shop.lineNudgeGo') }}</a>
+              </template>
+            </div>
+          </div>
           <button type="button" class="cta mt-2" :disabled="!ready" @click="toPay">{{ nextLabel }}</button>
         </section>
 
@@ -406,6 +440,32 @@ async function send(): Promise<void> {
 }
 details[open] .chev {
   rotate: 180deg;
+}
+.line-nudge {
+  display: flex;
+  gap: 10px;
+  border-radius: 16px;
+  border: 1px solid rgb(6 199 85 / 0.35);
+  background: rgb(6 199 85 / 0.08);
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.line-link {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  margin-top: 8px;
+  border-radius: 999px;
+  background: #06c755;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+}
+.line-link:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
 }
 .buyer-chip {
   display: flex;
