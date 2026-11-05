@@ -52,6 +52,7 @@ from app.services import (
     line_checkin,
     line_join,
     login_throttle,
+    nickname_service,
     night_bill,
     payment_info_service,
 )
@@ -270,7 +271,8 @@ def join(payload: JoinIn, supabase: SupabaseDep, member: LineMemberDep) -> LineS
     """Send (or resend) a sign-up. Nobody is in the club until an admin
     accepts it (routers/admin/line_admin.py)."""
     _not_yet_a_member(supabase, member)
-    nickname = check_nickname(supabase, payload.nickname)
+    # A capital then small letters, whatever they typed ("VAAN" → "Vaan").
+    nickname = check_nickname(supabase, nickname_service.tidy_case(payload.nickname))
     # Two people waiting with the same name would leave the admin to turn
     # one down for it later; tell the second one now. The format rule has
     # already ruled out % and _, so ilike can only match the name itself.

@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from app.services.nickname_service import (
+    tidy_case,
     EMPTY,
     MAX_LENGTH,
     NOT_CAPITALISED,
@@ -79,3 +80,15 @@ def test_surrounding_and_doubled_spaces_do_not_make_a_different_name() -> None:
 def test_a_trailing_space_does_not_sneak_a_second_member_past_the_check() -> None:
     """Two rows reading "Ball" and "Ball " look identical on screen."""
     assert normalise("Ball ") == normalise("Ball")
+
+
+def test_sign_up_names_are_tidied_to_a_capital_then_small_letters() -> None:
+    assert tidy_case("VAAN") == "Vaan"
+    assert tidy_case("vaan") == "Vaan"
+    assert tidy_case("vAaN") == "Vaan"
+    assert tidy_case("  big   BOY ") == "Big Boy"
+    assert tidy_case("p'tee") == "P'Tee"
+    assert tidy_case("mary-jane") == "Mary-Jane"
+    # not English: left for validation to refuse
+    assert tidy_case("ต้นกล้า") == "ต้นกล้า"
+    assert validation_error(tidy_case("vaan")) is None

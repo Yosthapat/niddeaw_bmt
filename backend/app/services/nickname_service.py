@@ -45,6 +45,20 @@ def normalise(raw: str) -> str:
     return " ".join(raw.split())
 
 
+_PART = re.compile(r"([A-Za-z]+)")
+
+
+def tidy_case(raw: str) -> str:
+    """A capital, then small letters, for each part of the name: "VAAN" and
+    "vaan" become "Vaan", "big boy" "Big Boy", "p'tee" "P'Tee". Used for
+    the names people give themselves when they sign up in LINE, so they
+    don't have to know the rule; the admin's own forms keep what the admin
+    typed (the club has names like "GumAmnart"). Anything that isn't an
+    English letter is left alone for validation to turn down.
+    """
+    return _PART.sub(lambda m: m.group(1)[0].upper() + m.group(1)[1:].lower(), normalise(raw))
+
+
 def validation_error(raw: str) -> str | None:
     """The reason this nickname is not allowed, or None if it is.
 
