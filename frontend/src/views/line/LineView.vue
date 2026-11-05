@@ -84,6 +84,12 @@ async function start(): Promise<void> {
     canScan.value = liffCanScan()
     token.value = status.token ?? ''
     if (status.token) lineApi.rememberLineToken(status.token)
+    // /line/shop (the OA menu's shop button): only here to learn who this
+    // is, then on to the shop, where a linked member's checkout skips "who".
+    if (route.params.section === 'shop') {
+      void router.replace('/shop')
+      return
+    }
     me.value = status
     if (!status.player) await loadOptions()
     joining.value = route.params.section === 'register' && !status.player && !status.pending && !status.application
