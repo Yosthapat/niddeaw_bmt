@@ -1,6 +1,7 @@
 """Quests and badges: public reads, the member's own medals on LINE, and the
 admin's two settings (when counting started, the monthly target)."""
 
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -19,6 +20,7 @@ from app.models.quest import (
 )
 from app.routers.line import _member
 from app.services import line_auth, line_checkin, promptpay_service, quest_store
+from app.services.line_checkin import CLUB_TZ
 
 public = APIRouter(prefix="/api/quests", tags=["public-quests"])
 line = APIRouter(prefix="/api/line/badges", tags=["line"])
@@ -94,6 +96,13 @@ def get_settings(supabase: SupabaseDep, admin_: AdminDep) -> QuestSettings | Non
 def put_settings(
     payload: QuestSettingsIn, supabase: SupabaseDep, admin_: AdminDep
 ) -> QuestSettings:
+    # A start in the future would count nothing: every medal would be taken
+    # away, and found "new" again once the date is put back.
+    if payload.start_date and payload.start_date > datetime.now(CLUB_TZ).date():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="วันเริ่มนับต้องไม่เกินวันนี้",
+        )
     updates = payload.model_dump(mode="json", exclude_none=True)
     if not updates:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
