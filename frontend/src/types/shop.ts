@@ -10,6 +10,18 @@ export interface ProductDetail {
   note: string
 }
 
+/** The words on a product's cinematic page; every part optional. */
+export interface Cinema {
+  title?: string
+  subtitle?: string
+  captions?: { label: string; text: string }[]
+  facts?: string[]
+  /** photo urls for the lookbook, in order; empty = all photos */
+  lookbook?: string[]
+  /** size chart in inches */
+  chart?: { size: string; width: number | null; length: number | null }[]
+}
+
 export interface Product {
   id: string
   name: string
@@ -25,6 +37,7 @@ export interface Product {
   video_url?: string | null
   /** close-ups for the cinematic page, in order */
   detail_images?: ProductDetail[]
+  cinema?: Cinema
   is_active: boolean
   sort_order: number
   created_at: string
@@ -47,6 +60,7 @@ export interface ProductFields {
   stock?: Record<string, number>
   size_prices?: Record<string, number>
   is_active?: boolean
+  cinema?: Cinema
 }
 
 export interface ShopOrderItem {

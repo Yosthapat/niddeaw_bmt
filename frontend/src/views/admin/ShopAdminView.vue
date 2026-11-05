@@ -270,6 +270,13 @@ const form = reactive({
   closes: '',
   delivers: '',
   active: true,
+  // the cinematic page's words: three captions, a point per line, a size per line
+  cTitle: '',
+  cSubtitle: '',
+  cCaptions: [{ label: '', text: '' }, { label: '', text: '' }, { label: '', text: '' }],
+  cFacts: '',
+  cChart: '',
+  cLook: [] as string[],
 })
 const newPhotos = ref<{ file: File; url: string }[]>([])
 const formError = ref<string | null>(null)
@@ -280,6 +287,13 @@ function openForm(p: Product | null): void {
   editing.value = p
   form.name = p?.name ?? ''
   form.description = p?.description ?? ''
+  const c = p?.cinema ?? {}
+  form.cTitle = c.title ?? ''
+  form.cSubtitle = c.subtitle ?? ''
+  form.cCaptions = [0, 1, 2].map((i) => ({ label: c.captions?.[i]?.label ?? '', text: c.captions?.[i]?.text ?? '' }))
+  form.cFacts = (c.facts ?? []).join('\n')
+  form.cChart = (c.chart ?? []).map((r) => [r.size, r.width ?? '', r.length ?? ''].join(' ').trim()).join('\n')
+  form.cLook = [...(c.lookbook ?? [])]
   form.price = p?.price ?? ''
   form.sale_type = p?.sale_type ?? 'stock'
   form.hasSizes = p ? p.sizes.length > 0 : true
@@ -331,8 +345,26 @@ function addCustomSize(): void {
 }
 
 const stockKeys = computed(() => (form.hasSizes ? form.sizes : ['']))
+/** "XS 36 25" per line → rows; null when a line can't be read. */
+function chartRows(text: string): { size: string; width: number | null; length: number | null }[] | null {
+  const out: { size: string; width: number | null; length: number | null }[] = []
+  for (const line of text.split('\n').map((l) => l.trim()).filter(Boolean)) {
+    const [size, w, l, ...rest] = line.split(/\s+/)
+    const num = (x: string | undefined): number | null | undefined => (x === undefined ? null : Number.isFinite(Number(x)) && Number(x) > 0 ? Number(x) : undefined)
+    const width = num(w)
+    const length = num(l)
+    if (!size || size.length > 12 || rest.length || width === undefined || length === undefined) return null
+    out.push({ size, width, length })
+  }
+  return out.slice(0, 12)
+}
+function toggleLook(url: string): void {
+  form.cLook = form.cLook.includes(url) ? form.cLook.filter((u) => u !== url) : [...form.cLook, url].slice(0, 4)
+}
+
 const problems = computed(() => {
   const p: Record<string, string> = {}
+  if (chartRows(form.cChart) === null) p.cChart = t('shopAdmin.cineChartBad')
   if (!form.name.trim()) p.name = t('shopAdmin.nameRequired')
   const price = bahtProblem(form.price, { allowZero: false })
   if (price) p.price = t(`validation.${price}`)
@@ -464,6 +496,15 @@ async function save(): Promise<void> {
   const fields = {
     name: form.name.trim(),
     description: form.description.trim() || null,
+    cinema: {
+      title: form.cTitle.trim(),
+      subtitle: form.cSubtitle.trim(),
+      captions: form.cCaptions.map((c) => ({ label: c.label.trim(), text: c.text.trim() })).filter((c) => c.label || c.text),
+      facts: form.cFacts.split('\n').map((f) => f.trim()).filter(Boolean).slice(0, 8),
+      chart: chartRows(form.cChart) ?? [],
+      // photos removed since stay out of it
+      lookbook: form.cLook.filter((u) => editing.value?.image_urls.includes(u)),
+    },
     price: Number(form.price),
     sale_type: form.sale_type,
     sizes,
@@ -810,6 +851,42 @@ function priceText(p: Product): string {
           </button>
         </div>
       </div>
+
+      <details class="rounded-xl border border-white/12 p-3" :open="!!editing?.video_url">
+        <summary class="min-h-11 cursor-pointer text-sm text-white/85">{{ t('shopAdmin.cine') }}</summary>
+        <p class="mb-3 text-xs text-white/50">{{ t('shopAdmin.cineHint') }}</p>
+        <div class="flex flex-col gap-3 text-sm text-white/75">
+          <label class="flex flex-col gap-1">{{ t('shopAdmin.cineTitle') }}
+            <input v-model="form.cTitle" maxlength="40" placeholder="JERSEY #01" class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-black px-3 text-white" />
+          </label>
+          <label class="flex flex-col gap-1">{{ t('shopAdmin.cineSubtitle') }}
+            <input v-model="form.cSubtitle" maxlength="80" class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-black px-3 text-white" />
+          </label>
+          <fieldset class="flex flex-col gap-2">
+            <legend class="mb-1">{{ t('shopAdmin.cineCaptions') }}</legend>
+            <div v-for="(c, i) in form.cCaptions" :key="i" class="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-2">
+              <input v-model="c.label" maxlength="24" :placeholder="['PINK × BLACK', 'THE CAT', 'LIGHT · DRY'][i]" :aria-label="t('shopAdmin.cineCaptionLabel', { n: i + 1 })" class="min-h-11 min-w-0 rounded-lg border border-brand-pink/25 bg-brand-black px-3 text-white" />
+              <input v-model="c.text" maxlength="60" :aria-label="t('shopAdmin.cineCaptionText', { n: i + 1 })" class="min-h-11 min-w-0 rounded-lg border border-brand-pink/25 bg-brand-black px-3 text-white" />
+            </div>
+          </fieldset>
+          <label class="flex flex-col gap-1">{{ t('shopAdmin.cineFacts') }}
+            <textarea v-model="form.cFacts" rows="3" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-white" />
+          </label>
+          <label class="flex flex-col gap-1">{{ t('shopAdmin.cineChart') }}
+            <textarea v-model="form.cChart" rows="4" placeholder="XS 36 25" :aria-invalid="tried && !!problems.cChart" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 font-mono text-white" />
+            <span v-if="tried && problems.cChart" class="text-xs text-status-error">{{ problems.cChart }}</span>
+          </label>
+          <div v-if="editing?.image_urls.length">
+            <p class="mb-1">{{ t('shopAdmin.cineLook') }}</p>
+            <div class="flex flex-wrap gap-2">
+              <button v-for="url in editing.image_urls" :key="url" type="button" class="relative h-20 w-16 overflow-hidden rounded-lg border-2" :class="form.cLook.includes(url) ? 'border-brand-pink' : 'border-transparent opacity-60'" :aria-pressed="form.cLook.includes(url)" :aria-label="t('shopAdmin.cineLookPick')" @click="toggleLook(url)">
+                <img :src="url" alt="" class="h-full w-full object-cover" />
+                <span v-if="form.cLook.includes(url)" class="absolute top-1 left-1 rounded bg-black/70 px-1 text-[10px]">{{ form.cLook.indexOf(url) + 1 }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </details>
 
       <label class="flex flex-col gap-1 text-sm text-white/75">
         {{ t('shopAdmin.name') }}

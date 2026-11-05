@@ -763,3 +763,20 @@ def test_only_an_admin_adds_close_ups(client: TestClient, shelf: Shelf) -> None:
     seed(shelf)
     r = client.post(f"/api/admin/shop/products/{PRODUCT_ID}/details", files={"file": ("d.jpg", jpeg(), "image/jpeg")})
     assert r.status_code in (401, 403)
+
+
+def test_the_cinematic_words_are_saved_and_checked(client: TestClient, shelf: Shelf) -> None:
+    seed(shelf)
+    cinema = {
+        "title": "JERSEY #01",
+        "captions": [{"label": "THE CAT", "text": "แมวดำวิ่งเต็มแผ่นหลัง"}],
+        "facts": ["  ระบายอากาศดี "],
+        "chart": [{"size": "M", "width": 40, "length": 27}],
+    }
+    r = client.patch(f"/api/admin/shop/products/{PRODUCT_ID}", json={"cinema": cinema}, headers=auth())
+    assert r.status_code == 200
+    saved = r.json()["cinema"]
+    assert saved["title"] == "JERSEY #01" and saved["facts"] == ["ระบายอากาศดี"] and saved["chart"][0]["width"] == 40
+    four = {"captions": [{"label": str(i)} for i in range(4)]}
+    assert client.patch(f"/api/admin/shop/products/{PRODUCT_ID}", json={"cinema": four}, headers=auth()).status_code == 422
+    assert client.patch(f"/api/admin/shop/products/{PRODUCT_ID}", json={"cinema": None}, headers=auth()).status_code == 422

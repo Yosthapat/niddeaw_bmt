@@ -144,6 +144,67 @@ function buyNow(): void {
 // a lookbook of its photos, then the box office.
 const cine = computed(() => !!product.value?.video_url)
 const details = computed(() => product.value?.detail_images ?? [])
+const words = computed(() => product.value?.cinema ?? {})
+const stageTitle = computed(() => words.value.title || product.value?.name || '')
+const captions = computed(() => (words.value.captions ?? []).filter((c) => c.label || c.text).slice(0, 3))
+const facts = computed(() => words.value.facts ?? [])
+const chart = computed(() => words.value.chart ?? [])
+const fitRow = computed(() => chart.value.find((r) => r.size.toUpperCase() === chosenSize.value.toUpperCase()) ?? null)
+const lookbook = computed(() => {
+  const all = product.value?.image_urls ?? []
+  const picked = (words.value.lookbook ?? []).filter((u) => all.includes(u))
+  return picked.length ? picked : all
+})
+// One caption at a time, each in its share of the clip's loop.
+const capAt = ref(-1)
+function onClipTime(): void {
+  const v = clip.value
+  const n = captions.value.length
+  if (!v || !n || !v.duration) {
+    capAt.value = -1
+    return
+  }
+  const slot = v.duration / n
+  const i = Math.min(n - 1, Math.floor(v.currentTime / slot))
+  const into = (v.currentTime - i * slot) / slot
+  capAt.value = into > 0.08 && into < 0.88 ? i : -1
+}
+const closeEl = ref<HTMLElement | null>(null)
+function toDetails(): void {
+  ;(closeEl.value ?? document.querySelector<HTMLElement>('.cblock'))?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' })
+}
+// The buy bar of this page: in once the stage has scrolled away, out of the
+// way while the box office itself is on screen.
+const stageEl = ref<HTMLElement | null>(null)
+const officeEl = ref<HTMLElement | null>(null)
+const stageGone = ref(false)
+const officeShown = ref(false)
+let barWatch: IntersectionObserver[] = []
+watch([stageEl, officeEl], ([st, of]) => {
+  barWatch.forEach((o) => o.disconnect())
+  barWatch = []
+  if (!('IntersectionObserver' in window)) return
+  if (st) {
+    const o = new IntersectionObserver(([e]) => (stageGone.value = !e?.isIntersecting), { threshold: 0.15 })
+    o.observe(st)
+    barWatch.push(o)
+  }
+  if (of) {
+    const o = new IntersectionObserver(([e]) => (officeShown.value = !!e?.isIntersecting), { threshold: 0.2 })
+    o.observe(of)
+    barWatch.push(o)
+  }
+})
+onBeforeUnmount(() => barWatch.forEach((o) => o.disconnect()))
+function toOffice(): void {
+  officeEl.value?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' })
+}
+const goLabel = computed(() => {
+  if (blocker.value) return blocker.value
+  if (!sizePicked.value) return t('shop.needSize')
+  const what = hasSizes.value ? `${chosenSize.value} × ${qty.value}` : `× ${qty.value}`
+  return `${isPre.value ? t('shop.orderPreorder') : t('shop.buyNow')} ${what} · ${money(price.value * qty.value)}`
+})
 const wide = ref<Set<string>>(new Set())
 function measure(event: Event, url: string): void {
   const img = event.target as HTMLImageElement
@@ -205,12 +266,16 @@ onBeforeUnmount(() => seen?.disconnect())
       </div>
 
       <!-- the turnaround, when the product has one -->
-      <section v-if="!loading && product?.video_url" class="cine bars -mx-4 mt-3 md:mx-0" :aria-label="product.name">
+      <div v-if="!loading && product?.video_url" class="grain" aria-hidden="true" />
+      <section v-if="!loading && product?.video_url" ref="stageEl" class="cine bars -mx-4 mt-3 md:mx-0" :aria-label="product.name">
         <div class="beam" aria-hidden="true" />
         <div class="cine-titles" aria-hidden="true">
           <span class="cine-eyebrow">NIDDEAW BADMINTON CLUB</span>
-          <span class="cine-name">{{ product.name }}</span>
-          <span class="cine-price">{{ priceLabel }}<template v-if="isPre"> · {{ t('shop.preorderTag') }}</template></span>
+          <span class="cine-name">{{ stageTitle }}</span>
+          <span class="cine-price">
+            <template v-if="words.subtitle">{{ words.subtitle }}</template>
+            <template v-else>{{ priceLabel }}<template v-if="isPre"> · {{ t('shop.preorderTag') }}</template></template>
+          </span>
         </div>
         <div class="screen">
           <video
@@ -224,9 +289,14 @@ onBeforeUnmount(() => seen?.disconnect())
             :aria-label="t('shop.clipLabel', { name: product.name })"
             @play="playing = true"
             @pause="playing = false"
+            @timeupdate="onClipTime"
           />
         </div>
-        <button type="button" class="cine-cue" @click="toSizes">{{ hasSizes ? t('shop.clipToSizes') : t('shop.clipToBuy') }} <span aria-hidden="true">↓</span></button>
+        <div v-for="(c, i) in captions" :key="i" class="cap" :class="[i % 2 ? 'r' : 'l', { on: capAt === i }]" aria-hidden="true">
+          <b v-if="c.label">{{ c.label }}</b>
+          <span v-if="c.text">{{ c.text }}</span>
+        </div>
+        <button type="button" class="cine-cue" @click="toDetails"><i aria-hidden="true" />{{ t('shop.cineScroll') }}</button>
         <button type="button" class="cine-pp" :aria-label="playing ? t('shop.clipPause') : t('shop.clipPlay')" @click="toggleClip">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path :d="playing ? 'M7 5h3v14H7zM14 5h3v14h-3z' : 'M8 5v14l11-7z'" /></svg>
         </button>
@@ -240,10 +310,10 @@ onBeforeUnmount(() => seen?.disconnect())
 
       <!-- the cinematic page: close-ups, lookbook, box office -->
       <div v-else-if="cine" class="flex flex-col">
-        <section v-if="details.length" class="cblock" aria-labelledby="c-close">
+        <section v-if="details.length || facts.length" ref="closeEl" class="cblock" aria-labelledby="c-close">
           <span class="kicker">CLOSE-UP</span>
           <h2 id="c-close" class="ch2">{{ t('shop.cineCloseTitle') }}</h2>
-          <div ref="shotsEl" class="shots" :class="{ seen: shotsSeen }">
+          <div v-if="details.length" ref="shotsEl" class="shots" :class="{ seen: shotsSeen }">
             <figure v-for="d in details" :key="d.url" class="shot">
               <div class="lens"><img :src="d.url" :alt="d.note || d.label" loading="lazy" /></div>
               <figcaption v-if="d.label || d.note">
@@ -252,12 +322,13 @@ onBeforeUnmount(() => seen?.disconnect())
               </figcaption>
             </figure>
           </div>
+          <div v-if="facts.length" class="facts"><span v-for="f in facts" :key="f">{{ f }}</span></div>
         </section>
 
-        <section v-if="product.image_urls.length" class="cblock" aria-label="Lookbook">
+        <section v-if="lookbook.length" class="cblock" aria-label="Lookbook">
           <span class="kicker">LOOKBOOK</span>
           <div class="film">
-            <figure v-for="(url, i) in product.image_urls" :key="url" :class="{ wide: wide.has(url) }">
+            <figure v-for="(url, i) in lookbook" :key="url" :class="{ wide: wide.has(url) }">
               <img :src="url" :alt="t('shop.photoOf', { n: i + 1, name: product.name })" loading="lazy" @load="measure($event, url)" />
             </figure>
           </div>
@@ -266,9 +337,9 @@ onBeforeUnmount(() => seen?.disconnect())
         <section class="cblock" aria-labelledby="c-buy">
           <span class="kicker">{{ isPre ? 'PRE-ORDER' : 'SHOP' }}</span>
           <h1 id="c-buy" class="ch2">{{ product.name }}</h1>
-          <div class="office">
+          <div ref="officeEl" class="office scroll-mt-28">
             <div class="flex flex-wrap items-baseline justify-between gap-3">
-              <span class="office-price" aria-live="polite">{{ priceLabel }}</span>
+              <span class="office-price" aria-live="polite">{{ priceLabel }}<small>{{ t('shop.perPiece') }}</small></span>
               <span v-if="isPre" class="office-status">{{ t('shop.closesOn') }} {{ day(product.preorder_closes_on) }}</span>
               <span v-else-if="badge" class="office-status">{{ badge.text }}</span>
             </div>
@@ -289,6 +360,10 @@ onBeforeUnmount(() => seen?.disconnect())
                   <small v-if="pricesDiffer">{{ priceOf(product, s) }}</small>
                 </button>
               </div>
+              <span v-if="chart.length" class="fit" aria-live="polite">
+                <template v-if="fitRow">{{ t('shop.cineFit', { size: fitRow.size, w: fitRow.width ?? '—', l: fitRow.length ?? '—' }) }}</template>
+                <template v-else>{{ t('shop.cineFitHint') }}</template>
+              </span>
             </fieldset>
             <div class="flex items-end justify-between gap-3">
               <div class="flex flex-col gap-2">
@@ -305,21 +380,29 @@ onBeforeUnmount(() => seen?.disconnect())
               </div>
             </div>
             <p v-if="sizePicked && inCart(chosenSize) > 0" class="text-right text-xs text-white/60">{{ t('shop.inCartAlready', { n: inCart(chosenSize) }) }}</p>
-            <div class="hidden gap-3 md:flex">
-              <button type="button" class="ghost-btn flex-1" :disabled="!!blocker" @click="addToCart">
-                {{ blocker ?? (sizePicked ? t('shop.addToCart') : t('shop.needSize')) }}
-              </button>
-              <button v-if="!blocker" type="button" class="buy-btn flex-1" @click="buyNow">
-                {{ isPre ? t('shop.orderPreorder') : t('shop.buyNow') }}
-              </button>
-            </div>
+            <button type="button" class="go" :disabled="!!blocker" @click="sizePicked ? buyNow() : toSizes()">{{ goLabel }}</button>
+            <button v-if="sizePicked && !blocker" type="button" class="later" @click="addToCart">{{ t('shop.cineAddLater') }}</button>
             <p v-if="isPre && product.preorder_delivers_on" class="text-xs text-white/60">{{ t('shop.deliversOn') }} {{ day(product.preorder_delivers_on) }}</p>
+          </div>
+          <div v-if="chart.length" class="chart">
+            <table>
+              <caption>{{ t('shop.cineChart') }}</caption>
+              <thead>
+                <tr><th scope="col">{{ t('shop.size') }}</th><th v-for="r in chart" :key="r.size" scope="col">{{ r.size }}</th></tr>
+              </thead>
+              <tbody>
+                <tr><th scope="row">{{ t('shop.cineWidth') }}</th><td v-for="r in chart" :key="r.size">{{ r.width ?? '—' }}</td></tr>
+                <tr><th scope="row">{{ t('shop.cineLength') }}</th><td v-for="r in chart" :key="r.size">{{ r.length ?? '—' }}</td></tr>
+                <tr><th scope="row">{{ t('shop.cinePrice') }}</th><td v-for="r in chart" :key="r.size">{{ product.sizes.includes(r.size) ? priceOf(product, r.size) : '—' }}</td></tr>
+              </tbody>
+            </table>
           </div>
           <details v-if="product.description" class="desc">
             <summary>{{ t('shop.cineDetails') }}</summary>
             <p class="whitespace-pre-line">{{ product.description }}</p>
           </details>
         </section>
+        <footer class="cine-foot"><b>NIDDEAW</b><span>{{ t('shop.cineFoot') }}</span></footer>
       </div>
 
       <div v-else class="mt-2 grid gap-6 md:grid-cols-2 md:items-start md:gap-10">
@@ -398,9 +481,18 @@ onBeforeUnmount(() => seen?.disconnect())
         <RouterLink to="/shop/cart" class="font-medium text-[#7ff0b4] underline">{{ t('shop.viewCart', { n: cart.count }) }}</RouterLink>
       </p>
 
+      <!-- the cinematic page's buy bar: after the stage, away while the box office shows -->
+      <div v-if="product && !loading && cine" class="cine-bar" :class="{ on: stageGone && !officeShown }">
+        <span class="flex min-w-0 flex-col leading-tight">
+          <b class="truncate font-display tracking-wide">{{ stageTitle }}</b>
+          <span class="truncate text-xs text-white/65">{{ t('shop.priceFrom', { price: money(priceRange(product)[0]) }) }}<template v-if="isPre"> · {{ t('shop.preorderTag') }}</template></span>
+        </span>
+        <button type="button" class="cine-bar-go" @click="toOffice">{{ isPre ? t('shop.orderPreorder') : t('shop.buyNow') }}</button>
+      </div>
+
       <!-- phone: the buy bar above the tab bar -->
       <div
-        v-if="product && !loading"
+        v-if="product && !loading && !cine"
         class="fixed inset-x-0 bottom-[calc(96px+env(safe-area-inset-bottom,0px))] z-20 flex items-center gap-2.5 border-t border-white/8 bg-[#0b0518]/95 px-4 py-3 backdrop-blur md:hidden"
       >
         <div class="flex min-w-0 flex-col">
@@ -641,6 +733,201 @@ onBeforeUnmount(() => seen?.disconnect())
   border-radius: 50%;
   background: rgb(7 5 10 / 0.55);
 }
+/* ---- film grain over the cinematic page ---- */
+.grain {
+  position: fixed;
+  inset: -50%;
+  z-index: 15;
+  pointer-events: none;
+  opacity: 0.07;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: grain 0.9s steps(4) infinite;
+}
+@keyframes grain {
+  25% {
+    transform: translate(3%, -2%);
+  }
+  50% {
+    transform: translate(-2%, 3%);
+  }
+  75% {
+    transform: translate(2%, 2%);
+  }
+}
+.cap {
+  position: absolute;
+  z-index: 5;
+  top: 42%;
+  display: grid;
+  max-width: 44%;
+  gap: 2px;
+  opacity: 0;
+  translate: 0 10px;
+  transition:
+    opacity 0.6s,
+    translate 0.6s;
+  pointer-events: none;
+  text-shadow: 0 2px 12px rgb(0 0 0 / 0.8);
+}
+.cap.on {
+  opacity: 1;
+  translate: 0 0;
+}
+.cap.l {
+  left: 16px;
+  top: 48%;
+}
+.cap.r {
+  right: 16px;
+  text-align: right;
+}
+.cap b {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: #ff9fd6;
+}
+.cap span {
+  font-size: 13px;
+  text-wrap: balance;
+}
+.cine-cue i {
+  display: inline-block;
+  width: 1px;
+  height: 16px;
+  margin-right: 8px;
+  vertical-align: -3px;
+  background: linear-gradient(#ff9fd6, transparent);
+  animation: drip 1.6s ease-in-out infinite;
+}
+@keyframes drip {
+  50% {
+    transform: translateY(4px);
+    opacity: 0.4;
+  }
+}
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.facts span {
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: rgb(255 255 255 / 0.7);
+}
+.office-price small {
+  margin-left: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgb(255 255 255 / 0.6);
+}
+.fit {
+  min-height: 1.5em;
+  font-size: 12px;
+  color: rgb(255 255 255 / 0.65);
+}
+.go {
+  min-height: 54px;
+  background: linear-gradient(90deg, #ff6fb6, #ff4fa6);
+  box-shadow: 0 10px 30px rgb(255 79 166 / 0.35);
+  color: #1b0411;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.go:disabled {
+  background: rgb(255 255 255 / 0.08);
+  box-shadow: none;
+  color: rgb(255 255 255 / 0.6);
+}
+.later {
+  min-height: 40px;
+  margin-top: -8px;
+  font-size: 13px;
+  color: rgb(255 255 255 / 0.7);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.chart {
+  overflow-x: auto;
+}
+.chart table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.chart caption {
+  padding-bottom: 8px;
+  text-align: left;
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  color: rgb(255 255 255 / 0.6);
+}
+.chart th,
+.chart td {
+  border-bottom: 1px solid rgb(255 255 255 / 0.1);
+  padding: 7px 6px;
+  text-align: center;
+}
+.chart th {
+  font-weight: 400;
+  color: rgb(255 255 255 / 0.6);
+}
+.cine-foot {
+  display: grid;
+  gap: 6px;
+  padding-block: 40px 24px;
+  text-align: center;
+  font-size: 12px;
+  color: rgb(255 255 255 / 0.55);
+}
+.cine-foot b {
+  font-family: var(--font-display);
+  letter-spacing: 0.3em;
+  color: #fff;
+}
+.cine-bar {
+  position: fixed;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px));
+  border-top: 1px solid rgb(255 255 255 / 0.1);
+  background: rgb(7 5 10 / 0.85);
+  backdrop-filter: blur(12px);
+  translate: 0 calc(100% + 120px);
+  transition: translate 0.4s;
+}
+.cine-bar.on {
+  translate: 0 0;
+}
+@media (min-width: 768px) {
+  .cine-bar {
+    bottom: 0;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+}
+.cine-bar-go {
+  min-height: 44px;
+  padding: 0 18px;
+  background: #ff4fa6;
+  color: #1b0411;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 /* ---- the cinematic page under the stage ---- */
 .cblock {
   display: grid;
@@ -832,6 +1119,9 @@ onBeforeUnmount(() => seen?.disconnect())
   font-weight: 500;
   color: #fff;
 }
+.go:focus-visible,
+.later:focus-visible,
+.cine-bar-go:focus-visible,
 .size-cell:focus-visible,
 .qty button:focus-visible,
 .desc summary:focus-visible,
@@ -854,6 +1144,10 @@ onBeforeUnmount(() => seen?.disconnect())
   .lens img {
     transform: none;
     transition: none;
+  }
+  .grain,
+  .cine-cue i {
+    animation: none;
   }
 }
 </style>
