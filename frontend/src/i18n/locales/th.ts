@@ -1392,6 +1392,8 @@ export default {
     newBadge: 'ได้ badge ใหม่!',
     keep: 'เก็บเข้าชั้น',
     feed: 'ล่าสุดในก๊วน',
+    almost: 'ใกล้ได้แล้ว',
+    daysLeft: 'เหลือ {n} วัน',
     gate: {
       title: 'ผูก LINE เพื่อเปิด Badge',
       body: 'Badge เก็บได้เฉพาะสมาชิกที่ผูก LINE กับก๊วนแล้ว ถ้านี่คือคุณ ผูกได้ในไม่ถึงนาที',

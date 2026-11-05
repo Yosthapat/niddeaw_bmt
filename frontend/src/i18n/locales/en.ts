@@ -1395,6 +1395,8 @@ export default {
     newBadge: 'New badge!',
     keep: 'Keep it',
     feed: 'Latest in the club',
+    almost: 'Almost there',
+    daysLeft: '{n} days left',
     gate: {
       title: 'Link LINE to unlock badges',
       body: 'Badges are for members who have linked LINE to the club. If this is you, it takes under a minute.',
