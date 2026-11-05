@@ -64,6 +64,7 @@ const ROUTES: [string, RegExp, string][] = [
   ['POST', /^\/api\/admin\/players\/[^/]+\/avatar$/, 'uploadAvatar'],
   ['PUT', /^\/api\/admin\/settings$/, 'editSettings'],
   ['POST', /^\/api\/admin\/settings\/qr$/, 'uploadQr'],
+  ['PUT', /^\/api\/admin\/quests\/settings$/, 'questSettings'],
   ['POST', /^\/api\/admin\/line\/requests\/[^/]+\/approve$/, 'approveLineLink'],
   ['POST', /^\/api\/admin\/line\/requests\/[^/]+\/reject$/, 'rejectLineLink'],
   ['POST', /^\/api\/admin\/line\/players\/[^/]+\/unlink$/, 'unlinkLine'],

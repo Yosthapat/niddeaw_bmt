@@ -25,6 +25,8 @@ import LineCheckin from '@/components/line/LineCheckin.vue'
 import LineCheckout from '@/components/line/LineCheckout.vue'
 import LineBills from '@/components/line/LineBills.vue'
 import LineCredit from '@/components/line/LineCredit.vue'
+import LineBadges from '@/components/line/LineBadges.vue'
+import LineBadgeCelebrate from '@/components/line/LineBadgeCelebrate.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -51,9 +53,10 @@ const checkinCode = ref('')
 const canScan = ref(false)
 // A linked member's other screens: tonight's checkout and their bills
 // (/line/checkout, /line/bills — the OA menu's "เช็คเอาท์ จ่ายเงิน").
-type Screen = 'home' | 'checkout' | 'bills' | 'credit'
+type Screen = 'home' | 'checkout' | 'bills' | 'credit' | 'badges'
 const screen = ref<Screen>('home')
 const tonight = ref<LineTonight | null>(null)
+const badgeCount = ref(0)
 
 async function start(): Promise<void> {
   phase.value = 'loading'
@@ -81,7 +84,7 @@ async function start(): Promise<void> {
     joining.value = route.params.section === 'register' && !status.player && !status.pending && !status.application
     const code = typeof route.query.c === 'string' ? route.query.c : ''
     if (route.params.section === 'checkin' && code) await openCheckin(code)
-    if (status.player && (route.params.section === 'checkout' || route.params.section === 'bills' || route.params.section === 'credit')) {
+    if (status.player && (route.params.section === 'checkout' || route.params.section === 'bills' || route.params.section === 'credit' || route.params.section === 'badges')) {
       await go(route.params.section)
     }
     phase.value = 'ready'
@@ -259,6 +262,8 @@ onMounted(start)
 
         <LineCredit v-else-if="me.player && screen === 'credit'" :token="token" @back="go('home')" />
 
+        <LineBadges v-else-if="me.player && screen === 'badges'" :token="token" @back="go('home')" />
+
         <!-- linked: who they are, and what's coming -->
         <section v-else-if="me.player" class="world-card flex flex-col items-center gap-3 p-6 text-center">
           <p class="world-eyebrow">LINKED</p>
@@ -279,9 +284,14 @@ onMounted(start)
             <button type="button" class="credit-pill col-span-full justify-center" @click="go('credit')">
               <span class="coin-dot" aria-hidden="true">฿</span>{{ t('lineCredit.open') }}
             </button>
+            <button type="button" class="glass-pill col-span-full justify-center gap-2" @click="go('badges')">
+              <img src="/badges/fire_10.webp" alt="" width="64" height="64" class="h-7 w-7 object-contain" />
+              {{ t('quests.mine') }}<span v-if="badgeCount" class="text-[#f2c14e]">· {{ badgeCount }}</span>
+            </button>
           </div>
           <p v-if="actionError" class="text-sm text-status-error" role="alert">{{ actionError }}</p>
           <RouterLink :to="`/members/${me.player.id}`" class="glass-pill">{{ t('line.myProfile') }}</RouterLink>
+          <LineBadgeCelebrate :token="token" @count="badgeCount = $event" />
         </section>
 
         <!-- signing up: not in the club yet -->

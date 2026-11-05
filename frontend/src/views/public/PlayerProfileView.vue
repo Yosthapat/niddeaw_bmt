@@ -13,14 +13,31 @@ import PlayerLiveStatus from '@/components/players/PlayerLiveStatus.vue'
 import PlayerSeasonMatches from '@/components/players/PlayerSeasonMatches.vue'
 import PlayerShopOrders from '@/components/shop/PlayerShopOrders.vue'
 import ProfileCredit from '@/components/players/ProfileCredit.vue'
+import BadgeShelf from '@/components/quests/BadgeShelf.vue'
+import { getPlayerBadges } from '@/api/quests'
+import { shelfItems, topThree, type BadgeItem } from '@/utils/quests'
+import type { Locale } from '@/i18n'
 
 const route = useRoute()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const profile = ref<PlayerProfile | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const matchesAnchor = ref<HTMLElement | null>(null)
 const shared = ref(false)
+// The member's medals. Quiet when quests aren't switched on (the API
+// answers 503 until migration 0038 runs): the shelf just isn't there.
+const badges = ref<BadgeItem[] | null>(null)
+const cardBadges = computed(() => (badges.value ? topThree(badges.value).map((b) => b.img) : []))
+async function loadBadges(id: string): Promise<void> {
+  badges.value = null
+  try {
+    const data = await getPlayerBadges(id)
+    if (data && route.params.id === id) badges.value = shelfItems(data, t, locale.value as Locale)
+  } catch {
+    badges.value = null
+  }
+}
 
 function toMatches(): void {
   matchesAnchor.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -54,6 +71,7 @@ watch(
   async (id) => {
     loading.value = true
     error.value = null
+    void loadBadges(String(id))
     try {
       profile.value = await getPlayerProfile(String(id))
     } catch {
@@ -99,9 +117,9 @@ const bannerSub = computed(() => {
 
         <div v-else class="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)] lg:items-start lg:gap-8">
           <!-- the card stays in view on a desktop while the history scrolls -->
-          <div v-reveal class="lg:sticky lg:top-[calc(var(--header-h)+16px)]">
+          <div v-reveal>
             <div class="mx-auto max-w-[340px]">
-              <ProfileFlipCard :profile="profile" />
+              <ProfileFlipCard :profile="profile" :badges="cardBadges" />
             </div>
             <p v-if="profile.player.quote" class="mx-auto mt-4 max-w-xs text-center text-sm text-white/65 italic">
               "{{ profile.player.quote }}"
@@ -114,10 +132,18 @@ const bannerSub = computed(() => {
                 {{ shared ? t('card.copied') : t('card.share') }}
               </button>
             </div>
+            <!-- phone: the medals take the place of the six stat tiles, which
+                 repeat the card; desktop: they fill the column under the card -->
+            <BadgeShelf v-if="badges" class="mx-auto mt-5 max-w-[340px] lg:max-w-none" :items="badges">
+              <p class="mt-3 flex justify-center gap-3 font-display text-[13px] font-semibold text-white/60 lg:hidden">
+                <span>PTS <b class="text-brand-pink-light">{{ profile.points }}</b></span>
+                <span>SC <b class="text-brand-pink-light">{{ profile.score_percent.toFixed(1) }}%</b></span>
+              </p>
+            </BadgeShelf>
           </div>
 
           <div class="min-w-0">
-            <dl v-reveal="1" class="grid grid-cols-3 gap-2.5 sm:grid-cols-6">
+            <dl v-reveal="1" class="grid-cols-3 gap-2.5 sm:grid-cols-6" :class="badges ? 'hidden lg:grid' : 'grid'">
               <div class="tile world-card">
                 <dt>{{ t('common.game') }}</dt>
                 <dd><CountUp :value="profile.games" /></dd>

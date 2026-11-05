@@ -20,8 +20,10 @@ const props = withDefaults(
     large?: boolean
     /** shown before the ELO, e.g. the member's rank on their profile */
     rank?: number | null
+    /** their grandest medals (art paths), at most three */
+    badges?: string[]
   }>(),
-  { large: false, rank: null },
+  { large: false, rank: null, badges: () => [] },
 )
 
 const { t } = useI18n()
@@ -75,7 +77,22 @@ const line = computed(() => props.player.quote || t('roster.tierLine', { tier: t
         <h2 class="truncate font-display text-base leading-tight font-bold sm:text-lg" :class="{ 'sm:text-2xl': large }">
           {{ player.nickname }}
         </h2>
-        <p class="truncate text-[11px] text-white/65" :class="{ 'sm:text-sm': large }">{{ line }}</p>
+        <div class="flex items-center gap-1.5">
+          <p class="min-w-0 flex-1 truncate text-[11px] text-white/65" :class="{ 'sm:text-sm': large }">{{ line }}</p>
+          <span v-if="badges.length" class="flex shrink-0 -space-x-1" :aria-label="t('quests.shelf')">
+            <img
+              v-for="(src, i) in badges.slice(0, 3)"
+              :key="i"
+              :src="src"
+              alt=""
+              width="64"
+              height="64"
+              loading="lazy"
+              class="h-6 w-6 object-contain drop-shadow-[0_2px_3px_rgb(0_0_0/0.6)]"
+              :class="{ 'sm:h-8 sm:w-8': large }"
+            />
+          </span>
+        </div>
       </div>
 
       <dl class="member-card__stats font-display">

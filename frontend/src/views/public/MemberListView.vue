@@ -9,12 +9,25 @@ import MemberCard from '@/components/players/MemberCard.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 import { onRevisit } from '@/composables/useRevisit'
 import PageBanner from '@/components/common/PageBanner.vue'
+import { getTopBadges } from '@/api/quests'
+import { awardImage } from '@/utils/quests'
 
 type Sort = 'elo' | 'name' | 'games'
 
 const { t } = useI18n()
 
 const stats = ref<PlayerStats[]>([])
+// Each member's three grandest medals, on their card. Nothing when quests
+// aren't switched on.
+const top = ref<Record<string, string[]>>({})
+async function loadTop(): Promise<void> {
+  try {
+    const all = await getTopBadges()
+    top.value = Object.fromEntries(Object.entries(all).map(([id, list]) => [id, list.map(awardImage)]))
+  } catch {
+    top.value = {}
+  }
+}
 const loading = ref(true)
 const error = ref<string | null>(null)
 const search = ref('')
@@ -24,6 +37,7 @@ const sort = ref<Sort>('elo')
 // The whole roster at once: a tier filter or a sort over the first page
 // only would be quietly wrong, and it is about a hundred small rows.
 onMounted(async () => {
+  void loadTop()
   try {
     stats.value = await getPlayers()
   } catch {
@@ -135,7 +149,7 @@ onRevisit(async () => {
               :to="`/members/${s.player.id}`"
               class="block h-full rounded-[18px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-pink"
             >
-              <MemberCard :player="s.player" :games="s.games" :wins="s.wins" :draws="s.draws" :losses="s.losses" />
+              <MemberCard :player="s.player" :games="s.games" :wins="s.wins" :draws="s.draws" :losses="s.losses" :badges="top[s.player.id] ?? []" />
             </RouterLink>
           </li>
         </ul>

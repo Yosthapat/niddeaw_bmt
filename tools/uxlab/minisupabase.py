@@ -90,6 +90,8 @@ DEFAULTS: dict[str, Row] = {
                       "decided_at": None},
     "credit_ledger": {"cash": None, "ref_id": None, "note": None, "admin_id": None},
     "player_credits": {"balance": 0},
+    "player_badges": {"seen_at": None},
+    "quest_settings": {"monthly_target": 20, "synced_key": None},
     "shop_orders": {"status": "pending", "note": None, "player_id": None, "guest_name": None,
                     "guest_phone": None},
 }
