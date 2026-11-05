@@ -64,6 +64,11 @@ export function startLineSession(idToken: string): Promise<LineStatus> {
   return request('/api/line/session', { method: 'POST', body: JSON.stringify({ id_token: idToken }) })
 }
 
+/** Where this LINE account stands now (linked, waiting, nothing yet). */
+export function getLineMe(token: string): Promise<LineStatus> {
+  return request('/api/line/me', auth(token))
+}
+
 export function getLinkOptions(token: string): Promise<LinkOption[]> {
   return request('/api/line/link/options', auth(token))
 }

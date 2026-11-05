@@ -10,7 +10,7 @@
  * Who they are comes from LINE, never from the page: the ID token LIFF
  * gives is checked by our backend with LINE before it believes it.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import * as lineApi from '@/api/line'
@@ -202,6 +202,54 @@ function leaveCheckin(next: 'link' | 'join' | 'done'): void {
 }
 
 onMounted(start)
+
+// While a link request or a sign-up waits for the admin, look again every
+// few seconds (and as soon as the page is shown again), so the member lands
+// on their home screen the moment they're accepted, without reopening LINE.
+// A refusal puts them back at the picker.
+const WAIT_MS = 5000
+const justLinked = ref(false)
+let waitTimer: ReturnType<typeof setInterval> | null = null
+const waiting = computed(
+  () => phase.value === 'ready' && !joining.value && !!me.value && !me.value.player && !!(me.value.pending || me.value.application),
+)
+async function checkWaiting(): Promise<void> {
+  if (!waiting.value || document.visibilityState === 'hidden') return
+  try {
+    const now = await lineApi.getLineMe(token.value)
+    if (!waiting.value) return
+    if (now.player) {
+      me.value = now
+      justLinked.value = true
+      screen.value = 'home'
+      void router.replace('/line')
+    } else if (!now.pending && !now.application) {
+      me.value = now
+      await loadOptions()
+    }
+  } catch {
+    // offline for a moment: the next look will tell
+  }
+}
+function onVisible(): void {
+  if (document.visibilityState === 'visible') void checkWaiting()
+}
+watch(
+  waiting,
+  (on) => {
+    if (on && waitTimer === null) waitTimer = setInterval(() => void checkWaiting(), WAIT_MS)
+    if (!on && waitTimer !== null) {
+      clearInterval(waitTimer)
+      waitTimer = null
+    }
+  },
+  { immediate: true },
+)
+document.addEventListener('visibilitychange', onVisible)
+onUnmounted(() => {
+  if (waitTimer !== null) clearInterval(waitTimer)
+  document.removeEventListener('visibilitychange', onVisible)
+})
 </script>
 
 <template>
@@ -271,6 +319,10 @@ onMounted(start)
 
         <!-- linked: who they are, and what's coming -->
         <section v-else-if="me.player" class="world-card flex flex-col items-center gap-3 p-6 text-center">
+          <p v-if="justLinked" class="linked-now" role="status">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+            {{ t('line.linkedNow') }}
+          </p>
           <p class="world-eyebrow">LINKED</p>
           <PlayerAvatar :name="me.player.nickname" :avatar-url="me.player.avatar_url" size="lg" round />
           <h1 class="world-title flex items-center gap-2 text-2xl">{{ me.player.nickname }}<CreditCardMark :player-id="me.player.id" size="md" /></h1>
@@ -421,6 +473,32 @@ onMounted(start)
 </template>
 
 <style scoped>
+.linked-now {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 14px;
+  border: 1px solid rgb(6 199 85 / 0.45);
+  background: rgb(6 199 85 / 0.14);
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #7dffb0;
+  animation: linked-in 0.5s ease-out both;
+}
+@keyframes linked-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .linked-now {
+    animation: none;
+  }
+}
 .credit-pill {
   display: flex;
   min-height: 48px;
