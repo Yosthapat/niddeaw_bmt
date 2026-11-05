@@ -10,6 +10,7 @@ import { formatDateTime } from '@/utils/format'
 import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
+import CreditCardMark from '@/components/credit/CreditCardMark.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 import PageBanner from '@/components/common/PageBanner.vue'
 import { apiErrorMessage } from '@/api/errors'
@@ -166,7 +167,7 @@ watch(
                       :to="`/members/${stat.player.id}`"
                       class="block truncate font-display text-lg font-bold text-white hover:text-brand-pink-light"
                     >
-                      {{ stat.player.nickname }}
+                      {{ stat.player.nickname }} <CreditCardMark :player-id="stat.player.id" size="md" />
                     </RouterLink>
                     <span class="mt-1 inline-flex items-center gap-1.5">
                       <TierMascot :tier="stat.player.elo_level" :size="24" :interactive="false" />

@@ -6,7 +6,9 @@
  * could otherwise be a dozen in a row); the rest are simply on the shelf.
  * When the last one is put away they are all marked seen, so each is
  * shown once.
- * Emits `count` with how many medals the member holds, for the home button.
+ * Emits `count` with how many medals the member holds, for the home button,
+ * and `done` once there is nothing (more) to celebrate, so the next
+ * celebration can take its turn.
  */
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -16,7 +18,7 @@ import type { Locale } from '@/i18n'
 import BadgeInspect from '@/components/quests/BadgeInspect.vue'
 
 const props = defineProps<{ token: string }>()
-const emit = defineEmits<{ count: [n: number] }>()
+const emit = defineEmits<{ count: [n: number]; done: [] }>()
 const { t, locale } = useI18n()
 
 const queue = ref<BadgeItem[]>([])
@@ -31,7 +33,10 @@ function slotOf(a: BadgeAward): string {
 onMounted(async () => {
   try {
     const data = await getMyBadges(props.token)
-    if (!data) return
+    if (!data) {
+      emit('done')
+      return
+    }
     const items = shelfItems(data, t, locale.value as Locale)
     emit('count', items.filter((i) => !i.locked).length)
     unseen = data.unseen
@@ -58,16 +63,19 @@ onMounted(async () => {
     next()
   } catch {
     // quests not switched on, or offline: nothing to celebrate
+    emit('done')
   }
 })
 
 function next(): void {
   current.value = queue.value.shift() ?? null
-  if (!current.value && unseen.length) {
+  if (current.value) return
+  if (unseen.length) {
     const items = unseen
     unseen = []
     void markBadgesSeen(props.token, items).catch(() => {})
   }
+  emit('done')
 }
 </script>
 

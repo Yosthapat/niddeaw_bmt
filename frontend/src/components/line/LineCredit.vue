@@ -15,6 +15,8 @@ import { compressImage } from '@/utils/imageCompression'
 import { formatDayMonth, formatTime } from '@/utils/format'
 import type { Locale } from '@/i18n'
 import BrandQr from '@/components/common/BrandQr.vue'
+import CreditCardFace from '@/components/credit/CreditCardFace.vue'
+import CreditCardMark from '@/components/credit/CreditCardMark.vue'
 
 const props = defineProps<{ token: string }>()
 const emit = defineEmits<{ back: [] }>()
@@ -28,6 +30,8 @@ const info = ref<PaymentInfoResponse | null>(null)
 const tab = ref<'all' | 'in' | 'out'>('all')
 
 const num = (n: number): string => n.toLocaleString('en-US')
+// what a package earns: 1,000 credit or more a pink card, 5,000 a black one
+const packTier = (credits: number): 'pink' | 'black' | null => (credits >= 5000 ? 'black' : credits >= 1000 ? 'pink' : null)
 const baht = (n: number): string => `฿${n.toLocaleString('en-US', { maximumFractionDigits: 2 })}`
 
 async function load(): Promise<void> {
@@ -104,6 +108,11 @@ const ICON: Record<LedgerEntry['kind'], string> = { topup: '🪙', bill: '🏸',
       <h1 class="world-title mt-1 text-2xl">{{ t('lineCredit.title', { name: data?.player.nickname ?? '' }) }}</h1>
     </div>
 
+    <div v-if="data?.card" class="flex flex-col items-center gap-2 py-3">
+      <CreditCardFace :tier="data.card.tier" :name="data.player.nickname" :width="280" />
+      <p class="mt-2 text-xs text-white/65">{{ t('creditCard.lasts') }}</p>
+    </div>
+
     <div class="wallet">
       <span class="text-xs text-[#ffe9a8]/80">{{ t('lineCredit.balance') }}</span>
       <div class="mt-0.5 flex items-center gap-2.5">
@@ -111,6 +120,10 @@ const ICON: Record<LedgerEntry['kind'], string> = { topup: '🪙', bill: '🏸',
         <span class="bal">{{ data ? num(data.balance) : '–' }}</span>
       </div>
       <p class="mt-1 text-xs text-white/65">{{ t('lineCredit.what') }}</p>
+      <p v-if="data && !data.card" class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-white/70">
+        <CreditCardMark tier="pink" />{{ t('creditCard.howPink') }}
+        <CreditCardMark tier="black" />{{ t('creditCard.howBlack') }}
+      </p>
     </div>
 
     <p v-if="problem" class="text-sm text-status-error" role="alert">{{ problem }}</p>
@@ -184,7 +197,7 @@ const ICON: Record<LedgerEntry['kind'], string> = { topup: '🪙', bill: '🏸',
             <span class="coin h-7 w-7 text-sm" aria-hidden="true">฿</span>
             <span class="flex flex-col text-left">
               <span class="font-display text-[22px] font-bold text-[#ffe9a8]">{{ num(p.credits) }}</span>
-              <span class="text-xs text-white/60">{{ t('lineCredit.credits') }}</span>
+              <span class="flex items-center gap-1.5 text-xs text-white/60">{{ t('lineCredit.credits') }}<template v-if="packTier(p.credits)"> · <CreditCardMark :tier="packTier(p.credits)" />{{ t(`creditCard.${packTier(p.credits)}`) }}</template></span>
             </span>
             <span class="ml-auto text-right">
               <span class="block text-xs text-white/60">{{ t('lineCredit.pay') }}</span>

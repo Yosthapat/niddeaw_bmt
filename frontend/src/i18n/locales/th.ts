@@ -1369,6 +1369,15 @@ export default {
     unlinked: 'ยกเลิกการผูก LINE แล้ว',
     badge: 'ผูก LINE แล้ว',
   },
+  creditCard: {
+    pink: 'บัตรชมพู',
+    black: 'บัตรดำ',
+    got: 'ได้{card}!',
+    lasts: 'บัตรอยู่กับคุณจนกว่า credit จะหมด',
+    keep: 'เก็บบัตร',
+    howPink: 'pack 1,000 ได้บัตรชมพู',
+    howBlack: 'pack 5,000 ได้บัตรดำ',
+  },
   quests: {
     off: 'ยังไม่ได้เปิดระบบ badge',
     shelf: 'Badge',

@@ -25,6 +25,7 @@ from supabase import Client
 
 from app.db_utils import rows
 from app.models.credit import CreditDay, CreditSummary, LedgerEntry
+from app.services import credit_card_service
 from app.services.shop_service import CLUB_TZ
 
 ATTEMPTS = 6
@@ -101,6 +102,7 @@ def apply(
             "admin_id": str(admin_id) if admin_id else None,
         }
     ).execute()
+    credit_card_service.invalidate()  # a balance moved: a card may come or go
     return after
 
 

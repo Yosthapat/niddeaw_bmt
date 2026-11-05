@@ -20,6 +20,8 @@ import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import LineBadge from '@/components/admin/LineBadge.vue'
 import { useLineLinksStore } from '@/stores/lineLinks'
 import { apiErrorMessage } from '@/api/errors'
+import CreditCardMark from '@/components/credit/CreditCardMark.vue'
+import TeamNames from '@/components/players/TeamNames.vue'
 
 const { t } = useI18n()
 const { confirm } = useConfirmDialog()
@@ -518,7 +520,7 @@ const pollControls = usePolling(refreshQueue, 7000)
                     <PlayerAvatar :name="nameOf(pid)" :avatar-url="avatarOf(pid)" size="md" />
                   </LineBadge>
                 </div>
-                <span class="text-center font-medium text-white/80">{{ m.team1_player_ids.map(nameOf).join(' & ') }}</span>
+                <span class="text-center font-medium text-white/80"><TeamNames :ids="m.team1_player_ids" :name-of="nameOf" /></span>
               </div>
 
               <div class="flex shrink-0 flex-col items-center gap-1">
@@ -534,7 +536,7 @@ const pollControls = usePolling(refreshQueue, 7000)
                     <PlayerAvatar :name="nameOf(pid)" :avatar-url="avatarOf(pid)" size="md" />
                   </LineBadge>
                 </div>
-                <span class="text-center font-medium text-white/80">{{ m.team2_player_ids.map(nameOf).join(' & ') }}</span>
+                <span class="text-center font-medium text-white/80"><TeamNames :ids="m.team2_player_ids" :name-of="nameOf" /></span>
               </div>
             </div>
             <div class="mt-2 flex items-center justify-center gap-2">
@@ -597,7 +599,7 @@ const pollControls = usePolling(refreshQueue, 7000)
                       <PlayerAvatar :name="nameOf(pid)" :avatar-url="avatarOf(pid)" size="md" />
                     </LineBadge>
                   </div>
-                  <span class="text-center text-sm text-white/70">{{ m.team1_player_ids.map(nameOf).join(' & ') }}</span>
+                  <span class="text-center text-sm text-white/70"><TeamNames :ids="m.team1_player_ids" :name-of="nameOf" /></span>
                 </div>
 
                 <div class="flex shrink-0 flex-col items-center gap-1">
@@ -613,7 +615,7 @@ const pollControls = usePolling(refreshQueue, 7000)
                       <PlayerAvatar :name="nameOf(pid)" :avatar-url="avatarOf(pid)" size="md" />
                     </LineBadge>
                   </div>
-                  <span class="text-center text-sm text-white/70">{{ m.team2_player_ids.map(nameOf).join(' & ') }}</span>
+                  <span class="text-center text-sm text-white/70"><TeamNames :ids="m.team2_player_ids" :name-of="nameOf" /></span>
                 </div>
               </div>
               <div class="mt-2 flex flex-wrap items-center justify-center gap-2">
@@ -922,7 +924,7 @@ const pollControls = usePolling(refreshQueue, 7000)
                       <PlayerAvatar :name="nameOf(pid)" :avatar-url="avatarOf(pid)" size="md" />
                     </LineBadge>
                   </div>
-                  <span class="text-center text-sm text-white/80">{{ s.team1_player_ids.map(nameOf).join(' & ') }}</span>
+                  <span class="text-center text-sm text-white/80"><TeamNames :ids="s.team1_player_ids" :name-of="nameOf" /></span>
                 </div>
                 <span class="text-xs text-white/40">VS</span>
                 <div class="flex flex-1 flex-col items-center gap-1.5">
@@ -931,7 +933,7 @@ const pollControls = usePolling(refreshQueue, 7000)
                       <PlayerAvatar :name="nameOf(pid)" :avatar-url="avatarOf(pid)" size="md" />
                     </LineBadge>
                   </div>
-                  <span class="text-center text-sm text-white/80">{{ s.team2_player_ids.map(nameOf).join(' & ') }}</span>
+                  <span class="text-center text-sm text-white/80"><TeamNames :ids="s.team2_player_ids" :name-of="nameOf" /></span>
                 </div>
               </div>
               <div class="mt-2 flex items-center justify-center gap-2">
@@ -1014,6 +1016,7 @@ const pollControls = usePolling(refreshQueue, 7000)
               <PlayerAvatar :name="nameOf(w.player_id)" :avatar-url="avatarOf(w.player_id)" size="sm" />
             </LineBadge>
             {{ nameOf(w.player_id) }}
+            <CreditCardMark :player-id="w.player_id" />
             <span class="text-xs text-white/40">~{{ Math.round(w.estimated_wait_minutes) }} {{ t('matches.minutes') }}</span>
           </li>
         </ul>

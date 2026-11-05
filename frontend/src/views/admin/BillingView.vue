@@ -18,6 +18,7 @@ import { usePolling } from '@/composables/usePolling'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import BillSlipReview from '@/components/admin/BillSlipReview.vue'
 import BrandQr from '@/components/common/BrandQr.vue'
+import CreditCardMark from '@/components/credit/CreditCardMark.vue'
 
 const { t } = useI18n()
 const sessionsStore = useSessionsStore()
@@ -254,7 +255,7 @@ usePolling(refreshBillings, 15000)
             <LineBadge :linked="lineLinks.isLinked(pid)">
               <PlayerAvatar :name="nameOf(pid)" :avatar-url="avatarOf(pid)" size="sm" />
             </LineBadge>
-            <span class="flex-1 font-medium">{{ nameOf(pid) }}</span>
+            <span class="flex-1 font-medium">{{ nameOf(pid) }} <CreditCardMark :player-id="pid" /></span>
             <button
               :disabled="billingPlayerId === pid"
               class="tap rounded-full border border-brand-pink px-3 text-xs text-brand-pink hover:bg-brand-pink hover:text-brand-black disabled:opacity-50"
@@ -304,7 +305,7 @@ usePolling(refreshBillings, 15000)
               <PlayerAvatar :name="nameOf(b.player_id)" :avatar-url="avatarOf(b.player_id)" size="sm" />
             </LineBadge>
             <span class="flex min-w-0 flex-1 flex-col">
-              <span class="font-medium">{{ nameOf(b.player_id) }}</span>
+              <span class="font-medium">{{ nameOf(b.player_id) }} <CreditCardMark :player-id="b.player_id" /></span>
               <!-- They won't see the bill on LINE: someone has to ask them. -->
               <span
                 v-if="lineLinks.count > 0 && !lineLinks.isLinked(b.player_id) && b.paid_status !== 'paid' && !isFree(b) && !waitingSlip(b)"

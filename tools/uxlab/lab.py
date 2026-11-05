@@ -265,9 +265,34 @@ def quest_history(db: MiniSupabase) -> None:
     db.tables["matches"].sort(key=lambda m: m["created_at"])
 
 
+def credit_cards(db: MiniSupabase) -> None:
+    """UXLAB_CARDS=1: James bought a 5,000 pack in LINE (black card), Faa a
+    1,000 pack (pink), Ton has credit an admin added at the court (no card)."""
+    for t in ("credit_topups", "credit_ledger", "player_credits"):
+        db.tables.setdefault(t, [])
+    names = {p["nickname"]: p["id"] for p in db.tables["players"]}
+    for n, (who, credits, line) in enumerate((("James", 5000, True), ("Faa", 1000, True), ("Ton", 2000, False))):
+        pid = names[who]
+        top = str(uuid.uuid4())
+        if line:
+            db.tables["credit_topups"].append({
+                "id": top, "player_id": pid, "credits": credits, "price": credits * 0.9, "slip_url": None,
+                "slip_sent_at": _iso(60), "status": "approved", "note": None, "decided_at": _iso(50),
+                "created_at": _iso(61),
+            })
+        db.tables["credit_ledger"].append({
+            "id": str(uuid.uuid4()), "player_id": pid, "delta": credits, "balance_after": credits,
+            "kind": "topup", "cash": credits * 0.9, "ref_id": top if line else None, "note": "uxlab",
+            "admin_id": ADMIN_ID, "created_at": _iso(50 - n),
+        })
+        db.tables["player_credits"].append({"player_id": pid, "balance": credits, "updated_at": _iso(50)})
+
+
 DB = seed()
 if os.environ.get("UXLAB_QUESTS"):
     quest_history(DB)
+if os.environ.get("UXLAB_CARDS"):
+    credit_cards(DB)
 DB.public_base = f"http://127.0.0.1:{PORT}"
 app.dependency_overrides[get_supabase] = lambda: DB
 # The activity-log middleware reaches for the client directly rather than

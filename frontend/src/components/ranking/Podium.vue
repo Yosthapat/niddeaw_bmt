@@ -9,6 +9,7 @@ import { RouterLink } from 'vue-router'
 import type { PlayerStats } from '@/types'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
+import CreditCardMark from '@/components/credit/CreditCardMark.vue'
 
 const props = defineProps<{ top: PlayerStats[]; showElo?: boolean }>()
 const { t } = useI18n()
@@ -37,7 +38,7 @@ const spots = computed(() =>
           <PlayerAvatar :name="spot.stats.player.nickname" :avatar-url="spot.stats.player.avatar_url" size="lg" round />
         </span>
         <span class="mt-2 w-full truncate text-center font-display text-[15px] font-semibold group-hover:text-brand-pink-light">
-          {{ spot.stats.player.nickname }}
+          {{ spot.stats.player.nickname }} <CreditCardMark :player-id="spot.stats.player.id" />
         </span>
         <span class="font-display text-sm font-bold text-brand-pink-light">{{ spot.stats.points }} {{ t('common.points') }}</span>
         <span v-if="showElo" class="text-[11px] text-white/55">ELO {{ Math.round(spot.stats.player.elo_score).toLocaleString('en-US') }}</span>

@@ -17,6 +17,7 @@ import CheckinQrOverlay from '@/components/admin/CheckinQrOverlay.vue'
 import LineBadge from '@/components/admin/LineBadge.vue'
 import { useLineLinksStore } from '@/stores/lineLinks'
 import { apiErrorMessage } from '@/api/errors'
+import CreditCardMark from '@/components/credit/CreditCardMark.vue'
 
 const { t, locale } = useI18n()
 const sessionsStore = useSessionsStore()
@@ -249,6 +250,7 @@ usePolling(refreshCheckins, 8000)
             </LineBadge>
             <span class="flex-1 font-medium">
               {{ playersStore.byId(c.player_id)?.nickname }}
+              <CreditCardMark :player-id="c.player_id" />
             </span>
             <TierMascot
               v-if="playersStore.byId(c.player_id)"
@@ -287,7 +289,7 @@ usePolling(refreshCheckins, 8000)
             <LineBadge :linked="lineLinks.isLinked(p.id)">
               <PlayerAvatar :name="p.nickname" :avatar-url="p.avatar_url" size="sm" />
             </LineBadge>
-            <span class="flex-1">{{ p.nickname }}</span>
+            <span class="flex-1">{{ p.nickname }} <CreditCardMark :player-id="p.id" /></span>
             <button
               class="tap rounded-full bg-brand-pink px-3 text-xs font-semibold text-brand-black disabled:opacity-50"
               :disabled="busy.has(p.id)"

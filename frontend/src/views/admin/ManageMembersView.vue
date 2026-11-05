@@ -20,6 +20,7 @@ import { useLineLinksStore } from '@/stores/lineLinks'
 import { STARTING_TIERS } from '@/utils/startingTiers'
 import { MAX_ELO, MAX_HANDLE, MAX_NOTE } from '@/utils/limits'
 import { apiErrorMessage } from '@/api/errors'
+import CreditCardMark from '@/components/credit/CreditCardMark.vue'
 
 const { t } = useI18n()
 const { confirm } = useConfirmDialog()
@@ -455,6 +456,7 @@ onMounted(loadPlayers)
             </label>
             <p class="min-w-0 flex-1 truncate font-medium">
               {{ p.nickname }}
+              <CreditCardMark :player-id="p.id" />
               <span
                 v-if="!p.is_active"
                 class="ml-1 rounded-full bg-status-error/20 px-2 py-0.5 align-middle text-xs font-semibold text-status-error"

@@ -25,6 +25,7 @@ from app.routers.admin import shop_admin as admin_shop
 from app.routers.admin import sponsors_admin as admin_sponsors
 from app.routers.admin import stats_audit_admin as admin_stats_audit
 from app.routers.public import (
+    credit_cards,
     hall_of_fame,
     live,
     matches,
@@ -66,6 +67,7 @@ app.include_router(matches.router)
 app.include_router(live.router)
 app.include_router(seasons.router)
 app.include_router(sponsors.router)
+app.include_router(credit_cards.router)
 app.include_router(shop.router)
 app.include_router(line.router)
 app.include_router(line_credit.router)

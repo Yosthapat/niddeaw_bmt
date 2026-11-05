@@ -5,6 +5,8 @@ import { getLiveStatus, getPlayers } from '@/api/public'
 import type { LiveQueueResponse, Player } from '@/types'
 import { usePolling } from '@/composables/usePolling'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
+import TeamNames from '@/components/players/TeamNames.vue'
+import CreditCardMark from '@/components/credit/CreditCardMark.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 import PageBanner from '@/components/common/PageBanner.vue'
 import { useGameNight } from '@/composables/useGameNight'
@@ -58,7 +60,6 @@ function formatSessionDate(isoDate: string): string {
 
 const { night, countdown, startsAt } = useGameNight()
 
-const teamNames = (ids: string[]): string => ids.map(nameOf).join(' & ')
 const eyebrow = computed(() =>
   live.value?.session_date ? `Live · ${formatSessionDate(live.value.session_date)}` : 'Live',
 )
@@ -145,7 +146,7 @@ usePolling(refresh, 7000)
                       :class="k > 0 ? '-ml-3' : ''"
                     />
                   </div>
-                  <span class="max-w-full text-center font-display text-sm font-semibold break-words sm:text-[15px]">{{ teamNames(side) }}</span>
+                  <span class="max-w-full text-center font-display text-sm font-semibold break-words sm:text-[15px]"><TeamNames :ids="side" :name-of="nameOf" /></span>
                 </div>
               </div>
             </li>
@@ -174,7 +175,7 @@ usePolling(refresh, 7000)
                         :class="j > 0 ? '-ml-2' : ''"
                       />
                     </span>
-                    <span class="min-w-0 max-w-full truncate text-sm">{{ teamNames(ids) }}</span>
+                    <span class="min-w-0 max-w-full truncate text-sm"><TeamNames :ids="ids" :name-of="nameOf" /></span>
                   </span>
                 </li>
               </ol>
@@ -189,6 +190,7 @@ usePolling(refresh, 7000)
                 <li v-for="w in live.waiting" :key="w.player_id" class="wait-chip">
                   <PlayerAvatar :name="nameOf(w.player_id)" :avatar-url="avatarOf(w.player_id)" size="sm" round />
                   {{ nameOf(w.player_id) }}
+                  <CreditCardMark :player-id="w.player_id" />
                 </li>
               </ul>
               <p v-else class="mt-2 text-sm text-white/55">{{ t('live.noneWaiting') }}</p>

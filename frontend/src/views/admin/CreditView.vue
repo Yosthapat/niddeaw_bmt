@@ -15,10 +15,13 @@ import { usePlayersStore } from '@/stores/players'
 import { formatDateTime } from '@/utils/format'
 import type { Locale } from '@/i18n'
 import AdminNav from '@/components/layout/AdminNav.vue'
+import CreditCardMark from '@/components/credit/CreditCardMark.vue'
+import { useCreditCardsStore } from '@/stores/creditCards'
 
 const { t, locale } = useI18n()
 const { confirm } = useConfirmDialog()
 const playersStore = usePlayersStore()
+const cards = useCreditCardsStore()
 
 type Tab = 'slips' | 'members' | 'packages'
 const tab = ref<Tab>('slips')
@@ -44,7 +47,10 @@ async function decide(topup: CreditTopupAdmin, ok: boolean): Promise<void> {
   busy.value = topup.id
   problem.value = ''
   try {
-    if (ok) await adminApi.approveCreditTopup(topup.id)
+    if (ok) {
+      await adminApi.approveCreditTopup(topup.id)
+      void cards.load(true) // a pack may have given a card
+    }
     else await adminApi.rejectCreditTopup(topup.id, reason.value.trim() || null)
     rejecting.value = null
     reason.value = ''
@@ -250,7 +256,7 @@ const KIND_TONE: Record<string, string> = {
             <img :src="w.slip_url" :alt="t('credit.slipAlt', { name: w.player_nickname })" class="h-28 w-20 rounded-lg border border-white/15 object-cover" />
           </button>
           <div class="min-w-0 flex-1">
-            <p class="font-medium">{{ w.player_nickname }} <span class="text-xs text-white/45">{{ w.player_code }}</span></p>
+            <p class="font-medium">{{ w.player_nickname }} <CreditCardMark :player-id="w.player_id" /> <span class="text-xs text-white/45">{{ w.player_code }}</span></p>
             <p class="mt-0.5 text-sm text-white/75">{{ t('credit.pkgLine', { price: baht(w.price), credits: num(w.credits) }) }}</p>
             <p class="mt-0.5 text-xs text-white/45">{{ when(w.slip_sent_at ?? w.created_at) }}</p>
             <p class="mt-2 text-xs text-[#ffd34d]">{{ t('credit.checkAmount', { price: baht(w.price) }) }}</p>
@@ -289,7 +295,7 @@ const KIND_TONE: Record<string, string> = {
       <ul class="mt-3 space-y-2">
         <li v-for="m in rows" :key="m.id">
           <button type="button" class="hud-panel hud-hover flex w-full items-center gap-3 border border-brand-pink/20 bg-brand-surface px-4 py-3 text-left" @click="openMember(m.id)">
-            <span class="flex-1">{{ m.nickname }} <span class="text-xs text-white/45">{{ m.code }}</span></span>
+            <span class="flex-1">{{ m.nickname }} <CreditCardMark :player-id="m.id" /> <span class="text-xs text-white/45">{{ m.code }}</span></span>
             <span class="coin h-5 w-5 text-[10px]" aria-hidden="true">฿</span>
             <b class="font-display text-[#ffe9a8]">{{ num(m.balance) }}</b>
           </button>
@@ -323,7 +329,7 @@ const KIND_TONE: Record<string, string> = {
     <div v-if="open" class="fixed inset-0 z-40 flex items-end justify-center bg-black/60 sm:items-center" @click.self="open = null">
       <div class="max-h-[88dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-white/15 bg-[#160a2a] p-4 sm:rounded-2xl" role="dialog" :aria-label="open.player.nickname">
         <div class="flex items-center gap-2">
-          <b class="text-lg">{{ open.player.nickname }}</b><span class="text-xs text-white/45">{{ open.player.member_code }}</span>
+          <b class="text-lg">{{ open.player.nickname }}</b><CreditCardMark :player-id="open.player.id" size="md" /><span class="text-xs text-white/45">{{ open.player.member_code }}</span>
           <span class="ml-auto flex items-center gap-1.5"><span class="coin h-6 w-6 text-xs" aria-hidden="true">฿</span><b class="font-display text-xl text-[#ffe9a8]">{{ num(open.balance) }}</b></span>
           <button type="button" class="tap px-2 text-white/60" :aria-label="t('credit.close')" @click="open = null">✕</button>
         </div>
