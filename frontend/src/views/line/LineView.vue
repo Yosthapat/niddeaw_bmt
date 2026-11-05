@@ -28,6 +28,7 @@ import LineCredit from '@/components/line/LineCredit.vue'
 import LineBadges from '@/components/line/LineBadges.vue'
 import LineBadgeCelebrate from '@/components/line/LineBadgeCelebrate.vue'
 import LineCardCelebrate from '@/components/line/LineCardCelebrate.vue'
+import PlayerShopOrders from '@/components/shop/PlayerShopOrders.vue'
 import CreditCardMark from '@/components/credit/CreditCardMark.vue'
 
 const { t } = useI18n()
@@ -295,6 +296,8 @@ onMounted(start)
           </div>
           <p v-if="actionError" class="text-sm text-status-error" role="alert">{{ actionError }}</p>
           <RouterLink :to="`/members/${me.player.id}`" class="glass-pill">{{ t('line.myProfile') }}</RouterLink>
+          <!-- what they bought in the shop and where each order stands; nothing when they never have -->
+          <PlayerShopOrders :player-id="me.player.id" class="!mt-2 w-full text-left" />
           <LineBadgeCelebrate :token="token" @count="badgeCount = $event" @done="badgesDone = true" />
           <LineCardCelebrate v-if="badgesDone" :token="token" :name="me.player.nickname" />
         </section>
