@@ -3,7 +3,9 @@
  * Paying for the whole cart in one go: who is buying, one transfer and its
  * slip, then the order number. What is being paid for always comes from
  * the server (quoteCart), so the amount in the QR is the products' prices
- * now, not whatever the page last showed.
+ * now, not whatever the page last showed. A member who came from the club's
+ * LINE page in this tab (api/line.ts rememberLineToken) and is linked there
+ * skips "who": the order goes under their LINE-linked name, straight to pay.
  */
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -11,6 +13,7 @@ import BrandQr from '@/components/common/BrandQr.vue'
 import { useRouter } from 'vue-router'
 import { getCartPayment, getPlayers, placeShopOrder, quoteCart, type ShopBuyer } from '@/api/public'
 import { apiErrorMessage } from '@/api/errors'
+import { getLineMe, rememberedLineToken } from '@/api/line'
 import type { PaymentInfoResponse, PlayerStats, Quote, ShopOrder } from '@/types'
 import { formatPhone, orderNo, phoneDigits } from '@/types'
 import { money } from '@/utils/format'
@@ -38,6 +41,8 @@ const buyerId = ref<string | null>(null)
 const mode = ref<'member' | 'guest'>('member')
 const guestName = ref('')
 const guestPhone = ref('')
+// The member this tab's LINE account is linked to: the buyer unless they change it.
+const linePlayerId = ref<string | null>(null)
 const pay = ref<PaymentInfoResponse | null>(null)
 const payError = ref<string | null>(null)
 const slip = ref<File | null>(null)
@@ -54,7 +59,7 @@ onMounted(async () => {
     return
   }
   try {
-    const [q, m] = await Promise.all([quoteCart(cart.lines), getPlayers()])
+    const [q, m, line] = await Promise.all([quoteCart(cart.lines), getPlayers(), linkedPlayerId()])
     // A line that can't be had is fixed on the cart page, not here.
     if (!q.ok) {
       router.replace('/shop/cart')
@@ -80,11 +85,30 @@ onMounted(async () => {
     } catch {
       // nothing remembered
     }
+    if (line && m.some((s) => s.player.id === line)) {
+      linePlayerId.value = line
+      buyerId.value = line
+      mode.value = 'member'
+      void toPay()
+    }
   } catch (e) {
     loadError.value = apiErrorMessage(e, t('shop.loadFailed'))
   }
 })
 
+/** The member this tab's LINE account is linked to, if it came from LINE. */
+async function linkedPlayerId(): Promise<string | null> {
+  const token = rememberedLineToken()
+  if (!token) return null
+  try {
+    return (await getLineMe(token)).player?.id ?? null
+  } catch {
+    // an expired or refused token: pick the name as usual
+    return null
+  }
+}
+
+const viaLine = computed(() => mode.value === 'member' && !!buyerId.value && buyerId.value === linePlayerId.value)
 const buyer = computed(() => members.value.find((s) => s.player.id === buyerId.value)?.player ?? null)
 const found = computed(() => {
   const q = query.value.trim().toLowerCase()
@@ -282,6 +306,12 @@ async function send(): Promise<void> {
         <!-- 2 · pay -->
         <section v-if="step === 2" class="mt-5 flex flex-col items-center gap-3">
           <h1 class="self-start font-display text-2xl font-bold">{{ t('shop.payTitle') }}</h1>
+          <div v-if="buyerName" class="buyer-chip">
+            <PlayerAvatar v-if="mode === 'member' && buyer" :name="buyer.nickname" :avatar-url="buyer.avatar_url" size="sm" />
+            <span class="min-w-0 flex-1 truncate">{{ t('shop.orderingAs', { name: buyerName }) }}</span>
+            <span v-if="viaLine" class="line-tag">{{ t('shop.viaLine') }}</span>
+            <button type="button" class="change" @click="step = 1">{{ t('shop.changeBuyer') }}</button>
+          </div>
           <p v-if="payError" class="self-start text-sm text-status-error">{{ payError }}</p>
           <template v-else-if="pay">
             <BrandQr
@@ -376,6 +406,36 @@ async function send(): Promise<void> {
 }
 details[open] .chev {
   rotate: 180deg;
+}
+.buyer-chip {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  border-radius: 16px;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  background: rgb(255 255 255 / 0.05);
+  padding: 8px 8px 8px 12px;
+  font-size: 14px;
+}
+.line-tag {
+  flex: none;
+  border-radius: 999px;
+  background: rgb(6 199 85 / 0.16);
+  padding: 3px 9px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #7dffb0;
+}
+.buyer-chip .change {
+  flex: none;
+  min-height: 36px;
+  border-radius: 999px;
+  padding: 0 12px;
+  font-size: 13px;
+  color: rgb(255 255 255 / 0.75);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .who-btn {
   display: flex;
