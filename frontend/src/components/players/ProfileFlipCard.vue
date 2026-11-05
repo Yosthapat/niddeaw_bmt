@@ -9,7 +9,7 @@ import MemberCard from '@/components/players/MemberCard.vue'
 // The profile's card: the same card as on the roster, which turns over to
 // show how this member plays — win rate, the split of their results, rank
 // and the opponent they meet most. A tap turns it; so does Enter or Space.
-const props = defineProps<{ profile: PlayerProfile }>()
+const props = defineProps<{ profile: PlayerProfile; badges?: string[] }>()
 
 const { t } = useI18n()
 const flipped = ref(false)
@@ -50,6 +50,7 @@ const bars = computed(() => {
           :draws="profile.draws"
           :losses="profile.losses"
           :rank="profile.elo_rank"
+          :badges="badges ?? []"
           large
         />
       </div>

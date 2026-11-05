@@ -6,6 +6,7 @@ import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { compressImage } from '@/utils/imageCompression'
 import type { ClubSettings, PaymentMethod, PromptPayType } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
+import QuestSettingsPanel from '@/components/admin/QuestSettingsPanel.vue'
 import { bahtProblem, MAX_HANDLE, promptpayIdProblem } from '@/utils/limits'
 import { apiErrorMessage } from '@/api/errors'
 import { formatDateTime } from '@/utils/format'
@@ -433,6 +434,8 @@ const paymentMethodOptions = computed<{ value: PaymentMethod; label: string }[]>
         {{ saving ? t('common.saving') : t('settings.saveSettings') }}
       </button>
     </form>
+
+    <QuestSettingsPanel />
 
     <section class="mt-10" aria-labelledby="backup-title">
       <h2 id="backup-title" class="text-sm font-semibold text-white/70">{{ t('settings.backupTitle') }}</h2>

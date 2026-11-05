@@ -119,6 +119,11 @@ def seed() -> MiniSupabase:
     for p in players[:8]:
         p["games"], p["wins"], p["losses"] = 1, 1 if players.index(p) % 2 == 0 else 0, 0
 
+    db.tables["quest_settings"] = [
+        {"id": 1, "start_date": (datetime.now().date() - timedelta(days=14)).isoformat(),
+         "monthly_target": 20, "synced_key": None}
+    ]
+    db.tables["player_badges"] = []
     db.tables["club_settings"] = [
         {"id": 1, "promptpay_id": "0812345678", "promptpay_type": "phone",
          "default_court_fee_per_person": 80, "default_shuttlecock_price_per_game": 29,
@@ -213,7 +218,56 @@ def seed() -> MiniSupabase:
     return db
 
 
+def quest_history(db: MiniSupabase) -> None:
+    """UXLAB_QUESTS=1: ten weekly nights before tonight, a dozen games each,
+    so the badge shelf, member cards and the home feed have medals to show.
+    Ball wins most of his games (gold medals); P'Tee rarely plays."""
+    import random
+
+    rnd = random.Random(7)
+    pid = [p["id"] for p in db.tables["players"]]
+    today = datetime.now().date()
+    db.tables["quest_settings"][0]["start_date"] = (today - timedelta(days=80)).isoformat()
+    for week in range(10, 0, -1):
+        d = today - timedelta(days=7 * week)
+        sid = str(uuid.uuid4())
+        start = datetime(d.year, d.month, d.day, 11, tzinfo=timezone.utc)
+        db.tables["sessions"].append({
+            "id": sid, "date": d.isoformat(), "location": "KB badminton court โยธินพัฒนา",
+            "court_fee_per_person": 80, "shuttlecock_price_per_game": 29, "status": "closed",
+            "created_by": ADMIN_ID, "created_at": start.isoformat(),
+        })
+        here = pid[:7] if week % 3 else pid
+        for i, p in enumerate(here):
+            db.tables["checkins"].append({
+                "id": str(uuid.uuid4()), "session_id": sid, "player_id": p,
+                "checkin_time": (start + timedelta(minutes=2 + i * 3)).isoformat(),
+                "checkout_time": (start + timedelta(hours=3, minutes=i * 4)).isoformat(),
+            })
+        for g in range(12):
+            four = rnd.sample(here, 4)
+            if g % 2 == 0 and pid[0] not in four:
+                four[0] = pid[0]
+            t1, t2 = four[:2], four[2:]
+            winner = "team1" if (pid[0] in t1 and rnd.random() < 0.85) else rnd.choice(["team1", "team2", "team2", "draw"])
+            if pid[0] in t2:
+                winner = "team2" if rnd.random() < 0.85 else "team1"
+            when = start + timedelta(minutes=10 + g * 14)
+            delta = 0 if winner == "draw" else 2
+            db.tables["matches"].append({
+                "id": str(uuid.uuid4()), "session_id": sid, "type": "double",
+                "team1_player_ids": t1, "team2_player_ids": t2, "sets": None, "winner": winner,
+                "status": "completed", "court": "1",
+                "elo_delta_team1": delta if winner == "team1" else -delta,
+                "elo_delta_team2": delta if winner == "team2" else -delta,
+                "created_at": when.isoformat(), "updated_at": (when + timedelta(minutes=12)).isoformat(),
+            })
+    db.tables["matches"].sort(key=lambda m: m["created_at"])
+
+
 DB = seed()
+if os.environ.get("UXLAB_QUESTS"):
+    quest_history(DB)
 DB.public_base = f"http://127.0.0.1:{PORT}"
 app.dependency_overrides[get_supabase] = lambda: DB
 # The activity-log middleware reaches for the client directly rather than

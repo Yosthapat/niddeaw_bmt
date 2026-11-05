@@ -5,6 +5,7 @@
 // with the club's numbers, then the vibe and how to get in touch.
 import { onBeforeUnmount, ref } from 'vue'
 import type { EloTier } from '@/types'
+import HomeBadgeFeed from '@/components/home/HomeBadgeFeed.vue'
 import HomeBanner from '@/components/home/HomeBanner.vue'
 import HomeCards from '@/components/home/HomeCards.vue'
 import HomeContact from '@/components/home/HomeContact.vue'
@@ -56,6 +57,7 @@ onBeforeUnmount(() => wideQuery.removeEventListener('change', onWide))
 
         <div class="mx-auto flex max-w-4xl flex-col gap-5 px-3 pt-5 sm:gap-6 sm:px-4 sm:pt-6">
           <HomeMembers counter />
+          <HomeBadgeFeed />
           <HomeVibes />
           <HomeContact />
         </div>
@@ -69,6 +71,7 @@ onBeforeUnmount(() => wideQuery.removeEventListener('change', onWide))
         <HomeCards class="b-doors" />
         <HomeMembers class="b-members" />
         <HomeStats class="b-stats" />
+        <HomeBadgeFeed class="b-badges" />
         <HomeVibes class="b-vibes" />
         <HomeContact class="b-contact" />
       </div>
@@ -110,6 +113,9 @@ onBeforeUnmount(() => wideQuery.removeEventListener('change', onWide))
 .b-vibes,
 .b-contact {
   grid-column: span 6;
+}
+.b-badges {
+  grid-column: span 12;
 }
 /* 900–1099px: the podium needs more than a third to stand in. */
 @media (max-width: 1099px) {

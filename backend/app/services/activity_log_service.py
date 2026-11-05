@@ -58,6 +58,7 @@ _ROUTE_LABELS: list[tuple[str, str, re.Pattern[str]]] = [
     ("POST", "อัพโหลดรูปสมาชิก", re.compile(r"^/api/admin/players/[^/]+/avatar$")),
     ("PUT", "แก้ไขตั้งค่า", re.compile(r"^/api/admin/settings$")),
     ("POST", "อัพโหลด QR รับเงิน", re.compile(r"^/api/admin/settings/qr$")),
+    ("PUT", "แก้ไขตั้งค่า quest", re.compile(r"^/api/admin/quests/settings$")),
     ("POST", "ยืนยันผูก LINE", re.compile(r"^/api/admin/line/requests/[^/]+/approve$")),
     ("POST", "ปฏิเสธคำขอผูก LINE", re.compile(r"^/api/admin/line/requests/[^/]+/reject$")),
     ("POST", "ยกเลิกการผูก LINE", re.compile(r"^/api/admin/line/players/[^/]+/unlink$")),
