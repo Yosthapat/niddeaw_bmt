@@ -13,6 +13,8 @@ const off = ref(false)
 const saving = ref(false)
 const note = ref('')
 const problem = ref('')
+// counting can't start in the future (the API refuses it too)
+const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date())
 
 onMounted(async () => {
   try {
@@ -53,7 +55,7 @@ async function save(): Promise<void> {
     <form v-if="ready" class="mt-3 grid gap-3 sm:grid-cols-2" @submit.prevent="save">
       <label class="flex flex-col gap-1 text-sm">
         <span class="text-white/60">{{ t('quests.settings.start') }}</span>
-        <input id="quest-start" v-model="start" type="date" required class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-black px-3 text-base sm:text-sm" />
+        <input id="quest-start" v-model="start" type="date" :max="today" required class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-black px-3 text-base sm:text-sm" />
       </label>
       <label class="flex flex-col gap-1 text-sm">
         <span class="text-white/60">{{ t('quests.settings.target') }}</span>

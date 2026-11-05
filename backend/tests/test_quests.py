@@ -417,6 +417,15 @@ def test_admin_settings_and_quests_off(client: TestClient, db: MiniSupabase) -> 
         ).status_code
         == 422
     )
+    # a start in the future would take every medal away: refused
+    future = client.put(
+        "/api/admin/quests/settings", json={"start_date": "3000-01-01"}, headers=admin()
+    )
+    assert future.status_code == 422
+    assert (
+        client.get("/api/admin/quests/settings", headers=admin()).json()["start_date"]
+        == "2026-12-01"
+    )
     month = client.get(f"/api/quests/players/{pid(db, 'Ball')}").json()["month"]
     assert month["target"] == 2
     db.tables.pop("quest_settings")
