@@ -1,10 +1,11 @@
 <script setup lang="ts">
 /**
- * The small pink or black card by a member's name, with a soft glow: they
+ * The small pink or black card by a member's name: they
  * bought a credit pack in LINE and still have credit (1,000 pink, 5,000
  * black). Give it `playerId` and it looks the member up in the club-wide
  * list (stores/creditCards), or a `tier` directly. Nothing when there is
- * no card.
+ * no card. No aura at this size: it only blurred the name next to it; the
+ * full-size card (CreditCardFace) keeps its aura.
  */
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -43,28 +44,12 @@ const label = computed(() => (shown.value ? t(`creditCard.${shown.value}`) : '')
   width: var(--w);
   aspect-ratio: 1.586;
   vertical-align: middle;
-  isolation: isolate;
 }
 .mark.md {
   --w: 28px;
 }
 .mark.lg {
   --w: 44px;
-}
-.mark::before {
-  content: '';
-  position: absolute;
-  inset: -18%;
-  z-index: -1;
-  border-radius: 6px;
-  filter: blur(3px);
-  animation: aura 6s linear infinite;
-}
-.pink::before {
-  background: conic-gradient(from var(--a), #ff5fae, #ffb3d9, #ff2d95, #ff8fd0, #ff5fae);
-}
-.black::before {
-  background: conic-gradient(from var(--a), #9b6bff, #f2c14e, #ff5fae, #5a2bd6, #9b6bff);
 }
 .face {
   position: absolute;
@@ -80,6 +65,10 @@ const label = computed(() => (shown.value ? t(`creditCard.${shown.value}`) : '')
 }
 .black .face {
   background: linear-gradient(140deg, #2a2530 0%, #0b0a0e 60%, #000 100%);
+  /* a thin gold edge, so the black card still reads on a dark page */
+  box-shadow:
+    0 1px 3px rgb(0 0 0 / 0.6),
+    inset 0 0 0 1px rgb(242 193 78 / 0.7);
 }
 .chip {
   position: absolute;
@@ -96,20 +85,5 @@ const label = computed(() => (shown.value ? t(`creditCard.${shown.value}`) : '')
   bottom: -18%;
   width: 70%;
   height: auto;
-}
-@property --a {
-  syntax: '<angle>';
-  inherits: false;
-  initial-value: 0deg;
-}
-@keyframes aura {
-  to {
-    --a: 360deg;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .mark::before {
-    animation: none;
-  }
 }
 </style>
