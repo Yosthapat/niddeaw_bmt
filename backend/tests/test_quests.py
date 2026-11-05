@@ -430,3 +430,46 @@ def test_admin_settings_and_quests_off(client: TestClient, db: MiniSupabase) -> 
         ).status_code
         == 503
     )
+
+
+def test_badges_are_for_line_linked_members(client: TestClient, db: MiniSupabase) -> None:
+    bank = pid(db, "Bank")
+    # Bank won the same games as Ball, but hasn't linked LINE: counted, not shown
+    got = client.get(f"/api/quests/players/{bank}").json()
+    assert got["linked"] is False
+    assert got["waiting"] == 2  # ไฟลุก and ล้างแค้น
+    assert [(b["badge"], b["level"]) for b in got["waiting_top"]] == [("revenge", 2), ("fire", 1)]
+    assert all(not lv["earned_at"] for q in got["quests"] for lv in q["levels"])
+    assert all(q["value"] == 0 for q in got["quests"])
+    assert bank not in client.get("/api/quests/top").json()
+    assert all(f["player_id"] != bank for f in client.get("/api/quests/recent").json())
+    assert client.get(f"/api/quests/players/{pid(db, 'Ball')}").json()["linked"] is True
+
+    # Bank links LINE after those games: the medals are theirs at once, but
+    # the home feed only announces what they win from then on
+    line_id = "U" + "b" * 32
+    next(p for p in db.tables["players"] if p["id"] == bank)["line_user_id"] = line_id
+    db.tables["line_link_requests"] = [
+        {
+            "id": str(uuid4()),
+            "line_user_id": line_id,
+            "line_name": "Bank LINE",
+            "player_id": bank,
+            "status": "approved",
+            "created_at": "2026-12-10T10:00:00Z",
+            "decided_at": "2026-12-10T10:05:00Z",
+        }
+    ]
+    quest_store.invalidate()
+    got = client.get(f"/api/quests/players/{bank}").json()
+    assert got["linked"] is True and got["waiting"] == 0
+    fire = next(q for q in got["quests"] if q["key"] == "fire")
+    assert fire["value"] == 3 and fire["levels"][0]["earned_at"]
+    assert [b["badge"] for b in client.get("/api/quests/top").json()[bank]] == ["revenge", "fire"]
+    assert all(f["player_id"] != bank for f in client.get("/api/quests/recent").json())
+
+
+def test_line_invite_for_the_profile_nudge(client: TestClient, db: MiniSupabase) -> None:
+    got = client.get("/api/quests/line-invite").json()
+    assert got["url"] == "https://liff.line.me/1234567890-AbCdEfGh"
+    assert got["qr_modules"]

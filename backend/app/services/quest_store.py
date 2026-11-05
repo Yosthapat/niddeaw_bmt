@@ -13,6 +13,7 @@ target.
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import threading
 import time
@@ -72,6 +73,10 @@ class Snapshot:
     elo: dict[str, int]
     today: date
     held: list[dict[str, Any]]  # player_badges rows after syncing
+    # Members who linked LINE, and when (None if no approval is on record).
+    # Badges show only for them; everyone's are still counted, so a member
+    # who links later finds the medals they already won waiting.
+    linked: dict[str, datetime | None] = dataclasses.field(default_factory=dict)
 
 
 _lock = threading.Lock()
@@ -104,6 +109,28 @@ def _dt(v: Any) -> datetime:
 
 def _d(v: Any) -> date:
     return v if isinstance(v, date) else date.fromisoformat(str(v)[:10])
+
+
+def _link_times(supabase: Client) -> dict[str, datetime]:
+    """When each LINE account was last approved, by line_user_id: through a
+    link request (an existing member) or a sign-up (a new one)."""
+    out: dict[str, datetime] = {}
+    for table in ("line_link_requests", "line_join_requests"):
+        found = _paged(
+            lambda table=table: (
+                supabase.table(table)
+                .select("line_user_id,decided_at")
+                .eq("status", "approved")
+                .order("decided_at")
+            )
+        )
+        for r in found:
+            if r.get("decided_at"):
+                at = _dt(r["decided_at"])
+                uid = str(r["line_user_id"])
+                if uid not in out or at > out[uid]:
+                    out[uid] = at
+    return out
 
 
 def load_settings(supabase: Client) -> tuple[QuestSettings, str | None]:
@@ -163,10 +190,18 @@ def _build(supabase: Client) -> Snapshot:
             )
         )
     players = _paged(
-        lambda: supabase.table("players").select("id,nickname,avatar_url,elo_score").order("id")
+        lambda: (
+            supabase.table("players")
+            .select("id,nickname,avatar_url,elo_score,line_user_id")
+            .order("id")
+        )
     )
     elo = {str(p["id"]): int(p["elo_score"]) for p in players}
     names = {str(p["id"]): (str(p["nickname"]), p.get("avatar_url")) for p in players}
+    times = _link_times(supabase) if any(p.get("line_user_id") for p in players) else {}
+    linked = {
+        str(p["id"]): times.get(str(p["line_user_id"])) for p in players if p.get("line_user_id")
+    }
 
     h = hashlib.sha1()
     h.update(f"{start}|{settings.monthly_target}|{today.isoformat()[:7]}|".encode())
@@ -186,7 +221,8 @@ def _build(supabase: Client) -> Snapshot:
 
     prev = _cached
     if prev and prev[1].key == key:
-        return prev[1]
+        # the medals stand; who has linked LINE (and names) may not
+        return dataclasses.replace(prev[1], names=names, linked=linked)
 
     matches = sorted(
         (
@@ -226,7 +262,14 @@ def _build(supabase: Client) -> Snapshot:
     )
     held = _sync(supabase, state, today, key, synced_key)
     return Snapshot(
-        key=key, settings=settings, state=state, names=names, elo=elo, today=today, held=held
+        key=key,
+        settings=settings,
+        state=state,
+        names=names,
+        elo=elo,
+        today=today,
+        held=held,
+        linked=linked,
     )
 
 
@@ -295,7 +338,9 @@ def snapshot(supabase: Client) -> Snapshot:
 # ---- views ---------------------------------------------------------------
 
 
-def player_badges(snap: Snapshot, player_id: str) -> PlayerBadges:
+def player_badges(snap: Snapshot, player_id: str, *, linked: bool | None = None) -> PlayerBadges:
+    """`linked` overrides what the snapshot knows (it can be a few seconds
+    behind an approval), for the LINE page, where the member is linked."""
     q = snap.state.get(player_id)
     if q is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Player not found")
@@ -336,7 +381,7 @@ def player_badges(snap: Snapshot, player_id: str) -> PlayerBadges:
                     )
                 )
     past.sort(key=lambda m: m.month, reverse=True)
-    return PlayerBadges(
+    full = PlayerBadges(
         start_date=snap.settings.start_date,
         quests=quests,
         podium=PodiumState(
@@ -347,6 +392,39 @@ def player_badges(snap: Snapshot, player_id: str) -> PlayerBadges:
         ),
         past_months=past,
         secrets=[SecretState(key=k, earned_at=s.earned[0]) for k, s in q.secrets.items()],
+    )
+    if linked is None:
+        linked = player_id in snap.linked
+    return full if linked else _locked(snap, player_id, full)
+
+
+def _locked(snap: Snapshot, player_id: str, full: PlayerBadges) -> PlayerBadges:
+    """What a member who hasn't linked LINE shows: every quest still to win,
+    and a count of the medals waiting for them once they link."""
+    mine = [r for r in snap.held if str(r["player_id"]) == player_id]
+    slots = {"monthly" if str(r["badge"]).startswith("monthly:") else str(r["badge"]) for r in mine}
+    return PlayerBadges(
+        start_date=full.start_date,
+        quests=[
+            QuestState(
+                key=q.key,
+                value=0,
+                levels=[QuestLevel(threshold=lv.threshold) for lv in q.levels],
+            )
+            for q in full.quests
+        ],
+        podium=PodiumState(
+            start_rank=full.podium.start_rank,
+            rank=full.podium.start_rank,
+            elo=full.podium.elo,
+            earned=[None] * len(full.podium.earned),
+        ),
+        month=MonthState(month=full.month.month, target=full.month.target, games=0),
+        past_months=[],
+        secrets=[SecretState(key=s.key) for s in full.secrets],
+        linked=False,
+        waiting=len(slots),
+        waiting_top=_grandest(mine).get(player_id, []),
     )
 
 
@@ -368,10 +446,15 @@ def mark_seen(supabase: Client, player_id: str, items: list[BadgeAward]) -> None
 
 
 def top_badges(snap: Snapshot, per_player: int = 3) -> dict[str, list[BadgeAward]]:
-    """Each member's grandest medals: gold before silver before bronze, a
-    quest shown once (its highest level), newest first among equals."""
+    """Each LINE-linked member's grandest medals, for the member cards."""
+    return _grandest([r for r in snap.held if str(r["player_id"]) in snap.linked], per_player)
+
+
+def _grandest(held: list[dict[str, Any]], per_player: int = 3) -> dict[str, list[BadgeAward]]:
+    """Gold before silver before bronze, a quest shown once (its highest
+    level), newest first among equals."""
     best: dict[tuple[str, str], dict[str, Any]] = {}
-    for r in snap.held:
+    for r in held:
         k = (str(r["player_id"]), str(r["badge"]))
         if k not in best or int(r["level"]) > int(best[k]["level"]):
             best[k] = r
@@ -393,12 +476,25 @@ def top_badges(snap: Snapshot, per_player: int = 3) -> dict[str, list[BadgeAward
 
 def feed(snap: Snapshot, limit: int = 12) -> list[BadgeFeedItem]:
     """Latest medals in the club worth telling everyone about: silver and
-    up, every secret and every monthly medal."""
+    up, every secret and every monthly medal. Only LINE-linked members',
+    and only those won since they linked: the ones that were waiting for
+    them are celebrated in LINE, not announced on the home page."""
+
+    def since_linked(r: dict[str, Any]) -> bool:
+        pid = str(r["player_id"])
+        if pid not in snap.linked:
+            return False
+        at = snap.linked[pid]
+        return at is None or _dt(r["earned_at"]) >= at
+
     items = [
         r
         for r in snap.held
-        if metal(str(r["badge"]), int(r["level"])) >= 2
-        or str(r["badge"]).startswith(("secret_", "monthly:"))
+        if since_linked(r)
+        and (
+            metal(str(r["badge"]), int(r["level"])) >= 2
+            or str(r["badge"]).startswith(("secret_", "monthly:"))
+        )
     ]
     items.sort(key=lambda r: str(r["earned_at"]), reverse=True)
     out = []
