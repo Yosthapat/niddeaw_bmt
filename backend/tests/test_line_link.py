@@ -661,3 +661,31 @@ def test_tonight_ignores_old_closed_nights(client: TestClient, db: MiniSupabase)
     client.post("/api/admin/checkins", json={"session_id": sid, "player_id": bam}, headers=admin())
     now = client.get("/api/line/tonight", headers=member(BAM)).json()
     assert now["state"] == "in" and now["night"]["id"] == sid
+
+
+def test_everyone_sees_who_is_linked_but_never_their_line(
+    client: TestClient, db: MiniSupabase
+) -> None:
+    db.tables["players"][2]["line_name"] = "Bam LINE"
+    rows = client.get("/api/players").json()
+    listed = {r.get("player", r)["nickname"]: r.get("player", r) for r in rows}
+    assert listed["Bam"]["line_linked"] is True
+    assert listed["Ball"]["line_linked"] is False
+    one = client.get(f"/api/players/{pid(db, 'Bam')}").json()
+    assert one["line_linked"] is True
+    for p in [*listed.values(), one]:
+        assert "line_user_id" not in p and "line_name" not in p
+
+
+def test_the_invite_qr_opens_the_line_page(client: TestClient, db: MiniSupabase) -> None:
+    assert client.get("/api/admin/line/invite").status_code == 401
+    got = client.get("/api/admin/line/invite", headers=admin()).json()
+    assert got["url"] == "https://liff.line.me/1234567890-AbCdEfGh"
+    assert got["qr_modules"] and set("".join(got["qr_modules"])) <= {"0", "1"}
+
+
+def test_no_invite_qr_until_line_is_set_up(
+    client: TestClient, db: MiniSupabase, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(get_settings(), "line_liff_id", None)
+    assert client.get("/api/admin/line/invite", headers=admin()).status_code == 503

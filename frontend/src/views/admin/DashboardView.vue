@@ -10,16 +10,19 @@ import SessionPicker from '@/components/layout/SessionPicker.vue'
 import RevenueExpenseChart from '@/components/admin/RevenueExpenseChart.vue'
 import AccountBalanceChart from '@/components/admin/AccountBalanceChart.vue'
 import CountUp from '@/components/common/CountUp.vue'
+import { useLineLinksStore } from '@/stores/lineLinks'
 
 const { t } = useI18n()
 const sessionsStore = useSessionsStore()
 const playersStore = usePlayersStore()
 // The charts below refresh it; the shop card only reads what they fetched.
 const finance = useFinanceStore()
+const lineLinks = useLineLinksStore()
 
 onMounted(() => {
   sessionsStore.refresh()
   playersStore.ensureLoaded()
+  void lineLinks.load()
 })
 </script>
 
@@ -33,7 +36,7 @@ onMounted(() => {
     </div>
 
     <div class="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-      <div class="hud-panel hud-hover flex flex-col justify-between border border-brand-pink/20 bg-brand-surface p-3">
+      <RouterLink to="/admin/members" class="hud-panel hud-hover flex flex-col justify-between border border-brand-pink/20 bg-brand-surface p-3">
         <div class="flex items-center gap-1.5 text-white/50">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 shrink-0">
             <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2 M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z M22 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75" />
@@ -41,7 +44,12 @@ onMounted(() => {
           <p class="text-xs leading-tight">{{ t('dashboard.totalMembers') }}</p>
         </div>
         <p class="mt-2 font-display text-xl font-bold"><CountUp :value="playersStore.players.length" /></p>
-      </div>
+        <p v-if="lineLinks.count > 0 || lineLinks.pending > 0" class="mt-0.5 flex items-center gap-1 text-[11px] leading-tight text-[#7ff0b4]">
+          <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-[#06c755]" aria-hidden="true" />
+          {{ t('lineSummary.dashboard', { n: lineLinks.count }) }}
+          <span v-if="lineLinks.pending > 0" class="text-[#ffd34d]">· {{ t('lineSummary.dashboardPending', { n: lineLinks.pending }) }}</span>
+        </p>
+      </RouterLink>
       <div class="hud-panel hud-hover flex flex-col justify-between border border-brand-pink/20 bg-brand-surface p-3">
         <div class="flex items-center gap-1.5 text-white/50">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 shrink-0">

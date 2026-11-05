@@ -29,6 +29,11 @@ def checkin_url(code: str) -> str:
     return f"https://liff.line.me/{get_settings().line_liff_id}/checkin?c={code}"
 
 
+def invite_url() -> str:
+    """Opens the /line page inside LINE, where a member picks their name."""
+    return f"https://liff.line.me/{get_settings().line_liff_id}"
+
+
 def _today() -> date:
     return datetime.now(CLUB_TZ).date()
 

@@ -645,6 +645,15 @@ export async function getLineLinks(): Promise<LineLink[]> {
   return request('/api/admin/line/links')
 }
 
+export interface LineInvite {
+  url: string
+  qr_modules: string[]
+}
+
+export async function getLineInvite(): Promise<LineInvite> {
+  return request('/api/admin/line/invite')
+}
+
 export async function unlinkLine(playerId: string): Promise<Player> {
   return request(`/api/admin/line/players/${playerId}/unlink`, { method: 'POST' })
 }

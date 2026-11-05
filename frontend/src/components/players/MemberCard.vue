@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import type { Player } from '@/types'
 import { tierMeta } from '@/composables/useEloTier'
 import { TIER_CARD } from '@/utils/tierCard'
+import LineMark from '@/components/players/LineMark.vue'
 
 // The member as a trading card: photo (or their tier's mascot until they
 // have one), tier and ELO on top, record along the bottom. Shared by the
@@ -42,7 +43,10 @@ const line = computed(() => props.player.quote || t('roster.tierLine', { tier: t
   >
     <div class="member-card__in">
       <div class="flex items-center justify-between gap-2">
-        <span class="font-display text-[11px] font-semibold tracking-[0.12em] text-white/65">{{ player.member_code }}</span>
+        <span class="flex min-w-0 items-center gap-1.5">
+          <span class="font-display text-[11px] font-semibold tracking-[0.12em] text-white/65">{{ player.member_code }}</span>
+          <LineMark v-if="player.line_linked" />
+        </span>
         <span class="elo-chip font-display"><template v-if="rank">#{{ rank }} · </template>ELO {{ player.elo_score }}</span>
       </div>
 

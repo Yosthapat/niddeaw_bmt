@@ -111,6 +111,15 @@ class LineLink(BaseModel):
     line_name: str | None = None
 
 
+class LineInvite(BaseModel):
+    """The club's LINE link, as a QR the admin shows to members who haven't
+    linked yet: it opens /line inside LINE, where they pick their name."""
+
+    url: str
+    qr_modules: list[str]
+    """The QR as rows of 0/1, drawn as the club's QR card."""
+
+
 class JoinRequestAdmin(JoinApplication):
     """An application as the admin sees it, with who sent it on LINE."""
 

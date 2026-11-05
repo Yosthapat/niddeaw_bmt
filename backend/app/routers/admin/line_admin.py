@@ -14,6 +14,7 @@ from app.models.line import (
     CheckinQr,
     JoinApprove,
     JoinRequestAdmin,
+    LineInvite,
     LineLink,
     LinkRequestAdmin,
 )
@@ -129,6 +130,17 @@ def links(supabase: SupabaseDep, admin: AdminDep) -> list[LineLink]:
         for p in linked
         if p.get("line_user_id")
     ]
+
+
+@router.get("/invite", response_model=LineInvite)
+def invite(admin: AdminDep) -> LineInvite:
+    """The QR that sends a member to link their LINE."""
+    if not line_auth.configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="ยังไม่ได้ตั้งค่า LINE"
+        )
+    url = line_checkin.invite_url()
+    return LineInvite(url=url, qr_modules=promptpay_service.qr_modules(url))
 
 
 @router.post("/players/{player_id}/unlink", response_model=Player)
