@@ -13,7 +13,7 @@ import { useI18n } from 'vue-i18n'
 import * as lineApi from '@/api/line'
 import type { JoinApplication, LineStatus, LinkOption } from '@/api/line'
 import { apiErrorMessage } from '@/api/errors'
-import { nicknameProblem, normaliseNickname } from '@/utils/nickname'
+import { nicknameProblem, tidyNicknameCase } from '@/utils/nickname'
 import { AVATAR_DIMENSION, compressImage } from '@/utils/imageCompression'
 import { MAX_HANDLE, MAX_NOTE } from '@/utils/limits'
 
@@ -82,14 +82,20 @@ const initials = computed(() =>
 )
 
 const touched = ref(false)
+// However they type it, the name is kept as a capital then small letters
+// ("VAAN" → "Vaan"); the rules and the clash check look at that.
+const tidied = computed(() => tidyNicknameCase(form.nickname))
 const nameProblem = computed((): string | null => {
-  const raw = form.nickname
-  if (!raw.trim()) return touched.value ? t('members.nicknameEmpty') : null
-  const problem = nicknameProblem(raw)
+  if (!form.nickname.trim()) return touched.value ? t('members.nicknameEmpty') : null
+  const problem = nicknameProblem(tidied.value)
   if (problem) return t(`members.nickname${problem[0].toUpperCase()}${problem.slice(1)}`)
-  const name = normaliseNickname(raw).toLowerCase()
+  const name = tidied.value.toLowerCase()
   return props.members.some((m) => m.nickname.toLowerCase() === name) ? t('members.nicknameTaken') : null
 })
+function tidyName(): void {
+  touched.value = true
+  if (form.nickname.trim()) form.nickname = tidied.value
+}
 const nameOk = computed(() => form.nickname.trim() !== '' && nameProblem.value === null)
 
 const sending = ref(false)
@@ -102,7 +108,7 @@ async function submit(): Promise<void> {
   problem.value = ''
   try {
     let status = await lineApi.sendJoin(props.token, {
-      nickname: normaliseNickname(form.nickname),
+      nickname: tidied.value,
       dominant_hand: form.hand,
       instagram: form.instagram.trim() || null,
       tiktok: form.tiktok.trim() || null,
@@ -171,10 +177,12 @@ async function submit(): Promise<void> {
         :aria-invalid="!!nameProblem"
         class="inp"
         :class="nameProblem ? 'bad' : nameOk ? 'good' : ''"
-        @blur="touched = true"
+        @blur="tidyName"
       />
       <span v-if="nameProblem" class="text-xs text-status-error" role="alert">{{ nameProblem }}</span>
-      <span v-else-if="nameOk" class="text-xs text-[#7dffb0]">{{ t('lineJoin.nicknameFree') }}</span>
+      <span v-else-if="nameOk" class="text-xs text-[#7dffb0]">
+        {{ t('lineJoin.nicknameFree') }}<template v-if="tidied !== form.nickname"> · {{ t('lineJoin.nicknameSavedAs', { name: tidied }) }}</template>
+      </span>
       <span v-else class="text-xs text-white/55">{{ t('lineJoin.nicknameRule') }}</span>
     </label>
 

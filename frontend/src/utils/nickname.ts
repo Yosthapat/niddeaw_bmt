@@ -17,6 +17,14 @@ export function normaliseNickname(raw: string): string {
   return raw.trim().split(/\s+/).join(' ')
 }
 
+/** A capital, then small letters, for each part of the name: "VAAN" and
+ *  "vaan" become "Vaan", "p'tee" "P'Tee". The LINE sign-up applies it (and
+ *  so does the API, nickname_service.tidy_case); the admin's forms keep
+ *  what the admin typed. */
+export function tidyNicknameCase(raw: string): string {
+  return normaliseNickname(raw).replace(/[A-Za-z]+/g, (w) => w[0]!.toUpperCase() + w.slice(1).toLowerCase())
+}
+
 /** The key of the reason this nickname is not allowed, or null if it is.
  *  The caller turns the key into a message through i18n, so the rule reads
  *  in whichever language the admin is using. */

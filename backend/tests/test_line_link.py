@@ -270,6 +270,10 @@ def test_sign_up_keeps_the_club_rules_and_uses_the_line_picture(
     # Nobody is in the club yet.
     assert not any(p["nickname"] == "Tonkla" for p in db.tables["players"])
 
+    # However they type it, it is saved a capital then small letters.
+    tidied = client.post("/api/line/join", json={**form, "nickname": "tONKLA"}, headers=joiner())
+    assert tidied.json()["application"]["nickname"] == "Tonkla"
+
 
 def test_admin_accepts_a_sign_up_into_a_linked_member(
     client: TestClient, db: MiniSupabase, monkeypatch: pytest.MonkeyPatch
