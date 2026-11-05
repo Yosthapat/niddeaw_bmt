@@ -222,10 +222,9 @@ onBeforeUnmount(() => seen?.disconnect())
             <span class="shrink-0 font-display text-2xl font-bold text-brand-pink-light" aria-live="polite">{{ priceLabel }}</span>
           </div>
 
-          <dl v-if="isPre" class="grid grid-cols-3 gap-2 rounded-2xl border border-[#ffe14d]/35 bg-[#ffe14d]/8 p-3 text-center">
+          <dl v-if="isPre" class="grid grid-cols-2 gap-2 rounded-2xl border border-[#ffe14d]/35 bg-[#ffe14d]/8 p-3 text-center">
             <div><dt class="text-[11px] text-white/65">{{ t('shop.closesOn') }}</dt><dd class="text-sm font-medium">{{ day(product.preorder_closes_on) }}</dd></div>
             <div><dt class="text-[11px] text-white/65">{{ t('shop.deliversOn') }}</dt><dd class="text-sm font-medium">{{ day(product.preorder_delivers_on) }}</dd></div>
-            <div><dt class="text-[11px] text-white/65">{{ t('shop.orderedSoFar') }}</dt><dd class="text-sm font-medium">{{ t('shop.units', { n: product.ordered }) }}</dd></div>
           </dl>
 
           <fieldset v-if="hasSizes" ref="sizesBox" class="sizes flex scroll-mt-24 flex-col gap-2 rounded-2xl" :class="{ nudge }" @animationend="nudge = false">
