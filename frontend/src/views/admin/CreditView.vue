@@ -215,7 +215,7 @@ const KIND_TONE: Record<string, string> = {
   <AdminNav />
   <main class="mx-auto max-w-2xl px-4 py-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
-      <h1 class="font-display text-2xl font-bold">{{ t('credit.title') }}</h1>
+      <h1 class="sr-only">{{ t('credit.title') }}</h1>
       <div role="tablist" class="flex gap-1.5">
         <button
           v-for="x in (['slips', 'members', 'packages'] as const)"

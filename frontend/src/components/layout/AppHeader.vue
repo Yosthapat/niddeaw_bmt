@@ -1,12 +1,16 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { ADMIN_PAGES } from './adminPages'
 import { setLocale } from '@/i18n'
 import LanguageSwitcher from './LanguageSwitcher.vue'
 import { shownPath } from '@/composables/usePageSwap'
 
 const route = useRoute()
+const router = useRouter()
+const auth = useAuthStore()
 const { t, locale } = useI18n()
 
 // Inside /admin the club's own nav is dead weight: the admin screens carry
@@ -15,6 +19,24 @@ const { t, locale } = useI18n()
 // pages nobody opens mid-night, above the nine they actually use. What is
 // left is the way back out to the site and the language switch.
 const isAdmin = computed(() => route.path.startsWith('/admin'))
+const isLogin = computed(() => route.path === '/admin/login')
+// The night's four, then the office screens that fit beside them on a wide
+// screen (members, shop, credit, revenue); everything else under "เพิ่มเติม".
+const barPages = ADMIN_PAGES.filter((p) => p.night || ['members', 'shop', 'credit', 'revenue'].includes(p.nav))
+const morePages = ADMIN_PAGES.filter((p) => p.listed && !p.night)
+const onMore = computed(() => morePages.some((p) => p.to === route.path && !barPages.includes(p)))
+const moreOpen = ref(false)
+watch(
+  () => route.path,
+  () => {
+    moreOpen.value = false
+  },
+)
+function logout(): void {
+  moreOpen.value = false
+  auth.logout()
+  void router.push('/admin/login')
+}
 // The menu and search pages are full screens with their own back arrow,
 // the way Facebook opens them; the bar would only be a second way out.
 // Read off the page on screen, not the route: the route changes as ☰ is
@@ -65,25 +87,79 @@ function isActive(to: string): boolean {
 </script>
 
 <template>
-  <header v-if="isAdmin" class="sticky top-0 z-10 border-b border-brand-pink/20 bg-brand-black/95 backdrop-blur">
-    <div class="mx-auto flex max-w-5xl items-center gap-2.5 px-3 py-3 sm:gap-4 sm:px-4">
-      <RouterLink to="/" class="flex min-h-11 min-w-11 shrink-0 items-center gap-2.5">
-        <span class="hud-panel bg-brand-pink p-0.5">
-          <img
-            src="/pwa-icons/pwa-192x192.png"
-            alt="นิดเดียว Badminton Club logo"
-            width="32"
-            height="32"
-            class="hud-panel block h-8 w-8"
-          />
-        </span>
-        <span class="hidden font-display text-base font-bold tracking-wide text-white sm:inline">
-          นิดเดียว<span class="text-brand-pink">BMT</span>
-        </span>
+  <template v-if="isAdmin">
+    <!-- Admin on a phone: the club and the language, as on the public site;
+         the screens themselves are in the bar at the bottom (AdminTabBar). -->
+    <header class="sticky top-0 z-20 flex h-[var(--header-h)] items-center justify-between border-b border-white/8 bg-[#0b0518] pr-3 pl-3 min-[900px]:hidden">
+      <RouterLink to="/admin" class="flex h-11 min-w-0 items-center gap-2">
+        <img src="/pwa-icons/pwa-192x192.png" alt="นิดเดียว Badminton Club logo" width="34" height="34" class="h-[34px] w-[34px] shrink-0 rounded-full" />
+        <span class="truncate font-display text-[20px] font-bold tracking-tight text-white">นิดเดียว<span class="text-brand-pink">BMT</span></span>
+        <span class="admin-chip">ADMIN</span>
       </RouterLink>
-      <LanguageSwitcher class="ml-auto shrink-0" />
-    </div>
-  </header>
+      <button type="button" class="fb-round font-display text-[13px] font-bold" :aria-label="t('nav.switchLang')" @click="toggleLocale">
+        {{ locale === 'th' ? 'TH' : 'EN' }}
+      </button>
+    </header>
+
+    <!-- Admin from 900px: the public site's floating bar of glass, with the
+         night's four screens, the office ones, and the rest under "เพิ่มเติม". -->
+    <header class="pointer-events-none sticky top-0 z-20 hidden h-[var(--header-h)] items-center justify-center px-4 min-[900px]:flex">
+      <div class="glass-bar pointer-events-auto relative flex h-16 items-center gap-1 rounded-full pr-2.5 pl-3">
+        <RouterLink to="/admin" class="mr-1 flex min-h-11 shrink-0 items-center gap-2.5 border-r border-white/15 pr-3">
+          <img src="/pwa-icons/pwa-192x192.png" alt="นิดเดียว Badminton Club logo" width="40" height="40" class="h-10 w-10 rounded-full ring-2 ring-white/30" />
+          <span class="admin-chip">ADMIN</span>
+        </RouterLink>
+        <template v-if="!isLogin">
+          <nav :aria-label="t('admin.nav.label')" class="flex items-center gap-0.5">
+            <RouterLink v-for="p in barPages" :key="p.to" v-slot="{ href, navigate }" :to="p.to" custom>
+              <a
+                :href="href"
+                :aria-current="route.path === p.to ? 'page' : undefined"
+                class="flex h-[46px] items-center rounded-full text-[14px] whitespace-nowrap transition-colors"
+                :class="[route.path === p.to ? 'glass-drop px-4 font-medium' : 'px-3 text-white/80 hover:text-white', p.night ? '' : 'max-[1279px]:hidden']"
+                @click="navigate"
+              >
+                {{ t(`admin.nav.${p.nav}`) }}
+              </a>
+            </RouterLink>
+          </nav>
+          <button
+            type="button"
+            class="flex h-[46px] items-center gap-1 rounded-full px-3 text-[14px] whitespace-nowrap transition-colors"
+            :class="moreOpen || onMore ? 'glass-drop' : 'text-white/80 hover:text-white'"
+            :aria-expanded="moreOpen"
+            aria-controls="admin-more-desktop"
+            @click="moreOpen = !moreOpen"
+          >
+            {{ t('admin.more') }}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" :class="{ 'rotate-180': moreOpen }" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+          </button>
+          <div v-if="moreOpen" class="fixed inset-0 z-0" aria-hidden="true" @click="moreOpen = false" />
+          <div
+            v-if="moreOpen"
+            id="admin-more-desktop"
+            class="glass-bar more-menu absolute top-[calc(100%+10px)] right-0 z-10 w-64 rounded-3xl p-2"
+          >
+            <RouterLink
+              v-for="p in morePages"
+              :key="p.to"
+              :to="p.to"
+              :aria-current="route.path === p.to ? 'page' : undefined"
+              class="flex min-h-11 items-center gap-3 rounded-2xl px-3 text-[14px]"
+              :class="[route.path === p.to ? 'glass-drop' : 'text-white/85 hover:bg-white/8', p.listed && barPages.includes(p) ? 'min-[1280px]:hidden' : '']"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 shrink-0 opacity-80" aria-hidden="true"><path :d="p.icon" /></svg>
+              {{ t(`admin.nav.${p.nav}`) }}
+            </RouterLink>
+            <div class="my-1.5 h-px bg-white/10" />
+            <RouterLink to="/" class="flex min-h-11 items-center rounded-2xl px-3 text-[14px] text-white/70 hover:bg-white/8">{{ t('admin.toSite') }}</RouterLink>
+            <button type="button" class="flex min-h-11 w-full items-center rounded-2xl px-3 text-left text-[14px] text-white/70 hover:bg-white/8" @click="logout">{{ t('admin.nav.logout') }}</button>
+          </div>
+        </template>
+        <LanguageSwitcher glass class="ml-1.5 shrink-0" />
+      </div>
+    </header>
+  </template>
 
   <!-- On a phone: a solid bar the way Facebook's is — ☰ and the club on
        the left, search and language on the right. The pages themselves are
@@ -181,5 +257,18 @@ function isActive(to: string): boolean {
 }
 .fb-round:hover {
   background: rgb(255 255 255 / 0.16);
+}
+.more-menu {
+  /* solid enough that the page under it doesn't read through */
+  background: rgb(22 10 42 / 0.96);
+}
+.admin-chip {
+  border-radius: 999px;
+  background: rgb(234 76 164 / 0.18);
+  border: 1px solid rgb(255 143 208 / 0.45);
+  padding: 2px 8px;
+  font: 700 11px 'Chakra Petch', sans-serif;
+  letter-spacing: 0.12em;
+  color: #ffc2e3;
 }
 </style>
