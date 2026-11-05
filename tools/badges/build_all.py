@@ -42,7 +42,7 @@ QUESTS = [
         [("bronze", 10), ("silver", 50), ("gold", 100), ("gold", 300, "pink")]),   # 300 = gold on brand-pink enamel
     ("giant", "ล้มยักษ์", "shield", "milk", [P + "milk_giant.webp"], [("bronze", 1), ("silver", 5), ("gold", 10)]),
     ("unbeaten", "คืนไร้พ่าย", "shield", "absinthe", [P + "absinthe_unbeaten.webp"], [("bronze", 1), ("silver", 3), ("gold", 5)]),
-    ("marathon", "มาราธอน", "shield", "soju", [P + "soju_marathon.webp"], [("bronze", 10), ("silver", 15), ("gold", 20)]),
+    ("marathon", "มาราธอน", "shield", "soju", [P + "soju_marathon.webp"], [("bronze", 6), ("silver", 7), ("gold", 8)]),
     ("mixer", "ผสมได้ทุกคู่", "rounded", "highball", [P + "highball_mixer.webp"], [("bronze", 5), ("silver", 10), ("gold", 20)]),
     ("buddy", "คู่ซี้", "rounded", "soju", [P + "soju_buddy.webp", P + "highball_buddy.webp"], [("bronze", 5), ("silver", 10), ("gold", 20)]),
     ("revenge", "ล้างแค้น", "rounded", "whisky", [P + "whisky_revenge.webp"], [("silver", 1), ("gold", 3)]),

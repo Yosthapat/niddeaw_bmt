@@ -156,7 +156,9 @@ def test_marathon_mixer_and_buddy() -> None:
         opp = [p for p in others if p != mate][:2]
         w.match(n, [me, mate], opp, "team1", 0, 0)
     q = w.derive()[me].quests
-    assert q["marathon"].value == 10 and q["marathon"].earned[0] is not None
+    # 6 / 7 / 8 games: what a long night at the club's court allows (two
+    # games an hour, four hours); ten games earns all three
+    assert q["marathon"].value == 10 and all(at is not None for at in q["marathon"].earned)
     assert q["mixer"].value == 5 and q["mixer"].earned[0] is not None
     assert (
         q["buddy"].value == 6
