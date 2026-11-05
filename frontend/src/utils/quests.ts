@@ -196,6 +196,72 @@ export function shelfItems(data: PlayerBadges, t: T, locale: Locale): BadgeItem[
   return items
 }
 
+export interface AlmostItem {
+  id: string
+  /** the medal they are working towards, shown greyed */
+  img: string
+  title: string
+  label: string
+  /** 0..1, how far along */
+  ratio: number
+}
+
+/**
+ * "Almost there": the quests a member is furthest along towards their next
+ * medal, for the top of their badges in LINE. Only quests already started
+ * (some progress) and not finished; secrets never, since they say nothing
+ * about themselves until won. This month's quest adds the days left.
+ */
+export function almostThere(data: PlayerBadges, t: T, locale: Locale, today: Date = new Date(), n = 3): AlmostItem[] {
+  const out: AlmostItem[] = []
+  for (const key of ORDER) {
+    const q = data.quests.find((x) => x.key === key)
+    if (!q) continue
+    const got = q.levels.filter((l) => l.earned_at).length
+    const next = q.levels[got]
+    if (!next || q.value <= 0) continue
+    const who = q.other_name ? t(`quests.with.${key}`, { name: q.other_name }) : ''
+    out.push({
+      id: key,
+      img: img(`${key}_${next.threshold}`),
+      title: `${t(`quests.name.${key}`)} · ${metalName(t, metalsOf(key)[got] ?? 'b')}`,
+      label: `${t(`quests.unit.${key}`, { n: q.value, target: next.threshold })}${who ? ` · ${who}` : ''}`,
+      ratio: Math.min(q.value, next.threshold) / next.threshold,
+    })
+  }
+
+  const pod = data.podium
+  const nextTier = PODIUM[pod.rank + 1]
+  const here = PODIUM[pod.rank]
+  if (nextTier && here) {
+    const value = Math.max(0, pod.elo - here.from)
+    const target = nextTier.from - here.from
+    if (value > 0)
+      out.push({
+        id: 'podium',
+        img: img(`podium_${nextTier.tier}_${nextTier.art}`),
+        title: `${t('quests.name.podium')} · ${cap(nextTier.tier)}`,
+        label: t('quests.unit.podium', { elo: pod.elo, target: nextTier.from, tier: cap(nextTier.tier) }),
+        ratio: Math.min(1, value / target),
+      })
+  }
+
+  const m = data.month
+  if (!m.earned_at && m.games > 0) {
+    const [y, mo] = m.month.split('-').map(Number)
+    const thisMonth = y === today.getFullYear() && mo === today.getMonth() + 1
+    const left = thisMonth ? new Date(y!, mo!, 0).getDate() - today.getDate() : 0
+    out.push({
+      id: 'monthly',
+      img: img('monthly_gold'),
+      title: t('quests.name.monthly', { month: formatMonth(m.month, locale) }),
+      label: `${t('quests.unit.monthly', { n: m.games, target: m.target })}${thisMonth ? ` · ${t('quests.daysLeft', { n: left })}` : ''}`,
+      ratio: Math.min(m.games, m.target) / m.target,
+    })
+  }
+  return out.sort((a, b) => b.ratio - a.ratio).slice(0, n)
+}
+
 /** A member's grandest three, for their card: gold before silver before bronze, newest first. */
 export function topThree(items: BadgeItem[]): BadgeItem[] {
   return items
