@@ -673,3 +673,44 @@ def test_the_activity_log_still_lists_after_an_order_is_deleted(client: TestClie
     response = client.get("/api/admin/activity-log", headers=as_me())
     assert response.status_code == 200
     assert response.json()[0]["detail"]["order_no"] == 12
+
+
+# ------------------------------------------------------------- the clip
+
+MP4 = b"\x00\x00\x00\x18ftypisom\x00\x00\x02\x00isomiso2" + b"\x00" * 64
+WEBM = b"\x1a\x45\xdf\xa3" + b"\x00" * 64
+
+
+def test_an_admin_sets_a_turnaround_clip_and_a_new_one_replaces_it(client: TestClient, shelf: Shelf) -> None:
+    seed(shelf)
+    first = client.post(f"/api/admin/shop/products/{PRODUCT_ID}/video", files={"file": ("turn.mp4", MP4, "video/mp4")}, headers=auth())
+    assert first.status_code == 200
+    url = first.json()["video_url"]
+    path, data, options = shelf.storage.from_("shop").uploaded[0]
+    assert path.startswith("product-video-") and path.endswith(".mp4") and url.endswith(path)
+    assert options["content-type"] == "video/mp4" and data == MP4
+    second = client.post(f"/api/admin/shop/products/{PRODUCT_ID}/video", files={"file": ("turn.webm", WEBM, "video/webm")}, headers=auth())
+    assert second.status_code == 200 and second.json()["video_url"].endswith(".webm")
+    assert shelf.storage.from_("shop").removed == [[path]]  # the old clip goes
+
+
+def test_the_clip_must_really_be_a_video(client: TestClient, shelf: Shelf) -> None:
+    seed(shelf)
+    png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
+    response = client.post(f"/api/admin/shop/products/{PRODUCT_ID}/video", files={"file": ("turn.mp4", png, "video/mp4")}, headers=auth())
+    assert response.status_code == 400
+    assert not shelf.storage.from_("shop").uploaded
+
+
+def test_only_an_admin_sets_the_clip(client: TestClient, shelf: Shelf) -> None:
+    seed(shelf)
+    response = client.post(f"/api/admin/shop/products/{PRODUCT_ID}/video", files={"file": ("turn.mp4", MP4, "video/mp4")})
+    assert response.status_code in (401, 403)
+
+
+def test_removing_the_clip_clears_it_and_the_file(client: TestClient, shelf: Shelf) -> None:
+    url = "https://fake.supabase.co/storage/v1/object/public/shop/product-video-abc.mp4"
+    seed(shelf, prod=product(video_url=url))
+    response = client.delete(f"/api/admin/shop/products/{PRODUCT_ID}/video", headers=auth())
+    assert response.status_code == 200 and response.json()["video_url"] is None
+    assert shelf.storage.from_("shop").removed == [["product-video-abc.mp4"]]

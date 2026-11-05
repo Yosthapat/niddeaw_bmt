@@ -324,7 +324,7 @@ def _stored(bucket: str, path: str) -> Response:
     data = DB.storage_bytes.get(f"{bucket}/{path}")
     if data is None:
         return Response(status_code=404)
-    kind = "image/png" if path.endswith(".png") else "image/jpeg"
+    kind = {"png": "image/png", "mp4": "video/mp4", "webm": "video/webm"}.get(path.rsplit(".", 1)[-1], "image/jpeg")
     return Response(content=data, media_type=kind)
 
 

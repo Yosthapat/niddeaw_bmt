@@ -50,6 +50,8 @@ const ROUTES: [string, RegExp, string][] = [
   ['DELETE', /^\/api\/admin\/shop\/products\/[^/]+$/, 'deleteProduct'],
   ['POST', /^\/api\/admin\/shop\/products\/[^/]+\/images$/, 'addProductImage'],
   ['DELETE', /^\/api\/admin\/shop\/products\/[^/]+\/images$/, 'removeProductImage'],
+  ['POST', /^\/api\/admin\/shop\/products\/[^/]+\/video$/, 'setProductVideo'],
+  ['DELETE', /^\/api\/admin\/shop\/products\/[^/]+\/video$/, 'removeProductVideo'],
   ['PATCH', /^\/api\/admin\/shop\/orders\/[^/]+$/, 'updateShopOrder'],
   ['PATCH', /^\/api\/admin\/shop\/orders\/[^/]+\/items\/[^/]+$/, 'editShopOrderItem'],
   ['POST', /^\/api\/admin\/shop\/orders\/[^/]+\/delete$/, 'deleteShopOrder'],

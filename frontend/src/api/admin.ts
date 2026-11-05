@@ -541,6 +541,17 @@ export async function removeProductImage(id: string, url: string): Promise<Produ
   return request(`/api/admin/shop/products/${id}/images?url=${encodeURIComponent(url)}`, { method: 'DELETE' })
 }
 
+/** The turnaround clip the product page opens on (MP4 or WebM, 15 MB at most). */
+export async function setProductVideo(id: string, file: File): Promise<Product> {
+  const form = new FormData()
+  form.append('file', file)
+  return request(`/api/admin/shop/products/${id}/video`, { method: 'POST', body: form })
+}
+
+export async function removeProductVideo(id: string): Promise<Product> {
+  return request(`/api/admin/shop/products/${id}/video`, { method: 'DELETE' })
+}
+
 export async function getShopOrders(status?: OrderStatus): Promise<ShopOrderAdmin[]> {
   return request(`/api/admin/shop/orders${status ? `?status=${status}` : ''}`)
 }

@@ -35,6 +35,9 @@ MAX_IMAGE_BYTES = 5 * 1024 * 1024
 # large enough to read the print on a shirt at retina density.
 IMAGE_MAX_PX = 1600
 IMAGE_CACHE_SECONDS = "31536000"  # random object names, so a year is safe
+# A turnaround clip: a few seconds, already cut to the web (about 1 MB is
+# typical). The cap keeps one careless upload from eating the bucket.
+MAX_VIDEO_BYTES = 15 * 1024 * 1024
 
 
 def _bad(detail: str) -> HTTPException:
@@ -150,12 +153,13 @@ def delete_product(product_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> 
             detail="สินค้านี้มีออเดอร์แล้ว ลบไม่ได้ — ปิด \"ขายอยู่\" แทน",
         )
     supabase.table("products").delete().eq("id", str(product_id)).execute()
-    for url in product.get("image_urls") or []:
-        _forget(supabase, url)
+    for url in [*(product.get("image_urls") or []), product.get("video_url")]:
+        if url:
+            _forget(supabase, url)
 
 
 def _forget(supabase: SupabaseDep, url: str) -> None:
-    """Remove a photo nothing points at any more. Best effort."""
+    """Remove a photo or clip nothing points at any more. Best effort."""
     path = storage_path_from_url(url, SHOP_BUCKET)
     if path:
         with contextlib.suppress(Exception):
@@ -205,6 +209,51 @@ def remove_image(
         .execute()
     )
     _forget(supabase, url)
+    return _hydrated(supabase, rows(result)[0])
+
+
+def video_kind(head: bytes) -> tuple[str, str] | None:
+    """(extension, content type) of an MP4 or WebM file, from its first bytes;
+    None for anything else, whatever it is called."""
+    if len(head) >= 12 and head[4:8] == b"ftyp":
+        return "mp4", "video/mp4"
+    if head[:4] == b"\x1a\x45\xdf\xa3":
+        return "webm", "video/webm"
+    return None
+
+
+@router.post("/products/{product_id}/video", response_model=Product)
+async def set_video(
+    product_id: UUID, file: UploadFile, supabase: SupabaseDep, admin: AdminDep
+) -> Product:
+    """The clip the product page opens on. A new one replaces the old."""
+    old = _product(supabase, str(product_id)).get("video_url")  # before the row changes
+    contents = await file.read(MAX_VIDEO_BYTES + 1)
+    if len(contents) > MAX_VIDEO_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="คลิปใหญ่เกิน 15 MB — ตัดให้สั้นลงหรือลดความละเอียดก่อน",
+        )
+    kind = video_kind(contents[:16])
+    if kind is None:
+        raise _bad("ใช้ได้เฉพาะคลิป MP4 หรือ WebM")
+    ext, content_type = kind
+    path = f"product-video-{uuid.uuid4().hex}.{ext}"
+    bucket = supabase.storage.from_(SHOP_BUCKET)
+    bucket.upload(path, contents, {"content-type": content_type, "cache-control": IMAGE_CACHE_SECONDS})
+    url: str = bucket.get_public_url(path)
+    result = supabase.table("products").update({"video_url": url}).eq("id", str(product_id)).execute()
+    if old:
+        _forget(supabase, old)
+    return _hydrated(supabase, rows(result)[0])
+
+
+@router.delete("/products/{product_id}/video", response_model=Product)
+def remove_video(product_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> Product:
+    old = _product(supabase, str(product_id)).get("video_url")  # before the row changes
+    result = supabase.table("products").update({"video_url": None}).eq("id", str(product_id)).execute()
+    if old:
+        _forget(supabase, old)
     return _hydrated(supabase, rows(result)[0])
 
 
