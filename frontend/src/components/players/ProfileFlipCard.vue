@@ -5,6 +5,7 @@ import type { PlayerProfile } from '@/types'
 import { tierMeta } from '@/composables/useEloTier'
 import { TIER_CARD } from '@/utils/tierCard'
 import MemberCard from '@/components/players/MemberCard.vue'
+import CreditCardMark from '@/components/credit/CreditCardMark.vue'
 
 // The profile's card: the same card as on the roster, which turns over to
 // show how this member plays — win rate, the split of their results, rank
@@ -64,7 +65,10 @@ const bars = computed(() => {
       >
         <div class="back-in">
           <div class="flex items-center justify-between">
-            <span class="truncate font-display text-lg font-bold">{{ profile.player.nickname }}</span>
+            <span class="flex min-w-0 items-center gap-2">
+              <span class="truncate font-display text-lg font-bold">{{ profile.player.nickname }}</span>
+              <CreditCardMark :player-id="profile.player.id" size="md" />
+            </span>
             <img :src="`/tiers/${profile.player.elo_level}.webp`" alt="" width="40" height="40" class="h-10 w-10" />
           </div>
           <div class="flex items-baseline gap-2">

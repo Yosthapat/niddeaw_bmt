@@ -13,11 +13,11 @@ from supabase import Client
 
 from app.db_utils import rows
 from app.deps import LineMemberDep, SupabaseDep
-from app.models.credit import CreditPackage, CreditTopup, LineCredit, TopupIn
+from app.models.credit import CreditCard, CreditPackage, CreditTopup, LineCredit, TopupIn
 from app.models.line import LineContext
 from app.models.payment import PaymentInfoResponse
 from app.routers.line import MAX_SLIP_BYTES, SLIP_MAX_PX, _member
-from app.services import credit_service, night_bill, payment_info_service
+from app.services import credit_card_service, credit_service, night_bill, payment_info_service
 from app.services.image_service import resize_jpeg
 
 router = APIRouter(prefix="/api/line/credit", tags=["line-credit"])
@@ -51,9 +51,11 @@ def state(supabase: Client, member: LineContext) -> LineCredit:
     pending = next((t for t in tops if t["status"] == "pending"), None)
     latest_done = next((t for t in tops if t["status"] != "pending"), None)
     rejected = latest_done if latest_done and latest_done["status"] == "rejected" else None
+    card = credit_card_service.all_cards(supabase).get(pid)
     return LineCredit(
         player=player,
         balance=credit_service.balance(supabase, pid),
+        card=CreditCard(tier=card.tier, since=card.since) if card else None,
         packages=_packages(supabase),
         pending=CreditTopup.model_validate(pending) if pending else None,
         rejected=CreditTopup.model_validate(rejected) if rejected and not pending else None,

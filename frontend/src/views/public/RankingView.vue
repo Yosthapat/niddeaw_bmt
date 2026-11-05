@@ -6,6 +6,7 @@ import type { PlayerStats } from '@/types'
 import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
+import CreditCardMark from '@/components/credit/CreditCardMark.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 import CountUp from '@/components/common/CountUp.vue'
 import PageBanner from '@/components/common/PageBanner.vue'
@@ -129,7 +130,7 @@ const periodLabel = { all: 'ranking.allTime', year: 'ranking.thisYear', day: 'ra
                 <span class="rank-no">{{ i + 4 }}</span>
                 <PlayerAvatar :name="s.player.nickname" :avatar-url="s.player.avatar_url" size="md" round />
                 <span class="min-w-0">
-                  <span class="block truncate font-display text-[15px] font-semibold sm:text-base">{{ s.player.nickname }}</span>
+                  <span class="block truncate font-display text-[15px] font-semibold sm:text-base">{{ s.player.nickname }} <CreditCardMark :player-id="s.player.id" /></span>
                   <span class="block truncate text-[11px] text-white/55 sm:text-xs">
                     {{ s.games }} {{ t('common.game') }} · {{ t('common.win') }} {{ s.wins }} · {{ t('common.draw') }} {{ s.draws }} ·
                     {{ t('common.loss') }} {{ s.losses }}

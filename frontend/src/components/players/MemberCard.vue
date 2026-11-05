@@ -5,6 +5,7 @@ import type { Player } from '@/types'
 import { tierMeta } from '@/composables/useEloTier'
 import { TIER_CARD } from '@/utils/tierCard'
 import LineMark from '@/components/players/LineMark.vue'
+import CreditCardMark from '@/components/credit/CreditCardMark.vue'
 
 // The member as a trading card: photo (or their tier's mascot until they
 // have one), tier and ELO on top, record along the bottom. Shared by the
@@ -74,8 +75,9 @@ const line = computed(() => props.player.quote || t('roster.tierLine', { tier: t
       </div>
 
       <div class="min-w-0">
-        <h2 class="truncate font-display text-base leading-tight font-bold sm:text-lg" :class="{ 'sm:text-2xl': large }">
-          {{ player.nickname }}
+        <h2 class="flex min-w-0 items-center gap-2 font-display text-base leading-tight font-bold sm:text-lg" :class="{ 'sm:text-2xl': large }">
+          <span class="truncate">{{ player.nickname }}</span>
+          <CreditCardMark :player-id="player.id" :size="large ? 'md' : 'sm'" />
         </h2>
         <div class="flex items-center gap-1.5">
           <p class="min-w-0 flex-1 truncate text-[11px] text-white/65" :class="{ 'sm:text-sm': large }">{{ line }}</p>

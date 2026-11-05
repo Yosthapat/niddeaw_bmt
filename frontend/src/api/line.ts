@@ -211,13 +211,28 @@ export interface LedgerEntry {
   created_at: string
 }
 
+export type CardTier = 'pink' | 'black'
+
+/** The card held while credit lasts: pink for a 1,000 pack bought in LINE,
+ *  black for 5,000. `since` changes with each new card. */
+export interface CreditCardState {
+  tier: CardTier
+  since: string
+}
+
 export interface LineCredit {
   player: Player
   balance: number
+  card: CreditCardState | null
   packages: CreditPackage[]
   pending: CreditTopup | null
   rejected: CreditTopup | null
   history: LedgerEntry[]
+}
+
+/** {player_id: tier} for everyone holding a card (public). */
+export function getCreditCards(): Promise<Record<string, CardTier>> {
+  return request('/api/credit-cards')
 }
 
 export function getCredit(token: string): Promise<LineCredit> {

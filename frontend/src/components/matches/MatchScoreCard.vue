@@ -10,6 +10,7 @@ import { RouterLink } from 'vue-router'
 import type { Match, Player } from '@/types'
 import { formatDateTime, formatTime } from '@/utils/format'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
+import TeamNames from '@/components/players/TeamNames.vue'
 
 const props = defineProps<{ match: Match; playersById: Record<string, Player>; withDate?: boolean }>()
 const { t, locale } = useI18n()
@@ -22,7 +23,7 @@ type Result = 'win' | 'draw' | 'lose' | null
 function side(ids: string[], me: 'team1' | 'team2') {
   const w = props.match.winner
   const result: Result = !w ? null : w === 'draw' ? 'draw' : w === me ? 'win' : 'lose'
-  return { ids, names: ids.map(nameOf).join(' & '), result }
+  return { ids, result }
 }
 
 const teams = computed(() => [side(props.match.team1_player_ids, 'team1'), side(props.match.team2_player_ids, 'team2')])
@@ -56,7 +57,7 @@ const when = computed(() =>
             <PlayerAvatar :name="nameOf(id)" :avatar-url="avatarOf(id)" size="md" round />
           </span>
         </div>
-        <span class="min-w-0 truncate pl-1 font-display text-[15px] font-semibold sm:text-base">{{ team.names }}</span>
+        <span class="min-w-0 truncate pl-1 font-display text-[15px] font-semibold sm:text-base"><TeamNames :ids="team.ids" :name-of="nameOf" /></span>
         <span v-if="team.result" class="plate">{{ t(`matches.${team.result}`) }}</span>
       </div>
     </template>

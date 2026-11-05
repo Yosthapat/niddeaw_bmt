@@ -22,7 +22,7 @@ from minisupabase import MiniSupabase
 from app.deps import get_supabase
 from app.main import app
 from app.security import create_access_token, create_line_token
-from app.services import credit_service
+from app.services import credit_card_service, credit_service
 
 BALL = "U" + "a" * 32
 BANK = "U" + "b" * 32
@@ -69,8 +69,10 @@ def db() -> Iterator[MiniSupabase]:
         }
     )
     app.dependency_overrides[get_supabase] = lambda: fake
+    credit_card_service.invalidate()
     yield fake
     app.dependency_overrides.pop(get_supabase, None)
+    credit_card_service.invalidate()
 
 
 @pytest.fixture
@@ -232,3 +234,55 @@ def test_admin_routes_need_an_admin(client: TestClient, db: MiniSupabase) -> Non
     for method, url in [("get", "/api/admin/credit/topups"), ("get", "/api/admin/credit/balances"), ("get", "/api/admin/credit/summary")]:
         assert getattr(client, method)(url).status_code == 401
         assert getattr(client, method)(url, headers=member()).status_code == 401
+
+
+# --- the pink and black cards (services/credit_card_service.py) ---------------
+
+
+def _row(n: int, delta: int, after: int, kind: str = "topup", ref: str | None = None) -> dict[str, Any]:
+    return {
+        "id": f"r{n}", "player_id": "p", "delta": delta, "balance_after": after, "kind": kind,
+        "ref_id": ref, "created_at": f"2026-11-{n:02d}T10:00:00Z",
+    }
+
+
+def test_a_card_lasts_while_the_credit_does() -> None:
+    line = {"t1", "t2", "t3", "t4"}
+    run = [_row(1, 1000, 1000, ref="t1")]
+    assert credit_card_service.cards_from(run, line)["p"].tier == "pink"
+    # the grandest pack in the run counts: 5,000 then 1,000 is still black
+    run += [_row(2, 5000, 6000, ref="t2"), _row(3, 1000, 7000, ref="t3")]
+    assert credit_card_service.cards_from(run, line)["p"].tier == "black"
+    assert credit_card_service.cards_from(run, line)["p"].since == "r2"
+    # spent down to nothing: the card goes
+    run += [_row(4, -7000, 0, kind="bill")]
+    assert credit_card_service.cards_from(run, line) == {}
+    # cash at the court keeps credit but earns no card; a LINE pack does
+    run += [_row(5, 2000, 2000, ref=None)]
+    assert credit_card_service.cards_from(run, line) == {}
+    run += [_row(6, 1000, 3000, ref="t4")]
+    assert credit_card_service.cards_from(run, line)["p"].tier == "pink" and credit_card_service.cards_from(run, line)["p"].since == "r6"
+    # a pack smaller than 1,000 is no card
+    assert credit_card_service.cards_from([_row(1, 500, 500, ref="t1")], line) == {}
+
+
+def test_cards_from_packs_bought_in_line(client: TestClient, db: MiniSupabase) -> None:
+    ball = pid(db, "Ball")
+    assert client.get("/api/credit-cards").json() == {}
+    assert client.get("/api/line/credit", headers=member()).json()["card"] is None
+    client.post(f"/api/admin/credit/topups/{topped_up(client, db)}/approve", headers=admin())
+    assert client.get("/api/credit-cards").json() == {ball: "pink"}
+    pink = client.get("/api/line/credit", headers=member()).json()["card"]
+    assert pink["tier"] == "pink" and pink["since"]
+
+    adjust = f"/api/admin/credit/players/{ball}/adjust"
+    client.post(adjust, json={"delta": -1000, "cash": 950, "note": "คืนเงิน"}, headers=admin())
+    assert client.get("/api/credit-cards").json() == {}
+    # cash at the court: credit, but no card
+    client.post(adjust, json={"delta": 1000, "cash": 1000, "note": "รับเงินสดที่สนาม"}, headers=admin())
+    assert client.get("/api/credit-cards").json() == {}
+
+    client.post(f"/api/admin/credit/topups/{topped_up(client, db, 5000)}/approve", headers=admin())
+    assert client.get("/api/credit-cards").json() == {ball: "black"}
+    black = client.get("/api/line/credit", headers=member()).json()["card"]
+    assert black["tier"] == "black" and black["since"] != pink["since"]

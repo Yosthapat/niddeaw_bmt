@@ -77,11 +77,21 @@ class TopupReject(BaseModel):
     note: Annotated[str, StringConstraints(strip_whitespace=True, max_length=300)] | None = None
 
 
+class CreditCard(BaseModel):
+    """The pink or black card a member holds while their credit lasts
+    (services/credit_card_service.py). `since` changes when a new card
+    is given, so LINE can celebrate each one once."""
+
+    tier: Literal["pink", "black"]
+    since: str
+
+
 class LineCredit(BaseModel):
     """A member's own credit, as the /line page and their profile show it."""
 
     player: Player
     balance: int
+    card: CreditCard | None = None
     packages: list[CreditPackage]
     # The one top-up waiting, if any — with or without its slip yet.
     pending: CreditTopup | None = None

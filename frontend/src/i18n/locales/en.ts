@@ -1372,6 +1372,15 @@ export default {
     unlinked: 'LINE unlinked',
     badge: 'Linked to LINE',
   },
+  creditCard: {
+    pink: 'Pink card',
+    black: 'Black card',
+    got: '{card}!',
+    lasts: 'Yours for as long as you have credit',
+    keep: 'Keep it',
+    howPink: 'a 1,000 pack: pink card',
+    howBlack: 'a 5,000 pack: black card',
+  },
   quests: {
     off: 'Badges are not switched on yet',
     shelf: 'Badges',

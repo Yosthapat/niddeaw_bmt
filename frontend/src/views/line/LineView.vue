@@ -27,6 +27,8 @@ import LineBills from '@/components/line/LineBills.vue'
 import LineCredit from '@/components/line/LineCredit.vue'
 import LineBadges from '@/components/line/LineBadges.vue'
 import LineBadgeCelebrate from '@/components/line/LineBadgeCelebrate.vue'
+import LineCardCelebrate from '@/components/line/LineCardCelebrate.vue'
+import CreditCardMark from '@/components/credit/CreditCardMark.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -57,6 +59,8 @@ type Screen = 'home' | 'checkout' | 'bills' | 'credit' | 'badges'
 const screen = ref<Screen>('home')
 const tonight = ref<LineTonight | null>(null)
 const badgeCount = ref(0)
+// the new-card celebration waits for the medals' to finish
+const badgesDone = ref(false)
 
 async function start(): Promise<void> {
   phase.value = 'loading'
@@ -268,7 +272,7 @@ onMounted(start)
         <section v-else-if="me.player" class="world-card flex flex-col items-center gap-3 p-6 text-center">
           <p class="world-eyebrow">LINKED</p>
           <PlayerAvatar :name="me.player.nickname" :avatar-url="me.player.avatar_url" size="lg" round />
-          <h1 class="world-title text-2xl">{{ me.player.nickname }}</h1>
+          <h1 class="world-title flex items-center gap-2 text-2xl">{{ me.player.nickname }}<CreditCardMark :player-id="me.player.id" size="md" /></h1>
           <span class="inline-flex items-center gap-1.5 text-sm text-white/70">
             <TierMascot :tier="me.player.elo_level" :size="22" :interactive="false" />
             {{ me.player.member_code }}
@@ -282,7 +286,7 @@ onMounted(start)
             <button type="button" class="glass-pill justify-center" @click="go('checkout')">{{ t('lineCheckout.open') }}</button>
             <button type="button" class="glass-pill justify-center" @click="go('bills')">{{ t('lineCheckout.myBills') }}</button>
             <button type="button" class="credit-pill col-span-full justify-center" @click="go('credit')">
-              <span class="coin-dot" aria-hidden="true">฿</span>{{ t('lineCredit.open') }}
+              <span class="coin-dot" aria-hidden="true">฿</span>{{ t('lineCredit.open') }}<CreditCardMark :player-id="me.player.id" class="ml-1" />
             </button>
             <button type="button" class="glass-pill col-span-full justify-center gap-2" @click="go('badges')">
               <img src="/badges/fire_10.webp" alt="" width="64" height="64" class="h-7 w-7 object-contain" />
@@ -291,7 +295,8 @@ onMounted(start)
           </div>
           <p v-if="actionError" class="text-sm text-status-error" role="alert">{{ actionError }}</p>
           <RouterLink :to="`/members/${me.player.id}`" class="glass-pill">{{ t('line.myProfile') }}</RouterLink>
-          <LineBadgeCelebrate :token="token" @count="badgeCount = $event" />
+          <LineBadgeCelebrate :token="token" @count="badgeCount = $event" @done="badgesDone = true" />
+          <LineCardCelebrate v-if="badgesDone" :token="token" :name="me.player.nickname" />
         </section>
 
         <!-- signing up: not in the club yet -->
