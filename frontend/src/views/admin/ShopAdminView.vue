@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
 import { apiErrorMessage } from '@/api/errors'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
+import { usePolling } from '@/composables/usePolling'
 import type { OrderStatus, PreorderTally, Product, SaleType, ShopOrderAdmin, ShopOrderItem } from '@/types'
 import { formatPhone, orderNo, priceOf, priceRange } from '@/types'
 import { ApiError } from '@/api/client'
@@ -45,6 +46,41 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+// New orders arrive by themselves: the list is read again every
+// ORDERS_EVERY_MS. Orders not seen before glow and a bar says how many came
+// in; tapping it shows them. Skipped while an action is running, so a
+// change the admin just made isn't overwritten by a read from before it.
+const ORDERS_EVERY_MS = 10_000
+const fresh = ref<Set<string>>(new Set())
+const freshCount = computed(() => orders.value.filter((o) => fresh.value.has(o.id)).length)
+async function lookForNew(): Promise<void> {
+  if (loading.value || busy.value || document.visibilityState === 'hidden') return
+  try {
+    const now = await adminApi.getShopOrders()
+    if (busy.value) return
+    const known = new Set(orders.value.map((o) => o.id))
+    const arrived = now.filter((o) => !known.has(o.id)).map((o) => o.id)
+    const changed = arrived.length > 0 || now.some((o) => orders.value.find((x) => x.id === o.id)?.status !== o.status)
+    if (!changed && now.length === orders.value.length) return
+    orders.value = now
+    if (arrived.length) {
+      fresh.value = new Set([...fresh.value, ...arrived])
+      tally.value = await adminApi.getPreorderTally().catch(() => tally.value)
+    }
+    if (changed) moneyVersion.value++
+  } catch {
+    // a missed look is caught by the next one
+  }
+}
+usePolling(lookForNew, ORDERS_EVERY_MS)
+async function showFresh(): Promise<void> {
+  tab.value = 'orders'
+  const first = orders.value.find((o) => fresh.value.has(o.id))
+  if (first) group.value = first.status as Group
+  await nextTick()
+  document.querySelector('.order-fresh')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
 
 // ------------------------------------------------------------------ orders
 type Group = 'pending' | 'confirmed' | 'delivered' | 'rejected'
@@ -466,11 +502,20 @@ function priceText(p: Product): string {
         </button>
       </div>
 
+      <button v-if="freshCount > 0" type="button" class="new-orders mt-3" @click="showFresh">
+        <span class="dot" aria-hidden="true" />{{ t('shopAdmin.newOrders', { n: freshCount }) }}
+      </button>
       <p v-if="actionError" class="mt-3 text-sm text-status-error" role="alert">{{ actionError }}</p>
       <p v-if="deletedNote" class="mt-3 rounded-xl border border-[#7ff0b4]/45 bg-[#7ff0b4]/10 px-3 py-2 text-sm text-[#7ff0b4]" role="status">✓ {{ deletedNote }}</p>
       <p v-if="shownOrders.length === 0" class="mt-6 text-center text-sm text-white/55">{{ t('shopAdmin.noOrders') }}</p>
       <ul class="mt-3 space-y-2">
-        <li v-for="o in shownOrders" :key="o.id" class="hud-panel flex flex-col gap-2.5 border border-brand-pink/20 bg-brand-surface p-3">
+        <li
+          v-for="o in shownOrders"
+          :key="o.id"
+          class="hud-panel flex flex-col gap-2.5 border bg-brand-surface p-3"
+          :class="fresh.has(o.id) ? 'order-fresh border-[#ffe14d]/70' : 'border-brand-pink/20'"
+          @pointerdown="fresh.delete(o.id)"
+        >
           <div class="flex items-start gap-2.5">
             <a :href="o.slip_url" target="_blank" rel="noopener noreferrer" :aria-label="t('shopAdmin.viewSlip', { name: o.player_nickname })" class="shrink-0">
               <img :src="o.slip_url" alt="" loading="lazy" class="h-16 w-12 rounded-md border border-white/15 object-cover" />
@@ -796,3 +841,60 @@ function priceText(p: Product): string {
     </Teleport>
   </main>
 </template>
+
+<style scoped>
+/* new orders: a bar that says how many came in, and a glow on each until it is touched */
+.new-orders {
+  /* floats at the top of the screen, wherever the admin has scrolled to */
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 76px);
+  left: max(16px, env(safe-area-inset-left, 0px));
+  right: max(16px, env(safe-area-inset-right, 0px));
+  z-index: 40;
+  margin: 0 auto !important;
+  max-width: 480px;
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 14px;
+  border: 1px solid rgb(255 225 77 / 0.55);
+  background: rgb(40 30 8 / 0.92);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffe14d;
+  animation: new-in 0.4s ease-out both;
+}
+.new-orders .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ffe14d;
+  box-shadow: 0 0 0 0 rgb(255 225 77 / 0.7);
+  animation: ping 1.6s ease-out infinite;
+}
+.order-fresh {
+  box-shadow: 0 0 0 1px rgb(255 225 77 / 0.35), 0 0 22px rgb(255 225 77 / 0.25);
+}
+@keyframes new-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+@keyframes ping {
+  80%,
+  100% {
+    box-shadow: 0 0 0 8px rgb(255 225 77 / 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .new-orders,
+  .new-orders .dot {
+    animation: none;
+  }
+}
+</style>
