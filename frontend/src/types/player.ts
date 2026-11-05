@@ -20,6 +20,8 @@ export interface Player {
   wins: number
   draws: number
   losses: number
+  /** Linked their LINE: a small green badge. Only the yes/no reaches the site. */
+  line_linked?: boolean
 }
 
 /** Mirrors backend app/models/player.py PlayerStats. */

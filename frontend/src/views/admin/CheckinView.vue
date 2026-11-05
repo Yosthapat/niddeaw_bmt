@@ -14,11 +14,16 @@ import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 import CheckinQrOverlay from '@/components/admin/CheckinQrOverlay.vue'
+import LineBadge from '@/components/admin/LineBadge.vue'
+import { useLineLinksStore } from '@/stores/lineLinks'
 import { apiErrorMessage } from '@/api/errors'
 
 const { t, locale } = useI18n()
 const sessionsStore = useSessionsStore()
 const playersStore = usePlayersStore()
+// Who can check out and pay from LINE themselves tonight.
+const lineLinks = useLineLinksStore()
+void lineLinks.load()
 
 const checkins = ref<Checkin[]>([])
 const newPlayerName = ref('')
@@ -66,6 +71,7 @@ const activeCheckins = computed(() =>
 // the headings claim is there.
 const allActiveCheckins = computed(() => checkins.value.filter((c) => c.checkout_time === null))
 const activePlayerIds = computed(() => new Set(allActiveCheckins.value.map((c) => c.player_id)))
+const tonightLinked = computed(() => allActiveCheckins.value.filter((c) => lineLinks.isLinked(c.player_id)).length)
 const availablePlayers = computed(() =>
   playersStore.players.filter((p) => p.is_active && !activePlayerIds.value.has(p.id)),
 )
@@ -219,6 +225,11 @@ usePolling(refreshCheckins, 8000)
         </button>
       </div>
 
+      <p v-if="lineLinks.count > 0 && allActiveCheckins.length > 0" class="mt-3 flex items-center gap-2 text-xs text-white/60">
+        <span class="h-2 w-2 shrink-0 rounded-full bg-[#06c755]" aria-hidden="true" />
+        {{ t('lineSummary.tonight', { n: tonightLinked, total: allActiveCheckins.length }) }}
+      </p>
+
       <section v-show="visibleTab === 'in'" class="mt-6">
         <h2 class="sr-only">
           {{ t('checkin.checkingIn') }} ({{ activeCheckins.length }})
@@ -229,11 +240,13 @@ usePolling(refreshCheckins, 8000)
             :key="c.id"
             class="hud-hover flex items-center gap-3 hud-panel border border-brand-pink/20 bg-brand-surface px-3 py-2"
           >
-            <PlayerAvatar
-              :name="playersStore.byId(c.player_id)?.nickname ?? '?'"
-              :avatar-url="playersStore.byId(c.player_id)?.avatar_url"
-              size="sm"
-            />
+            <LineBadge :linked="lineLinks.isLinked(c.player_id)">
+              <PlayerAvatar
+                :name="playersStore.byId(c.player_id)?.nickname ?? '?'"
+                :avatar-url="playersStore.byId(c.player_id)?.avatar_url"
+                size="sm"
+              />
+            </LineBadge>
             <span class="flex-1 font-medium">
               {{ playersStore.byId(c.player_id)?.nickname }}
             </span>
@@ -271,7 +284,9 @@ usePolling(refreshCheckins, 8000)
             :key="p.id"
             class="hud-hover flex items-center gap-3 hud-panel border border-brand-pink/20 bg-brand-surface px-3 py-2"
           >
-            <PlayerAvatar :name="p.nickname" :avatar-url="p.avatar_url" size="sm" />
+            <LineBadge :linked="lineLinks.isLinked(p.id)">
+              <PlayerAvatar :name="p.nickname" :avatar-url="p.avatar_url" size="sm" />
+            </LineBadge>
             <span class="flex-1">{{ p.nickname }}</span>
             <button
               class="tap rounded-full bg-brand-pink px-3 text-xs font-semibold text-brand-black disabled:opacity-50"

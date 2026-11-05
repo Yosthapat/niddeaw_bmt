@@ -10,6 +10,8 @@ import AdminNav from '@/components/layout/AdminNav.vue'
 import { money } from '@/utils/format'
 import SessionPicker from '@/components/layout/SessionPicker.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
+import LineBadge from '@/components/admin/LineBadge.vue'
+import { useLineLinksStore } from '@/stores/lineLinks'
 import { bahtProblem } from '@/utils/limits'
 import { apiErrorMessage } from '@/api/errors'
 import { usePolling } from '@/composables/usePolling'
@@ -20,6 +22,8 @@ import BrandQr from '@/components/common/BrandQr.vue'
 const { t } = useI18n()
 const sessionsStore = useSessionsStore()
 const playersStore = usePlayersStore()
+const lineLinks = useLineLinksStore()
+void lineLinks.load()
 
 const billings = ref<Billing[]>([])
 const checkins = ref<Checkin[]>([])
@@ -247,7 +251,9 @@ usePolling(refreshBillings, 15000)
             :key="pid"
             class="hud-hover flex items-center gap-3 hud-panel border border-brand-pink/15 bg-brand-surface px-3 py-2"
           >
-            <PlayerAvatar :name="nameOf(pid)" :avatar-url="avatarOf(pid)" size="sm" />
+            <LineBadge :linked="lineLinks.isLinked(pid)">
+              <PlayerAvatar :name="nameOf(pid)" :avatar-url="avatarOf(pid)" size="sm" />
+            </LineBadge>
             <span class="flex-1 font-medium">{{ nameOf(pid) }}</span>
             <button
               :disabled="billingPlayerId === pid"
@@ -294,9 +300,18 @@ usePolling(refreshBillings, 15000)
           class="hud-hover hud-panel border border-brand-pink/20 bg-brand-surface p-4"
         >
           <div class="flex items-center gap-3">
-            <PlayerAvatar :name="nameOf(b.player_id)" :avatar-url="avatarOf(b.player_id)" size="sm" />
+            <LineBadge :linked="lineLinks.isLinked(b.player_id)">
+              <PlayerAvatar :name="nameOf(b.player_id)" :avatar-url="avatarOf(b.player_id)" size="sm" />
+            </LineBadge>
             <span class="flex min-w-0 flex-1 flex-col">
               <span class="font-medium">{{ nameOf(b.player_id) }}</span>
+              <!-- They won't see the bill on LINE: someone has to ask them. -->
+              <span
+                v-if="lineLinks.count > 0 && !lineLinks.isLinked(b.player_id) && b.paid_status !== 'paid' && !isFree(b) && !waitingSlip(b)"
+                class="text-xs text-white/45"
+              >
+                {{ t('lineSummary.collectInPerson') }}
+              </span>
               <span v-if="(b.credit_used ?? 0) > 0" class="text-xs text-[#ffe9a8]">
                 🪙 {{ effectiveAmount(b) - (b.credit_used ?? 0) > 0 ? t('billing.creditPart', { n: (b.credit_used ?? 0).toLocaleString('en-US'), rest: money(leftToPay(b)) }) : t('billing.creditAll') }}
               </span>

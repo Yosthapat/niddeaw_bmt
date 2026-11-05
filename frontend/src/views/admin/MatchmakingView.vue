@@ -17,12 +17,16 @@ import type {
 import AdminNav from '@/components/layout/AdminNav.vue'
 import SessionPicker from '@/components/layout/SessionPicker.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
+import LineBadge from '@/components/admin/LineBadge.vue'
+import { useLineLinksStore } from '@/stores/lineLinks'
 import { apiErrorMessage } from '@/api/errors'
 
 const { t } = useI18n()
 const { confirm } = useConfirmDialog()
 const sessionsStore = useSessionsStore()
 const playersStore = usePlayersStore()
+const lineLinks = useLineLinksStore()
+void lineLinks.load()
 
 const queue = ref<MatchmakingQueueResponse | null>(null)
 const queueError = ref<string | null>(null)
@@ -510,13 +514,9 @@ const pollControls = usePolling(refreshQueue, 7000)
             <div class="flex items-center justify-between gap-3">
               <div class="flex flex-1 flex-col items-center gap-1.5">
                 <div class="flex gap-2">
-                  <PlayerAvatar
-                    v-for="pid in m.team1_player_ids"
-                    :key="pid"
-                    :name="nameOf(pid)"
-                    :avatar-url="avatarOf(pid)"
-                    size="md"
-                  />
+                  <LineBadge v-for="pid in m.team1_player_ids" :key="pid" :linked="lineLinks.isLinked(pid)" size="md">
+                    <PlayerAvatar :name="nameOf(pid)" :avatar-url="avatarOf(pid)" size="md" />
+                  </LineBadge>
                 </div>
                 <span class="text-center font-medium text-white/80">{{ m.team1_player_ids.map(nameOf).join(' & ') }}</span>
               </div>
@@ -530,13 +530,9 @@ const pollControls = usePolling(refreshQueue, 7000)
 
               <div class="flex flex-1 flex-col items-center gap-1.5">
                 <div class="flex gap-2">
-                  <PlayerAvatar
-                    v-for="pid in m.team2_player_ids"
-                    :key="pid"
-                    :name="nameOf(pid)"
-                    :avatar-url="avatarOf(pid)"
-                    size="md"
-                  />
+                  <LineBadge v-for="pid in m.team2_player_ids" :key="pid" :linked="lineLinks.isLinked(pid)" size="md">
+                    <PlayerAvatar :name="nameOf(pid)" :avatar-url="avatarOf(pid)" size="md" />
+                  </LineBadge>
                 </div>
                 <span class="text-center font-medium text-white/80">{{ m.team2_player_ids.map(nameOf).join(' & ') }}</span>
               </div>
@@ -597,13 +593,9 @@ const pollControls = usePolling(refreshQueue, 7000)
               <div class="flex items-center justify-between gap-3">
                 <div class="flex flex-1 flex-col items-center gap-1.5">
                   <div class="flex gap-2">
-                    <PlayerAvatar
-                      v-for="pid in m.team1_player_ids"
-                      :key="pid"
-                      :name="nameOf(pid)"
-                      :avatar-url="avatarOf(pid)"
-                      size="md"
-                    />
+                    <LineBadge v-for="pid in m.team1_player_ids" :key="pid" :linked="lineLinks.isLinked(pid)" size="md">
+                      <PlayerAvatar :name="nameOf(pid)" :avatar-url="avatarOf(pid)" size="md" />
+                    </LineBadge>
                   </div>
                   <span class="text-center text-sm text-white/70">{{ m.team1_player_ids.map(nameOf).join(' & ') }}</span>
                 </div>
@@ -617,13 +609,9 @@ const pollControls = usePolling(refreshQueue, 7000)
 
                 <div class="flex flex-1 flex-col items-center gap-1.5">
                   <div class="flex gap-2">
-                    <PlayerAvatar
-                      v-for="pid in m.team2_player_ids"
-                      :key="pid"
-                      :name="nameOf(pid)"
-                      :avatar-url="avatarOf(pid)"
-                      size="md"
-                    />
+                    <LineBadge v-for="pid in m.team2_player_ids" :key="pid" :linked="lineLinks.isLinked(pid)" size="md">
+                      <PlayerAvatar :name="nameOf(pid)" :avatar-url="avatarOf(pid)" size="md" />
+                    </LineBadge>
                   </div>
                   <span class="text-center text-sm text-white/70">{{ m.team2_player_ids.map(nameOf).join(' & ') }}</span>
                 </div>
@@ -930,26 +918,18 @@ const pollControls = usePolling(refreshQueue, 7000)
               <div class="flex items-center justify-between gap-3">
                 <div class="flex flex-1 flex-col items-center gap-1.5">
                   <div class="flex gap-2">
-                    <PlayerAvatar
-                      v-for="pid in s.team1_player_ids"
-                      :key="pid"
-                      :name="nameOf(pid)"
-                      :avatar-url="avatarOf(pid)"
-                      size="md"
-                    />
+                    <LineBadge v-for="pid in s.team1_player_ids" :key="pid" :linked="lineLinks.isLinked(pid)" size="md">
+                      <PlayerAvatar :name="nameOf(pid)" :avatar-url="avatarOf(pid)" size="md" />
+                    </LineBadge>
                   </div>
                   <span class="text-center text-sm text-white/80">{{ s.team1_player_ids.map(nameOf).join(' & ') }}</span>
                 </div>
                 <span class="text-xs text-white/40">VS</span>
                 <div class="flex flex-1 flex-col items-center gap-1.5">
                   <div class="flex gap-2">
-                    <PlayerAvatar
-                      v-for="pid in s.team2_player_ids"
-                      :key="pid"
-                      :name="nameOf(pid)"
-                      :avatar-url="avatarOf(pid)"
-                      size="md"
-                    />
+                    <LineBadge v-for="pid in s.team2_player_ids" :key="pid" :linked="lineLinks.isLinked(pid)" size="md">
+                      <PlayerAvatar :name="nameOf(pid)" :avatar-url="avatarOf(pid)" size="md" />
+                    </LineBadge>
                   </div>
                   <span class="text-center text-sm text-white/80">{{ s.team2_player_ids.map(nameOf).join(' & ') }}</span>
                 </div>
@@ -1030,7 +1010,9 @@ const pollControls = usePolling(refreshQueue, 7000)
             :key="w.player_id"
             class="flex items-center gap-2 rounded-full border border-brand-pink/25 bg-brand-surface px-3 py-1.5 text-sm"
           >
-            <PlayerAvatar :name="nameOf(w.player_id)" :avatar-url="avatarOf(w.player_id)" size="sm" />
+            <LineBadge :linked="lineLinks.isLinked(w.player_id)">
+              <PlayerAvatar :name="nameOf(w.player_id)" :avatar-url="avatarOf(w.player_id)" size="sm" />
+            </LineBadge>
             {{ nameOf(w.player_id) }}
             <span class="text-xs text-white/40">~{{ Math.round(w.estimated_wait_minutes) }} {{ t('matches.minutes') }}</span>
           </li>

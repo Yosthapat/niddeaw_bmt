@@ -1,8 +1,8 @@
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel, computed_field, model_validator
 
 from app.models.fields import EditForm, EloScore, Handle, Note
 
@@ -61,6 +61,17 @@ class Player(PlayerBase):
     """Denormalized totals, incremented in submit_result — see
     db/migrations/0011_denormalize_player_stats.sql. Avoids recomputing
     every player's record from a full match-history scan on every read."""
+    line_linked: bool = False
+    """Whether they have linked their LINE (a small green badge on their
+    face). Only the yes/no: their LINE id and name never leave the backend
+    except on the admin's own LINE screens."""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _line_linked(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "line_user_id" in data:
+            return {**data, "line_linked": bool(data.get("line_user_id"))}
+        return data
 
     @computed_field  # type: ignore[prop-decorator]
     @property

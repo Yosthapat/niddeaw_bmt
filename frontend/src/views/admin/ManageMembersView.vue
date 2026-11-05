@@ -13,6 +13,10 @@ import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 import LineLinkPanel from '@/components/admin/LineLinkPanel.vue'
+import LineBadge from '@/components/admin/LineBadge.vue'
+import LineLinkSummary, { type LineFilter } from '@/components/admin/LineLinkSummary.vue'
+import LineInviteOverlay from '@/components/admin/LineInviteOverlay.vue'
+import { useLineLinksStore } from '@/stores/lineLinks'
 import { STARTING_TIERS } from '@/utils/startingTiers'
 import { MAX_ELO, MAX_HANDLE, MAX_NOTE } from '@/utils/limits'
 import { apiErrorMessage } from '@/api/errors'
@@ -63,6 +67,11 @@ const editNameProblem = computed(() =>
 // no more than hide them — so without somewhere they still appear, one
 // mistaken tap would be unrecoverable from the screens entirely.
 const showDeleted = ref(false)
+const lineLinks = useLineLinksStore()
+const lineFilter = ref<LineFilter>('all')
+const showInvite = ref(false)
+// Linked out of the members still in the club.
+const activeLinked = computed(() => players.value.filter((p) => p.is_active && lineLinks.isLinked(p.id)).length)
 const deletedCount = computed(() => players.value.filter((p) => !p.is_active).length)
 const activeCount = computed(() => players.value.filter((p) => p.is_active).length)
 
@@ -71,7 +80,8 @@ const visiblePlayers = computed(() => {
   return players.value.filter(
     (p) =>
       (p.is_active || showDeleted.value) &&
-      (!query || p.nickname.toLowerCase().includes(query)),
+      (!query || p.nickname.toLowerCase().includes(query)) &&
+      (lineFilter.value === 'all' || lineLinks.isLinked(p.id) === (lineFilter.value === 'linked')),
   )
 })
 
@@ -130,22 +140,13 @@ async function loadPlayers(): Promise<void> {
   } finally {
     loading.value = false
   }
-  void loadLineLinks()
+  void lineLinks.load()
 }
 
-// Whose LINE is linked, by player id, shown as a badge on their row. Kept
-// apart from the player list: a LINE id is nobody else's business, so the
-// players API never carries it.
-const lineNames = ref<Map<string, string>>(new Map())
 const unlinkingId = ref<string | null>(null)
 
-async function loadLineLinks(): Promise<void> {
-  try {
-    const links = await adminApi.getLineLinks()
-    lineNames.value = new Map(links.map((l) => [l.player_id, l.line_name ?? 'LINE']))
-  } catch {
-    lineNames.value = new Map() // LINE not set up yet
-  }
+function showRequests(): void {
+  document.getElementById('line-requests')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 async function unlinkLine(player: Player): Promise<void> {
@@ -160,7 +161,7 @@ async function unlinkLine(player: Player): Promise<void> {
   editError.value = null
   try {
     await adminApi.unlinkLine(player.id)
-    await loadLineLinks()
+    await lineLinks.load()
     rowNotice.value = t('lineAdmin.unlinked')
   } catch (e) {
     editError.value = apiErrorMessage(e, t('lineAdmin.failed'))
@@ -389,7 +390,20 @@ onMounted(loadPlayers)
       </div>
     </form>
 
-    <LineLinkPanel @changed="loadPlayers" />
+    <LineLinkSummary
+      v-if="lineLinks.enabled && players.length > 0"
+      v-model="lineFilter"
+      :linked="activeLinked"
+      :total="activeCount"
+      :pending="lineLinks.pending"
+      @invite="showInvite = true"
+      @pending="showRequests"
+    />
+    <LineInviteOverlay v-if="showInvite" :linked="activeLinked" :total="activeCount" @close="showInvite = false" />
+
+    <div id="line-requests" class="scroll-mt-24">
+      <LineLinkPanel @changed="loadPlayers" />
+    </div>
 
     <input
       v-model="search"
@@ -408,7 +422,7 @@ onMounted(loadPlayers)
     <template v-else>
     <div class="mt-6 flex flex-wrap items-center justify-between gap-2">
       <h2 class="text-sm font-semibold text-white/70">
-        {{ t('members.listTitle') }} ({{ activeCount }})
+        {{ t('members.listTitle') }} ({{ lineFilter === 'all' ? activeCount : visiblePlayers.length }})
       </h2>
       <button
         v-if="deletedCount > 0"
@@ -433,7 +447,9 @@ onMounted(loadPlayers)
         <div v-if="editingId !== p.id">
           <div class="flex items-center gap-3">
             <label class="relative cursor-pointer">
-              <PlayerAvatar :name="p.nickname" :avatar-url="p.avatar_url" size="md" />
+              <LineBadge :linked="lineLinks.isLinked(p.id)" size="md">
+                <PlayerAvatar :name="p.nickname" :avatar-url="p.avatar_url" size="md" />
+              </LineBadge>
               <input type="file" accept="image/*" class="hidden" @change="onAvatarSelected($event, p)" />
               <span v-if="uploadingAvatarId === p.id" class="absolute inset-0 flex items-center justify-center rounded-full bg-black/60 text-xs">...</span>
             </label>
@@ -446,11 +462,11 @@ onMounted(loadPlayers)
                 {{ t('members.deletedBadge') }}
               </span>
               <span
-                v-if="lineNames.get(p.id)"
+                v-if="lineLinks.lineName(p.id)"
                 class="mt-0.5 flex w-fit max-w-full items-center gap-1 truncate rounded-full bg-[#06c755]/15 px-2 py-0.5 text-[11px] font-medium text-[#7dffb0]"
               >
                 <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-[#06c755]" aria-hidden="true" />
-                <span class="truncate">{{ t('lineAdmin.linked', { name: lineNames.get(p.id) }) }}</span>
+                <span class="truncate">{{ t('lineAdmin.linked', { name: lineLinks.lineName(p.id) }) }}</span>
               </span>
             </p>
             <TierMascot :tier="p.elo_level" :size="28" :interactive="false" />
@@ -507,8 +523,8 @@ onMounted(loadPlayers)
             {{ editNameProblem }}
           </p>
           <p v-if="eloProblem" class="text-sm text-status-error sm:col-span-2">{{ eloProblem }}</p>
-          <div v-if="lineNames.get(p.id)" class="flex flex-wrap items-center gap-2 rounded-lg border border-[#06c755]/30 bg-[#06c755]/[0.06] px-3 py-2 text-sm sm:col-span-2">
-            <span class="min-w-0 flex-1 truncate text-[#7dffb0]">{{ t('lineAdmin.linked', { name: lineNames.get(p.id) }) }}</span>
+          <div v-if="lineLinks.lineName(p.id)" class="flex flex-wrap items-center gap-2 rounded-lg border border-[#06c755]/30 bg-[#06c755]/[0.06] px-3 py-2 text-sm sm:col-span-2">
+            <span class="min-w-0 flex-1 truncate text-[#7dffb0]">{{ t('lineAdmin.linked', { name: lineLinks.lineName(p.id) }) }}</span>
             <button
               type="button"
               class="tap rounded-full border border-status-error/40 px-3 text-xs font-semibold text-status-error disabled:opacity-50"
