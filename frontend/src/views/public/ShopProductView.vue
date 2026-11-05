@@ -140,6 +140,36 @@ function buyNow(): void {
 // A product with a turnaround clip opens on it: the clip loops under a
 // spotlight, plays only while it is on screen, and waits for a tap when the
 // phone asks for less motion.
+// The cinematic page (a product with a clip): the stage, its close-ups,
+// a lookbook of its photos, then the box office.
+const cine = computed(() => !!product.value?.video_url)
+const details = computed(() => product.value?.detail_images ?? [])
+const wide = ref<Set<string>>(new Set())
+function measure(event: Event, url: string): void {
+  const img = event.target as HTMLImageElement
+  // a landscape photo (a poster, a flat lay) is shown whole on the dark
+  // instead of being cropped to the portrait frame
+  if (img.naturalWidth > img.naturalHeight * 1.05) wide.value = new Set([...wide.value, url])
+}
+const shotsSeen = ref(false)
+const shotsEl = ref<HTMLElement | null>(null)
+let shotsWatch: IntersectionObserver | null = null
+watch(shotsEl, (el) => {
+  shotsWatch?.disconnect()
+  if (!el || !('IntersectionObserver' in window)) {
+    shotsSeen.value = true
+    return
+  }
+  shotsWatch = new IntersectionObserver(([e]) => {
+    if (e?.isIntersecting) {
+      shotsSeen.value = true
+      shotsWatch?.disconnect()
+    }
+  }, { threshold: 0.2 })
+  shotsWatch.observe(el)
+})
+onBeforeUnmount(() => shotsWatch?.disconnect())
+
 const still = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 const clip = ref<HTMLVideoElement | null>(null)
 const playing = ref(false)
@@ -186,7 +216,6 @@ onBeforeUnmount(() => seen?.disconnect())
           <video
             ref="clip"
             :src="product.video_url"
-            :poster="product.image_urls[0]"
             muted
             loop
             playsinline
@@ -208,6 +237,90 @@ onBeforeUnmount(() => seen?.disconnect())
         <HudSkeletonBlock :delay="80" class="h-16" />
       </div>
       <p v-else-if="error || !product" class="mt-6 text-status-error">{{ error }}</p>
+
+      <!-- the cinematic page: close-ups, lookbook, box office -->
+      <div v-else-if="cine" class="flex flex-col">
+        <section v-if="details.length" class="cblock" aria-labelledby="c-close">
+          <span class="kicker">CLOSE-UP</span>
+          <h2 id="c-close" class="ch2">{{ t('shop.cineCloseTitle') }}</h2>
+          <div ref="shotsEl" class="shots" :class="{ seen: shotsSeen }">
+            <figure v-for="d in details" :key="d.url" class="shot">
+              <div class="lens"><img :src="d.url" :alt="d.note || d.label" loading="lazy" /></div>
+              <figcaption v-if="d.label || d.note">
+                <b v-if="d.label">{{ d.label }}</b>
+                <span v-if="d.note">{{ d.note }}</span>
+              </figcaption>
+            </figure>
+          </div>
+        </section>
+
+        <section v-if="product.image_urls.length" class="cblock" aria-label="Lookbook">
+          <span class="kicker">LOOKBOOK</span>
+          <div class="film">
+            <figure v-for="(url, i) in product.image_urls" :key="url" :class="{ wide: wide.has(url) }">
+              <img :src="url" :alt="t('shop.photoOf', { n: i + 1, name: product.name })" loading="lazy" @load="measure($event, url)" />
+            </figure>
+          </div>
+        </section>
+
+        <section class="cblock" aria-labelledby="c-buy">
+          <span class="kicker">{{ isPre ? 'PRE-ORDER' : 'SHOP' }}</span>
+          <h1 id="c-buy" class="ch2">{{ product.name }}</h1>
+          <div class="office">
+            <div class="flex flex-wrap items-baseline justify-between gap-3">
+              <span class="office-price" aria-live="polite">{{ priceLabel }}</span>
+              <span v-if="isPre" class="office-status">{{ t('shop.closesOn') }} {{ day(product.preorder_closes_on) }}</span>
+              <span v-else-if="badge" class="office-status">{{ badge.text }}</span>
+            </div>
+            <fieldset v-if="hasSizes" ref="sizesBox" class="sizes flex scroll-mt-28 flex-col gap-2 rounded-xl" :class="{ nudge }" @animationend="nudge = false">
+              <legend class="office-label mb-2">{{ t('shop.size') }}</legend>
+              <div class="size-grid">
+                <button
+                  v-for="s in product.sizes"
+                  :key="s"
+                  type="button"
+                  class="size-cell"
+                  :aria-pressed="size === s"
+                  :disabled="left(s) < 1"
+                  :aria-label="left(s) < 1 ? t('shop.sizeSoldOut', { size: s }) : pricesDiffer ? `${s} ${money(priceOf(product, s))}` : s"
+                  @click="size = s"
+                >
+                  <b>{{ s }}</b>
+                  <small v-if="pricesDiffer">{{ priceOf(product, s) }}</small>
+                </button>
+              </div>
+            </fieldset>
+            <div class="flex items-end justify-between gap-3">
+              <div class="flex flex-col gap-2">
+                <span class="office-label">{{ t('shop.qty') }}</span>
+                <div class="qty">
+                  <button type="button" :aria-label="t('shop.less')" :disabled="qty <= 1" @click="qty--">−</button>
+                  <output aria-live="polite">{{ qty }}</output>
+                  <button type="button" :aria-label="t('shop.more')" :disabled="qty >= maxQty" @click="qty++">+</button>
+                </div>
+              </div>
+              <div class="text-right">
+                <span class="office-label">{{ t('shop.total') }}</span>
+                <div class="office-total">{{ sizePicked ? money(price * qty) : priceLabel }}</div>
+              </div>
+            </div>
+            <p v-if="sizePicked && inCart(chosenSize) > 0" class="text-right text-xs text-white/60">{{ t('shop.inCartAlready', { n: inCart(chosenSize) }) }}</p>
+            <div class="hidden gap-3 md:flex">
+              <button type="button" class="ghost-btn flex-1" :disabled="!!blocker" @click="addToCart">
+                {{ blocker ?? (sizePicked ? t('shop.addToCart') : t('shop.needSize')) }}
+              </button>
+              <button v-if="!blocker" type="button" class="buy-btn flex-1" @click="buyNow">
+                {{ isPre ? t('shop.orderPreorder') : t('shop.buyNow') }}
+              </button>
+            </div>
+            <p v-if="isPre && product.preorder_delivers_on" class="text-xs text-white/60">{{ t('shop.deliversOn') }} {{ day(product.preorder_delivers_on) }}</p>
+          </div>
+          <details v-if="product.description" class="desc">
+            <summary>{{ t('shop.cineDetails') }}</summary>
+            <p class="whitespace-pre-line">{{ product.description }}</p>
+          </details>
+        </section>
+      </div>
 
       <div v-else class="mt-2 grid gap-6 md:grid-cols-2 md:items-start md:gap-10">
         <ProductGallery :images="product.image_urls" :name="product.name" class="md:sticky md:top-24">
@@ -528,6 +641,200 @@ onBeforeUnmount(() => seen?.disconnect())
   border-radius: 50%;
   background: rgb(7 5 10 / 0.55);
 }
+/* ---- the cinematic page under the stage ---- */
+.cblock {
+  display: grid;
+  gap: 18px;
+  padding-block: 56px 8px;
+}
+.kicker {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.36em;
+  color: #ff9fd6;
+}
+.ch2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(22px, 6vw, 34px);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.03em;
+  text-wrap: balance;
+}
+.shots {
+  display: grid;
+  gap: 14px;
+}
+@media (min-width: 768px) {
+  .shots {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.shot {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+.lens {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 16 / 10;
+  max-width: 100%;
+  background: #16101b;
+}
+.lens img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.06);
+  transition: transform 2.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.lens::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(90% 80% at 50% 50%, transparent 55%, rgb(0 0 0 / 0.55));
+}
+.shots.seen .lens img {
+  transform: none;
+}
+.shot figcaption {
+  display: grid;
+  gap: 2px;
+}
+.shot figcaption b {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+}
+.shot figcaption span {
+  font-size: 13px;
+  color: rgb(255 255 255 / 0.65);
+}
+.film {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.film figure {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+  max-width: 100%;
+  margin: 0;
+  background: #0d0812;
+}
+.film img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 20%;
+}
+.film figure.wide img {
+  object-fit: contain;
+  object-position: center;
+}
+.office {
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.04), rgb(255 255 255 / 0.01));
+}
+.office-price {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.office-status {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: #ff9fd6;
+}
+.office-label {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  color: rgb(255 255 255 / 0.6);
+}
+.office-total {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.size-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+.size-cell {
+  display: grid;
+  min-height: 52px;
+  place-content: center;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  background: transparent;
+  line-height: 1.2;
+}
+.size-cell b {
+  font-family: var(--font-display);
+  font-size: 14px;
+}
+.size-cell small {
+  font-size: 10px;
+  color: rgb(255 255 255 / 0.6);
+  font-variant-numeric: tabular-nums;
+}
+.size-cell[aria-pressed='true'] {
+  border-color: #ff4fa6;
+  background: rgb(255 79 166 / 0.14);
+  box-shadow: inset 0 0 18px rgb(255 79 166 / 0.25);
+}
+.size-cell:disabled {
+  opacity: 0.35;
+  text-decoration: line-through;
+}
+.qty {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgb(255 255 255 / 0.12);
+}
+.qty button {
+  width: 44px;
+  height: 44px;
+  font-size: 18px;
+}
+.qty button:disabled {
+  opacity: 0.35;
+}
+.qty output {
+  min-width: 40px;
+  text-align: center;
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+.desc {
+  border-top: 1px solid rgb(255 255 255 / 0.1);
+  padding-top: 14px;
+  font-size: 14px;
+  color: rgb(255 255 255 / 0.75);
+}
+.desc summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 500;
+  color: #fff;
+}
+.size-cell:focus-visible,
+.qty button:focus-visible,
+.desc summary:focus-visible,
 .cine-cue:focus-visible,
 .cine-pp:focus-visible {
   outline: 2px solid #ff9fd6;
@@ -543,6 +850,10 @@ onBeforeUnmount(() => seen?.disconnect())
   .sizes.nudge,
   .added {
     animation: none;
+  }
+  .lens img {
+    transform: none;
+    transition: none;
   }
 }
 </style>

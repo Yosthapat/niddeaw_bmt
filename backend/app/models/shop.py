@@ -55,6 +55,19 @@ class ProductCreate(ProductFields):
     sale_type: SaleType
 
 
+MAX_DETAILS = 3
+MAX_DETAIL_LABEL = 24
+MAX_DETAIL_NOTE = 80
+
+
+class ProductDetail(BaseModel):
+    """One close-up on the cinematic product page."""
+
+    url: str
+    label: str = ""
+    note: str = ""
+
+
 class Product(BaseModel):
     id: UUID
     name: str
@@ -67,6 +80,8 @@ class Product(BaseModel):
     image_urls: list[str]
     video_url: str | None = None
     """A short clip of the product turning round; the product page opens on it."""
+    detail_images: list[ProductDetail] = []
+    """Close-ups shown under the clip, in order."""
     is_active: bool
     sort_order: int
     created_at: datetime

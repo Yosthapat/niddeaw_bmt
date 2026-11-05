@@ -295,6 +295,7 @@ function openForm(p: Product | null): void {
   newPhotos.value = []
   dropNewVideo()
   videoProblem.value = null
+  clearDetail()
   formError.value = null
   tried.value = false
   formOpen.value = true
@@ -385,6 +386,48 @@ async function removeSavedVideo(): Promise<void> {
   if (!editing.value) return
   try {
     editing.value = await adminApi.removeProductVideo(editing.value.id)
+    products.value = products.value.map((p) => (p.id === editing.value!.id ? editing.value! : p))
+  } catch (e) {
+    formError.value = apiErrorMessage(e, t('shopAdmin.saveFailed'))
+  }
+}
+// Close-ups for the cinematic page: each goes up as soon as it is added
+// (it needs its label and line with it), so the product must exist first.
+const MAX_DETAILS = 3
+const detail = reactive({ file: null as File | null, url: '', label: '', note: '' })
+const detailBusy = ref(false)
+function onDetail(event: Event): void {
+  const input = event.target as HTMLInputElement
+  const f = input.files?.[0]
+  input.value = ''
+  if (!f) return
+  if (detail.url) URL.revokeObjectURL(detail.url)
+  detail.file = f
+  detail.url = URL.createObjectURL(f)
+}
+function clearDetail(): void {
+  if (detail.url) URL.revokeObjectURL(detail.url)
+  Object.assign(detail, { file: null, url: '', label: '', note: '' })
+}
+async function addDetail(): Promise<void> {
+  if (!editing.value || !detail.file) return
+  detailBusy.value = true
+  formError.value = null
+  try {
+    const file = await compressImage(detail.file)
+    editing.value = await adminApi.addProductDetail(editing.value.id, file, detail.label.trim(), detail.note.trim())
+    products.value = products.value.map((p) => (p.id === editing.value!.id ? editing.value! : p))
+    clearDetail()
+  } catch (e) {
+    formError.value = apiErrorMessage(e, t('shopAdmin.saveFailed'))
+  } finally {
+    detailBusy.value = false
+  }
+}
+async function removeDetail(url: string): Promise<void> {
+  if (!editing.value) return
+  try {
+    editing.value = await adminApi.removeProductDetail(editing.value.id, url)
     products.value = products.value.map((p) => (p.id === editing.value!.id ? editing.value! : p))
   } catch (e) {
     formError.value = apiErrorMessage(e, t('shopAdmin.saveFailed'))
@@ -736,6 +779,36 @@ function priceText(p: Product): string {
         </div>
         <p v-if="videoProblem" class="mt-1 text-xs text-status-error" role="alert">{{ videoProblem }}</p>
         <p v-else-if="newVideo" class="mt-1 text-xs text-white/50">{{ t('shopAdmin.videoAfterSave') }}</p>
+      </div>
+
+      <div>
+        <p class="text-sm text-white/75">{{ t('shopAdmin.details') }}</p>
+        <p class="mt-0.5 text-xs text-white/50">{{ t('shopAdmin.detailsHint', { n: MAX_DETAILS }) }}</p>
+        <ul v-if="editing?.detail_images?.length" class="mt-2 flex flex-col gap-2">
+          <li v-for="d in editing.detail_images" :key="d.url" class="flex items-center gap-3 rounded-xl border border-white/10 p-2">
+            <img :src="d.url" alt="" class="h-12 w-20 shrink-0 rounded-lg object-cover" />
+            <span class="min-w-0 flex-1 text-sm">
+              <b class="block truncate font-display tracking-wider">{{ d.label || '—' }}</b>
+              <span class="block truncate text-xs text-white/60">{{ d.note }}</span>
+            </span>
+            <button type="button" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/60 text-white" :aria-label="t('shopAdmin.removeDetail')" @click="removeDetail(d.url)">×</button>
+          </li>
+        </ul>
+        <p v-if="!editing" class="mt-2 text-xs text-white/50">{{ t('shopAdmin.detailsAfterCreate') }}</p>
+        <div v-else-if="(editing.detail_images?.length ?? 0) < MAX_DETAILS" class="mt-2 flex flex-col gap-2 rounded-xl border border-dashed border-white/25 p-3">
+          <div class="flex items-center gap-3">
+            <img v-if="detail.url" :src="detail.url" alt="" class="h-12 w-20 shrink-0 rounded-lg object-cover" />
+            <label class="flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-white/25 px-4 text-sm text-white/75">
+              {{ detail.file ? t('shopAdmin.replacePhoto') : t('shopAdmin.pickDetail') }}
+              <input type="file" accept="image/*" class="sr-only" @change="onDetail" />
+            </label>
+          </div>
+          <input v-model="detail.label" :maxlength="24" :placeholder="t('shopAdmin.detailLabel')" :aria-label="t('shopAdmin.detailLabel')" class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-black px-3 text-white" />
+          <input v-model="detail.note" :maxlength="80" :placeholder="t('shopAdmin.detailNote')" :aria-label="t('shopAdmin.detailNote')" class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-black px-3 text-white" />
+          <button type="button" class="min-h-11 rounded-xl bg-brand-pink/90 px-4 text-sm font-medium text-brand-black disabled:opacity-50" :disabled="!detail.file || detailBusy" @click="addDetail">
+            {{ detailBusy ? t('common.saving') : t('shopAdmin.addDetail') }}
+          </button>
+        </div>
       </div>
 
       <label class="flex flex-col gap-1 text-sm text-white/75">
