@@ -14,8 +14,9 @@ import PlayerSeasonMatches from '@/components/players/PlayerSeasonMatches.vue'
 import PlayerShopOrders from '@/components/shop/PlayerShopOrders.vue'
 import ProfileCredit from '@/components/players/ProfileCredit.vue'
 import BadgeShelf from '@/components/quests/BadgeShelf.vue'
+import BadgeLineGate from '@/components/quests/BadgeLineGate.vue'
 import { getPlayerBadges } from '@/api/quests'
-import { shelfItems, topThree, type BadgeItem } from '@/utils/quests'
+import { awardImage, shelfItems, topThree, type BadgeItem } from '@/utils/quests'
 import type { Locale } from '@/i18n'
 
 const route = useRoute()
@@ -27,13 +28,19 @@ const matchesAnchor = ref<HTMLElement | null>(null)
 const shared = ref(false)
 // The member's medals. Quiet when quests aren't switched on (the API
 // answers 503 until migration 0038 runs): the shelf just isn't there.
+// Badges are for members who linked LINE; for one who hasn't, `gate`
+// holds what the panel in the shelf's place shows instead.
 const badges = ref<BadgeItem[] | null>(null)
-const cardBadges = computed(() => (badges.value ? topThree(badges.value).map((b) => b.img) : []))
+const gate = ref<{ waiting: number; imgs: string[] } | null>(null)
+const cardBadges = computed(() => (badges.value && !gate.value ? topThree(badges.value).map((b) => b.img) : []))
 async function loadBadges(id: string): Promise<void> {
   badges.value = null
+  gate.value = null
   try {
     const data = await getPlayerBadges(id)
-    if (data && route.params.id === id) badges.value = shelfItems(data, t, locale.value as Locale)
+    if (!data || route.params.id !== id) return
+    badges.value = shelfItems(data, t, locale.value as Locale)
+    if (!data.linked) gate.value = { waiting: data.waiting, imgs: data.waiting_top.map(awardImage) }
   } catch {
     badges.value = null
   }
@@ -134,12 +141,14 @@ const bannerSub = computed(() => {
             </div>
             <!-- phone: the medals take the place of the six stat tiles, which
                  repeat the card; desktop: they fill the column under the card -->
-            <BadgeShelf v-if="badges" class="mx-auto mt-5 max-w-[340px] lg:max-w-none" :items="badges">
+            <template v-if="badges">
+              <BadgeLineGate v-if="gate" class="mx-auto mt-5 max-w-[340px] lg:max-w-none" :items="badges" :waiting="gate.waiting" :waiting-imgs="gate.imgs" />
+              <BadgeShelf v-else class="mx-auto mt-5 max-w-[340px] lg:max-w-none" :items="badges" line-mark />
               <p class="mt-3 flex justify-center gap-3 font-display text-[13px] font-semibold text-white/60 lg:hidden">
                 <span>PTS <b class="text-brand-pink-light">{{ profile.points }}</b></span>
                 <span>SC <b class="text-brand-pink-light">{{ profile.score_percent.toFixed(1) }}%</b></span>
               </p>
-            </BadgeShelf>
+            </template>
           </div>
 
           <div class="min-w-0">

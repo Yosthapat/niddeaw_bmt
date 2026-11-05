@@ -9,8 +9,11 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { BadgeItem } from '@/utils/quests'
 import BadgeInspect from './BadgeInspect.vue'
+import LineMark from '@/components/players/LineMark.vue'
 
-const props = defineProps<{ items: BadgeItem[]; title?: string }>()
+/** lineMark: the small green LINE bubble by the title, on the public
+ *  profile, where it says why this member has a shelf at all. */
+const props = defineProps<{ items: BadgeItem[]; title?: string; lineMark?: boolean }>()
 const { t } = useI18n()
 
 const earned = computed(() => props.items.filter((i) => !i.locked).length)
@@ -26,7 +29,7 @@ function pick(item: BadgeItem, e: MouseEvent): void {
 <template>
   <section class="shelf" :aria-label="title ?? t('quests.shelf')">
     <div class="shelf-head">
-      <h2 class="font-display text-base font-bold">{{ title ?? t('quests.shelf') }}</h2>
+      <h2 class="flex items-center gap-1.5 font-display text-base font-bold">{{ title ?? t('quests.shelf') }}<LineMark v-if="lineMark" /></h2>
       <span class="text-xs text-white/55">{{ t('quests.count', { n: earned, total: items.length }) }}</span>
     </div>
     <div class="grid grid-cols-4 gap-x-1.5 gap-y-2">

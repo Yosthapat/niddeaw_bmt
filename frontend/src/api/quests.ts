@@ -1,4 +1,5 @@
 import { request } from './client'
+import type { LineInvite } from './admin'
 
 /** Quests and badges (backend app/routers/quests.py). */
 
@@ -29,6 +30,12 @@ export interface PlayerBadges {
   month: MonthState
   past_months: MonthState[]
   secrets: { key: string; earned_at: string | null }[]
+  /** Badges are for members who linked LINE. For one who hasn't, nothing
+   *  above is earned; `waiting` counts the medals they will find once they
+   *  link, `waiting_top` the grandest three. */
+  linked: boolean
+  waiting: number
+  waiting_top: BadgeAward[]
 }
 
 export interface BadgeAward {
@@ -55,6 +62,12 @@ export interface QuestSettings {
 /** null while quests aren't switched on (migration 0038 not run). */
 export function getPlayerBadges(playerId: string): Promise<PlayerBadges | null> {
   return request(`/api/quests/players/${playerId}`)
+}
+
+/** The club's LINE link and QR, for a member who hasn't linked yet; null
+ *  when LINE isn't set up. */
+export function getQuestLineInvite(): Promise<LineInvite | null> {
+  return request('/api/quests/line-invite')
 }
 
 export function getTopBadges(): Promise<Record<string, BadgeAward[]>> {

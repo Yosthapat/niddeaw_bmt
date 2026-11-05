@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 
 from app.db_utils import rows
 from app.deps import AdminDep, LineMemberDep, SupabaseDep
+from app.models.line import LineInvite
 from app.models.quest import (
     BadgeAward,
     BadgeFeedItem,
@@ -17,7 +18,7 @@ from app.models.quest import (
     SeenIn,
 )
 from app.routers.line import _member
-from app.services import quest_store
+from app.services import line_auth, line_checkin, promptpay_service, quest_store
 
 public = APIRouter(prefix="/api/quests", tags=["public-quests"])
 line = APIRouter(prefix="/api/line/badges", tags=["line"])
@@ -49,6 +50,17 @@ def recent(
     return quest_store.feed(snap, limit) if snap else []
 
 
+@public.get("/line-invite", response_model=LineInvite | None)
+def line_invite() -> LineInvite | None:
+    """The club's LINE link and its QR, for the profile of a member who
+    hasn't linked yet (badges are for linked members). null when LINE isn't
+    set up."""
+    if not line_auth.configured():
+        return None
+    url = line_checkin.invite_url()
+    return LineInvite(url=url, qr_modules=promptpay_service.qr_modules(url))
+
+
 @line.get("", response_model=LineBadges | None)
 def mine(supabase: SupabaseDep, member: LineMemberDep) -> LineBadges | None:
     player = _member(supabase, member)
@@ -57,7 +69,8 @@ def mine(supabase: SupabaseDep, member: LineMemberDep) -> LineBadges | None:
         return None
     pid = str(player.id)
     return LineBadges(
-        **quest_store.player_badges(snap, pid).model_dump(), unseen=quest_store.unseen(snap, pid)
+        **quest_store.player_badges(snap, pid, linked=True).model_dump(),
+        unseen=quest_store.unseen(snap, pid),
     )
 
 

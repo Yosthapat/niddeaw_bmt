@@ -42,6 +42,12 @@ class SecretState(BaseModel):
     earned_at: datetime | None = None
 
 
+class BadgeAward(BaseModel):
+    badge: str
+    level: int
+    earned_at: datetime
+
+
 class PlayerBadges(BaseModel):
     start_date: date
     quests: list[QuestState]
@@ -49,12 +55,12 @@ class PlayerBadges(BaseModel):
     month: MonthState
     past_months: list[MonthState]
     secrets: list[SecretState]
-
-
-class BadgeAward(BaseModel):
-    badge: str
-    level: int
-    earned_at: datetime
+    linked: bool = True
+    """Badges are for members who linked LINE. For one who hasn't, nothing
+    below shows as earned; `waiting` says how many medals they already have
+    in store, and `waiting_top` the grandest three, for the profile's nudge."""
+    waiting: int = 0
+    waiting_top: list[BadgeAward] = Field(default_factory=list)
 
 
 class LineBadges(PlayerBadges):
