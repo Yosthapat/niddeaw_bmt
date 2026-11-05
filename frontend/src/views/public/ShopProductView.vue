@@ -199,19 +199,29 @@ onBeforeUnmount(() => barWatch.forEach((o) => o.disconnect()))
 function toOffice(): void {
   officeEl.value?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' })
 }
+/** Whole baht without the ".00", as the preview shows it (฿250, ฿1,250). */
+const baht = (n: number): string => (Number.isInteger(n) ? `฿${n.toLocaleString('en-US')}` : money(n))
+const fromPrice = computed(() => (product.value ? priceRange(product.value)[0] : 0))
 const goLabel = computed(() => {
   if (blocker.value) return blocker.value
   if (!sizePicked.value) return t('shop.needSize')
   const what = hasSizes.value ? `${chosenSize.value} × ${qty.value}` : `× ${qty.value}`
-  return `${isPre.value ? t('shop.orderPreorder') : t('shop.buyNow')} ${what} · ${money(price.value * qty.value)}`
+  return `${isPre.value ? t('shop.orderPreorder') : t('shop.buyNow')} ${what} · ${baht(price.value * qty.value)}`
 })
-const wide = ref<Set<string>>(new Set())
+// a landscape photo (a poster, a flat lay) takes the whole row at its own
+// shape, so it is shown whole instead of shrunk inside a portrait frame
+const wide = ref<Map<string, string>>(new Map())
 function measure(event: Event, url: string): void {
   const img = event.target as HTMLImageElement
-  // a landscape photo (a poster, a flat lay) is shown whole on the dark
-  // instead of being cropped to the portrait frame
-  if (img.naturalWidth > img.naturalHeight * 1.05) wide.value = new Set([...wide.value, url])
+  if (img.naturalWidth > img.naturalHeight * 1.05) {
+    wide.value = new Map(wide.value).set(url, `${img.naturalWidth} / ${img.naturalHeight}`)
+  }
 }
+// portraits go in pairs; an odd one out sits centred on its own row
+const soloLook = computed(() => {
+  const tall = lookbook.value.filter((u) => !wide.value.has(u))
+  return tall.length % 2 ? tall[tall.length - 1] : null
+})
 const shotsSeen = ref(false)
 const shotsEl = ref<HTMLElement | null>(null)
 let shotsWatch: IntersectionObserver | null = null
@@ -328,8 +338,13 @@ onBeforeUnmount(() => seen?.disconnect())
         <section v-if="lookbook.length" class="cblock" aria-label="Lookbook">
           <span class="kicker">LOOKBOOK</span>
           <div class="film">
-            <figure v-for="(url, i) in lookbook" :key="url" :class="{ wide: wide.has(url) }">
-              <img :src="url" :alt="t('shop.photoOf', { n: i + 1, name: product.name })" loading="lazy" @load="measure($event, url)" />
+            <figure
+              v-for="(url, i) in lookbook"
+              :key="url"
+              :class="{ wide: wide.has(url), solo: url === soloLook }"
+              :style="wide.has(url) ? { aspectRatio: wide.get(url) } : undefined"
+            >
+              <img :src="url" :alt="t('shop.photoOf', { n: i + 1, name: product.name })" decoding="async" @load="measure($event, url)" />
             </figure>
           </div>
         </section>
@@ -339,7 +354,9 @@ onBeforeUnmount(() => seen?.disconnect())
           <h1 id="c-buy" class="ch2">{{ product.name }}</h1>
           <div ref="officeEl" class="office scroll-mt-28">
             <div class="flex flex-wrap items-baseline justify-between gap-3">
-              <span class="office-price" aria-live="polite">{{ priceLabel }}<small>{{ t('shop.perPiece') }}</small></span>
+              <span class="office-price" aria-live="polite">
+                <small v-if="!sizePicked && pricesDiffer" class="from">{{ t('shop.cineFrom') }}</small>{{ baht(sizePicked ? price : fromPrice) }}<small>{{ t('shop.perPiece') }}</small>
+              </span>
               <span v-if="isPre" class="office-status">{{ t('shop.closesOn') }} {{ day(product.preorder_closes_on) }}</span>
               <span v-else-if="badge" class="office-status">{{ badge.text }}</span>
             </div>
@@ -376,7 +393,7 @@ onBeforeUnmount(() => seen?.disconnect())
               </div>
               <div class="text-right">
                 <span class="office-label">{{ t('shop.total') }}</span>
-                <div class="office-total">{{ sizePicked ? money(price * qty) : priceLabel }}</div>
+                <div class="office-total">{{ sizePicked ? baht(price * qty) : '—' }}</div>
               </div>
             </div>
             <p v-if="sizePicked && inCart(chosenSize) > 0" class="text-right text-xs text-white/60">{{ t('shop.inCartAlready', { n: inCart(chosenSize) }) }}</p>
@@ -485,7 +502,7 @@ onBeforeUnmount(() => seen?.disconnect())
       <div v-if="product && !loading && cine" class="cine-bar" :class="{ on: stageGone && !officeShown }">
         <span class="flex min-w-0 flex-col leading-tight">
           <b class="truncate font-display tracking-wide">{{ stageTitle }}</b>
-          <span class="truncate text-xs text-white/65">{{ t('shop.priceFrom', { price: money(priceRange(product)[0]) }) }}<template v-if="isPre"> · {{ t('shop.preorderTag') }}</template></span>
+          <span class="truncate text-xs text-white/65">{{ t('shop.priceFrom', { price: baht(fromPrice) }) }}<template v-if="isPre"> · {{ t('shop.preorderTag') }}</template></span>
         </span>
         <button type="button" class="cine-bar-go" @click="toOffice">{{ isPre ? t('shop.orderPreorder') : t('shop.buyNow') }}</button>
       </div>
@@ -819,6 +836,9 @@ onBeforeUnmount(() => seen?.disconnect())
   font-size: 12px;
   color: rgb(255 255 255 / 0.7);
 }
+.office-price small.from {
+  margin: 0 6px 0 0;
+}
 .office-price small {
   margin-left: 6px;
   font-size: 13px;
@@ -1004,6 +1024,7 @@ onBeforeUnmount(() => seen?.disconnect())
 .film {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: row dense;
   gap: 6px;
 }
 .film figure {
@@ -1021,8 +1042,15 @@ onBeforeUnmount(() => seen?.disconnect())
   object-fit: cover;
   object-position: 50% 20%;
 }
+.film figure.wide {
+  grid-column: 1 / -1;
+}
+.film figure.solo {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: calc(50% - 3px);
+}
 .film figure.wide img {
-  object-fit: contain;
   object-position: center;
 }
 .office {

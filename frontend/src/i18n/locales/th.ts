@@ -536,6 +536,7 @@ export default {
     whoMissing: 'ไม่เจอชื่อ? ทักแอดมินที่ LINE OA ให้เพิ่มชื่อก่อน',
     whoNext: 'ต่อไป · สั่งในชื่อ {name}',
     whoFirst: 'เลือกชื่อก่อน',
+    cineFrom: 'เริ่ม',
     cineScroll: 'เลื่อนลงดูรายละเอียด',
     cineFit: 'ไซส์ {size} · กว้าง {w} × ยาว {l} นิ้ว',
     cineFitHint: 'กว้าง × ยาว (นิ้ว) จะขึ้นตรงนี้เมื่อเลือกไซส์',

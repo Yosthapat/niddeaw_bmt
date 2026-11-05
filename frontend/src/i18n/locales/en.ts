@@ -538,6 +538,7 @@ export default {
     whoMissing: "Can't find your name? Ask an admin on LINE OA to add it first",
     whoNext: 'Next · ordering as {name}',
     whoFirst: 'Pick a name first',
+    cineFrom: 'from',
     cineScroll: 'Scroll for the details',
     cineFit: 'Size {size} · {w} wide × {l} long (inches)',
     cineFitHint: 'Width × length (inches) shows here once you pick a size',
