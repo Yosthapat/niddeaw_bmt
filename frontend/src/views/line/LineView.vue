@@ -94,19 +94,15 @@ async function start(): Promise<void> {
       void router.replace('/shop')
       return
     }
-    // /line/profile (the OA menu's profile button): a linked member goes
-    // straight to their own profile page; anyone else stays here to pick
-    // their name or sign up.
-    if (route.params.section === 'profile' && status.player) {
-      void router.replace(`/members/${status.player.id}`)
-      return
-    }
     me.value = status
     if (!status.player) await loadOptions()
     joining.value = route.params.section === 'register' && !status.player && !status.pending && !status.application
     const code = typeof route.query.c === 'string' ? route.query.c : ''
     if (route.params.section === 'checkin' && code) await openCheckin(code)
     else if (route.params.section === 'checkin' && status.player) gpsCheckin.value = true
+    // /line/profile (the OA menu's profile button) is this page: their LINE
+    // card, with checkout, bills, credit and badges.
+    if (route.params.section === 'profile') void router.replace('/line')
     if (status.player && (route.params.section === 'checkout' || route.params.section === 'bills' || route.params.section === 'credit' || route.params.section === 'badges')) {
       await go(route.params.section)
     }
