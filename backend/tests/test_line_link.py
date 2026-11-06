@@ -693,3 +693,117 @@ def test_no_invite_qr_until_line_is_set_up(
 ) -> None:
     monkeypatch.setattr(get_settings(), "line_liff_id", None)
     assert client.get("/api/admin/line/invite", headers=admin()).status_code == 503
+
+
+# --- checking in by where the phone is ----------------------------------------
+
+from app.services import line_gps
+
+COURT = (13.7563, 100.5018)
+
+
+def _away(metres: float) -> tuple[float, float]:
+    """A point this many metres north of the court."""
+    return COURT[0] + metres / 111_195, COURT[1]
+
+
+def _fix(metres: float = 0, accuracy: float = 10) -> dict[str, float]:
+    lat, lng = _away(metres)
+    return {"lat": lat, "lng": lng, "accuracy": accuracy}
+
+
+def _pin(client: TestClient, sid: str, radius: int = 100, accuracy: float = 8) -> Any:
+    body = {"lat": COURT[0], "lng": COURT[1], "accuracy": accuracy, "radius_m": radius}
+    return client.put(f"/api/admin/line/checkin-spot?session_id={sid}", json=body, headers=admin())
+
+
+def test_distance_is_metres() -> None:
+    assert abs(line_gps.distance_m(*COURT, *_away(100)) - 100) < 1
+    assert line_gps.inside(120, 100, 30) and not line_gps.inside(160, 100, 300)
+
+
+def test_admin_pins_reads_and_unpins_tonight(client: TestClient, db: MiniSupabase) -> None:
+    sid = night(db)
+    assert client.get(f"/api/admin/line/checkin-spot?session_id={sid}", headers=admin()).json() is None
+    spot = _pin(client, sid, radius=80).json()
+    assert spot["radius_m"] == 80 and spot["accuracy_m"] == 8 and spot["pinned_at"]
+    read = client.get(f"/api/admin/line/checkin-spot?session_id={sid}", headers=admin()).json()
+    assert read["lat"] == COURT[0]
+    assert client.delete(f"/api/admin/line/checkin-spot?session_id={sid}", headers=admin()).status_code == 204
+    assert client.get(f"/api/admin/line/checkin-spot?session_id={sid}", headers=admin()).json() is None
+
+
+def test_pin_is_refused_when_wrong(client: TestClient, db: MiniSupabase) -> None:
+    sid = night(db)
+    assert _pin(client, sid, accuracy=900).status_code == 422  # GPS too unsure
+    assert _pin(client, sid, radius=5).status_code == 422
+    assert _pin(client, sid, radius=5000).status_code == 422
+    bad = {"lat": 123, "lng": 0, "accuracy": 5}
+    assert client.put(f"/api/admin/line/checkin-spot?session_id={sid}", json=bad, headers=admin()).status_code == 422
+    closed = night(db, status="closed")
+    assert _pin(client, closed).status_code == 409
+    assert _pin(client, str(uuid4())).status_code == 404
+    body = {"lat": COURT[0], "lng": COURT[1], "accuracy": 5}
+    assert client.put(f"/api/admin/line/checkin-spot?session_id={sid}", json=body, headers=member(BAM)).status_code == 401
+
+
+def test_member_inside_the_circle_is_checked_in(client: TestClient, db: MiniSupabase) -> None:
+    sid = night(db)
+    _pin(client, sid, radius=100)
+    done = client.post("/api/line/checkin/nearby", json=_fix(60), headers=member(BAM, "Bam")).json()
+    assert done["state"] == "in" and done["checkin_time"] and done["player"]["nickname"] == "Bam"
+    again = client.post("/api/line/checkin/nearby", json=_fix(10), headers=member(BAM, "Bam")).json()
+    assert again["state"] == "in" and again["checkin_time"] == done["checkin_time"]
+    mine = [c for c in db.tables["checkins"] if c["session_id"] == sid]
+    assert len(mine) == 1 and mine[0]["via"] == "gps"
+    listed = client.get(f"/api/admin/checkins?session_id={sid}", headers=admin()).json()
+    assert listed[0]["via"] == "gps"
+
+
+def test_member_outside_or_unsure_is_not(client: TestClient, db: MiniSupabase) -> None:
+    sid = night(db)
+    _pin(client, sid, radius=100)
+    far = client.post("/api/line/checkin/nearby", json=_fix(400), headers=member(BAM)).json()
+    assert far["state"] == "far" and 395 <= far["distance_m"] <= 405 and far["radius_m"] == 100
+    # an unsure phone only gets a little slack: 140 m away, ±500 m, is not in
+    weak = client.post("/api/line/checkin/nearby", json=_fix(140, accuracy=500), headers=member(BAM)).json()
+    assert weak["state"] == "weak"
+    edge = client.post("/api/line/checkin/nearby", json=_fix(170, accuracy=200), headers=member(BAM)).json()
+    assert edge["state"] == "far"
+    assert not db.tables.get("checkins")
+    # slack of up to 50 m for an unsure phone just outside
+    near = client.post("/api/line/checkin/nearby", json=_fix(140, accuracy=60), headers=member(BAM)).json()
+    assert near["state"] == "in"
+
+
+def test_nobody_is_checked_in_without_a_pin_or_a_link(client: TestClient, db: MiniSupabase) -> None:
+    night(db)  # open, never pinned
+    none = client.post("/api/line/checkin/nearby", json=_fix(0), headers=member(BAM)).json()
+    assert none["state"] == "none"
+    sid = night(db)
+    _pin(client, sid)
+    stranger = client.post("/api/line/checkin/nearby", json=_fix(0), headers=member(BALL)).json()
+    assert stranger["state"] == "unlinked" and stranger["player"] is None
+    assert not db.tables.get("checkins")
+    assert client.post("/api/line/checkin/nearby", json=_fix(0), headers=admin()).status_code == 401
+    nan = {"lat": "NaN", "lng": 0, "accuracy": 5}
+    assert client.post("/api/line/checkin/nearby", json=nan, headers=member(BAM)).status_code == 422
+
+
+def test_old_and_closed_nights_check_nobody_in(client: TestClient, db: MiniSupabase) -> None:
+    sid = night(db)
+    _pin(client, sid)
+    db.tables["sessions"][-1]["status"] = "closed"
+    assert client.post("/api/line/checkin/nearby", json=_fix(0), headers=member(BAM)).json()["state"] == "none"
+    old = night(db, days_ago=3)
+    _pin(client, old)
+    assert client.post("/api/line/checkin/nearby", json=_fix(0), headers=member(BAM)).json()["state"] == "none"
+
+
+def test_the_nearest_pinned_night_is_used(client: TestClient, db: MiniSupabase) -> None:
+    far_night, near_night = night(db), night(db)
+    body = {"lat": COURT[0] + 0.05, "lng": COURT[1], "accuracy": 5, "radius_m": 100}
+    client.put(f"/api/admin/line/checkin-spot?session_id={far_night}", json=body, headers=admin())
+    _pin(client, near_night)
+    client.post("/api/line/checkin/nearby", json=_fix(0), headers=member(BAM))
+    assert [c["session_id"] for c in db.tables["checkins"]] == [near_night]

@@ -16,7 +16,7 @@ from supabase import Client
 from app.db_utils import rows
 from app.services.session_state import ensure_session_open
 
-Via = Literal["admin", "line"]
+Via = Literal["admin", "line", "gps"]
 
 
 def check_in(supabase: Client, session_id: UUID, player_id: UUID, via: Via) -> dict[str, Any]:

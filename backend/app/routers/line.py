@@ -22,6 +22,7 @@ from app.db_utils import rows
 from app.deps import LineMemberDep, SupabaseDep
 from app.models.line import (
     CheckinNight,
+    GeoFix,
     JoinApplication,
     JoinIn,
     LineBill,
@@ -32,6 +33,7 @@ from app.models.line import (
     LineCheckoutIn,
     LineConfig,
     LineContext,
+    LineGpsCheckin,
     LineSessionIn,
     LineStatus,
     LineTonight,
@@ -50,6 +52,7 @@ from app.services import (
     credit_service,
     line_auth,
     line_checkin,
+    line_gps,
     line_join,
     login_throttle,
     nickname_service,
@@ -408,6 +411,53 @@ def checkin(
     return LineCheckinState(
         state="in", night=now.night, player=now.player, checkin_time=done["checkin_time"]
     )
+
+
+# --- checking in by where the phone is -----------------------------------------
+
+
+@router.post("/checkin/nearby", response_model=LineGpsCheckin)
+def checkin_nearby(fix: GeoFix, supabase: SupabaseDep, member: LineMemberDep) -> LineGpsCheckin:
+    """Check themselves in to tonight if their phone is inside the circle
+    an admin pinned at the court. Who is checked in comes from their LINE
+    token; only where they are comes from the request."""
+    linked = rows(
+        supabase.table("players")
+        .select("*")
+        .eq("line_user_id", member.line_user_id)
+        .eq("is_active", True)
+        .limit(1)
+        .execute()
+    )
+    if not linked:
+        return LineGpsCheckin(state="unlinked")
+    player = Player.model_validate(linked[0])
+    found = line_gps.nearest_night(supabase, fix.lat, fix.lng)
+    if found is None:
+        return LineGpsCheckin(state="none", player=player)
+    night, distance = found
+    when = CheckinNight.model_validate(night)
+    radius = int(night["checkin_radius_m"])
+    mine = rows(
+        supabase.table("checkins")
+        .select("*")
+        .eq("session_id", str(night["id"]))
+        .eq("player_id", str(player.id))
+        .limit(1)
+        .execute()
+    )
+    if mine and mine[0].get("checkout_time") is None:
+        return LineGpsCheckin(
+            state="in", night=when, player=player, checkin_time=mine[0]["checkin_time"]
+        )
+    if fix.accuracy > line_gps.MAX_ACCURACY_M:
+        return LineGpsCheckin(state="weak", night=when, player=player, radius_m=radius)
+    if not line_gps.inside(distance, radius, fix.accuracy):
+        return LineGpsCheckin(
+            state="far", night=when, player=player, distance_m=round(distance), radius_m=radius
+        )
+    done = checkin_service.check_in(supabase, when.id, player.id, "gps")
+    return LineGpsCheckin(state="in", night=when, player=player, checkin_time=done["checkin_time"])
 
 
 # --- checking out, paying, and the member's own bills ------------------------
