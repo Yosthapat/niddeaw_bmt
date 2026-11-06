@@ -292,7 +292,10 @@ async function send(): Promise<void> {
             <li class="flex gap-2"><span class="text-brand-pink">●</span>{{ t('shop.guestPickup') }}</li>
             <li class="flex gap-2"><span class="text-brand-pink">●</span>{{ t('shop.guestPrivacy') }}</li>
           </ul>
-          <button type="button" class="cta mt-2" :disabled="!ready" @click="toPay">{{ nextLabel }}</button>
+          <!-- floats over the list, so it never has to be scrolled to -->
+          <div class="float-go">
+            <button type="button" class="cta w-full" :disabled="!ready" @click="toPay">{{ nextLabel }}</button>
+          </div>
         </section>
         <section v-if="step === 1 && mode === 'member'" class="mt-3 flex flex-col gap-3">
           <p class="text-sm text-white/70">{{ t('shop.whoHint') }}</p>
@@ -334,7 +337,10 @@ async function send(): Promise<void> {
               </template>
             </div>
           </div>
-          <button type="button" class="cta mt-2" :disabled="!ready" @click="toPay">{{ nextLabel }}</button>
+          <!-- floats over the list, so it never has to be scrolled to -->
+          <div class="float-go">
+            <button type="button" class="cta w-full" :disabled="!ready" @click="toPay">{{ nextLabel }}</button>
+          </div>
         </section>
 
         <!-- 2 · pay -->
@@ -527,6 +533,25 @@ details[open] .chev {
   font-family: var(--font-display);
   font-size: 17px;
   font-weight: 700;
+}
+/* the backdrop runs down to the screen edge behind the tab bar, so the
+   list never peeks out between the button and the bar */
+.float-go {
+  position: sticky;
+  z-index: 10;
+  bottom: 0;
+  margin: 4px -16px calc(-90px - env(safe-area-inset-bottom, 0px));
+  padding: 18px 16px calc(102px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to top, #0b0518 82%, rgb(11 5 24 / 0));
+}
+@media (min-width: 900px) {
+  .float-go {
+    margin-bottom: 0;
+    padding-bottom: 16px;
+  }
+}
+.float-go .cta:disabled {
+  background: #2a2238;
 }
 .cta:disabled {
   background: rgb(255 255 255 / 0.12);
