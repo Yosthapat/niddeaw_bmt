@@ -90,7 +90,7 @@ const router = createRouter({
       // /line/register: the OA's sign-up button; /line/checkin?c=…: tonight's
       // check-in QR; /line/shop: the OA's shop button, which learns who this
       // is and goes on to /shop (LIFF adds the path to the endpoint URL).
-      path: '/line/:section(register|checkin|checkout|bills|credit|badges|shop)?',
+      path: '/line/:section(register|checkin|checkout|bills|credit|badges|shop|profile)?',
       name: 'line',
       component: () => import('../views/line/LineView.vue'),
       meta: { bare: true },

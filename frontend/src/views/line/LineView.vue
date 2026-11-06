@@ -94,6 +94,13 @@ async function start(): Promise<void> {
       void router.replace('/shop')
       return
     }
+    // /line/profile (the OA menu's profile button): a linked member goes
+    // straight to their own profile page; anyone else stays here to pick
+    // their name or sign up.
+    if (route.params.section === 'profile' && status.player) {
+      void router.replace(`/members/${status.player.id}`)
+      return
+    }
     me.value = status
     if (!status.player) await loadOptions()
     joining.value = route.params.section === 'register' && !status.player && !status.pending && !status.application
