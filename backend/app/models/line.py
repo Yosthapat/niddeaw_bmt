@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from app.models.fields import EloScore, Handle, Note
 from app.models.player import DominantHand, Player
@@ -154,6 +154,45 @@ class LineCheckinState(BaseModel):
 
 class LineCheckinIn(BaseModel):
     code: Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{12,64}$")]
+
+
+class GeoFix(BaseModel):
+    """Where a phone says it is, and how sure it is (metres)."""
+
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    lat: float = Field(ge=-90, le=90)
+    lng: float = Field(ge=-180, le=180)
+    accuracy: float = Field(ge=0, le=100_000)
+
+
+class LineGpsCheckin(BaseModel):
+    """What checking in by location leads to.
+
+    in: checked in (now, or already). far: not inside tonight's circle.
+    none: no open night is pinned. weak: the phone is too unsure where it
+    is. unlinked: this LINE is nobody in the club yet."""
+
+    state: Literal["in", "far", "none", "weak", "unlinked"]
+    night: CheckinNight | None = None
+    player: Player | None = None
+    checkin_time: datetime | None = None
+    distance_m: int | None = None
+    radius_m: int | None = None
+
+
+class CheckinSpotIn(GeoFix):
+    radius_m: int = Field(default=100, ge=30, le=500)
+
+
+class CheckinSpot(BaseModel):
+    """Tonight's pin, as the admin set it from their phone."""
+
+    lat: float
+    lng: float
+    radius_m: int
+    accuracy_m: int | None = None
+    pinned_at: datetime | None = None
 
 
 class CheckinQr(BaseModel):

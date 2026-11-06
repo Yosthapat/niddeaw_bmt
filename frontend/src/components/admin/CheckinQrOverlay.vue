@@ -56,7 +56,7 @@ async function rotate(): Promise<void> {
 
 const viaLine = computed(() =>
   props.checkins
-    .filter((c) => c.via === 'line' && c.checkout_time === null)
+    .filter((c) => (c.via === 'line' || c.via === 'gps') && c.checkout_time === null)
     .sort((a, b) => b.checkin_time.localeCompare(a.checkin_time)),
 )
 

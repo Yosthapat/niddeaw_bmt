@@ -5,5 +5,5 @@ export interface Checkin {
   checkin_time: string
   checkout_time: string | null
   /** Who checked them in: the admin, or they did, by scanning the QR. */
-  via?: 'admin' | 'line'
+  via?: 'admin' | 'line' | 'gps'
 }

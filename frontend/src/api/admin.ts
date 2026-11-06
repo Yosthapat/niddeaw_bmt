@@ -726,6 +726,30 @@ export async function rotateCheckinQr(sessionId: string): Promise<CheckinQr> {
   return request(`/api/admin/line/checkin-qr/rotate?session_id=${sessionId}`, { method: 'POST' })
 }
 
+/** Tonight's pin for checking in by location, as set from an admin's phone. */
+export interface CheckinSpot {
+  lat: number
+  lng: number
+  radius_m: number
+  accuracy_m: number | null
+  pinned_at: string | null
+}
+
+export async function getCheckinSpot(sessionId: string): Promise<CheckinSpot | null> {
+  return request(`/api/admin/line/checkin-spot?session_id=${sessionId}`)
+}
+
+export async function pinCheckinSpot(
+  sessionId: string,
+  spot: { lat: number; lng: number; accuracy: number; radius_m: number },
+): Promise<CheckinSpot> {
+  return request(`/api/admin/line/checkin-spot?session_id=${sessionId}`, { method: 'PUT', body: JSON.stringify(spot) })
+}
+
+export async function unpinCheckinSpot(sessionId: string): Promise<void> {
+  await request(`/api/admin/line/checkin-spot?session_id=${sessionId}`, { method: 'DELETE' })
+}
+
 export async function rejectBillSlip(billingId: string): Promise<Billing> {
   return request(`/api/admin/billing/${billingId}/reject-slip`, { method: 'POST' })
 }

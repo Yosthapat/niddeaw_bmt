@@ -110,6 +110,26 @@ export function checkInTonight(token: string, code: string): Promise<LineCheckin
   return request('/api/line/checkin', { ...auth(token), method: 'POST', body: JSON.stringify({ code }) })
 }
 
+export interface GeoFix {
+  lat: number
+  lng: number
+  accuracy: number
+}
+
+export interface LineGpsCheckin {
+  state: 'in' | 'far' | 'none' | 'weak' | 'unlinked'
+  night: { id: string; date: string; location: string } | null
+  player: Player | null
+  checkin_time: string | null
+  distance_m: number | null
+  radius_m: number | null
+}
+
+/** Check in to tonight by where this phone is. Who comes from the token. */
+export function checkInNearby(token: string, fix: GeoFix): Promise<LineGpsCheckin> {
+  return request('/api/line/checkin/nearby', { ...auth(token), method: 'POST', body: JSON.stringify(fix) })
+}
+
 export interface LineNight {
   id: string
   date: string

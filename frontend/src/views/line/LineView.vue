@@ -22,6 +22,7 @@ import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 import LineJoinForm from '@/components/line/LineJoinForm.vue'
 import LineCheckin from '@/components/line/LineCheckin.vue'
+import LineGpsCheckin from '@/components/line/LineGpsCheckin.vue'
 import LineCheckout from '@/components/line/LineCheckout.vue'
 import LineBills from '@/components/line/LineBills.vue'
 import LineCredit from '@/components/line/LineCredit.vue'
@@ -54,6 +55,9 @@ const joinWarning = ref('')
 const checkin = ref<LineCheckinState | null>(null)
 const checkinCode = ref('')
 const canScan = ref(false)
+// Checking in by where the phone is: the OA menu's "เช็คอิน" opens
+// /line/checkin with no code, which goes straight to it for a linked member.
+const gpsCheckin = ref(false)
 // A linked member's other screens: tonight's checkout and their bills
 // (/line/checkout, /line/bills — the OA menu's "เช็คเอาท์ จ่ายเงิน").
 type Screen = 'home' | 'checkout' | 'bills' | 'credit' | 'badges'
@@ -95,6 +99,7 @@ async function start(): Promise<void> {
     joining.value = route.params.section === 'register' && !status.player && !status.pending && !status.application
     const code = typeof route.query.c === 'string' ? route.query.c : ''
     if (route.params.section === 'checkin' && code) await openCheckin(code)
+    else if (route.params.section === 'checkin' && status.player) gpsCheckin.value = true
     if (status.player && (route.params.section === 'checkout' || route.params.section === 'bills' || route.params.section === 'credit' || route.params.section === 'badges')) {
       await go(route.params.section)
     }
@@ -198,6 +203,24 @@ async function go(next: Screen): Promise<void> {
   }
   screen.value = next
   void router.replace(next === 'home' ? '/line' : `/line/${next}`)
+}
+
+function openGps(): void {
+  actionError.value = ''
+  gpsCheckin.value = true
+  void router.replace('/line/checkin')
+}
+
+function gpsToScan(): void {
+  gpsCheckin.value = false
+  void router.replace('/line')
+  void scan()
+}
+
+function leaveGps(): void {
+  gpsCheckin.value = false
+  void router.replace('/line')
+  void closeLiff()
 }
 
 function leaveCheckin(next: 'link' | 'join' | 'done'): void {
@@ -310,6 +333,9 @@ onUnmounted(() => {
           @done="leaveCheckin('done')"
         />
 
+        <!-- checking in by where the phone is -->
+        <LineGpsCheckin v-else-if="gpsCheckin && me.player" :token="token" :can-scan="canScan" @scan="gpsToScan" @done="leaveGps" />
+
         <template v-else-if="me.player && screen === 'checkout' && tonight">
           <button type="button" class="-mb-2 flex min-h-11 w-fit items-center gap-1 text-sm text-white/70" @click="go('home')">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
@@ -337,6 +363,10 @@ onUnmounted(() => {
             {{ me.player.member_code }}
           </span>
           <p class="text-sm text-white/70">{{ canScan ? t('line.linkedBodyScan') : t('line.linkedBody') }}</p>
+          <button type="button" class="gps-cta flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl font-display text-base font-bold" @click="openGps">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5Z" /></svg>
+            {{ t('checkinGps.open') }}
+          </button>
           <button v-if="canScan" type="button" class="scan-cta flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl font-display text-base font-bold" @click="scan">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M4 12h16" /></svg>
             {{ t('lineCheckin.scan') }}
@@ -472,7 +502,7 @@ onUnmounted(() => {
           </div>
         </section>
 
-        <button v-if="me.player && !checkin && screen === 'home'" type="button" class="glass-pill mt-auto w-full justify-center" @click="closeLiff">{{ t('line.close') }}</button>
+        <button v-if="me.player && !checkin && !gpsCheckin && screen === 'home'" type="button" class="glass-pill mt-auto w-full justify-center" @click="closeLiff">{{ t('line.close') }}</button>
       </template>
     </div>
   </main>
@@ -526,6 +556,11 @@ onUnmounted(() => {
   background: radial-gradient(circle at 35% 30%, #fff2b3, #ffc531 45%, #c98500);
   color: #4a2d00;
   font: 700 12px 'Chakra Petch', sans-serif;
+}
+.gps-cta {
+  background: linear-gradient(#a9e6ff, #3fb6f0);
+  color: #03202e;
+  box-shadow: 0 8px 22px rgb(63 182 240 / 0.4);
 }
 .scan-cta {
   background: linear-gradient(#5dffa0, #06c755);

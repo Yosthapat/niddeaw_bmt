@@ -12,6 +12,8 @@ from app.deps import AdminDep, SupabaseDep
 from app.models.line import (
     CheckinNight,
     CheckinQr,
+    CheckinSpot,
+    CheckinSpotIn,
     JoinApprove,
     JoinRequestAdmin,
     LineInvite,
@@ -20,7 +22,7 @@ from app.models.line import (
 )
 from app.models.player import Player
 from app.routers.admin.players_admin import check_nickname
-from app.services import line_auth, line_checkin, line_join, promptpay_service
+from app.services import line_auth, line_checkin, line_gps, line_join, promptpay_service
 from app.services.elo_service import SCORE_FLOOR, STARTING_SCORE, get_tier
 from app.services.promptpay_service import generate_qr_data_uri
 from app.services.session_state import ensure_session_open
@@ -283,3 +285,80 @@ def rotate_checkin_qr(
     made = _qr(supabase, session_id, fresh=True)
     http.state.activity_detail = {"session": str(made.night.date)}
     return made
+
+
+# --- tonight's pin, for checking in by location -------------------------------
+
+
+def _spot(night: dict[str, Any]) -> CheckinSpot | None:
+    if night.get("checkin_lat") is None:
+        return None
+    return CheckinSpot(
+        lat=night["checkin_lat"],
+        lng=night["checkin_lng"],
+        radius_m=night["checkin_radius_m"],
+        accuracy_m=night.get("checkin_accuracy_m"),
+        pinned_at=night.get("checkin_pinned_at"),
+    )
+
+
+def _night(supabase: SupabaseDep, session_id: UUID) -> dict[str, Any]:
+    found = rows(
+        supabase.table("sessions").select("*").eq("id", str(session_id)).limit(1).execute()
+    )
+    if not found:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+    return found[0]
+
+
+@router.get("/checkin-spot", response_model=CheckinSpot | None)
+def checkin_spot(session_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> CheckinSpot | None:
+    return _spot(_night(supabase, session_id))
+
+
+@router.put("/checkin-spot", response_model=CheckinSpot)
+def pin_checkin_spot(
+    session_id: UUID, payload: CheckinSpotIn, http: Request, supabase: SupabaseDep, admin: AdminDep
+) -> CheckinSpot:
+    """Pin tonight's court where the admin's phone is now."""
+    _night(supabase, session_id)
+    # A closed night is billed: a pin for it would check people in to nothing.
+    ensure_session_open(supabase, session_id)
+    if payload.accuracy > line_gps.MAX_ACCURACY_M:
+        raise HTTPException(
+            status_code=422,
+            detail="GPS ยังไม่แม่น — ลองออกไปที่โล่งหรือรอสักครู่แล้วปักใหม่",
+        )
+    updated = (
+        supabase.table("sessions")
+        .update(
+            {
+                "checkin_lat": payload.lat,
+                "checkin_lng": payload.lng,
+                "checkin_radius_m": payload.radius_m,
+                "checkin_accuracy_m": round(payload.accuracy),
+                "checkin_pinned_at": _now(),
+            }
+        )
+        .eq("id", str(session_id))
+        .execute()
+    )
+    spot = _spot(rows(updated)[0])
+    assert spot is not None
+    http.state.activity_detail = {"radius_m": payload.radius_m}
+    return spot
+
+
+@router.delete("/checkin-spot", status_code=status.HTTP_204_NO_CONTENT)
+def unpin_checkin_spot(session_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> None:
+    """Stop checking in by location tonight."""
+    _night(supabase, session_id)
+    supabase.table("sessions").update(
+        {
+            "checkin_lat": None,
+            "checkin_lng": None,
+            "checkin_radius_m": None,
+            "checkin_accuracy_m": None,
+            "checkin_pinned_at": None,
+        }
+    ).eq("id", str(session_id)).execute()

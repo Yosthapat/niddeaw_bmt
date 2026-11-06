@@ -14,6 +14,7 @@ import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
 import CheckinQrOverlay from '@/components/admin/CheckinQrOverlay.vue'
+import CheckinSpotCard from '@/components/admin/CheckinSpotCard.vue'
 import LineBadge from '@/components/admin/LineBadge.vue'
 import { useLineLinksStore } from '@/stores/lineLinks'
 import { apiErrorMessage } from '@/api/errors'
@@ -174,6 +175,11 @@ usePolling(refreshCheckins, 8000)
       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2" /></svg>
       {{ t('checkinQr.show') }}
     </button>
+    <CheckinSpotCard
+      v-if="sessionsStore.currentSessionId && !sessionClosed"
+      :session-id="sessionsStore.currentSessionId"
+      :checkins="checkins"
+    />
     <CheckinQrOverlay
       v-if="showQr && sessionsStore.currentSessionId"
       :session-id="sessionsStore.currentSessionId"
@@ -261,6 +267,7 @@ usePolling(refreshCheckins, 8000)
             <EloBadge v-if="playersStore.byId(c.player_id)" :elo-score="playersStore.byId(c.player_id)!.elo_score" />
             <span class="flex flex-col items-end text-xs leading-tight text-white/40">
               <span v-if="c.via === 'line'" class="text-[10px] font-bold text-[#06c755]" :title="t('checkinQr.selfCheckin')">LINE</span>
+              <span v-else-if="c.via === 'gps'" class="text-[10px] font-bold text-[#7fd4ff]" :title="t('checkinGps.viaGps')">📍 GPS</span>
               {{ formatTime(c.checkin_time, locale) }}
             </span>
             <button
