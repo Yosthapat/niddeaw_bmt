@@ -7,6 +7,7 @@
  * LINE page in this tab (api/line.ts rememberLineToken) and is linked there
  * skips "who": the order goes under their LINE-linked name, straight to pay.
  */
+import SlidePill from '@/components/common/SlidePill.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BrandQr from '@/components/common/BrandQr.vue'
@@ -252,15 +253,17 @@ async function send(): Promise<void> {
         <section v-if="step === 1" class="mt-5 flex flex-col gap-3">
           <h1 class="font-display text-2xl font-bold">{{ t('shop.whoTitle') }}</h1>
           <!-- a club member, or someone from outside -->
-          <div role="radiogroup" :aria-label="t('shop.whoTitle')" class="flex gap-1 rounded-2xl bg-white/7 p-1">
+          <div role="radiogroup" :aria-label="t('shop.whoTitle')" class="relative flex gap-1 rounded-2xl bg-white/7 p-1">
+            <SlidePill :watch-key="mode" tone="white" />
             <button
               v-for="m in (['member', 'guest'] as const)"
               :key="m"
               type="button"
               role="radio"
               :aria-checked="mode === m"
-              class="min-h-11 flex-1 rounded-xl text-sm"
-              :class="mode === m ? 'bg-white font-medium text-brand-black' : 'text-white/75'"
+              :data-pill-on="mode === m ? '' : undefined"
+              class="relative z-[1] min-h-11 flex-1 rounded-xl text-sm transition-colors"
+              :class="mode === m ? 'font-medium text-brand-black' : 'text-white/75'"
               @click="mode = m"
             >
               {{ m === 'member' ? t('shop.whoMember') : t('shop.whoGuest') }}

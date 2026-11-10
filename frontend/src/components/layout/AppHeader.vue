@@ -212,7 +212,8 @@ function isActive(to: string): boolean {
     v-if="!isAdmin"
     class="pointer-events-none sticky top-0 z-10 hidden h-[var(--header-h)] items-center justify-center px-4 min-[900px]:flex"
   >
-    <div class="glass-bar pointer-events-auto flex h-16 items-center gap-1.5 rounded-full pr-2.5 pl-3">
+    <div class="glass-bar pointer-events-auto relative flex h-16 items-center gap-1.5 rounded-full pr-2.5 pl-3">
+      <SlidePill :watch-key="route.path" />
       <RouterLink to="/" class="mr-1 flex min-h-11 shrink-0 items-center gap-2.5 border-r border-white/15 pr-4">
         <img
           src="/pwa-icons/pwa-192x192.png"
@@ -231,8 +232,9 @@ function isActive(to: string): boolean {
           <a
             :href="href"
             :aria-current="isActive(link.to) ? 'page' : undefined"
-            class="flex h-[46px] items-center rounded-full text-[15px] whitespace-nowrap transition-colors"
-            :class="isActive(link.to) ? 'glass-drop px-5 font-medium' : 'px-4 text-white/80 hover:text-white'"
+            :data-pill-on="isActive(link.to) ? '' : undefined"
+            class="relative z-[1] flex h-[46px] items-center rounded-full text-[15px] whitespace-nowrap transition-colors"
+            :class="isActive(link.to) ? 'px-5 font-medium text-white' : 'px-4 text-white/80 hover:text-white'"
             @click="navigate"
           >
             {{ link.label }}

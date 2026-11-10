@@ -1,6 +1,6 @@
 /**
- * A ring that spreads from where a button was pressed, on the admin's
- * screens: a tap answers at once, before whatever it does has loaded.
+ * A ring that spreads from where a button was pressed, on every screen:
+ * a tap answers at once, before whatever it does has loaded.
  *
  * The ring is drawn on the page, at the pointer, rather than inside the
  * button: putting an element into a button would change its layout (flex

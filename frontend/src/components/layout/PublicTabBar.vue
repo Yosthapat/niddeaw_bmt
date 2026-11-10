@@ -16,6 +16,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute } from 'vue-router'
 import { useLiveNow } from '@/composables/useLiveNow'
 import { useCartStore } from '@/stores/cart'
+import SlidePill from '@/components/common/SlidePill.vue'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -59,6 +60,7 @@ function isActive(to: string): boolean {
     class="glass-bar fixed inset-x-3 z-20 grid h-16 grid-cols-6 gap-0.5 rounded-full p-1.5 min-[900px]:hidden"
     style="bottom: calc(14px + env(safe-area-inset-bottom, 0px))"
   >
+    <SlidePill :watch-key="route.path" />
     <RouterLink v-for="tab in tabs" :key="tab.to" v-slot="{ href, navigate }" :to="tab.to" custom>
       <a
         :href="href"
@@ -71,8 +73,9 @@ function isActive(to: string): boolean {
               : tab.label
         "
         :title="tab.label"
-        class="relative flex min-w-0 items-center justify-center rounded-full transition-colors"
-        :class="isActive(tab.to) ? 'glass-drop text-white' : 'text-white/80 hover:text-white'"
+        :data-pill-on="isActive(tab.to) ? '' : undefined"
+        class="relative z-[1] flex min-w-0 items-center justify-center rounded-full transition-colors"
+        :class="isActive(tab.to) ? 'text-white' : 'text-white/80 hover:text-white'"
         @click="navigate"
       >
         <svg

@@ -25,8 +25,8 @@ const isAdmin = computed(() => route.path.startsWith('/admin'))
 // The admin's screens sit in the hero's world too (tailwind.css .admin-world):
 // its violet sky over the top, glass panels, the bar at the bottom of a phone.
 const adminInside = computed(() => isAdmin.value && route.path !== '/admin/login')
-// a press on an admin screen answers with a ring at the finger
-usePressFx(() => adminInside.value)
+// a press anywhere answers with a ring at the finger
+usePressFx(() => true)
 
 // A page is rebuilt when its key changes. Normally that is its path, but
 // the LINE page's /line/checkout, /line/bills… are screens of one page:
