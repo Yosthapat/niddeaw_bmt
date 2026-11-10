@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 import { ADMIN_PAGES } from './adminPages'
 import { setLocale } from '@/i18n'
 import LanguageSwitcher from './LanguageSwitcher.vue'
+import SlidePill from '@/components/common/SlidePill.vue'
 import { shownPath } from '@/composables/usePageSwap'
 
 const route = useRoute()
@@ -105,6 +106,7 @@ function isActive(to: string): boolean {
          night's four screens, the office ones, and the rest under "เพิ่มเติม". -->
     <header class="pointer-events-none sticky top-0 z-20 hidden h-[var(--header-h)] items-center justify-center px-4 min-[900px]:flex">
       <div class="glass-bar pointer-events-auto relative flex h-16 items-center gap-1 rounded-full pr-2.5 pl-3">
+        <SlidePill v-if="!isLogin" :watch-key="[route.path, moreOpen]" />
         <RouterLink to="/admin" class="mr-1 flex min-h-11 shrink-0 items-center gap-2.5 border-r border-white/15 pr-3">
           <img src="/pwa-icons/pwa-192x192.png" alt="นิดเดียว Badminton Club logo" width="40" height="40" class="h-10 w-10 rounded-full ring-2 ring-white/30" />
           <span class="admin-chip">ADMIN</span>
@@ -115,8 +117,9 @@ function isActive(to: string): boolean {
               <a
                 :href="href"
                 :aria-current="route.path === p.to ? 'page' : undefined"
-                class="flex h-[46px] items-center rounded-full text-[14px] whitespace-nowrap transition-colors"
-                :class="[route.path === p.to ? 'glass-drop px-4 font-medium' : 'px-3 text-white/80 hover:text-white', p.night ? '' : 'max-[1279px]:hidden']"
+                :data-pill-on="route.path === p.to && !moreOpen ? '' : undefined"
+                class="relative z-[1] flex h-[46px] items-center rounded-full text-[14px] whitespace-nowrap transition-colors"
+                :class="[route.path === p.to && !moreOpen ? 'px-4 font-medium text-white' : 'px-3 text-white/80 hover:text-white', p.night ? '' : 'max-[1279px]:hidden']"
                 @click="navigate"
               >
                 {{ t(`admin.nav.${p.nav}`) }}
@@ -125,8 +128,9 @@ function isActive(to: string): boolean {
           </nav>
           <button
             type="button"
-            class="flex h-[46px] items-center gap-1 rounded-full px-3 text-[14px] whitespace-nowrap transition-colors"
-            :class="moreOpen || onMore ? 'glass-drop' : 'text-white/80 hover:text-white'"
+            :data-pill-on="moreOpen || onMore ? '' : undefined"
+            class="relative z-[1] flex h-[46px] items-center gap-1 rounded-full px-3 text-[14px] whitespace-nowrap transition-colors"
+            :class="moreOpen || onMore ? 'text-white' : 'text-white/80 hover:text-white'"
             :aria-expanded="moreOpen"
             aria-controls="admin-more-desktop"
             @click="moreOpen = !moreOpen"

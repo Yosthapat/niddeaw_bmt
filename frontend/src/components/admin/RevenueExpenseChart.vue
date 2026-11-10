@@ -31,6 +31,7 @@
 // shop's share is named in the readout (slot 3, aqua, as on the shop page)
 // rather than drawn as a third line. The profit / loss wash is a 14% tint of
 // the status colors, and always comes with its word in the readout.
+import SlidePill from '@/components/common/SlidePill.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
@@ -292,13 +293,15 @@ const net = computed(() => totalRevenue.value - totalExpense.value)
     <div class="flex flex-wrap items-center justify-between gap-2">
       <h2 class="text-sm font-semibold text-white/70">{{ t('dashboard.revenueExpenseChart') }}</h2>
       <!-- Filters sit in one row above the plot, per the dataviz skill. -->
-      <div class="hud-panel flex border border-brand-pink/25 bg-brand-surface p-1 text-xs">
+      <div class="hud-panel relative flex border border-brand-pink/25 bg-brand-surface p-1 text-xs">
+        <SlidePill :watch-key="period" tone="pink" />
         <button
           v-for="p in (['day', 'month', 'year'] as const)"
           :key="p"
           type="button"
-          class="tap px-3 font-semibold transition-colors"
-          :class="period === p ? 'bg-brand-pink text-brand-black' : 'text-white/50 hover:text-white'"
+          :data-pill-on="period === p ? '' : undefined"
+          class="tap relative z-[1] px-3 font-semibold transition-colors"
+          :class="period === p ? 'text-brand-black' : 'text-white/50 hover:text-white'"
           @click="setPeriod(p)"
         >
           {{ t(`dashboard.period.${p}`) }}
@@ -365,6 +368,7 @@ const net = computed(() => totalRevenue.value - totalExpense.value)
           :fill="w.profit ? PROFIT_COLOR : LOSS_COLOR"
           fill-opacity="0.14"
           stroke="none"
+          class="fx-fade"
         />
 
         <!-- Crosshair: a hairline on the picked bucket -->
@@ -378,12 +382,13 @@ const net = computed(() => totalRevenue.value - totalExpense.value)
           stroke-width="1"
         />
 
-        <path v-if="bars.length > 1" :d="expensePath" fill="none" :stroke="EXPENSE_COLOR" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
-        <path v-if="bars.length > 1" :d="incomePath" fill="none" :stroke="REVENUE_COLOR" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+        <!-- the lines draw themselves in, again when the period changes -->
+        <path v-if="bars.length > 1" :key="`e${period}`" class="fx-draw" pathLength="1" :d="expensePath" fill="none" :stroke="EXPENSE_COLOR" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+        <path v-if="bars.length > 1" :key="`i${period}`" class="fx-draw" pathLength="1" :d="incomePath" fill="none" :stroke="REVENUE_COLOR" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
 
         <!-- Markers: filled, with a ring in the surface color so they stay
              legible where the lines cross. The picked bucket's grow. -->
-        <g v-for="(bar, i) in bars" :key="bar.key">
+        <g v-for="(bar, i) in bars" :key="bar.key" class="fx-pop" :style="{ '--i': i }">
           <circle :cx="x(i)" :cy="y(bar.expense)" :r="i === shownIndex ? 5.5 : 4" :fill="EXPENSE_COLOR" :stroke="SURFACE" stroke-width="2" />
           <circle :cx="x(i)" :cy="y(income(bar))" :r="i === shownIndex ? 5.5 : 4" :fill="REVENUE_COLOR" :stroke="SURFACE" stroke-width="2" />
           <!-- One bucket has no line to read: say its two values beside the
