@@ -708,6 +708,106 @@ a.glass-pill:hover {
   }
 }
 
+/* The admin's screens in motion. The bar's highlight slides
+   (SlidePill.vue); a press answers with a ring at the finger
+   (usePressFx.ts); a screen comes in out of a blur, a piece at a time;
+   the dashboard's numbers count up (CountUp.vue) and its charts draw in. */
+.press-ring {
+  position: fixed;
+  z-index: 60;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border: 2px solid rgb(255 255 255 / 0.85);
+  border-radius: 50%;
+  box-shadow:
+    0 0 14px rgb(255 143 208 / 0.75),
+    inset 0 0 8px rgb(255 143 208 / 0.5);
+  pointer-events: none;
+  animation: press-ring 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+@keyframes press-ring {
+  from {
+    opacity: 0.95;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 0;
+    transform: scale(3.2);
+  }
+}
+.admin-world a.hud-hover {
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.2s ease;
+}
+.admin-world a.hud-hover:active {
+  transform: scale(0.97);
+}
+.admin-world main > *,
+.admin-world main .fx-stagger > * {
+  animation: admin-in 0.55s cubic-bezier(0.2, 0.75, 0.2, 1) backwards;
+}
+.admin-world main > :nth-child(2) { animation-delay: 50ms; }
+.admin-world main > :nth-child(3) { animation-delay: 100ms; }
+.admin-world main > :nth-child(4) { animation-delay: 150ms; }
+.admin-world main > :nth-child(5) { animation-delay: 200ms; }
+.admin-world main > :nth-child(6) { animation-delay: 250ms; }
+.admin-world main > :nth-child(n + 7) { animation-delay: 300ms; }
+.admin-world main .fx-stagger > :nth-child(1) { animation-delay: 120ms; }
+.admin-world main .fx-stagger > :nth-child(2) { animation-delay: 180ms; }
+.admin-world main .fx-stagger > :nth-child(3) { animation-delay: 240ms; }
+.admin-world main .fx-stagger > :nth-child(n + 4) { animation-delay: 300ms; }
+@keyframes admin-in {
+  from {
+    opacity: 0;
+    filter: blur(12px);
+    transform: translateY(12px) scale(0.985);
+  }
+}
+.fx-draw {
+  stroke-dasharray: 1;
+  animation: fx-draw 1.1s cubic-bezier(0.45, 0, 0.2, 1) 0.25s backwards;
+}
+@keyframes fx-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.fx-pop {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: fx-pop 0.4s cubic-bezier(0.3, 1.5, 0.5, 1) calc(0.35s + var(--i, 0) * 0.06s) backwards;
+}
+@keyframes fx-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+}
+.fx-fade {
+  animation: fx-fade 0.8s ease 0.6s backwards;
+}
+@keyframes fx-fade {
+  from {
+    opacity: 0;
+  }
+}
+.fx-sweep {
+  animation: fx-sweep 1s cubic-bezier(0.45, 0, 0.2, 1) 0.25s backwards;
+}
+.fx-sweep-late {
+  animation-delay: 0.55s;
+}
+@keyframes fx-sweep {
+  from {
+    stroke-dasharray: 0 100;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .signature-stripe {
     animation: none;
@@ -754,6 +854,18 @@ a.glass-pill:hover {
   .float-idle,
   .reveal-init.is-revealed.float-idle {
     animation: none;
+  }
+  .press-ring,
+  .admin-world main > *,
+  .admin-world main .fx-stagger > *,
+  .fx-draw,
+  .fx-pop,
+  .fx-fade,
+  .fx-sweep {
+    animation: none;
+  }
+  .admin-world a.hud-hover:active {
+    transform: none;
   }
   .stagger-word {
     opacity: 1;

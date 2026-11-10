@@ -11,6 +11,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { ADMIN_PAGES, MORE_ICON } from './adminPages'
+import SlidePill from '@/components/common/SlidePill.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -79,12 +80,14 @@ function logout(): void {
       class="glass-bar fixed inset-x-3 z-30 grid h-16 grid-cols-5 gap-0.5 rounded-full p-1.5"
       style="bottom: calc(14px + env(safe-area-inset-bottom, 0px))"
     >
+      <SlidePill :watch-key="[route.path, open]" />
       <RouterLink v-for="p in night" :key="p.to" v-slot="{ href, navigate }" :to="p.to" custom>
         <a
           :href="href"
           :aria-current="route.path === p.to ? 'page' : undefined"
-          class="flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-full text-[10.5px] leading-none transition-colors"
-          :class="route.path === p.to && !open ? 'glass-drop text-white' : 'text-white/75 hover:text-white'"
+          :data-pill-on="route.path === p.to && !open ? '' : undefined"
+          class="relative z-[1] flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-full text-[10.5px] leading-none transition-colors"
+          :class="route.path === p.to && !open ? 'text-white' : 'text-white/75 hover:text-white'"
           @click="navigate"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" :stroke-width="route.path === p.to ? 2.2 : 1.9" stroke-linecap="round" stroke-linejoin="round" class="h-[22px] w-[22px]" aria-hidden="true">
@@ -95,8 +98,9 @@ function logout(): void {
       </RouterLink>
       <button
         type="button"
-        class="flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-full text-[10.5px] leading-none transition-colors"
-        :class="open || onRest ? 'glass-drop text-white' : 'text-white/75 hover:text-white'"
+        :data-pill-on="open || onRest ? '' : undefined"
+        class="relative z-[1] flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-full text-[10.5px] leading-none transition-colors"
+        :class="open || onRest ? 'text-white' : 'text-white/75 hover:text-white'"
         :aria-expanded="open"
         aria-controls="admin-more"
         @click="open = !open"

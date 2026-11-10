@@ -3,6 +3,7 @@ import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import { pageEntered, pageEntering } from '@/composables/usePageSwap'
+import { usePressFx } from '@/composables/usePressFx'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import TierInfoModal from '@/components/players/TierInfoModal.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
@@ -24,6 +25,8 @@ const isAdmin = computed(() => route.path.startsWith('/admin'))
 // The admin's screens sit in the hero's world too (tailwind.css .admin-world):
 // its violet sky over the top, glass panels, the bar at the bottom of a phone.
 const adminInside = computed(() => isAdmin.value && route.path !== '/admin/login')
+// a press on an admin screen answers with a ring at the finger
+usePressFx(() => adminInside.value)
 
 // A page is rebuilt when its key changes. Normally that is its path, but
 // the LINE page's /line/checkout, /line/bills… are screens of one page:

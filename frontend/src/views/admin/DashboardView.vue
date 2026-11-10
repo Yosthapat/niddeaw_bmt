@@ -35,7 +35,7 @@ onMounted(() => {
       <SessionPicker allow-delete />
     </div>
 
-    <div class="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+    <div class="fx-stagger mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
       <RouterLink to="/admin/members" class="hud-panel hud-hover flex flex-col justify-between border border-brand-pink/20 bg-brand-surface p-3">
         <div class="flex items-center gap-1.5 text-white/50">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 shrink-0">

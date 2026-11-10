@@ -157,6 +157,7 @@ const spentDash = computed(() => {
               :stroke="REMAINING_COLOR"
               :stroke-width="STROKE"
               pathLength="100"
+              class="fx-sweep"
               :stroke-dasharray="remainingDash"
             />
             <circle
@@ -167,6 +168,7 @@ const spentDash = computed(() => {
               :stroke="SPENT_COLOR"
               :stroke-width="STROKE"
               pathLength="100"
+              class="fx-sweep fx-sweep-late"
               :stroke-dasharray="overdrawn ? '100 0' : spentDash"
               :stroke-dashoffset="overdrawn ? 0 : -(remainingPct + gap / 2)"
             />
