@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SlidePill from '@/components/common/SlidePill.vue'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getPlayDates, getRanking } from '@/api/public'
@@ -79,12 +80,14 @@ const periodLabel = { all: 'ranking.allTime', year: 'ranking.thisYear', day: 'ra
     <PageBanner eyebrow="Leaderboard" :title="t('nav.ranking')" :sub="t('ranking.sub')" mascot="/hero/cat-color.webp">
       <div class="flex flex-wrap items-center gap-2">
         <div class="seg" role="group" :aria-label="t('ranking.periodLabel')">
+          <SlidePill :watch-key="period" tone="seg" />
           <button
             v-for="p in PERIODS"
             :key="p"
             type="button"
             class="seg-btn"
             :class="{ on: period === p }"
+            :data-pill-on="period === p ? '' : undefined"
             :aria-pressed="period === p"
             @click="period = p"
           >

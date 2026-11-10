@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SlidePill from '@/components/common/SlidePill.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getShopProducts } from '@/api/public'
@@ -54,12 +55,14 @@ onRevisit(async () => {
            on the mascot on a desktop -->
       <div class="flex flex-wrap items-center gap-2">
         <div class="seg" role="group" :aria-label="t('shop.filterLabel')">
+          <SlidePill :watch-key="kind" tone="seg" />
           <button
             v-for="chip in chips"
             :key="chip.id"
             type="button"
             class="seg-btn"
             :class="{ on: kind === chip.id }"
+            :data-pill-on="kind === chip.id ? '' : undefined"
             :aria-pressed="kind === chip.id"
             @click="kind = chip.id"
           >

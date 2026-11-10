@@ -5,6 +5,7 @@ import type { Product } from '@/types'
 import { priceRange } from '@/types'
 import { formatDayMonth, money } from '@/utils/format'
 import { BADGE_CLASS, productBadge } from './productBadge'
+import CountUp from '@/components/common/CountUp.vue'
 
 const props = defineProps<{ product: Product }>()
 const { t, locale } = useI18n()
@@ -15,10 +16,13 @@ const badge = computed(() => {
   if (typeof params.date === 'string' && params.date) params.date = formatDayMonth(params.date, locale.value as 'th' | 'en')
   return { text: t(b.key, params), cls: BADGE_CLASS[b.tone], out: b.tone === 'out' }
 })
-const priceLine = computed(() => {
+// the lowest price counts up; a range says "from" before it
+const priceLo = computed(() => priceRange(props.product)[0])
+const priceRanged = computed(() => {
   const [lo, hi] = priceRange(props.product)
-  return lo === hi ? money(lo) : t('shop.priceFrom', { price: money(lo) })
+  return lo !== hi
 })
+const priceText = (v: number): string => (priceRanged.value ? t('shop.priceFrom', { price: money(v) }) : money(v))
 const sizesLine = computed(() => {
   const s = props.product.sizes
   if (s.length === 0) return t('shop.oneSize')
@@ -53,7 +57,7 @@ const sizesLine = computed(() => {
       <span class="text-sm leading-snug font-medium">{{ product.name }}</span>
       <span class="text-xs text-white/65">{{ sizesLine }}</span>
       <span class="mt-1 font-display text-lg font-bold" :class="badge.out ? 'text-white/50' : 'text-brand-pink-light'">
-        {{ priceLine }}
+        <CountUp :value="priceLo" :format="priceText" />
       </span>
     </div>
   </RouterLink>

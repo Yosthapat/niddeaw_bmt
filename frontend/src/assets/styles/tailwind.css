@@ -136,6 +136,33 @@ h3,
 .page-enter-from {
   opacity: 0;
 }
+/* The page being left goes soft and fades; the new one comes in out of
+   a blur a piece at a time, like the admin's screens (.admin-world main).
+   Only the page's own pieces move, never the page itself. A page with a
+   bar fixed to the screen keeps the plain fade: moving an ancestor would
+   pull the bar out of place while it ran (no-enter-fx). */
+.page-leave-active {
+  transition:
+    opacity 0.13s ease-in,
+    filter 0.13s ease-in;
+}
+.page-leave-to {
+  opacity: 0;
+  filter: blur(4px);
+}
+.page-enter-active:not(.no-enter-fx) > * {
+  animation: page-in 0.5s cubic-bezier(0.2, 0.75, 0.2, 1) backwards;
+}
+.page-enter-active:not(.no-enter-fx) > :nth-child(2) { animation-delay: 60ms; }
+.page-enter-active:not(.no-enter-fx) > :nth-child(3) { animation-delay: 120ms; }
+.page-enter-active:not(.no-enter-fx) > :nth-child(n + 4) { animation-delay: 180ms; }
+@keyframes page-in {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translateY(10px);
+  }
+}
 
 /* Shared "modal" transition (TierInfoModal.vue, ConfirmDialog.vue) —
    backdrop fades, panel fades + scales up from 95%. */
@@ -421,6 +448,7 @@ button:not(:disabled):active {
 /* A row of choices on glass — the period on the ranking page, what kind
    of product in the shop. The one picked is a lit pink pill. */
 .seg {
+  position: relative;
   display: inline-flex;
   gap: 4px;
   padding: 4px;
@@ -453,6 +481,15 @@ button:not(:disabled):active {
   color: #1a0410;
   font-weight: 500;
   box-shadow: 0 4px 14px rgb(234 76 164 / 0.5);
+}
+/* with a SlidePill in the row, the pill is the lit one and slides */
+.seg .seg-btn {
+  position: relative;
+  z-index: 1;
+}
+.seg:has(> .slide-pill) .seg-btn.on {
+  background: none;
+  box-shadow: none;
 }
 
 /* A small glass button on the banners: back to the list, a member's
@@ -820,6 +857,9 @@ a.glass-pill:hover {
     transform: none;
   }
   .profile-glow {
+    animation: none;
+  }
+  .page-enter-active > * {
     animation: none;
   }
   .page-enter-active,

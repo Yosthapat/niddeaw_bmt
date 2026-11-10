@@ -6,6 +6,7 @@ import { tierMeta } from '@/composables/useEloTier'
 import { TIER_CARD } from '@/utils/tierCard'
 import LineMark from '@/components/players/LineMark.vue'
 import CreditCardMark from '@/components/credit/CreditCardMark.vue'
+import CountUp from '@/components/common/CountUp.vue'
 
 // The member as a trading card: photo (or their tier's mascot until they
 // have one), tier and ELO on top, record along the bottom. Shared by the
@@ -50,7 +51,7 @@ const line = computed(() => props.player.quote || t('roster.tierLine', { tier: t
           <span class="font-display text-[11px] font-semibold tracking-[0.12em] text-white/65">{{ player.member_code }}</span>
           <LineMark v-if="player.line_linked" />
         </span>
-        <span class="elo-chip font-display"><template v-if="rank">#{{ rank }} · </template>ELO {{ player.elo_score }}</span>
+        <span class="elo-chip font-display"><template v-if="rank">#{{ rank }} · </template>ELO&nbsp;<CountUp :value="player.elo_score" /></span>
       </div>
 
       <div class="member-card__photo">
@@ -100,19 +101,19 @@ const line = computed(() => props.player.quote || t('roster.tierLine', { tier: t
       <dl class="member-card__stats font-display">
         <div>
           <dt>{{ t('common.game') }}</dt>
-          <dd>{{ games }}</dd>
+          <dd><CountUp :value="games" /></dd>
         </div>
         <div>
           <dt>{{ t('common.win') }}</dt>
-          <dd class="text-[#7ff0b4]">{{ wins }}</dd>
+          <dd class="text-[#7ff0b4]"><CountUp :value="wins" /></dd>
         </div>
         <div>
           <dt>{{ t('common.draw') }}</dt>
-          <dd class="text-white/80">{{ draws }}</dd>
+          <dd class="text-white/80"><CountUp :value="draws" /></dd>
         </div>
         <div>
           <dt>{{ t('common.loss') }}</dt>
-          <dd class="text-[#ff9db0]">{{ losses }}</dd>
+          <dd class="text-[#ff9db0]"><CountUp :value="losses" /></dd>
         </div>
       </dl>
     </div>

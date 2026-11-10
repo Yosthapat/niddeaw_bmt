@@ -12,7 +12,7 @@
  */
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-const props = withDefaults(defineProps<{ watchKey: unknown; tone?: 'glass' | 'pink' }>(), { tone: 'glass' })
+const props = withDefaults(defineProps<{ watchKey: unknown; tone?: 'glass' | 'pink' | 'seg' | 'white' }>(), { tone: 'glass' })
 
 const pill = ref<HTMLElement | null>(null)
 const box = ref({ left: 0, right: 0, top: 0, bottom: 0 })
@@ -70,7 +70,7 @@ onBeforeUnmount(() => observer?.disconnect())
   <span
     ref="pill"
     class="slide-pill"
-    :class="[tone === 'pink' ? 'pink' : 'glass-drop', animate ? `lead-${lead}` : 'still', { off: !shown }]"
+    :class="[tone === 'glass' ? 'glass-drop' : tone, animate ? `lead-${lead}` : 'still', { off: !shown }]"
     :style="{ left: `${box.left}px`, right: `${box.right}px`, top: `${box.top}px`, bottom: `${box.bottom}px` }"
     aria-hidden="true"
   />
@@ -87,6 +87,14 @@ onBeforeUnmount(() => observer?.disconnect())
   border-radius: 12px;
   background: var(--color-brand-pink);
   box-shadow: 0 4px 14px rgb(234 76 164 / 0.45);
+}
+.slide-pill.seg {
+  background: linear-gradient(#ff8fd0, #ea4ca4);
+  box-shadow: 0 4px 14px rgb(234 76 164 / 0.5);
+}
+.slide-pill.white {
+  border-radius: 12px;
+  background: #fff;
 }
 .slide-pill.off {
   opacity: 0;

@@ -285,7 +285,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <main class="home-world min-h-dvh">
+  <main class="no-enter-fx home-world min-h-dvh">
     <div class="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 pt-5 pb-[calc(20px+env(safe-area-inset-bottom,0px))]">
       <div class="flex items-center gap-2.5">
         <img src="/pwa-icons/pwa-64x64.png" alt="" width="36" height="36" class="h-9 w-9 rounded-full" />

@@ -266,7 +266,7 @@ onBeforeUnmount(() => seen?.disconnect())
 
 <template>
   <!-- the world the rest of the site stands in, behind this page too -->
-  <div class="home-world">
+  <div class="no-enter-fx home-world">
     <main class="mx-auto max-w-5xl px-4 pt-4 pb-44 sm:pb-12">
       <div class="flex items-center justify-between gap-3">
         <RouterLink to="/shop" class="inline-flex min-h-11 items-center gap-1 text-sm text-white/70 hover:text-white">
