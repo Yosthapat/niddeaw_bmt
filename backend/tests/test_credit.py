@@ -286,3 +286,17 @@ def test_cards_from_packs_bought_in_line(client: TestClient, db: MiniSupabase) -
     assert client.get("/api/credit-cards").json() == {ball: "black"}
     black = client.get("/api/line/credit", headers=member()).json()["card"]
     assert black["tier"] == "black" and black["since"] != pink["since"]
+
+
+def test_packages_list_cheapest_first_whenever_added(client: TestClient, db: MiniSupabase) -> None:
+    # added last, with a later sort_order, a cheaper pack still comes first
+    res = client.post("/api/admin/credit/packages", json={"credits": 500, "price": 500, "sort_order": 9}, headers=admin())
+    assert res.status_code == 201
+    # same price as another: the bigger pack goes first
+    res = client.post("/api/admin/credit/packages", json={"credits": 520, "price": 500}, headers=admin())
+    assert res.status_code == 201
+    listed = [(p["price"], p["credits"]) for p in client.get("/api/admin/credit/packages", headers=admin()).json()]
+    assert [p for p, _ in listed] == sorted(p for p, _ in listed)
+    assert listed.index((500, 520)) < listed.index((500, 500)) < listed.index((950, 1000))
+    shown = [p["price"] for p in client.get("/api/line/credit", headers=member()).json()["packages"]]
+    assert shown == sorted(shown) and shown.index(500) < shown.index(950)

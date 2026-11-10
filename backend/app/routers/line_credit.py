@@ -26,7 +26,9 @@ router = APIRouter(prefix="/api/line/credit", tags=["line-credit"])
 def _packages(supabase: Client) -> list[CreditPackage]:
     found = rows(supabase.table("credit_packages").select("*").eq("is_active", True).execute())
     found = [p for p in found if p.get("is_active")]
-    found.sort(key=lambda p: (int(p.get("sort_order") or 0), int(p["credits"])))
+    # cheapest first, the club's ask; at the same price the bigger pack first.
+    # sort_order is never set by hand, so it plays no part.
+    found.sort(key=lambda p: (float(p["price"]), -int(p["credits"])))
     return [CreditPackage.model_validate(p) for p in found]
 
 

@@ -181,7 +181,9 @@ def adjust(
 @router.get("/packages", response_model=list[CreditPackage])
 def list_packages(supabase: SupabaseDep, admin: AdminDep) -> list[CreditPackage]:
     found = rows(supabase.table("credit_packages").select("*").execute())
-    found.sort(key=lambda p: (int(p.get("sort_order") or 0), int(p["credits"])))
+    # cheapest first, the club's ask; at the same price the bigger pack first.
+    # sort_order is never set by hand, so it plays no part.
+    found.sort(key=lambda p: (float(p["price"]), -int(p["credits"])))
     return [CreditPackage.model_validate(p) for p in found]
 
 
