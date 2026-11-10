@@ -6,6 +6,8 @@ import type { LiveQueueResponse, Player } from '@/types'
 import { usePolling } from '@/composables/usePolling'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import TeamNames from '@/components/players/TeamNames.vue'
+import EloGauge from '@/components/matches/EloGauge.vue'
+import { teamElo } from '@/utils/eloOdds'
 import CreditCardMark from '@/components/credit/CreditCardMark.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 import PageBanner from '@/components/common/PageBanner.vue'
@@ -21,6 +23,14 @@ const error = ref<string | null>(null)
 
 function nameOf(playerId: string): string {
   return playersById.value[playerId]?.nickname ?? '?'
+}
+
+// a match not played yet is rated on the players' ELO now
+function gaugeOf(team1: string[], team2: string[]): { a: number; b: number } | null {
+  const eloOf = (id: string): number | undefined => playersById.value[id]?.elo_score
+  const a = teamElo(team1, eloOf)
+  const b = teamElo(team2, eloOf)
+  return a === null || b === null ? null : { a, b }
 }
 
 function avatarOf(playerId: string): string | undefined {
@@ -149,6 +159,13 @@ usePolling(refresh, 7000)
                   <span class="max-w-full text-center font-display text-sm font-semibold break-words sm:text-[15px]"><TeamNames :ids="side" :name-of="nameOf" /></span>
                 </div>
               </div>
+              <EloGauge
+                v-if="gaugeOf(m.team1_player_ids, m.team2_player_ids)"
+                class="mt-3"
+                :elo1="gaugeOf(m.team1_player_ids, m.team2_player_ids)!.a"
+                :elo2="gaugeOf(m.team1_player_ids, m.team2_player_ids)!.b"
+                live
+              />
             </li>
           </ul>
           <p v-else class="world-card p-5 text-white/65">{{ t('live.noneInProgress') }}</p>
@@ -177,6 +194,13 @@ usePolling(refresh, 7000)
                     </span>
                     <span class="min-w-0 max-w-full truncate text-sm"><TeamNames :ids="ids" :name-of="nameOf" /></span>
                   </span>
+                  <EloGauge
+                    v-if="gaugeOf(m.team1_player_ids, m.team2_player_ids)"
+                    class="q-gauge"
+                    :elo1="gaugeOf(m.team1_player_ids, m.team2_player_ids)!.a"
+                    :elo2="gaugeOf(m.team1_player_ids, m.team2_player_ids)!.b"
+                    compact
+                  />
                 </li>
               </ol>
               <p v-else class="mt-2 text-sm text-white/55">{{ t('live.noneUpNext') }}</p>
@@ -340,6 +364,10 @@ usePolling(refresh, 7000)
 }
 .q-left {
   grid-column: 2;
+}
+.q-gauge {
+  grid-row: 2;
+  grid-column: 2 / -1;
 }
 .q-right {
   grid-column: 4;

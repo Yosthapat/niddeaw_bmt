@@ -745,6 +745,67 @@ a.glass-pill:hover {
   }
 }
 
+/* A finished match the underdog won (utils/eloOdds.ts): a gold band
+   stamped across the card's corner. The card is the positioned, clipped
+   box it sits in. */
+.upset-stamp {
+  position: absolute;
+  z-index: 2;
+  top: 12px;
+  right: -36px;
+  padding: 3px 42px;
+  transform: rotate(32deg);
+  background: linear-gradient(90deg, #ffe58a, #ffcf4d);
+  color: #2e1a00;
+  font-family: var(--font-display);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  box-shadow: 0 4px 14px rgb(255 207 77 / 0.5);
+  pointer-events: none;
+  animation: upset-stamp 0.55s cubic-bezier(0.3, 1.5, 0.5, 1) 0.6s backwards;
+}
+@keyframes upset-stamp {
+  from {
+    opacity: 0;
+    transform: rotate(32deg) scale(1.8);
+  }
+}
+/* ELO a result moved: up mint, down rose */
+.elo-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  animation: elo-delta-pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) 0.7s backwards;
+}
+.elo-delta.up {
+  background: rgb(127 240 180 / 0.14);
+  color: #7ff0b4;
+  box-shadow: inset 0 0 0 1px rgb(127 240 180 / 0.35);
+}
+.elo-delta.down {
+  background: rgb(255 143 163 / 0.12);
+  color: #ff8fa3;
+  box-shadow: inset 0 0 0 1px rgb(255 143 163 / 0.3);
+}
+.elo-delta.flat {
+  background: rgb(255 255 255 / 0.08);
+  color: rgb(255 255 255 / 0.7);
+}
+@keyframes elo-delta-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.6);
+  }
+}
+
 /* The admin's screens in motion. The bar's highlight slides
    (SlidePill.vue); a press answers with a ring at the finger
    (usePressFx.ts); a screen comes in out of a blur, a piece at a time;
@@ -895,6 +956,8 @@ a.glass-pill:hover {
   .reveal-init.is-revealed.float-idle {
     animation: none;
   }
+  .upset-stamp,
+  .elo-delta,
   .press-ring,
   .admin-world main > *,
   .admin-world main .fx-stagger > *,

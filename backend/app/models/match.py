@@ -33,6 +33,11 @@ class Match(BaseModel):
     court: str | None = None
     elo_delta_team1: int | None = None
     elo_delta_team2: int | None = None
+    # Each team's average ELO going into the match (elo_history.py): worked
+    # back from today's ratings for a finished match, today's for one not
+    # played yet. None where it can't be known.
+    elo_team1: float | None = None
+    elo_team2: float | None = None
     created_at: datetime
     updated_at: datetime
     # The club-wide running number, from the matches_numbered view. None on a

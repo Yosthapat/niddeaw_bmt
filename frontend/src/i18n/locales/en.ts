@@ -1271,6 +1271,18 @@ export default {
     unavailableAdmin: 'Could not find this phone — turn on GPS and try again',
     unsupportedAdmin: 'This device cannot share its location — pin from a phone',
   },
+  elo: {
+    avg: 'avg ELO',
+    before: 'ELO before',
+    chance: 'to win',
+    even: 'dead even',
+    close: 'close',
+    apart: 'clear favourite',
+    upset: 'UPSET!',
+    aria: 'Average ELO {a} vs {b} · chance to win {p}% vs {q}%',
+    gained: 'gained {n} ELO',
+    lost: 'lost {n} ELO',
+  },
   checkinQr: {
     caption: 'Scan to check in · Niddeaw',
     show: "Show tonight's check-in QR (LINE)",

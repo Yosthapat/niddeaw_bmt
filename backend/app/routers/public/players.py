@@ -10,7 +10,7 @@ from app.db_utils import rows
 from app.deps import SupabaseDep
 from app.models.match import Match
 from app.models.player import NemesisInfo, Player, PlayerCount, PlayerProfile, PlayerStats
-from app.services import record_service, season_service, stats_service
+from app.services import elo_history, record_service, season_service, stats_service
 
 # Reads that show a match number go through the matches_numbered view
 # (db/migrations/0025) rather than the table: the number is a rank over the
@@ -277,4 +277,5 @@ def list_player_matches(
         limit=limit,
         offset=offset,
     )
-    return [Match.model_validate(row) for row in match_rows]
+    ratings = elo_history.before_ratings(supabase)
+    return [Match.model_validate(elo_history.with_ratings(row, ratings)) for row in match_rows]

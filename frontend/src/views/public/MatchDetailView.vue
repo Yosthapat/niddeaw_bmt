@@ -13,6 +13,9 @@ import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import CreditCardMark from '@/components/credit/CreditCardMark.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 import PageBanner from '@/components/common/PageBanner.vue'
+import EloGauge from '@/components/matches/EloGauge.vue'
+import EloDelta from '@/components/matches/EloDelta.vue'
+import { isUpset } from '@/utils/eloOdds'
 import { apiErrorMessage } from '@/api/errors'
 
 const route = useRoute()
@@ -102,6 +105,15 @@ const dateLabel = computed(() => {
   if (!detail.value) return ''
   return formatDateTime(detail.value.match.created_at, locale.value)
 })
+// each team's average ELO going into it (or now, for a match not played yet)
+const gauge = computed(() => {
+  const m = detail.value?.match
+  return m && typeof m.elo_team1 === 'number' && typeof m.elo_team2 === 'number' ? { a: m.elo_team1, b: m.elo_team2 } : null
+})
+const upset = computed(() => {
+  const m = detail.value?.match
+  return !!m && isUpset(m.elo_team1, m.elo_team2, m.winner)
+})
 const sub = computed(() => [dateLabel.value, durationLabel.value].filter(Boolean).join(' · '))
 
 // See PlayerProfileView.vue for why this watches the param instead of
@@ -140,6 +152,30 @@ watch(
         <p v-else-if="error || !detail" class="world-card p-5 text-status-error">{{ error }}</p>
 
         <template v-else>
+          <section v-if="gauge" v-reveal class="world-card relative mb-4 overflow-hidden p-4 sm:mb-5 sm:p-5" :aria-label="t('elo.avg')">
+            <span v-if="upset" class="upset-stamp">{{ t('elo.upset') }}</span>
+            <div class="mb-3 flex items-center justify-between gap-3" :style="upset ? { paddingRight: '64px' } : undefined">
+              <span class="flex min-w-0 items-center gap-2">
+                <span class="h-2.5 w-2.5 shrink-0 rounded-full bg-[#ff4fae]" aria-hidden="true" />
+                <span class="truncate font-display text-sm font-semibold">{{ teamLabel('team1') }}</span>
+              </span>
+              <span class="flex min-w-0 items-center gap-2">
+                <span class="truncate font-display text-sm font-semibold">{{ teamLabel('team2') }}</span>
+                <span class="h-2.5 w-2.5 shrink-0 rounded-full bg-[#8f6bff]" aria-hidden="true" />
+              </span>
+            </div>
+            <EloGauge
+              :elo1="gauge.a"
+              :elo2="gauge.b"
+              :winner="detail.match.winner"
+              :live="detail.match.status === 'in_progress'"
+              :label="detail.match.status === 'completed' ? 'before' : 'avg'"
+            />
+            <div v-if="typeof detail.match.elo_delta_team1 === 'number' && typeof detail.match.elo_delta_team2 === 'number'" class="mt-3 flex justify-between">
+              <EloDelta :delta="detail.match.elo_delta_team1" />
+              <EloDelta :delta="detail.match.elo_delta_team2" />
+            </div>
+          </section>
           <div class="grid gap-4 sm:grid-cols-2 sm:gap-5">
             <section
               v-for="(side, i) in (['team1', 'team2'] as const)"

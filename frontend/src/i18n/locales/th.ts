@@ -1268,6 +1268,18 @@ export default {
     unavailableAdmin: 'หาตำแหน่งมือถือไม่เจอ — เปิด GPS แล้วลองอีกครั้ง',
     unsupportedAdmin: 'เครื่องนี้หาตำแหน่งไม่ได้ — ใช้มือถือปักหมุดแทน',
   },
+  elo: {
+    avg: 'ELO เฉลี่ย',
+    before: 'ELO ก่อนแข่ง',
+    chance: 'โอกาสชนะ',
+    even: 'สูสีมาก',
+    close: 'สูสี',
+    apart: 'ต่างกันชัด',
+    upset: 'พลิกล็อก!',
+    aria: 'ELO เฉลี่ย {a} ต่อ {b} · โอกาสชนะ {p}% ต่อ {q}%',
+    gained: 'ได้ {n} ELO',
+    lost: 'เสีย {n} ELO',
+  },
   checkinQr: {
     caption: 'สแกนเช็คอิน · นิดเดียว',
     show: 'แสดง QR เช็คอินคืนนี้ (LINE)',
