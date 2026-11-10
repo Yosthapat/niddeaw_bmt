@@ -7,7 +7,7 @@ from app.db_utils import rows
 from app.deps import SupabaseDep
 from app.models.match import Match, MatchCount, MatchDetail, PlayerMatchStat
 from app.models.player import Player
-from app.services import record_service, stats_service
+from app.services import elo_history, record_service, stats_service
 
 # Reads that show a match number go through the matches_numbered view
 # (db/migrations/0025) rather than the table: the number is a rank over the
@@ -35,7 +35,8 @@ def list_matches(
     if session_id is not None:
         query = query.eq("session_id", str(session_id))
     result = query.execute()
-    return [Match.model_validate(row) for row in rows(result)]
+    ratings = elo_history.before_ratings(supabase)
+    return [Match.model_validate(elo_history.with_ratings(row, ratings)) for row in rows(result)]
 
 
 @router.get("/count", response_model=MatchCount)
@@ -67,7 +68,18 @@ def get_match_detail(match_id: UUID, supabase: SupabaseDep) -> MatchDetail:
     match_rows = rows(match_result)
     if not match_rows:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Match not found")
-    match = Match.model_validate(match_rows[0])
+    row = match_rows[0]
+    if row.get("status") == "completed":
+        row = elo_history.with_ratings(row, elo_history.before_ratings(supabase))
+    else:
+        now = elo_history.current_ratings(
+            supabase,
+            [UUID(str(p)) for p in row["team1_player_ids"]],
+            [UUID(str(p)) for p in row["team2_player_ids"]],
+        )
+        if now:
+            row = {**row, "elo_team1": round(now[0], 1), "elo_team2": round(now[1], 1)}
+    match = Match.model_validate(row)
 
     active_players_result = supabase.table("players").select("*").eq("is_active", True).execute()
     players_by_id = {p.id: p for p in (Player.model_validate(row) for row in rows(active_players_result))}

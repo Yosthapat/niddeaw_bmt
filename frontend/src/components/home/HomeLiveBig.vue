@@ -15,6 +15,8 @@ import { getPlayersByIds } from '@/api/public'
 import { useLiveNow } from '@/composables/useLiveNow'
 import type { Player } from '@/types'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
+import EloGauge from '@/components/matches/EloGauge.vue'
+import { teamElo } from '@/utils/eloOdds'
 import { useGameNight } from '@/composables/useGameNight'
 
 const { t } = useI18n()
@@ -44,6 +46,15 @@ watch(
 const team = (ids: string[]): Player[] =>
   ids.map((id) => players.value[id] ?? ({ id, nickname: '…', avatar_url: null, elo_score: 0 } as Player))
 const names = (ids: string[]): string => team(ids).map((p) => p.nickname).join(' & ')
+// the match on court, rated on the players' ELO now
+const gauge = computed(() => {
+  const m = match.value
+  if (!m) return null
+  const eloOf = (id: string): number | undefined => players.value[id]?.elo_score || undefined
+  const a = teamElo(m.team1_player_ids, eloOf)
+  const b = teamElo(m.team2_player_ids, eloOf)
+  return a === null || b === null ? null : { a, b }
+})
 const elos = (ids: string[]): string =>
   team(ids)
     .map((p) => (p.elo_score ? Math.round(p.elo_score).toLocaleString('en-US') : '—'))
@@ -114,6 +125,7 @@ const { night, countdown, startsAt } = useGameNight()
           </div>
         </div>
       </div>
+      <EloGauge v-if="gauge" class="mb-5" :elo1="gauge.a" :elo2="gauge.b" live />
       <div class="flex items-center justify-between gap-3 text-sm">
         <span class="text-white/60">{{ where }}</span>
         <span class="text-white/80">{{ t('home.big.allCourts') }} <span aria-hidden="true">→</span></span>

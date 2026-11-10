@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import EloGauge from '@/components/matches/EloGauge.vue'
+import { teamElo } from '@/utils/eloOdds'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSessionsStore } from '@/stores/sessions'
@@ -67,6 +69,14 @@ const lockError = ref<string | null>(null)
 const lockDraft = ref<{ a: string; b: string }>({ a: '', b: '' })
 const unlockingId = ref<string | null>(null)
 
+
+// how even a proposed pairing is, on the players' ELO now
+function gaugeOf(team1: string[], team2: string[]): { a: number; b: number } | null {
+  const eloOf = (id: string): number | undefined => playersStore.byId(id)?.elo_score
+  const x = teamElo(team1, eloOf)
+  const y = teamElo(team2, eloOf)
+  return x === null || y === null ? null : { a: x, b: y }
+}
 
 function nameOf(playerId: string): string {
   const p = playersStore.byId(playerId)
@@ -936,6 +946,12 @@ const pollControls = usePolling(refreshQueue, 7000)
                   <span class="text-center text-sm text-white/80"><TeamNames :ids="s.team2_player_ids" :name-of="nameOf" /></span>
                 </div>
               </div>
+              <EloGauge
+                v-if="gaugeOf(s.team1_player_ids, s.team2_player_ids)"
+                class="mt-3"
+                :elo1="gaugeOf(s.team1_player_ids, s.team2_player_ids)!.a"
+                :elo2="gaugeOf(s.team1_player_ids, s.team2_player_ids)!.b"
+              />
               <div class="mt-2 flex items-center justify-center gap-2">
                 <button
                   class="tap rounded-full border border-white/20 px-3 text-xs text-white/60 hover:border-brand-pink hover:text-brand-pink"

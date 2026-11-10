@@ -22,6 +22,9 @@ export interface Match {
   match_no: number | null
   elo_delta_team1: number | null
   elo_delta_team2: number | null
+  /** each team's average ELO going into the match; null where unknown */
+  elo_team1?: number | null
+  elo_team2?: number | null
   created_at: string
   updated_at: string
 }
