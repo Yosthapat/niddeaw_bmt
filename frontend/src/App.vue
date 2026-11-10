@@ -78,6 +78,7 @@ watch(
         v-if="!route.path.startsWith('/admin')"
         name="page"
         mode="out-in"
+        :duration="{ enter: 650, leave: 130 }"
         @before-enter="pageEntering(route.path)"
         @enter="pageEntered()"
       >

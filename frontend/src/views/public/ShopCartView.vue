@@ -69,7 +69,7 @@ function fixLabel(l: QuoteLine): string {
 
 <template>
   <!-- the world the rest of the site stands in, behind this page too -->
-  <div class="home-world">
+  <div class="no-enter-fx home-world">
     <main class="mx-auto max-w-2xl px-4 pt-4 pb-48 md:pb-12">
       <RouterLink to="/shop" class="inline-flex min-h-11 items-center gap-1 text-sm text-white/70 hover:text-white">
         <span aria-hidden="true">←</span> {{ t('shop.keepShopping') }}

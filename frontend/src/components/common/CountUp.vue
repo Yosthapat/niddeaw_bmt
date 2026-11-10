@@ -7,7 +7,10 @@
 // `format` runs on every tweened frame, so a money figure keeps its
 // thousands separator the whole way up instead of only once it lands.
 // Defaults to the bare number, which is what every existing caller wants.
-import { onMounted, ref, watch } from 'vue'
+//
+// It counts the first time it scrolls into view, not when it mounts, so a
+// number lower down a page (a member card, a price) is seen counting.
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = withDefaults(
   defineProps<{ value: number; duration?: number; format?: (value: number) => string }>(),
@@ -15,6 +18,9 @@ const props = withDefaults(
 )
 
 const display = ref(0)
+const el = ref<HTMLElement | null>(null)
+const seen = ref(false)
+let observer: IntersectionObserver | null = null
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 function animateTo(target: number, from: number): void {
@@ -32,11 +38,34 @@ function animateTo(target: number, from: number): void {
   requestAnimationFrame(tick)
 }
 
-onMounted(() => animateTo(props.value, 0))
+function start(): void {
+  seen.value = true
+  animateTo(props.value, 0)
+}
+
+onMounted(() => {
+  if (reduceMotion || !('IntersectionObserver' in window) || !el.value) {
+    start()
+    return
+  }
+  observer = new IntersectionObserver(
+    ([entry]) => {
+      if (!entry?.isIntersecting) return
+      observer?.disconnect()
+      observer = null
+      start()
+    },
+    { threshold: 0.2 },
+  )
+  observer.observe(el.value)
+})
+onBeforeUnmount(() => observer?.disconnect())
 watch(
   () => props.value,
-  (next, prev) => animateTo(next, prev ?? 0),
+  (next, prev) => {
+    if (seen.value) animateTo(next, prev ?? 0)
+  },
 )
 </script>
 
-<template><span>{{ props.format(display) }}</span></template>
+<template><span ref="el">{{ props.format(display) }}</span></template>

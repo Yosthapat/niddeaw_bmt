@@ -144,7 +144,7 @@ onRevisit(async () => {
         </div>
 
         <ul v-else class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-6">
-          <li v-for="s in shown" :key="s.player.id">
+          <li v-for="(s, i) in shown" :key="s.player.id" v-reveal="i">
             <RouterLink
               :to="`/members/${s.player.id}`"
               class="block h-full rounded-[18px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-pink"
