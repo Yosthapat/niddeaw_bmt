@@ -22,6 +22,7 @@ from app.routers.admin import sessions as admin_sessions
 from app.routers.admin import settings as admin_settings
 from app.routers.admin import sheets as admin_sheets
 from app.routers.admin import shop_admin as admin_shop
+from app.routers.admin import slip_checks as admin_slip_checks
 from app.routers.admin import sponsors_admin as admin_sponsors
 from app.routers.admin import stats_audit_admin as admin_stats_audit
 from app.routers.public import (
@@ -92,6 +93,7 @@ app.include_router(admin_backup.router)
 app.include_router(admin_sheets.router)
 app.include_router(admin_line.router)
 app.include_router(admin_credit.router)
+app.include_router(admin_slip_checks.router)
 app.include_router(admin_sheets.internal)
 
 

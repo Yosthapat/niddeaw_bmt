@@ -352,6 +352,12 @@ class _Bucket:
         self._db.storage_files[f"{self._name}/{path}"] = len(contents)
         self._db.storage_bytes[f"{self._name}/{path}"] = contents
 
+    def download(self, path: str) -> bytes:
+        key = f"{self._name}/{path}"
+        if key not in self._db.storage_bytes:
+            raise FileNotFoundError(key)
+        return self._db.storage_bytes[key]
+
     def get_public_url(self, path: str) -> str:
         # Same shape as Supabase's, so code that reads a path back out of a
         # public URL works; lab.py serves it, so an uploaded image shows.

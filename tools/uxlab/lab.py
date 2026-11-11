@@ -288,12 +288,56 @@ def credit_cards(db: MiniSupabase) -> None:
         db.tables["player_credits"].append({"player_id": pid, "balance": credits, "updated_at": _iso(50)})
 
 
+def slip_lab(db: MiniSupabase) -> None:
+    """UXLAB_SLIPS=1: slips sent before slip checks existed, waiting for the
+    admin's backfill. Faa and James sent the same slip for their top-ups
+    (the duplicate), Ton's is a cropped one with no QR, and shop order #1
+    reused Faa's slip."""
+    import io
+
+    import qrcode
+    from PIL import Image
+
+    def picture(ref: str | None) -> bytes:
+        im = Image.new("RGB", (1170, 2532), (246, 248, 250))
+        if ref is not None:
+            inner = "0006000001" + "0103004" + f"02{len(ref):02d}{ref}"
+            q = qrcode.QRCode(border=2, box_size=8)
+            q.add_data(f"00{len(inner):02d}{inner}5102TH9104ABCD")
+            q.make()
+            im.paste(q.make_image().convert("RGB").resize((240, 240), Image.NEAREST), (840, 2012))
+        out = io.BytesIO()
+        im.save(out, format="JPEG", quality=85)
+        return out.getvalue()
+
+    def stored(name: str, data: bytes) -> str:
+        db.storage_bytes[f"shop/slip-{name}.jpg"] = data
+        return f"{db.public_base}/storage/v1/object/public/shop/slip-{name}.jpg"
+
+    db.tables.setdefault("credit_topups", [])
+    db.tables.setdefault("slip_checks", [])
+    names = {p["nickname"]: p["id"] for p in db.tables["players"]}
+    same = picture("016101234567ATF07")
+    for n, (who, data) in enumerate((("Faa", same), ("James", same), ("Ton", picture(None)))):
+        db.tables["credit_topups"].append({
+            "id": str(uuid.uuid4()), "player_id": names[who], "credits": 1000, "price": 950.0,
+            "slip_url": stored(f"topup-{n}", data), "slip_sent_at": _iso(20 - n * 5), "status": "pending",
+            "note": None, "decided_at": None, "created_at": _iso(21 - n * 5),
+        })
+    db.tables["shop_orders"][0]["slip_url"] = stored("order-1", same)
+    db.tables["billings"][0].update(
+        slip_url=stored("bill-1", picture("016101234999ATF11")), slip_sent_at=_iso(8)
+    )
+
+
 DB = seed()
 if os.environ.get("UXLAB_QUESTS"):
     quest_history(DB)
 if os.environ.get("UXLAB_CARDS"):
     credit_cards(DB)
 DB.public_base = f"http://127.0.0.1:{PORT}"
+if os.environ.get("UXLAB_SLIPS"):
+    slip_lab(DB)
 app.dependency_overrides[get_supabase] = lambda: DB
 # The activity-log middleware reaches for the client directly rather than
 # through the dependency, so both names have to point at the stand-in.

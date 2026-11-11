@@ -23,7 +23,7 @@ from app.models.shop import (
     phone_digits,
     unit_price,
 )
-from app.services import login_throttle, payment_info_service, shop_service
+from app.services import login_throttle, payment_info_service, shop_service, slip_check
 from app.services.image_service import resize_jpeg
 
 router = APIRouter(prefix="/api/shop", tags=["public-shop"])
@@ -240,6 +240,7 @@ async def place_order(
             with contextlib.suppress(Exception):
                 supabase.table("shop_orders").delete().eq("id", order_id).execute()
         raise
+    slip_check.record(supabase, "order", str(order["id"]), slip_url, contents, slip)
     return OrderPublic.model_validate({**order, "items": saved})
 
 

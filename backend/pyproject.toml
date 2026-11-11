@@ -16,6 +16,7 @@ dependencies = [
     "qrcode[pil]>=8.0",
     "python-multipart>=0.0.12",
     "pillow>=11.0",
+    "zxing-cpp>=2.3",
 ]
 requires-python = "==3.13.*"
 readme = "README.md"

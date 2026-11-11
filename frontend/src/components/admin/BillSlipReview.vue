@@ -4,6 +4,7 @@
  * the club's account, then says it's paid — or that it isn't, which
  * removes the slip and asks the member for another.
  */
+import SlipCheckBadge from '@/components/admin/SlipCheckBadge.vue'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
@@ -51,6 +52,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
         <a v-if="bill.slip_url" :href="bill.slip_url" target="_blank" rel="noopener" class="block">
           <img :src="bill.slip_url" :alt="t('billSlip.title', { name })" class="mx-auto max-h-[52dvh] w-auto rounded-xl bg-white object-contain" />
         </a>
+        <SlipCheckBadge v-if="bill.slip_url" kind="bill" :target-id="bill.id" :slip-url="bill.slip_url" />
         <p v-if="bill.slip_sent_at" class="text-xs text-white/50">{{ t('billSlip.sentAt', { time: formatDateTime(bill.slip_sent_at, locale as Locale) }) }}</p>
         <p v-if="problem" class="text-sm text-status-error" role="alert">{{ problem }}</p>
         <template v-if="bill.paid_status !== 'paid'">

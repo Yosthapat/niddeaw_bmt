@@ -10,6 +10,7 @@ import QuestSettingsPanel from '@/components/admin/QuestSettingsPanel.vue'
 import { bahtProblem, MAX_HANDLE, promptpayIdProblem } from '@/utils/limits'
 import { apiErrorMessage } from '@/api/errors'
 import { formatDateTime } from '@/utils/format'
+import { forgetSlipChecks } from '@/composables/useSlipChecks'
 
 const { t, locale } = useI18n()
 const { confirm } = useConfirmDialog()
@@ -87,6 +88,32 @@ async function downloadBackup(): Promise<void> {
     backingUp.value = false
   }
 }
+
+// Slips sent before slip checks existed: read their QR a batch at a time so
+// a reused old slip is caught too. Running it again only reads what is new.
+const slipRun = ref<{ done: number; left: number; running: boolean; failed: boolean } | null>(null)
+async function backfillSlips(): Promise<void> {
+  slipRun.value = { done: 0, left: 0, running: true, failed: false }
+  try {
+    for (let round = 0; round < 500; round++) {
+      const r = await adminApi.backfillSlipChecks()
+      slipRun.value.done += r.done
+      slipRun.value.left = r.remaining
+      if (r.remaining <= 0 || r.done === 0) break
+    }
+    forgetSlipChecks()
+  } catch {
+    slipRun.value.failed = true
+  } finally {
+    slipRun.value.running = false
+  }
+}
+const slipPct = computed(() => {
+  const r = slipRun.value
+  if (!r) return 0
+  const all = r.done + r.left
+  return all ? Math.round((r.done / all) * 100) : r.running ? 0 : 100
+})
 
 // The same data copied into the club's Google Sheet, every Saturday morning
 // by a GitHub Action and whenever an admin presses the button. The setup is
@@ -471,6 +498,31 @@ const paymentMethodOptions = computed<{ value: PaymentMethod; label: string }[]>
 
       <p class="mt-3 text-xs text-white/45">{{ t('settings.backupInside') }}</p>
       <p class="mt-1 text-xs text-white/45">{{ t('settings.backupPrivate') }}</p>
+    </section>
+
+    <section class="mt-10" aria-labelledby="slips-title">
+      <h2 id="slips-title" class="text-sm font-semibold text-white/70">{{ t('slipCheck.backfillTitle') }}</h2>
+      <p class="mt-1 text-xs text-white/50">{{ t('slipCheck.backfillBody') }}</p>
+      <button
+        type="button"
+        :disabled="slipRun?.running"
+        class="tap mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/20 px-4 text-sm font-semibold text-white disabled:opacity-50"
+        @click="backfillSlips"
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7V4h3M20 7V4h-3M4 17v3h3M20 17v3h-3M7 12h10" /></svg>
+        {{ t('slipCheck.backfillGo') }}
+      </button>
+      <div v-if="slipRun" class="mt-3" role="status">
+        <div class="h-2 overflow-hidden rounded-full bg-white/10">
+          <div class="h-full rounded-full bg-brand-pink transition-[width] duration-500" :style="{ width: `${slipPct}%` }" />
+        </div>
+        <p class="mt-2 text-sm" :class="slipRun.failed ? 'text-status-error' : slipRun.running ? 'text-white/70' : 'text-status-success'">
+          <template v-if="slipRun.failed">{{ t('slipCheck.backfillFailed') }}</template>
+          <template v-else-if="slipRun.running">{{ t('slipCheck.backfillRunning', { done: slipRun.done, left: slipRun.left || '…' }) }}</template>
+          <template v-else-if="slipRun.done">✓ {{ t('slipCheck.backfillDone', { done: slipRun.done }) }}</template>
+          <template v-else>✓ {{ t('slipCheck.backfillNothing') }}</template>
+        </p>
+      </div>
     </section>
 
     <section class="mt-10" aria-labelledby="sheets-title">
