@@ -835,3 +835,25 @@ export async function deleteCreditPackage(id: string): Promise<void> {
 export async function getCreditSummary(): Promise<CreditSummary> {
   return request('/api/admin/credit/summary')
 }
+
+// --- slip QR checks (backend services/slip_check.py) -------------------------
+
+export type SlipKind = 'bill' | 'topup' | 'order'
+
+export interface SlipCheck {
+  target_id: string
+  status: 'ok' | 'duplicate' | 'no_qr' | 'not_slip' | 'unchecked'
+  bank: string | null
+  ref: string | null
+  used_before: { kind: SlipKind; target_id: string; who: string | null; when: string | null; amount: number | null; gone: boolean } | null
+  used_count: number
+}
+
+export async function getSlipChecks(kind: SlipKind, ids: string[]): Promise<SlipCheck[]> {
+  return request(`/api/admin/slip-checks?kind=${kind}&ids=${ids.map(encodeURIComponent).join(',')}`)
+}
+
+/** Read the next few slips sent before slips were read; call until remaining is 0. */
+export async function backfillSlipChecks(): Promise<{ done: number; remaining: number }> {
+  return request('/api/admin/slip-checks/backfill', { method: 'POST' })
+}

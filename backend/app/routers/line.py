@@ -58,6 +58,7 @@ from app.services import (
     nickname_service,
     night_bill,
     payment_info_service,
+    slip_check,
 )
 from app.services.image_service import resize_jpeg
 
@@ -698,5 +699,7 @@ async def send_slip(
         .execute()
     )
     night_bill.forget_slip(supabase, row.get("slip_url"))
+    # what the slip's QR says, for the admin: new, used before, or none
+    slip_check.record(supabase, "bill", str(bill_id), url, contents, slip)
     session = night_bill.night(supabase, UUID(str(row["session_id"])))
     return _bill(updated[0], session)

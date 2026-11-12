@@ -17,7 +17,13 @@ from app.models.credit import CreditCard, CreditPackage, CreditTopup, LineCredit
 from app.models.line import LineContext
 from app.models.payment import PaymentInfoResponse
 from app.routers.line import MAX_SLIP_BYTES, SLIP_MAX_PX, _member
-from app.services import credit_card_service, credit_service, night_bill, payment_info_service
+from app.services import (
+    credit_card_service,
+    credit_service,
+    night_bill,
+    payment_info_service,
+    slip_check,
+)
 from app.services.image_service import resize_jpeg
 
 router = APIRouter(prefix="/api/line/credit", tags=["line-credit"])
@@ -143,6 +149,7 @@ async def topup_slip(
         {"slip_url": url, "slip_sent_at": datetime.now(UTC).isoformat()}
     ).eq("id", str(topup_id)).eq("status", "pending").execute()
     night_bill.forget_slip(supabase, topup.get("slip_url"))
+    slip_check.record(supabase, "topup", str(topup_id), url, contents, slip)
     return state(supabase, member)
 
 

@@ -4,6 +4,7 @@
  * balance with its history and a way to adjust it (cash at the court, a
  * refund, a correction — always with a reason), and the packages on sale.
  */
+import SlipCheckBadge from '@/components/admin/SlipCheckBadge.vue'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
@@ -260,6 +261,7 @@ const KIND_TONE: Record<string, string> = {
             <p class="mt-0.5 text-sm text-white/75">{{ t('credit.pkgLine', { price: baht(w.price), credits: num(w.credits) }) }}</p>
             <p class="mt-0.5 text-xs text-white/45">{{ when(w.slip_sent_at ?? w.created_at) }}</p>
             <p class="mt-2 text-xs text-[#ffd34d]">{{ t('credit.checkAmount', { price: baht(w.price) }) }}</p>
+            <SlipCheckBadge v-if="w.slip_url" class="mt-2" kind="topup" :target-id="w.id" :slip-url="w.slip_url" />
           </div>
         </div>
         <div v-if="rejecting === w.id" class="mt-3 flex flex-col gap-2">

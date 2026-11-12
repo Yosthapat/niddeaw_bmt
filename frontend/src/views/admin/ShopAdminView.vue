@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SlipCheckBadge from '@/components/admin/SlipCheckBadge.vue'
 import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
@@ -654,6 +655,7 @@ function priceText(p: Product): string {
                 </span>
                 <span class="font-display font-bold text-brand-pink-light">{{ money(o.total) }}</span>
               </div>
+              <SlipCheckBadge v-if="o.slip_url" class="my-1" kind="order" :target-id="o.id" :slip-url="o.slip_url" />
               <ul class="text-sm text-white/80">
                 <li v-for="(item, i) in o.items" :key="i" class="flex justify-between gap-2">
                   <span class="min-w-0">{{ item.product_name }}<template v-if="item.size"> · <b class="font-display">{{ item.size }}</b></template> × {{ item.qty }}</span>

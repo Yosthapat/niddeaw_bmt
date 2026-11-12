@@ -77,6 +77,7 @@ const ROUTES: [string, RegExp, string][] = [
   ['POST', /^\/api\/admin\/line\/checkin-qr\/rotate$/, 'rotateCheckinQr'],
   ['PUT', /^\/api\/admin\/line\/checkin-spot$/, 'pinCheckinSpot'],
   ['DELETE', /^\/api\/admin\/line\/checkin-spot$/, 'unpinCheckinSpot'],
+  ['POST', /^\/api\/admin\/slip-checks\/backfill$/, 'slipBackfill'],
   ['POST', /^\/api\/admin\/billing\/[^/]+\/reject-slip$/, 'rejectBillSlip'],
   ['POST', /^\/api\/admin\/credit\/topups\/[^/]+\/approve$/, 'approveTopup'],
   ['POST', /^\/api\/admin\/credit\/topups\/[^/]+\/reject$/, 'rejectTopup'],
