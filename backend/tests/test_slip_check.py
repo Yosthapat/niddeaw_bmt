@@ -4,6 +4,7 @@ Slips here are drawn with the qrcode package in the Bank of Thailand's slip
 format, then put through the same upload as members' slips."""
 
 import io
+import json
 import os
 import sys
 from collections.abc import Iterator
@@ -245,6 +246,64 @@ def test_slips_sent_before_are_read_in_batches(client: TestClient, db: MiniSupab
         "done": 0,
         "remaining": 0,
     }
+
+
+def test_a_night_bill_and_a_shop_order_are_checked_against_each_other(
+    client: TestClient, db: MiniSupabase
+) -> None:
+    """The court-and-shuttle bill paid in LINE and the shop are checked the
+    same way as top-ups, and against each other: Ball pays tonight's bill,
+    then Bank buys a shirt with a picture of Ball's slip."""
+    ball = next(p["id"] for p in db.tables["players"] if p["nickname"] == "Ball")
+    bank = next(p["id"] for p in db.tables["players"] if p["nickname"] == "Bank")
+    sid, bill_id, shirt = str(uuid4()), str(uuid4()), str(uuid4())
+    db.tables["sessions"] = [
+        {"id": sid, "date": "2026-11-11", "location": "KB court", "status": "open",
+         "court_fee_per_person": 80, "shuttlecock_price_per_game": 29,
+         "created_at": "2026-11-11T18:00:00Z"}
+    ]  # fmt: skip
+    db.tables["billings"] = [
+        {"id": bill_id, "session_id": sid, "player_id": ball, "game_count": 3,
+         "amount_calc": 167.0, "amount_adjusted": None, "paid_status": "unpaid",
+         "credit_used": 0, "updated_at": "2026-11-11T22:00:00Z"}
+    ]  # fmt: skip
+    db.tables["products"] = [
+        {"id": shirt, "name": "เสื้อก๊วน", "description": None, "price": 390, "sale_type": "stock",
+         "sizes": ["M"], "size_prices": {}, "preorder_closes_on": None,
+         "preorder_delivers_on": None, "image_urls": [], "is_active": True, "sort_order": 0,
+         "created_at": "2026-10-28T00:00:00Z"}
+    ]  # fmt: skip
+    db.tables["product_stock"] = [{"product_id": shirt, "size": "M", "qty": 5}]
+    db.tables.setdefault("shop_orders", [])
+    db.tables.setdefault("shop_order_items", [])
+    slip = slip_image(slip_payload("016315220000BILL01", bank="014"))
+
+    sent = client.post(
+        f"/api/line/bills/{bill_id}/slip",
+        files={"file": ("s.jpg", slip, "image/jpeg")},
+        headers=member(BALL),
+    )
+    assert sent.status_code == 200, sent.text
+    [alone] = checks(client, "bill", bill_id)
+    assert (alone["status"], alone["bank"]) == ("ok", "014")
+
+    order = client.post(
+        "/api/shop/orders",
+        data={
+            "player_id": bank,
+            "items": json.dumps([{"product_id": shirt, "size": "M", "qty": 1}]),
+        },
+        files={"file": ("s.jpg", slip, "image/jpeg")},
+    )
+    assert order.status_code == 201, order.text
+    order_id = order.json()["id"]
+
+    [bill] = checks(client, "bill", bill_id)
+    [shop] = checks(client, "order", order_id)
+    assert bill["status"] == shop["status"] == "duplicate"
+    assert (bill["used_before"]["kind"], bill["used_before"]["who"]) == ("order", "Bank")
+    assert (shop["used_before"]["kind"], shop["used_before"]["who"]) == ("bill", "Ball")
+    assert shop["used_before"]["amount"] == 167
 
 
 def test_slip_checks_are_for_admins(client: TestClient) -> None:
