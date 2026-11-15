@@ -303,6 +303,8 @@ export default {
     noSearchResults: 'ไม่พบสมาชิกที่ค้นหา',
   },
   matchmaking: {
+    repeatMates: '{a} กับ {b} คู่กันมาแล้ว {n} ครั้งคืนนี้',
+    repeatFoes: '{a} เจอ {b} มาแล้ว {n} ครั้งคืนนี้',
     playedToday: 'แมตช์ที่จบแล้ววันนี้',
     fixResult: 'แก้ผล',
     currentResult: 'ผลตอนนี้',

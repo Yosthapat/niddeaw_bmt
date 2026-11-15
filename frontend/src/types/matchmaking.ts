@@ -37,6 +37,14 @@ export interface LockedPair {
   created_at: string
 }
 
+/** How often two players have partnered / faced each other tonight. */
+export interface PairTonight {
+  player_a_id: string
+  player_b_id: string
+  teammates: number
+  opponents: number
+}
+
 export interface MatchmakingQueueResponse {
   in_progress: QueueEntry[]
   queued: QueueEntry[]
@@ -44,6 +52,7 @@ export interface MatchmakingQueueResponse {
   waiting: WaitingEntry[]
   avg_match_duration_minutes: number
   locked_pairs: LockedPair[]
+  pairs_tonight?: PairTonight[]
 }
 
 /** Public view: carries the confirmed `queued` pairings where the admin

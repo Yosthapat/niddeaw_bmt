@@ -305,6 +305,8 @@ export default {
     noSearchResults: 'No members found',
   },
   matchmaking: {
+    repeatMates: '{a} and {b} have partnered {n}× tonight',
+    repeatFoes: '{a} has faced {b} {n}× tonight',
     playedToday: 'Finished tonight',
     fixResult: 'Fix',
     currentResult: 'current',
