@@ -26,6 +26,9 @@ def list_activity_log(
     query = (
         supabase.table("admin_activity_log")
         .select("*")
+        # The club's entries only: a tournament's are read from its own
+        # screen (routers/admin/tournament.py), by its own admins.
+        .neq("area", "tournament")
         .order("created_at", desc=True)
         .limit(LOG_LIMIT)
     )

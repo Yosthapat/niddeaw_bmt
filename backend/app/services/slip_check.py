@@ -28,7 +28,7 @@ from app.db_utils import rows
 log = logging.getLogger(__name__)
 
 TABLE = "slip_checks"
-Kind = Literal["bill", "topup", "order"]
+Kind = Literal["bill", "topup", "order", "tournament"]
 
 
 @dataclass(frozen=True)
@@ -129,7 +129,12 @@ def _describe(supabase: Client, kind: str, target_id: str) -> dict[str, Any]:
         "amount": None,
         "gone": False,
     }
-    table = {"bill": "billings", "topup": "credit_topups", "order": "shop_orders"}[kind]
+    table = {
+        "bill": "billings",
+        "topup": "credit_topups",
+        "order": "shop_orders",
+        "tournament": "tournament_entrants",
+    }[kind]
     found = rows(supabase.table(table).select("*").eq("id", target_id).limit(1).execute())
     if not found:
         out["gone"] = True
@@ -149,6 +154,10 @@ def _describe(supabase: Client, kind: str, target_id: str) -> dict[str, Any]:
         out["when"] = row.get("slip_sent_at") or row.get("updated_at")
     elif kind == "topup":
         out["amount"] = float(row.get("price") or 0)
+        out["when"] = row.get("slip_sent_at") or row.get("created_at")
+    elif kind == "tournament":
+        # A tournament entry: who and how much only, nothing else of it.
+        out["amount"] = float(row.get("share") or 0)
         out["when"] = row.get("slip_sent_at") or row.get("created_at")
     else:
         out["amount"] = float(row.get("total") or 0)

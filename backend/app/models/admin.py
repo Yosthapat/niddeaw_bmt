@@ -30,3 +30,17 @@ class AdminContext(BaseModel):
 
     admin_id: UUID
     role: AdminRole
+    # The two separate rights (0046_tournament.sql). A token issued before
+    # they existed carries neither claim and reads as the club only, which
+    # is what every admin had then.
+    club_access: bool = True
+    tournament_access: bool = False
+
+
+class AdminMe(BaseModel):
+    """Who is signed in, for the admin screens to choose which side to show."""
+
+    id: UUID
+    username: str
+    club_access: bool
+    tournament_access: bool

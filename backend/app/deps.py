@@ -42,10 +42,38 @@ def get_current_admin(authorization: Annotated[str | None, Header()] = None) -> 
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Malformed token payload"
         ) from exc
 
-    return AdminContext(admin_id=admin_id, role="admin")
+    return AdminContext(
+        admin_id=admin_id,
+        role="admin",
+        club_access=bool(payload.get("club", True)),
+        tournament_access=bool(payload.get("tour", False)),
+    )
 
 
-AdminDep = Annotated[AdminContext, Depends(get_current_admin)]
+def get_club_admin(admin: Annotated[AdminContext, Depends(get_current_admin)]) -> AdminContext:
+    """An admin who may run the club. A tournament-only admin is refused
+    here, not just shown fewer menus: none of the club's money, members'
+    bills or credit is theirs to read."""
+    if not admin.club_access:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="ไม่มีสิทธิ์จัดการก๊วน")
+    return admin
+
+
+def get_tournament_admin(
+    admin: Annotated[AdminContext, Depends(get_current_admin)],
+) -> AdminContext:
+    """An admin who may run tournaments — a club admin without that right is
+    refused, so the tournament's money stays with the people running it."""
+    if not admin.tournament_access:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="ไม่มีสิทธิ์จัดการทัวร์นาเมนต์")
+    return admin
+
+
+# Every club route takes AdminDep, so all of them require the club right.
+AdminDep = Annotated[AdminContext, Depends(get_club_admin)]
+TournamentAdminDep = Annotated[AdminContext, Depends(get_tournament_admin)]
+# Either right: who-am-I and the like, that every admin needs.
+AnyAdminDep = Annotated[AdminContext, Depends(get_current_admin)]
 
 
 def get_line_member(authorization: Annotated[str | None, Header()] = None) -> LineContext:

@@ -24,7 +24,7 @@ SOURCES: dict[str, tuple[str, str]] = {
 
 
 class UsedBefore(BaseModel):
-    kind: Literal["bill", "topup", "order"]
+    kind: Literal["bill", "topup", "order", "tournament"]
     target_id: str
     who: str | None = None
     when: str | None = None

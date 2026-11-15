@@ -17,10 +17,21 @@ def verify_password(plain_password: str, password_hash: str) -> bool:
     return bcrypt.checkpw(plain_password.encode("utf-8"), password_hash.encode("utf-8"))
 
 
-def create_access_token(admin_id: str, role: str) -> str:
+def create_access_token(
+    admin_id: str, role: str, club_access: bool = True, tournament_access: bool = False
+) -> str:
+    """An admin's token. It carries which of the two sides they may open —
+    the club, a tournament, or both (deps.get_club_admin /
+    deps.get_tournament_admin)."""
     settings = get_settings()
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_expire_minutes)
-    payload = {"sub": admin_id, "role": role, "exp": expire}
+    payload = {
+        "sub": admin_id,
+        "role": role,
+        "club": club_access,
+        "tour": tournament_access,
+        "exp": expire,
+    }
     return str(jwt.encode(payload, settings.jwt_secret, algorithm=ALGORITHM))
 
 
