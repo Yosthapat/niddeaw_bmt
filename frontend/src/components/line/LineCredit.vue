@@ -18,14 +18,15 @@ import BrandQr from '@/components/common/BrandQr.vue'
 import CreditCardFace from '@/components/credit/CreditCardFace.vue'
 import CreditCardMark from '@/components/credit/CreditCardMark.vue'
 
-const props = defineProps<{ token: string }>()
+// pack: a package to start picked (from the home page's chips)
+const props = defineProps<{ token: string; pack?: string }>()
 const emit = defineEmits<{ back: [] }>()
 const { t, locale } = useI18n()
 
 const data = ref<LineCredit | null>(null)
 const problem = ref('')
 const busy = ref(false)
-const pick = ref<string | null>(null)
+const pick = ref<string | null>(props.pack || null)
 const info = ref<PaymentInfoResponse | null>(null)
 const tab = ref<'all' | 'in' | 'out'>('all')
 

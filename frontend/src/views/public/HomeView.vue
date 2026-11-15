@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // The home page. A phone gets the short banner and one column of cards; from
 // 900px wide, the full hero and a bento grid under it — the live card and
-// the top three side by side, the shop and tournament doors, the members
+// the top three side by side, the shop and tournament doors, the credit
+// and pass doors across the full width, the members
 // with the club's numbers, then the vibe and how to get in touch.
 import { onBeforeUnmount, ref } from 'vue'
 import type { EloTier } from '@/types'
@@ -14,6 +15,7 @@ import HomeLiveBig from '@/components/home/HomeLiveBig.vue'
 import HomeMembers from '@/components/home/HomeMembers.vue'
 import HomeStats from '@/components/home/HomeStats.vue'
 import HomeTopThree from '@/components/home/HomeTopThree.vue'
+import HomeWallet from '@/components/home/HomeWallet.vue'
 import HomeVibes from '@/components/home/HomeVibes.vue'
 import LiveNowBox from '@/components/home/LiveNowBox.vue'
 import SponsorBand from '@/components/home/SponsorBand.vue'
@@ -50,6 +52,7 @@ onBeforeUnmount(() => wideQuery.removeEventListener('change', onWide))
       <template v-if="!wide">
         <div class="mx-auto flex max-w-4xl flex-col gap-3.5 px-3 pt-3.5 sm:gap-5 sm:px-4 sm:pt-8">
           <HomeCards />
+          <HomeWallet />
           <LiveNowBox />
         </div>
 
@@ -69,6 +72,7 @@ onBeforeUnmount(() => wideQuery.removeEventListener('change', onWide))
         <HomeLiveBig class="b-live" />
         <HomeTopThree class="b-top" @reveal="revealTier = $event" />
         <HomeCards class="b-doors" />
+        <HomeWallet class="b-wallet" />
         <HomeMembers class="b-members" />
         <HomeStats class="b-stats" />
         <HomeBadgeFeed class="b-badges" />
@@ -114,7 +118,8 @@ onBeforeUnmount(() => wideQuery.removeEventListener('change', onWide))
 .b-contact {
   grid-column: span 6;
 }
-.b-badges {
+.b-badges,
+.b-wallet {
   grid-column: span 12;
 }
 /* 900–1099px: the podium needs more than a third to stand in. */
