@@ -78,6 +78,7 @@ export interface MatchSlot {
   slot: string
   team_id: string | null
   team_name: string | null
+  players: PublicPlayer[]
 }
 
 export interface CupMatch {

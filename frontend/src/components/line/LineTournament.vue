@@ -20,7 +20,8 @@ import { formatDateTime, formatDateWithWeekday, money } from '@/utils/format'
 import type { Locale } from '@/i18n'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import BrandQr from '@/components/common/BrandQr.vue'
-import { clock, sideLabel } from '@/utils/cupMatch'
+import CupMatchCard from '@/components/cup/CupMatchCard.vue'
+import CupTeamLine from '@/components/cup/CupTeamLine.vue'
 
 const props = defineProps<{ token: string }>()
 const emit = defineEmits<{ back: [] }>()
@@ -406,16 +407,15 @@ async function attach(event: Event): Promise<void> {
             {{ t('cup.schedule.soon') }}
           </p>
           <template v-else>
-            <p v-if="myGroup" class="text-sm">
-              {{ t('cup.draw.group', { g: myGroup.label }) }} ·
-              <span class="text-white/70">{{ myGroup.teams.map((x) => x.name).join(' · ') }}</span>
-            </p>
-            <ul class="flex flex-col gap-1">
-              <li v-for="m in myMatches" :key="m.id" class="flex items-center gap-2 rounded-lg bg-white/5 px-2 py-1.5 text-sm">
-                <span class="w-11 shrink-0 text-center"><b class="block font-display text-xs">#{{ m.match_no }}</b><span class="text-[11px] text-white/55">{{ clock(m.est_start) }}</span></span>
-                <span class="min-w-0 flex-1 truncate">{{ sideLabel(m.a, t) }} <span class="text-white/40">vs</span> {{ sideLabel(m.b, t) }}</span>
-              </li>
-            </ul>
+            <div v-if="myGroup" class="rounded-xl bg-white/5 p-2.5">
+              <p class="mb-1.5 font-display text-sm font-bold text-[#ff6cc0]">{{ t('cup.draw.group', { g: myGroup.label }) }}</p>
+              <div class="flex flex-col gap-2">
+                <CupTeamLine v-for="(x, i) in myGroup.teams" :key="x.name" :name="x.name" :players="x.players" :prefix="`${myGroup.label}${i + 1}`" :mine="x.id === team.id" />
+              </div>
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <CupMatchCard v-for="m in myMatches" :key="m.id" :match="m" :mine-id="team.id" />
+            </div>
             <p class="text-xs text-white/50">{{ t('cup.schedule.mineHint') }}</p>
           </template>
         </div>

@@ -254,7 +254,15 @@ def test_draw_then_schedule_then_publish(db: Any, client: TestClient) -> None:
     )
     public = client.get("/api/tournament").json()
     assert public["schedule_published"] is True and len(public["matches"]) == 38
+    # each side shows its players' nicknames and avatars, never their real names
+    first = public["matches"][0]
+    assert [len(first[side]["players"]) for side in ("a", "b")] == [2, 2]
+    assert all(p["nickname"].startswith("P") for p in first["a"]["players"])
+    text = client.get("/api/tournament").text
+    for private in (DETAILS["first_name"], DETAILS["last_name"], PARTNER["phone"]):
+        assert private not in text
     soju_public = next(lv for lv in public["levels"] if lv["name"] == "Soju ขึ้นไป")
+
     assert [g["label"] for g in soju_public["groups"]] == ["A", "B", "C", "D"]
     # the LINE page reads the same
     seen = client.get("/api/line/tournament", headers=member(0)).json()

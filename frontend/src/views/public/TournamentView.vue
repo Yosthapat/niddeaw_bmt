@@ -14,7 +14,8 @@ import { getPublicTournament, type PublicTournament } from '@/api/tournament'
 import { getLineConfig } from '@/api/line'
 import { formatDateTime, formatDateWithWeekday, money } from '@/utils/format'
 import type { Locale } from '@/i18n'
-import { clock, roundLabel, sideLabel } from '@/utils/cupMatch'
+import CupMatchCard from '@/components/cup/CupMatchCard.vue'
+import CupTeamLine from '@/components/cup/CupTeamLine.vue'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -170,12 +171,12 @@ function range(min: number | null, max: number | null): string {
         <template v-else>
           <section v-if="shown.groups.length" class="t-plan flex-col !items-stretch gap-2">
             <h3 class="font-display text-base font-bold">{{ t('cup.schedule.groups') }}</h3>
-            <div class="grid grid-cols-2 gap-2">
-              <div v-for="g in shown.groups" :key="g.label" class="rounded-xl bg-white/5 p-2">
-                <p class="mb-1 font-display text-sm font-bold text-[#ff6cc0]">{{ t('cup.draw.group', { g: g.label }) }}</p>
-                <p v-for="(team, i) in g.teams" :key="team.name" class="truncate text-xs leading-6">
-                  <span class="text-white/45">{{ g.label }}{{ i + 1 }}</span> {{ team.name }}
-                </p>
+            <div class="grid gap-2 sm:grid-cols-2">
+              <div v-for="g in shown.groups" :key="g.label" class="rounded-xl bg-white/5 p-2.5">
+                <p class="mb-1.5 font-display text-sm font-bold text-[#ff6cc0]">{{ t('cup.draw.group', { g: g.label }) }}</p>
+                <div class="flex flex-col gap-2">
+                  <CupTeamLine v-for="(team, i) in g.teams" :key="team.name" :name="team.name" :players="team.players" :prefix="`${g.label}${i + 1}`" />
+                </div>
               </div>
             </div>
           </section>
@@ -184,15 +185,9 @@ function range(min: number | null, max: number | null): string {
             <p class="text-xs text-white/55">{{ t('cup.schedule.estimate') }}</p>
             <template v-for="part in matchParts" :key="part.key">
               <p class="mt-1 text-xs font-semibold text-white/70">{{ part.label }}</p>
-              <ul class="flex flex-col gap-1">
-                <li v-for="m in part.matches" :key="m.id" class="flex items-center gap-2 rounded-lg bg-white/5 px-2 py-1.5">
-                  <span class="w-11 shrink-0 text-center"><b class="block font-display text-xs">#{{ m.match_no }}</b><span class="text-[11px] text-white/55">{{ clock(m.est_start) }}</span></span>
-                  <span class="min-w-0 flex-1 text-sm">
-                    <span class="block truncate">{{ sideLabel(m.a, t) }} <span class="text-white/40">vs</span> {{ sideLabel(m.b, t) }}</span>
-                    <span class="block truncate text-[11px] text-white/50">{{ roundLabel(m, t) }}</span>
-                  </span>
-                </li>
-              </ul>
+              <div class="flex flex-col gap-1.5">
+                <CupMatchCard v-for="m in part.matches" :key="m.id" :match="m" />
+              </div>
             </template>
             <p v-if="!matchParts.length" class="text-xs text-white/50">{{ t('cup.schedule.noneInLevel') }}</p>
           </section>

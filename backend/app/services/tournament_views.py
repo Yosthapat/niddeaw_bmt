@@ -104,14 +104,20 @@ def _public_team(
 
 def match_models(supabase: Client, tournament_id: str) -> list[Match]:
     found = td.matches(supabase, tournament_id)
-    names = {str(t["id"]): str(t["name"]) for t in ts.teams(supabase, tournament_id)}
+    teams = {str(t["id"]): t for t in ts.teams(supabase, tournament_id)}
     levels = {str(lv["id"]): str(lv["name"]) for lv in ts.levels(supabase, tournament_id)}
+    ents = ts.entrants(supabase, tournament_id)
+    players = ts.players_by_id(supabase, [str(e["player_id"]) for e in ents])
+    by_team: dict[str, list[dict[str, Any]]] = {}
+    for e in ents:
+        by_team.setdefault(str(e["team_id"]), []).append(e)
 
     def side(slot: str, team: Any) -> MatchSlot:
         tid = str(team) if team else None
-        return MatchSlot(
-            slot=slot, team_id=UUID(tid) if tid else None, team_name=names.get(tid) if tid else None
-        )
+        if tid is None or tid not in teams:
+            return MatchSlot(slot=slot)
+        shown = _public_team(teams[tid], by_team.get(tid, []), players)
+        return MatchSlot(slot=slot, team_id=UUID(tid), team_name=shown.name, players=shown.players)
 
     return [
         Match(

@@ -17,7 +17,7 @@ import { tournamentAdmin, type DrawLevel, type DrawState, type DrawTeam } from '
 import { apiErrorMessage } from '@/api/errors'
 import { useTournamentPick } from '@/composables/useTournamentPick'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
-import { clock, roundLabel, sideLabel } from '@/utils/cupMatch'
+import CupMatchCard from '@/components/cup/CupMatchCard.vue'
 import { formatDateTime } from '@/utils/format'
 import type { Locale } from '@/i18n'
 
@@ -280,22 +280,9 @@ const when = (iso: string): string => formatDateTime(iso, locale.value as Locale
         <p class="mt-1 text-xs text-white/50">{{ t('cup.draw.allMatchesHint', { n: state.matches.length }) }}</p>
         <template v-for="part in matchParts" :key="part.key">
           <p class="mt-4 text-xs font-semibold text-white/70">{{ part.label }}</p>
-          <ul class="mt-1.5 space-y-1.5">
-            <li v-for="m in part.matches" :key="m.id" class="hud-panel flex items-center gap-3 border border-brand-pink/10 bg-brand-surface px-3 py-2">
-              <span class="w-10 shrink-0 text-center">
-                <b class="block font-display text-sm">#{{ m.match_no }}</b>
-                <span class="text-[11px] text-white/50">{{ clock(m.est_start) }}</span>
-              </span>
-              <span class="min-w-0 flex-1">
-                <span class="block truncate text-sm">
-                  <span :class="m.a.team_name ? '' : 'text-white/55'">{{ sideLabel(m.a, t) }}</span>
-                  <span class="px-1 text-white/40">vs</span>
-                  <span :class="m.b.team_name ? '' : 'text-white/55'">{{ sideLabel(m.b, t) }}</span>
-                </span>
-                <span class="block truncate text-[11px] text-white/50">{{ roundLabel(m, t) }}</span>
-              </span>
-            </li>
-          </ul>
+          <div class="mt-1.5 flex flex-col gap-1.5">
+            <CupMatchCard v-for="m in part.matches" :key="m.id" :match="m" class="hud-panel border border-brand-pink/10 !bg-brand-surface" />
+          </div>
         </template>
         <p v-if="!matchParts.length" class="mt-3 text-sm text-white/45">{{ t('cup.schedule.noneInLevel') }}</p>
       </section>

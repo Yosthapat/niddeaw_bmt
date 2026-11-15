@@ -184,6 +184,8 @@ class MatchSlot(BaseModel):
     slot: str
     team_id: UUID | None = None
     team_name: str | None = None
+    # nicknames and avatars, as anywhere public — never a real name
+    players: list[PublicPlayer] = []
 
 
 class Match(BaseModel):
