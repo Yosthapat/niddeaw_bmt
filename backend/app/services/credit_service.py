@@ -24,7 +24,7 @@ from fastapi import HTTPException, status
 from supabase import Client
 
 from app.db_utils import rows
-from app.models.credit import CreditDay, CreditSummary, LedgerEntry
+from app.models.credit import CreditDay, CreditPackage, CreditSummary, LedgerEntry
 from app.services import credit_card_service
 from app.services.shop_service import CLUB_TZ
 
@@ -194,3 +194,13 @@ def summary(supabase: Client) -> CreditSummary:
         pending_topups=len(pending),
         daily=[CreditDay(date=d, cash=round(v, 2)) for d, v in sorted(by_day.items(), reverse=True)],
     )
+
+
+def active_packages(supabase: Client) -> list[CreditPackage]:
+    """The packages a member can buy now: cheapest first, the club's ask; at
+    the same price the bigger pack first. sort_order is never set by hand,
+    so it plays no part."""
+    found = rows(supabase.table("credit_packages").select("*").eq("is_active", True).execute())
+    found = [p for p in found if p.get("is_active")]
+    found.sort(key=lambda p: (float(p["price"]), -int(p["credits"])))
+    return [CreditPackage.model_validate(p) for p in found]

@@ -44,6 +44,7 @@ const token = ref('')
 const me = ref<LineStatus | null>(null)
 const options = ref<LinkOption[]>([])
 const query = ref('')
+const wantPack = ref('')
 const picked = ref<string | null>(null)
 const sending = ref(false)
 const actionError = ref('')
@@ -104,6 +105,9 @@ async function start(): Promise<void> {
     // /line/profile (the OA menu's profile button) is this page: their LINE
     // card, with checkout, bills, credit and badges.
     if (route.params.section === 'profile') void router.replace('/line')
+    // The home page's package chips open /line/credit?pack=<id>: that pack
+    // starts picked. Read before go() replaces the address.
+    if (typeof route.query.pack === 'string') wantPack.value = route.query.pack
     if (status.player && (route.params.section === 'checkout' || route.params.section === 'bills' || route.params.section === 'credit' || route.params.section === 'badges' || route.params.section === 'pass')) {
       await go(route.params.section)
     }
@@ -349,7 +353,7 @@ onUnmounted(() => {
         </template>
         <LineBills v-else-if="me.player && screen === 'bills'" :token="token" @back="go('home')" @credit="go('credit')" />
 
-        <LineCredit v-else-if="me.player && screen === 'credit'" :token="token" @back="go('home')" />
+        <LineCredit v-else-if="me.player && screen === 'credit'" :token="token" :pack="wantPack" @back="go('home')" />
 
         <LineBadges v-else-if="me.player && screen === 'badges'" :token="token" @back="go('home')" />
 

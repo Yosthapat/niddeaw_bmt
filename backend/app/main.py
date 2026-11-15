@@ -35,6 +35,7 @@ from app.routers.public import (
     seasons,
     shop,
     sponsors,
+    wallet,
 )
 
 app = FastAPI(title="นิดเดียว Badminton Club API")
@@ -69,6 +70,7 @@ app.include_router(live.router)
 app.include_router(seasons.router)
 app.include_router(sponsors.router)
 app.include_router(credit_cards.router)
+app.include_router(wallet.router)
 app.include_router(shop.router)
 app.include_router(line.router)
 app.include_router(line_credit.router)

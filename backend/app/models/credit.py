@@ -21,6 +21,13 @@ class CreditPackage(BaseModel):
     sort_order: int = 0
 
 
+class WalletOffer(BaseModel):
+    """The public price list behind the home page's wallet cards."""
+
+    packages: list[CreditPackage]
+    pass_price: int
+
+
 class CreditPackageIn(BaseModel):
     credits: Credits
     price: Annotated[float, Field(gt=0, le=100000)]

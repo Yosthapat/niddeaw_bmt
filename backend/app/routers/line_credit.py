@@ -13,7 +13,7 @@ from supabase import Client
 
 from app.db_utils import rows
 from app.deps import LineMemberDep, SupabaseDep
-from app.models.credit import CreditCard, CreditPackage, CreditTopup, LineCredit, TopupIn
+from app.models.credit import CreditCard, CreditTopup, LineCredit, TopupIn
 from app.models.line import LineContext
 from app.models.payment import PaymentInfoResponse
 from app.routers.line import MAX_SLIP_BYTES, SLIP_MAX_PX, _member
@@ -27,15 +27,6 @@ from app.services import (
 from app.services.image_service import resize_jpeg
 
 router = APIRouter(prefix="/api/line/credit", tags=["line-credit"])
-
-
-def _packages(supabase: Client) -> list[CreditPackage]:
-    found = rows(supabase.table("credit_packages").select("*").eq("is_active", True).execute())
-    found = [p for p in found if p.get("is_active")]
-    # cheapest first, the club's ask; at the same price the bigger pack first.
-    # sort_order is never set by hand, so it plays no part.
-    found.sort(key=lambda p: (float(p["price"]), -int(p["credits"])))
-    return [CreditPackage.model_validate(p) for p in found]
 
 
 def _topups(supabase: Client, player_id: str) -> list[dict[str, Any]]:
@@ -64,7 +55,7 @@ def state(supabase: Client, member: LineContext) -> LineCredit:
         player=player,
         balance=credit_service.balance(supabase, pid),
         card=CreditCard(tier=card.tier, since=card.since) if card else None,
-        packages=_packages(supabase),
+        packages=credit_service.active_packages(supabase),
         pending=CreditTopup.model_validate(pending) if pending else None,
         rejected=CreditTopup.model_validate(rejected) if rejected and not pending else None,
         history=credit_service.history(supabase, pid),
@@ -94,7 +85,7 @@ def start_topup(payload: TopupIn, supabase: SupabaseDep, member: LineMemberDep) 
     the admin."""
     player = _member(supabase, member)
     pid = str(player.id)
-    package = next((p for p in _packages(supabase) if p.id == payload.package_id), None)
+    package = next((p for p in credit_service.active_packages(supabase) if p.id == payload.package_id), None)
     if package is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ไม่มีแพ็กเกจนี้แล้ว — เลือกใหม่อีกครั้ง")
     pending = next((t for t in _topups(supabase, pid) if t["status"] == "pending"), None)
