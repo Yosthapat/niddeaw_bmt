@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
 
@@ -14,8 +14,10 @@ from app.models.matchmaking import (
     LockedPairCreate,
     MatchmakingConfirmRequest,
     MatchmakingEditRequest,
+    MatchmakingMoveRequest,
     MatchmakingQueueResponse,
     MatchmakingSuggestionResponse,
+    MatchmakingSwapRequest,
 )
 from app.services import elo_service, matchmaking_service, queue_service, record_service
 from app.services.session_state import ensure_session_open
@@ -158,13 +160,30 @@ def edit_queued_match(
             detail="ผู้เล่นบางคนถูกจับคู่ไว้ในแมตช์อื่นอยู่แล้ว",
         )
 
+    return Match.model_validate(
+        _rewrite_queued(
+            supabase, match_row, payload.team1_player_ids, payload.team2_player_ids, payload.court
+        )
+    )
+
+
+def _rewrite_queued(
+    supabase: Client,
+    match_row: dict[str, Any],
+    team1: list[UUID],
+    team2: list[UUID],
+    court: str | None,
+) -> dict[str, Any]:
+    """Writes a queued match's new teams, and its pairing_history to match."""
+    match_id = match_row["id"]
+    session_id = match_row["session_id"]
     updated = (
         supabase.table("matches")
         .update(
             {
-                "team1_player_ids": [str(pid) for pid in payload.team1_player_ids],
-                "team2_player_ids": [str(pid) for pid in payload.team2_player_ids],
-                "court": payload.court,
+                "team1_player_ids": [str(pid) for pid in team1],
+                "team2_player_ids": [str(pid) for pid in team2],
+                "court": court,
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }
         )
@@ -193,7 +212,7 @@ def edit_queued_match(
         # under-counts) beats one leaving both pairings counted.
         supabase.table("pairing_history").delete().eq("match_id", str(match_id)).execute()
         history_rows: list[dict[str, Any]] = matchmaking_service.build_pairing_history_rows(
-            tuple(payload.team1_player_ids), tuple(payload.team2_player_ids), round_no
+            tuple(team1), tuple(team2), round_no
         )
         for row in history_rows:
             row["session_id"] = str(session_id)
@@ -201,7 +220,121 @@ def edit_queued_match(
         if history_rows:
             supabase.table("pairing_history").insert(history_rows).execute()
 
-    return Match.model_validate(rows(updated)[0])
+    return rows(updated)[0]
+
+
+def _queued(supabase: Client, session_id: UUID | str) -> list[dict[str, Any]]:
+    """The session's queued matches in queue order: the order their numbers
+    run in (matches_numbered: created_at, then id)."""
+    found = rows(
+        supabase.table("matches")
+        .select("*")
+        .eq("session_id", str(session_id))
+        .eq("status", "queued")
+        .execute()
+    )
+    found = [m for m in found if m["status"] == "queued" and str(m["session_id"]) == str(session_id)]
+    return sorted(found, key=lambda m: (str(m["created_at"]), str(m["id"])))
+
+
+@router.post("/matches/{match_id}/move", response_model=MatchmakingQueueResponse)
+def move_queued_match(
+    match_id: UUID, payload: MatchmakingMoveRequest, supabase: SupabaseDep, admin: AdminDep
+) -> MatchmakingQueueResponse:
+    """Moves a queued match one place up or down the queue, for a pairing
+    confirmed in the wrong order. The two neighbours trade created_at, so
+    their match numbers trade too: the one going on first keeps the lower
+    number. Nothing else reads created_at of a queued match."""
+    found = rows(supabase.table("matches").select("*").eq("id", str(match_id)).limit(1).execute())
+    if not found:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Match not found")
+    if found[0]["status"] != "queued":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="เลื่อนได้เฉพาะแมตช์ที่รอคิวอยู่")
+    queue = _queued(supabase, found[0]["session_id"])
+    at = next(i for i, m in enumerate(queue) if str(m["id"]) == str(match_id))
+    other = at - 1 if payload.direction == "up" else at + 1
+    if 0 <= other < len(queue):
+        mine, theirs = queue[at], queue[other]
+        # created_at isn't unique: nudge so the two can't tie and fall back
+        # on the id order they had
+        a, b = str(mine["created_at"]), str(theirs["created_at"])
+        if a == b:
+            moment = datetime.fromisoformat(a)
+            a = (moment + timedelta(microseconds=1 if other < at else -1)).isoformat()
+        supabase.table("matches").update({"created_at": b}).eq("id", str(mine["id"])).execute()
+        supabase.table("matches").update({"created_at": a}).eq("id", str(theirs["id"])).execute()
+    return queue_service.build_queue(supabase, UUID(str(found[0]["session_id"])))
+
+
+@router.post("/swap", response_model=MatchmakingQueueResponse)
+def swap_players(
+    payload: MatchmakingSwapRequest, supabase: SupabaseDep, admin: AdminDep
+) -> MatchmakingQueueResponse:
+    """Two players change places, for a pairing confirmed wrong: within a
+    queued match (across the net), between two queued matches, or with
+    someone waiting, who takes the other's place. Swapping the same two
+    again puts things back."""
+    a, b = str(payload.player_a_id), str(payload.player_b_id)
+    if a == b:
+        return queue_service.build_queue(supabase, payload.session_id)
+    queue = _queued(supabase, payload.session_id)
+
+    def place(pid: str) -> tuple[dict[str, Any], str, int] | None:
+        for m in queue:
+            for side in ("team1_player_ids", "team2_player_ids"):
+                ids = [str(x) for x in m[side]]
+                if pid in ids:
+                    return m, side, ids.index(pid)
+        return None
+
+    pa, pb = place(a), place(b)
+    if pa is None and pb is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="ต้องมีอย่างน้อยหนึ่งคนอยู่ในคิวถัดไป"
+        )
+    if pa is None or pb is None:
+        # one of them is waiting: they must be in tonight and not resting
+        waiting = b if pa is not None else a
+        checkin = rows(
+            supabase.table("checkins")
+            .select("*")
+            .eq("session_id", str(payload.session_id))
+            .eq("player_id", waiting)
+            .limit(1)
+            .execute()
+        )
+        if not checkin or checkin[0].get("checkout_time") is not None or checkin[0].get("paused_at"):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="คนนี้ไม่ได้รอคิวอยู่ (ยังไม่เช็คอิน กำลังพัก หรือกลับแล้ว)"
+            )
+
+    teams: dict[str, dict[str, list[str]]] = {}
+
+    def team(m: dict[str, Any], side: str) -> list[str]:
+        held = teams.setdefault(
+            str(m["id"]),
+            {
+                "team1_player_ids": [str(x) for x in m["team1_player_ids"]],
+                "team2_player_ids": [str(x) for x in m["team2_player_ids"]],
+            },
+        )
+        return held[side]
+
+    if pa is not None:
+        team(pa[0], pa[1])[pa[2]] = b
+    if pb is not None:
+        team(pb[0], pb[1])[pb[2]] = a
+    by_id = {str(m["id"]): m for m in queue}
+    for match_id, held in teams.items():
+        m = by_id[match_id]
+        _rewrite_queued(
+            supabase,
+            m,
+            [UUID(x) for x in held["team1_player_ids"]],
+            [UUID(x) for x in held["team2_player_ids"]],
+            m.get("court"),
+        )
+    return queue_service.build_queue(supabase, payload.session_id)
 
 
 @router.delete("/matches/{match_id}", status_code=status.HTTP_204_NO_CONTENT)

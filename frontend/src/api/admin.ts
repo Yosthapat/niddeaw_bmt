@@ -155,6 +155,20 @@ export async function confirmMatch(match: {
 /** Rewrites a still-queued pairing's players/court in place. The backend
  * rejects anything that isn't queued, so this can't touch a match already on
  * court or one whose result is banked. */
+/** Moves a queued match one place up or down the queue. */
+export async function moveQueuedMatch(matchId: string, direction: 'up' | 'down'): Promise<MatchmakingQueueResponse> {
+  return request(`/api/admin/matchmaking/matches/${matchId}/move`, { method: 'POST', body: JSON.stringify({ direction }) })
+}
+
+/** Two players change places: across the net, between queued matches, or
+ *  with someone waiting. The same swap again undoes it. */
+export async function swapPlayers(sessionId: string, a: string, b: string): Promise<MatchmakingQueueResponse> {
+  return request('/api/admin/matchmaking/swap', {
+    method: 'POST',
+    body: JSON.stringify({ session_id: sessionId, player_a_id: a, player_b_id: b }),
+  })
+}
+
 export async function editQueuedMatch(
   matchId: string,
   pairing: { team1_player_ids: string[]; team2_player_ids: string[]; court?: string | null },

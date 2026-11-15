@@ -225,6 +225,9 @@ def _fetch_queue_entries(
         .eq("status", match_status)
         .execute()
     )
+    # In queue order: the order the numbers run in, which the admin can change
+    # by moving a queued match up or down.
+    ordered = sorted(rows(result), key=lambda row: (row.get("match_no") is None, row.get("match_no") or 0))
     return [
         QueueEntry(
             match_id=UUID(row["id"]),
@@ -234,7 +237,7 @@ def _fetch_queue_entries(
             court=row.get("court"),
             match_no=row.get("match_no"),
         )
-        for row in rows(result)
+        for row in ordered
     ]
 
 
