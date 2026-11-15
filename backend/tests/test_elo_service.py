@@ -8,8 +8,8 @@ TEAM2 = [uuid4(), uuid4()]
 
 def test_equal_ratings_win_gains_half_k() -> None:
     delta_winner, delta_loser = elo_service.compute_deltas([1000], [1000], "team1")
-    assert delta_winner == 2
-    assert delta_loser == -2
+    assert delta_winner == 10
+    assert delta_loser == -10
 
 
 def test_draw_between_equal_ratings_is_a_no_op() -> None:
@@ -20,8 +20,17 @@ def test_draw_between_equal_ratings_is_a_no_op() -> None:
 
 def test_underdog_win_gains_more_than_k_half() -> None:
     delta_underdog, delta_favorite = elo_service.compute_deltas([900], [1100], "team1")
-    assert delta_underdog > 2
-    assert delta_favorite < -2
+    assert delta_underdog > 10
+    assert delta_favorite < -10
+
+
+def test_the_gap_going_in_decides_how_much_a_win_is_worth() -> None:
+    """The table the club agreed on: 100 apart, the favourite's win is +7
+    and the underdog's +13; 200 apart, +5 and +15."""
+    assert elo_service.compute_deltas([1100, 1100], [1000, 1000], "team1") == (7, -7)
+    assert elo_service.compute_deltas([1100, 1100], [1000, 1000], "team2") == (-13, 13)
+    assert elo_service.compute_deltas([1200], [1000], "team1") == (5, -5)
+    assert elo_service.compute_deltas([1200], [1000], "team2") == (-15, 15)
 
 
 def test_doubles_team_rating_is_average() -> None:
