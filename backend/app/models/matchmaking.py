@@ -66,6 +66,21 @@ class MatchmakingConfirmRequest(BaseModel):
         return self
 
 
+class MatchmakingMoveRequest(BaseModel):
+    """Moves a queued match one place earlier or later in the queue."""
+
+    direction: Literal["up", "down"]
+
+
+class MatchmakingSwapRequest(BaseModel):
+    """Two players change places. At least one is in a queued match; the other
+    is in a queued match too (the same one or another), or is waiting."""
+
+    session_id: UUID
+    player_a_id: UUID
+    player_b_id: UUID
+
+
 class MatchmakingEditRequest(BaseModel):
     """Amends an already-queued pairing in place. Deliberately has no
     `status` and no `session_id` — both are read off the match being

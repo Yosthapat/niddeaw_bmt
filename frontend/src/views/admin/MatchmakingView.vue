@@ -506,6 +506,64 @@ const noSuggestionsReason = computed(() => {
   return resting ? `${why} · ${t('matchmaking.pausedNote', { n: resting })}` : why
 })
 
+// Fixing a queued pairing without cancelling it. Tap one player in "next up",
+// then who they should change places with: someone across the net, in
+// another queued match, in a suggestion or waiting. The same swap again
+// undoes it, which is what the undo button does.
+const swapSel = ref<string | null>(null)
+const swapping = ref(false)
+const swapError = ref<string | null>(null)
+const lastSwap = ref<[string, string] | null>(null)
+let toastTimer: ReturnType<typeof setTimeout> | undefined
+async function doSwap(a: string, b: string): Promise<boolean> {
+  const sessionId = sessionsStore.currentSessionId
+  if (!sessionId) return false
+  swapping.value = true
+  swapError.value = null
+  try {
+    queue.value = await adminApi.swapPlayers(sessionId, a, b)
+    return true
+  } catch (e) {
+    swapError.value = apiErrorMessage(e, t('matchmaking.swapFailed'))
+    return false
+  } finally {
+    swapping.value = false
+  }
+}
+async function pickSwap(playerId: string): Promise<void> {
+  if (swapping.value) return
+  if (!swapSel.value || swapSel.value === playerId) {
+    swapSel.value = swapSel.value === playerId ? null : playerId
+    swapError.value = null
+    return
+  }
+  const a = swapSel.value
+  swapSel.value = null
+  if (await doSwap(a, playerId)) {
+    lastSwap.value = [a, playerId]
+    clearTimeout(toastTimer)
+    toastTimer = setTimeout(() => (lastSwap.value = null), 6000)
+  }
+}
+async function undoSwap(): Promise<void> {
+  if (!lastSwap.value) return
+  const [a, b] = lastSwap.value
+  lastSwap.value = null
+  await doSwap(a, b)
+}
+const moving = ref(false)
+async function moveMatch(matchId: string, direction: 'up' | 'down'): Promise<void> {
+  moving.value = true
+  swapError.value = null
+  try {
+    queue.value = await adminApi.moveQueuedMatch(matchId, direction)
+  } catch (e) {
+    swapError.value = apiErrorMessage(e, t('matchmaking.moveFailed'))
+  } finally {
+    moving.value = false
+  }
+}
+
 // Resting: a member who needs a break between games but is not going home.
 // They stay checked in (billed as usual) and out of the pairings until the
 // admin brings them back.
@@ -635,7 +693,13 @@ const pollControls = usePolling(refreshQueue, 7000)
 
       <section v-if="queue.queued.length > 0" class="mt-8">
         <h2 class="text-sm font-semibold text-white/70">{{ t('matchmaking.queuedNext') }} ({{ queue.queued.length }})</h2>
+        <p v-if="!swapSel" class="mt-1 text-xs text-white/45">{{ t('matchmaking.swapHint') }}</p>
+        <div v-else class="swap-bar" role="status">
+          <span>{{ t('matchmaking.swapPicked', { name: nameOf(swapSel) }) }}</span>
+          <button type="button" class="text-xs text-white/70 underline" @click="swapSel = null">{{ t('common.cancel') }}</button>
+        </div>
         <p v-if="startError" class="mt-2 text-xs text-status-error">{{ startError }}</p>
+        <p v-if="swapError" role="alert" class="mt-2 text-xs text-status-error">{{ swapError }}</p>
         <ul class="mt-2 space-y-2">
           <li
             v-for="m in queue.queued"
@@ -660,9 +724,20 @@ const pollControls = usePolling(refreshQueue, 7000)
               <div class="flex items-center justify-between gap-3">
                 <div class="flex flex-1 flex-col items-center gap-1.5">
                   <div class="flex gap-2">
-                    <LineBadge v-for="pid in m.team1_player_ids" :key="pid" :linked="lineLinks.isLinked(pid)" size="md">
-                      <PlayerAvatar :name="nameOf(pid)" :avatar-url="avatarOf(pid)" size="md" />
-                    </LineBadge>
+                    <button
+                      v-for="pid in m.team1_player_ids"
+                      :key="pid"
+                      type="button"
+                      class="swap-pick"
+                      :class="{ picked: swapSel === pid, target: !!swapSel && swapSel !== pid }"
+                      :aria-pressed="swapSel === pid"
+                      :aria-label="nameOf(pid)"
+                      @click="pickSwap(pid)"
+                    >
+                      <LineBadge :linked="lineLinks.isLinked(pid)" size="md">
+                        <PlayerAvatar :name="nameOf(pid)" :avatar-url="avatarOf(pid)" size="md" />
+                      </LineBadge>
+                    </button>
                   </div>
                   <span class="text-center text-sm text-white/70"><TeamNames :ids="m.team1_player_ids" :name-of="nameOf" /></span>
                 </div>
@@ -676,14 +751,47 @@ const pollControls = usePolling(refreshQueue, 7000)
 
                 <div class="flex flex-1 flex-col items-center gap-1.5">
                   <div class="flex gap-2">
-                    <LineBadge v-for="pid in m.team2_player_ids" :key="pid" :linked="lineLinks.isLinked(pid)" size="md">
-                      <PlayerAvatar :name="nameOf(pid)" :avatar-url="avatarOf(pid)" size="md" />
-                    </LineBadge>
+                    <button
+                      v-for="pid in m.team2_player_ids"
+                      :key="pid"
+                      type="button"
+                      class="swap-pick"
+                      :class="{ picked: swapSel === pid, target: !!swapSel && swapSel !== pid }"
+                      :aria-pressed="swapSel === pid"
+                      :aria-label="nameOf(pid)"
+                      @click="pickSwap(pid)"
+                    >
+                      <LineBadge :linked="lineLinks.isLinked(pid)" size="md">
+                        <PlayerAvatar :name="nameOf(pid)" :avatar-url="avatarOf(pid)" size="md" />
+                      </LineBadge>
+                    </button>
                   </div>
                   <span class="text-center text-sm text-white/70"><TeamNames :ids="m.team2_player_ids" :name-of="nameOf" /></span>
                 </div>
               </div>
               <div class="mt-2 flex flex-wrap items-center justify-center gap-2">
+                <button
+                  v-if="queue.queued.length > 1"
+                  type="button"
+                  class="move-btn"
+                  :disabled="moving || queue.queued[0]?.match_id === m.match_id"
+                  :aria-label="t('matchmaking.moveUp')"
+                  :title="t('matchmaking.moveUp')"
+                  @click="moveMatch(m.match_id, 'up')"
+                >
+                  ▲
+                </button>
+                <button
+                  v-if="queue.queued.length > 1"
+                  type="button"
+                  class="move-btn"
+                  :disabled="moving || queue.queued[queue.queued.length - 1]?.match_id === m.match_id"
+                  :aria-label="t('matchmaking.moveDown')"
+                  :title="t('matchmaking.moveDown')"
+                  @click="moveMatch(m.match_id, 'down')"
+                >
+                  ▼
+                </button>
                 <button
                   :disabled="startingId === m.match_id"
                   class="tap rounded-full bg-brand-pink px-3 text-xs font-semibold text-brand-black disabled:opacity-50"
@@ -985,18 +1093,40 @@ const pollControls = usePolling(refreshQueue, 7000)
               <div class="flex items-center justify-between gap-3">
                 <div class="flex flex-1 flex-col items-center gap-1.5">
                   <div class="flex gap-2">
-                    <LineBadge v-for="pid in s.team1_player_ids" :key="pid" :linked="lineLinks.isLinked(pid)" size="md">
-                      <PlayerAvatar :name="nameOf(pid)" :avatar-url="avatarOf(pid)" size="md" />
-                    </LineBadge>
+                    <button
+                      v-for="pid in s.team1_player_ids"
+                      :key="pid"
+                      type="button"
+                      class="swap-pick"
+                      :class="{ picked: swapSel === pid, target: !!swapSel && swapSel !== pid }"
+                      :aria-pressed="swapSel === pid"
+                      :aria-label="nameOf(pid)" :disabled="!swapSel"
+                      @click="pickSwap(pid)"
+                    >
+                      <LineBadge :linked="lineLinks.isLinked(pid)" size="md">
+                        <PlayerAvatar :name="nameOf(pid)" :avatar-url="avatarOf(pid)" size="md" />
+                      </LineBadge>
+                    </button>
                   </div>
                   <span class="text-center text-sm text-white/80"><TeamNames :ids="s.team1_player_ids" :name-of="nameOf" /></span>
                 </div>
                 <span class="text-xs text-white/40">VS</span>
                 <div class="flex flex-1 flex-col items-center gap-1.5">
                   <div class="flex gap-2">
-                    <LineBadge v-for="pid in s.team2_player_ids" :key="pid" :linked="lineLinks.isLinked(pid)" size="md">
-                      <PlayerAvatar :name="nameOf(pid)" :avatar-url="avatarOf(pid)" size="md" />
-                    </LineBadge>
+                    <button
+                      v-for="pid in s.team2_player_ids"
+                      :key="pid"
+                      type="button"
+                      class="swap-pick"
+                      :class="{ picked: swapSel === pid, target: !!swapSel && swapSel !== pid }"
+                      :aria-pressed="swapSel === pid"
+                      :aria-label="nameOf(pid)" :disabled="!swapSel"
+                      @click="pickSwap(pid)"
+                    >
+                      <LineBadge :linked="lineLinks.isLinked(pid)" size="md">
+                        <PlayerAvatar :name="nameOf(pid)" :avatar-url="avatarOf(pid)" size="md" />
+                      </LineBadge>
+                    </button>
                   </div>
                   <span class="text-center text-sm text-white/80"><TeamNames :ids="s.team2_player_ids" :name-of="nameOf" /></span>
                 </div>
@@ -1124,10 +1254,19 @@ const pollControls = usePolling(refreshQueue, 7000)
             :key="w.player_id"
             class="flex items-center gap-2 rounded-full border border-brand-pink/25 bg-brand-surface px-3 py-1.5 text-sm"
           >
-            <LineBadge :linked="lineLinks.isLinked(w.player_id)">
-              <PlayerAvatar :name="nameOf(w.player_id)" :avatar-url="avatarOf(w.player_id)" size="sm" />
-            </LineBadge>
-            {{ nameOf(w.player_id) }}
+            <button
+              type="button"
+              class="swap-chip"
+              :class="{ target: !!swapSel }"
+              :disabled="!swapSel"
+              :aria-label="nameOf(w.player_id)"
+              @click="pickSwap(w.player_id)"
+            >
+              <LineBadge :linked="lineLinks.isLinked(w.player_id)">
+                <PlayerAvatar :name="nameOf(w.player_id)" :avatar-url="avatarOf(w.player_id)" size="sm" />
+              </LineBadge>
+              {{ nameOf(w.player_id) }}
+            </button>
             <CreditCardMark :player-id="w.player_id" />
             <span class="text-xs text-white/40">~{{ Math.round(w.estimated_wait_minutes) }} {{ t('matches.minutes') }}</span>
             <button
@@ -1146,10 +1285,85 @@ const pollControls = usePolling(refreshQueue, 7000)
     </template>
 
     <p v-else class="mt-8 text-white/50">{{ t('common.loading') }}</p>
+
+    <div v-if="lastSwap" class="swap-toast" role="status">
+      <span>{{ t('matchmaking.swapDone', { a: nameOf(lastSwap[0]), b: nameOf(lastSwap[1]) }) }}</span>
+      <button type="button" class="font-semibold text-[#ffcf4d]" :disabled="swapping" @click="undoSwap">{{ t('matchmaking.swapUndo') }}</button>
+    </div>
   </main>
 </template>
 
 <style scoped>
+/* swapping: the picked player glows gold; who it can go to rings faintly */
+.swap-pick {
+  border-radius: 999px;
+  transition:
+    box-shadow 0.15s,
+    transform 0.15s;
+}
+.swap-pick:disabled {
+  cursor: default;
+}
+.swap-pick.picked {
+  box-shadow: 0 0 0 3px #ffcf4d, 0 0 16px rgb(255 207 77 / 0.6);
+  transform: scale(1.08);
+}
+.swap-pick.target,
+.swap-chip.target {
+  box-shadow: 0 0 0 2px rgb(255 207 77 / 0.45);
+}
+.swap-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+}
+.swap-chip:disabled {
+  cursor: default;
+}
+.swap-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  color: #ffe7a6;
+  background: rgb(255 207 77 / 0.1);
+  border: 1px solid rgb(255 207 77 / 0.35);
+}
+.move-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  min-height: 36px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: rgb(255 255 255 / 0.7);
+  border: 1px solid rgb(255 255 255 / 0.2);
+}
+.move-btn:disabled {
+  opacity: 0.3;
+}
+.swap-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  translate: -50% 0;
+  padding: 10px 16px;
+  border-radius: 14px;
+  font-size: 13px;
+  white-space: nowrap;
+  background: #26181f;
+  border: 1px solid rgb(255 207 77 / 0.35);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.5);
+}
 /* resting is light blue, apart from the pink of playing */
 .pause-btn {
   display: grid;

@@ -79,6 +79,8 @@ const ROUTES: [string, RegExp, string][] = [
   ['DELETE', /^\/api\/admin\/line\/checkin-spot$/, 'unpinCheckinSpot'],
   ['POST', /^\/api\/admin\/slip-checks\/backfill$/, 'slipBackfill'],
   ['POST', /^\/api\/admin\/checkins\/pause$/, 'pauseMember'],
+  ['POST', /^\/api\/admin\/matchmaking\/matches\/[^/]+\/move$/, 'moveQueued'],
+  ['POST', /^\/api\/admin\/matchmaking\/swap$/, 'swapPlayers'],
   ['POST', /^\/api\/admin\/checkins\/resume$/, 'resumeMember'],
   ['POST', /^\/api\/admin\/billing\/[^/]+\/reject-slip$/, 'rejectBillSlip'],
   ['POST', /^\/api\/admin\/credit\/topups\/[^/]+\/approve$/, 'approveTopup'],
