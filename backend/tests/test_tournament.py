@@ -517,6 +517,23 @@ def test_a_refused_slip_not_resent_gives_the_place_up(
     assert client.get("/api/line/tournament", headers=member(21)).json()["team"] is None
 
 
+def test_a_held_place_does_not_run_out_with_the_payment_deadline(
+    db: MiniSupabase, client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    t = open_tournament(client)
+    sign_up(client, db, t, 20, 21, "Wine", "ทีมแมว")
+    client.post("/api/line/tournament/accept", json=PARTNER, headers=member(21))
+    pay(client, 20)
+    team = pay(client, 21).json()["team"]
+    assert (team["status"], team["expires_at"]) == ("slip_review", None)
+    later = datetime.now(UTC) + timedelta(hours=ts.PAY_HOURS + 1)
+    monkeypatch.setattr(ts, "now", lambda: later)
+    assert (
+        client.get("/api/line/tournament", headers=member(20)).json()["team"]["status"]
+        == "slip_review"
+    )
+
+
 def test_a_resent_slip_keeps_the_place(
     db: MiniSupabase, client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -42,6 +42,15 @@ export const useAuthStore = defineStore('auth', () => {
     return token.value !== null && !isTokenExpired(token.value)
   })
 
+  // The two separate rights the token carries (backend security.py). A
+  // token from before they existed has neither claim: the club only. These
+  // only choose what to show — every route checks them again on the server.
+  const claims = computed(() => (token.value ? decodeJwtPayload(token.value) : null))
+  const canClub = computed(() => claims.value?.club !== false)
+  const canTournament = computed(() => claims.value?.tour === true)
+  /** Where an admin lands: the club if they may run it, else the tournament. */
+  const home = computed(() => (canClub.value ? '/admin' : '/admin/tournament'))
+
   function login(newToken: string): void {
     token.value = newToken
     localStorage.setItem(TOKEN_STORAGE_KEY, newToken)
@@ -52,5 +61,5 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem(TOKEN_STORAGE_KEY)
   }
 
-  return { token, isAuthenticated, login, logout }
+  return { token, isAuthenticated, canClub, canTournament, home, login, logout }
 })

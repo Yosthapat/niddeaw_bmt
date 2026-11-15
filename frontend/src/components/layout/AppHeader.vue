@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { ADMIN_PAGES } from './adminPages'
+import { isTournamentPath, pagesFor } from './adminPages'
 import { setLocale } from '@/i18n'
 import LanguageSwitcher from './LanguageSwitcher.vue'
 import SlidePill from '@/components/common/SlidePill.vue'
@@ -23,9 +23,14 @@ const isAdmin = computed(() => route.path.startsWith('/admin'))
 const isLogin = computed(() => route.path === '/admin/login')
 // The night's four, then the office screens that fit beside them on a wide
 // screen (members, shop, credit, revenue); everything else under "เพิ่มเติม".
-const barPages = ADMIN_PAGES.filter((p) => p.night || ['members', 'shop', 'credit', 'revenue'].includes(p.nav))
-const morePages = ADMIN_PAGES.filter((p) => p.listed && !p.night)
-const onMore = computed(() => morePages.some((p) => p.to === route.path && !barPages.includes(p)))
+// The side on screen decides the menu: the club's, or the tournament's.
+const inTournament = computed(() => isTournamentPath(route.path))
+const barPages = computed(() => pagesFor(route.path).filter((p) => p.night || ['members', 'shop', 'credit', 'revenue'].includes(p.nav)))
+const morePages = computed(() => pagesFor(route.path).filter((p) => p.listed && !p.night))
+const onMore = computed(() => morePages.value.some((p) => p.to === route.path && !barPages.value.includes(p)))
+/** An admin with both rights crosses to the other side from the menu. */
+const otherSide = computed(() => (auth.canClub && auth.canTournament ? (inTournament.value ? '/admin' : '/admin/tournament') : null))
+const homeLink = computed(() => (inTournament.value ? '/admin/tournament' : '/admin'))
 const moreOpen = ref(false)
 watch(
   () => route.path,
@@ -92,10 +97,10 @@ function isActive(to: string): boolean {
     <!-- Admin on a phone: the club and the language, as on the public site;
          the screens themselves are in the bar at the bottom (AdminTabBar). -->
     <header class="sticky top-0 z-20 flex h-[var(--header-h)] items-center justify-between border-b border-white/8 bg-[#0b0518] pr-3 pl-3 min-[900px]:hidden">
-      <RouterLink to="/admin" class="flex h-11 min-w-0 items-center gap-2">
+      <RouterLink :to="homeLink" class="flex h-11 min-w-0 items-center gap-2">
         <img src="/pwa-icons/pwa-192x192.png" alt="นิดเดียว Badminton Club logo" width="34" height="34" class="h-[34px] w-[34px] shrink-0 rounded-full" />
         <span class="truncate font-display text-[20px] font-bold tracking-tight text-white">นิดเดียว<span class="text-brand-pink">BMT</span></span>
-        <span class="admin-chip">ADMIN</span>
+        <span class="admin-chip">{{ inTournament ? 'CUP' : 'ADMIN' }}</span>
       </RouterLink>
       <button type="button" class="fb-round font-display text-[13px] font-bold" :aria-label="t('nav.switchLang')" @click="toggleLocale">
         {{ locale === 'th' ? 'TH' : 'EN' }}
@@ -107,9 +112,9 @@ function isActive(to: string): boolean {
     <header class="pointer-events-none sticky top-0 z-20 hidden h-[var(--header-h)] items-center justify-center px-4 min-[900px]:flex">
       <div class="glass-bar pointer-events-auto relative flex h-16 items-center gap-1 rounded-full pr-2.5 pl-3">
         <SlidePill v-if="!isLogin" :watch-key="[route.path, moreOpen]" />
-        <RouterLink to="/admin" class="mr-1 flex min-h-11 shrink-0 items-center gap-2.5 border-r border-white/15 pr-3">
+        <RouterLink :to="homeLink" class="mr-1 flex min-h-11 shrink-0 items-center gap-2.5 border-r border-white/15 pr-3">
           <img src="/pwa-icons/pwa-192x192.png" alt="นิดเดียว Badminton Club logo" width="40" height="40" class="h-10 w-10 rounded-full ring-2 ring-white/30" />
-          <span class="admin-chip">ADMIN</span>
+          <span class="admin-chip">{{ inTournament ? 'CUP' : 'ADMIN' }}</span>
         </RouterLink>
         <template v-if="!isLogin">
           <nav :aria-label="t('admin.nav.label')" class="flex items-center gap-0.5">
@@ -155,7 +160,10 @@ function isActive(to: string): boolean {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 shrink-0 opacity-80" aria-hidden="true"><path :d="p.icon" /></svg>
               {{ t(`admin.nav.${p.nav}`) }}
             </RouterLink>
-            <div class="my-1.5 h-px bg-white/10" />
+            <div v-if="morePages.length" class="my-1.5 h-px bg-white/10" />
+            <RouterLink v-if="otherSide" :to="otherSide" class="flex min-h-11 items-center rounded-2xl px-3 text-[14px] font-medium text-[#ffe14d] hover:bg-white/8">
+              {{ inTournament ? t('admin.toClub') : t('admin.toTournament') }}
+            </RouterLink>
             <RouterLink to="/" class="flex min-h-11 items-center rounded-2xl px-3 text-[14px] text-white/70 hover:bg-white/8">{{ t('admin.toSite') }}</RouterLink>
             <button type="button" class="flex min-h-11 w-full items-center rounded-2xl px-3 text-left text-[14px] text-white/70 hover:bg-white/8" @click="logout">{{ t('admin.nav.logout') }}</button>
           </div>

@@ -329,6 +329,9 @@ def _take_seat(supabase: Client, team_row: dict[str, Any]) -> None:
             "status": "confirmed" if all_paid else "slip_review",
             "seat_held_at": moment,
             "confirmed_at": moment if all_paid else None,
+            # Paid in full: the payment deadline no longer applies. A slip
+            # refused later sets its own 24 hours (`reject`).
+            "expires_at": None,
         },
     )
 

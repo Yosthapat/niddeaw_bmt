@@ -1,17 +1,116 @@
 <script setup lang="ts">
 /**
- * The tournament, not built yet: a page that says it's coming, what it
- * will be, and where to hear first when sign-ups open. The three lines
- * are plans, not promises — no dates until the organisers set them.
+ * The tournament. Before any is announced: a page that says it's coming
+ * and where to hear first. Once one is open: the event, its levels and how
+ * full each is, the teams that hold a place (nicknames only — never a real
+ * name or phone), and the way in through LINE.
  */
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import TierMascot from '@/components/players/TierMascot.vue'
+import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
+import { getPublicTournament, type PublicTournament } from '@/api/tournament'
+import { getLineConfig } from '@/api/line'
+import { formatDateTime, formatDateWithWeekday, money } from '@/utils/format'
+import type { Locale } from '@/i18n'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+const cup = ref<PublicTournament | null>(null)
+const loaded = ref(false)
+const lineHref = ref('https://line.me/R/ti/p/@369iojcn')
+
+onMounted(async () => {
+  try {
+    cup.value = await getPublicTournament()
+  } catch {
+    cup.value = null // the "coming soon" page, as before
+  } finally {
+    loaded.value = true
+  }
+  try {
+    const config = await getLineConfig()
+    // LIFF adds the path to the endpoint: this opens /line/tournament in LINE
+    if (config.enabled && config.liff_id) lineHref.value = `https://liff.line.me/${config.liff_id}/tournament`
+  } catch {
+    /* the OA link stays */
+  }
+})
+
+const perPlayer = computed(() => (cup.value ? Math.ceil((cup.value.entry_fee + cup.value.shuttle_fee) / 2) : 0))
+const day = (iso: string): string => formatDateWithWeekday(iso, locale.value as Locale)
+const when = (iso: string): string => formatDateTime(iso, locale.value as Locale)
+function range(min: number | null, max: number | null): string {
+  if (min === null && max !== null) return t('cup.eloBelow', { n: max })
+  if (min !== null && max === null) return t('cup.eloFrom', { n: min })
+  if (min !== null && max !== null) return `ELO ${min}–${max - 1}`
+  return ''
+}
 </script>
 
 <template>
-  <main class="relative isolate overflow-hidden">
+  <main v-if="cup" class="relative isolate overflow-hidden">
+    <div class="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
+      <div class="absolute inset-0 bg-[radial-gradient(80%_50%_at_50%_20%,#5a1a7a_0%,#1a0838_55%,#0a0416_80%)]" />
+    </div>
+    <div class="mx-auto flex max-w-2xl flex-col gap-4 px-4 pt-4 pb-12">
+      <RouterLink to="/" class="inline-flex min-h-11 items-center gap-1 self-start text-sm text-white/75 hover:text-white">
+        <span aria-hidden="true">←</span> {{ t('shop.backHome') }}
+      </RouterLink>
+
+      <header class="text-center">
+        <p class="font-display text-[13px] font-bold tracking-[3px] text-[#ffe14d]">NIDDEAW CUP</p>
+        <h1 class="t-glow mt-1 font-display text-[34px] leading-tight font-bold">{{ cup.name }}</h1>
+        <p class="mt-1 text-[15px] text-white/85">{{ day(cup.starts_on) }}<template v-if="cup.venue"> · {{ cup.venue }}</template></p>
+      </header>
+
+      <section class="t-plan flex-col !items-stretch gap-1.5 text-sm">
+        <p>{{ t('cup.feeLine', { amount: money(perPlayer) }) }}</p>
+        <p class="text-white/70">{{ t('cup.couponLine', { n: cup.coupons_per_set }) }}</p>
+        <p class="text-white/70">{{ t('cup.whoCan', { n: cup.min_games }) }}</p>
+        <p class="text-white/70">{{ t('cup.levelRule') }}</p>
+        <p class="font-semibold" :class="cup.taking_entries ? 'text-[#7ff0b4]' : 'text-white/60'">
+          {{ cup.taking_entries ? t('cup.closesAt', { at: when(cup.closes_at) }) : t('cup.closed') }}
+        </p>
+      </section>
+
+      <a
+        v-if="cup.taking_entries"
+        :href="lineHref"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="t-line flex h-[54px] w-full items-center justify-center gap-2 rounded-[14px] font-display text-base font-bold"
+      >
+        {{ t('cup.signUpInLine') }}
+      </a>
+
+      <section v-for="lv in cup.levels" :key="lv.id" class="t-plan flex-col !items-stretch gap-2">
+        <div class="flex flex-wrap items-baseline gap-2">
+          <h2 class="font-display text-lg font-bold">{{ lv.name }}</h2>
+          <span class="text-xs text-white/60">{{ range(lv.min_elo, lv.max_elo) }}</span>
+          <span class="ml-auto font-display text-sm font-bold">{{ lv.seats_taken }}/{{ lv.max_teams }}</span>
+        </div>
+        <div class="h-1.5 overflow-hidden rounded-full bg-white/10" aria-hidden="true">
+          <div class="h-full rounded-full bg-[#ff6cc0]" :style="{ width: `${Math.min(100, (lv.seats_taken / lv.max_teams) * 100)}%` }" />
+        </div>
+        <p v-if="lv.rules" class="text-xs text-[#ffd34d]">{{ t('cup.rulesLine', { rules: lv.rules }) }}</p>
+        <p v-if="lv.waitlist" class="text-xs text-[#c9a7ff]">{{ t('cup.waitlistCount', { n: lv.waitlist }) }}</p>
+        <ul v-if="lv.teams.length" class="grid gap-1.5 sm:grid-cols-2">
+          <li v-for="team in lv.teams" :key="team.name" class="flex items-center gap-2 rounded-xl bg-white/5 px-2.5 py-2">
+            <div class="flex -space-x-2">
+              <PlayerAvatar v-for="p in team.players" :key="p.nickname" :name="p.nickname" :avatar-url="p.avatar_url" size="sm" round />
+            </div>
+            <div class="min-w-0">
+              <p class="truncate text-sm font-semibold">{{ team.name }}</p>
+              <p class="truncate text-xs text-white/60">{{ team.players.map((p) => p.nickname).join(' / ') }}</p>
+            </div>
+          </li>
+        </ul>
+        <p v-else class="text-xs text-white/50">{{ t('cup.noTeamsYet') }}</p>
+      </section>
+    </div>
+  </main>
+
+  <main v-else-if="loaded" class="relative isolate overflow-hidden">
     <!-- same world as the home hero: a sky, a sun, a neon floor -->
     <div class="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
       <div class="absolute inset-0 bg-[radial-gradient(80%_50%_at_50%_30%,#5a1a7a_0%,#1a0838_55%,#0a0416_80%)]" />

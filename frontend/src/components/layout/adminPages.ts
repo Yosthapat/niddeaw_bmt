@@ -52,8 +52,33 @@ export const ADMIN_PAGES: AdminPage[] = [
     icon: '' },
 ]
 
+/**
+ * The tournament's own screens (/admin/tournament), for admins with that
+ * right. They replace the club's in the bars while one is open, so the two
+ * sides never share a menu; an admin with both rights switches between them.
+ */
+export const TOURNAMENT_PAGES: AdminPage[] = [
+  { to: '/admin/tournament', nav: 'tEvent', banner: 'tEvent', eyebrow: 'Tournament · Event', mascot: '/hero/cat-color.webp', night: true, listed: true,
+    icon: 'M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 6h3v2a3 3 0 0 1-3 3M7 6H4v2a3 3 0 0 0 3 3' },
+  { to: '/admin/tournament/teams', nav: 'tTeams', banner: 'tTeams', eyebrow: 'Tournament · Teams', mascot: '/tiers/beer.webp', night: true, listed: true,
+    icon: 'M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9.5 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM21 19v-1a4 4 0 0 0-3-3.8M15.5 3.2a3.5 3.5 0 0 1 0 6.6' },
+  { to: '/admin/tournament/money', nav: 'tMoney', banner: 'tMoney', eyebrow: 'Tournament · Money', mascot: '/tiers/wine.webp', night: true, listed: true,
+    icon: 'M3 3v18h18M7 15l4-4 3 3 6-7' },
+  { to: '/admin/tournament/activity', nav: 'tActivity', banner: 'tActivity', eyebrow: 'Tournament · Activity', mascot: '/tiers/soju.webp', night: true, listed: true,
+    icon: 'M12 8v4l3 2M3.05 11a9 9 0 1 1 .5 4M3 4v5h5' },
+]
+
 export const MORE_ICON = 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z'
 
 export function adminPage(path: string): AdminPage | undefined {
-  return ADMIN_PAGES.find((p) => p.to === path)
+  return [...ADMIN_PAGES, ...TOURNAMENT_PAGES].find((p) => p.to === path)
+}
+
+export function isTournamentPath(path: string): boolean {
+  return path === '/admin/tournament' || path.startsWith('/admin/tournament/')
+}
+
+/** The screens of the side this path is on. */
+export function pagesFor(path: string): AdminPage[] {
+  return isTournamentPath(path) ? TOURNAMENT_PAGES : ADMIN_PAGES
 }

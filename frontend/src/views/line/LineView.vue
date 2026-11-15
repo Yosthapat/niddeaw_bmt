@@ -28,6 +28,7 @@ import LineBills from '@/components/line/LineBills.vue'
 import LineCredit from '@/components/line/LineCredit.vue'
 import LineBadges from '@/components/line/LineBadges.vue'
 import LinePass from '@/components/line/LinePass.vue'
+import LineTournament from '@/components/line/LineTournament.vue'
 import LineBadgeCelebrate from '@/components/line/LineBadgeCelebrate.vue'
 import LineCardCelebrate from '@/components/line/LineCardCelebrate.vue'
 import PlayerShopOrders from '@/components/shop/PlayerShopOrders.vue'
@@ -61,7 +62,7 @@ const canScan = ref(false)
 const gpsCheckin = ref(false)
 // A linked member's other screens: tonight's checkout and their bills
 // (/line/checkout, /line/bills — the OA menu's "เช็คเอาท์ จ่ายเงิน").
-type Screen = 'home' | 'checkout' | 'bills' | 'credit' | 'badges' | 'pass'
+type Screen = 'home' | 'checkout' | 'bills' | 'credit' | 'badges' | 'pass' | 'tournament'
 const screen = ref<Screen>('home')
 const tonight = ref<LineTonight | null>(null)
 const badgeCount = ref(0)
@@ -104,7 +105,7 @@ async function start(): Promise<void> {
     // /line/profile (the OA menu's profile button) is this page: their LINE
     // card, with checkout, bills, credit and badges.
     if (route.params.section === 'profile') void router.replace('/line')
-    if (status.player && (route.params.section === 'checkout' || route.params.section === 'bills' || route.params.section === 'credit' || route.params.section === 'badges' || route.params.section === 'pass')) {
+    if (status.player && (route.params.section === 'checkout' || route.params.section === 'bills' || route.params.section === 'credit' || route.params.section === 'badges' || route.params.section === 'pass' || route.params.section === 'tournament')) {
       await go(route.params.section)
     }
     phase.value = 'ready'
@@ -355,6 +356,8 @@ onUnmounted(() => {
 
         <LinePass v-else-if="me.player && screen === 'pass'" :token="token" :name="me.player.nickname" @back="go('home')" @credit="go('credit')" />
 
+        <LineTournament v-else-if="me.player && screen === 'tournament'" :token="token" @back="go('home')" />
+
         <!-- linked: who they are, and what's coming -->
         <section v-else-if="me.player" class="world-card flex flex-col items-center gap-3 p-6 text-center">
           <p v-if="justLinked" class="linked-now" role="status">
@@ -384,6 +387,7 @@ onUnmounted(() => {
               <span class="coin-dot" aria-hidden="true">฿</span>{{ t('lineCredit.open') }}<CreditCardMark :player-id="me.player.id" class="ml-1" />
             </button>
             <button type="button" class="pass-pill col-span-full justify-center" @click="go('pass')">✦ Niddeaw Pass</button>
+            <button type="button" class="glass-pill col-span-full justify-center gap-2" @click="go('tournament')">{{ t('cup.line.open') }}</button>
             <button type="button" class="glass-pill col-span-full justify-center gap-2" @click="go('badges')">
               <img src="/badges/fire_10.webp" alt="" width="64" height="64" class="h-7 w-7 object-contain" />
               {{ t('quests.mine') }}<span v-if="badgeCount" class="text-[#f2c14e]">· {{ badgeCount }}</span>
