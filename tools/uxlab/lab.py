@@ -401,6 +401,25 @@ def cup_lab(db: MiniSupabase) -> None:
         db.storage_bytes[f"shop/{path}"] = _slip_png()
         ts.record_slip(db, e, f"{db.public_base}/storage/v1/object/public/shop/{path}")
     ts.create_team(db, row, levels["Milk–Beer"], "ตันพี่ตี๋", (people["Tan"], me), (people["P'Tee"], None))
+    # enough confirmed pairs to draw: 11 more in Soju ขึ้นไป, 5 in Highball
+    extra = []
+    for i in range(32):
+        player = {
+            "id": str(uuid.uuid4()), "nickname": f"Guest{i + 1:02d}", "avatar_url": None,
+            "elo_score": 1550 if i < 22 else 1200, "elo_level": "soju" if i < 22 else "highball",
+            "line_id": None, "is_active": True, "member_seq": 100 + i, "dominant_hand": None,
+            "tiktok": None, "instagram": None, "quote": None, "games": 6, "wins": 0, "draws": 0,
+            "losses": 0, "created_at": _iso(60 * 24 * 30), "line_user_id": None,
+        }
+        db.tables["players"].append(player)
+        extra.append(player)
+    for n in range(16):
+        a, b = extra[2 * n], extra[2 * n + 1]
+        lv = levels["Soju ขึ้นไป"] if n < 11 else levels["Highball"]
+        team = ts.create_team(db, row, lv, f"ทีม {n + 1:02d}", (a, me), (b, you), ADMIN_ID)
+        for e in ts.team_entrants(db, team):
+            ts.mark_paid(db, e, ADMIN_ID, "cash")
+    db.table(ts.TOURNAMENTS).update({"courts": 6}).eq("id", row["id"]).execute()
     for direction, category, name, amount in (
         ("income", "sponsor", "ร้านกีฬา A", 5000), ("income", "sponsor", "คาเฟ่ B", 2000),
         ("expense", "court", None, 8000), ("expense", "shuttle", None, 3600),

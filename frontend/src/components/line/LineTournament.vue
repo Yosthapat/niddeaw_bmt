@@ -20,6 +20,7 @@ import { formatDateTime, formatDateWithWeekday, money } from '@/utils/format'
 import type { Locale } from '@/i18n'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import BrandQr from '@/components/common/BrandQr.vue'
+import { clock, sideLabel } from '@/utils/cupMatch'
 
 const props = defineProps<{ token: string }>()
 const emit = defineEmits<{ back: [] }>()
@@ -142,6 +143,12 @@ async function rename(): Promise<void> {
   if (newName.value.trim().length < 2) return
   if (await run('rename', () => lineTournament.rename(props.token, newName.value.trim()), t('cup.line.actionFailed'))) renaming.value = false
 }
+
+const myGroup = computed(() => {
+  const lv = cup.value?.levels.find((x) => x.id === team.value?.level_id)
+  return lv?.groups.find((g) => g.teams.some((x) => x.id === team.value?.id)) ?? null
+})
+const myMatches = computed(() => (cup.value?.matches ?? []).filter((m) => m.a.team_id === team.value?.id || m.b.team_id === team.value?.id))
 
 const rulesOf = (id: string): string => cup.value?.levels.find((lv) => lv.id === id)?.rules ?? ''
 
@@ -388,6 +395,28 @@ async function attach(event: Event): Promise<void> {
               <button v-if="!renaming" type="button" class="min-h-11 underline" @click="renaming = true; newName = team.name">{{ t('cup.line.rename') }}</button>
               <button type="button" class="min-h-11 underline" @click="withdraw">{{ t('cup.line.withdraw') }}</button>
             </div>
+          </template>
+        </div>
+
+        <!-- my group and my matches: "coming soon" until published -->
+        <div v-if="team.status === 'confirmed'" class="world-card flex flex-col gap-2 p-4">
+          <h3 class="font-display text-base font-bold">{{ t('cup.schedule.mine') }}</h3>
+          <p v-if="!cup.schedule_published" class="text-sm text-white/70">
+            <span class="mr-1 rounded-full border border-[#ffe14d] px-2 py-0.5 font-display text-[11px] font-bold tracking-[2px] text-[#ffe14d]">COMING SOON</span>
+            {{ t('cup.schedule.soon') }}
+          </p>
+          <template v-else>
+            <p v-if="myGroup" class="text-sm">
+              {{ t('cup.draw.group', { g: myGroup.label }) }} ·
+              <span class="text-white/70">{{ myGroup.teams.map((x) => x.name).join(' · ') }}</span>
+            </p>
+            <ul class="flex flex-col gap-1">
+              <li v-for="m in myMatches" :key="m.id" class="flex items-center gap-2 rounded-lg bg-white/5 px-2 py-1.5 text-sm">
+                <span class="w-11 shrink-0 text-center"><b class="block font-display text-xs">#{{ m.match_no }}</b><span class="text-[11px] text-white/55">{{ clock(m.est_start) }}</span></span>
+                <span class="min-w-0 flex-1 truncate">{{ sideLabel(m.a, t) }} <span class="text-white/40">vs</span> {{ sideLabel(m.b, t) }}</span>
+              </li>
+            </ul>
+            <p class="text-xs text-white/50">{{ t('cup.schedule.mineHint') }}</p>
           </template>
         </div>
 

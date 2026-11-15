@@ -45,6 +45,11 @@ export interface Tournament {
   status: TournamentStatus
   levels: Level[]
   fees_locked: boolean
+  day_start: string
+  group_minutes: number
+  ko_minutes: number
+  rest_minutes: number
+  schedule_published_at: string | null
 }
 
 export interface PublicPlayer {
@@ -53,10 +58,65 @@ export interface PublicPlayer {
   elo_level: string | null
 }
 
+export interface PublicTeam {
+  id: string | null
+  name: string
+  players: PublicPlayer[]
+}
+
 export interface PublicLevel extends Level {
   seats_taken: number
   waitlist: number
-  teams: { name: string; players: PublicPlayer[] }[]
+  teams: PublicTeam[]
+  /** only once the schedule is published */
+  groups: { label: string; teams: PublicTeam[] }[]
+}
+
+/** One side of a match: a team once known, else the place it comes from
+ *  ("A1" group place, "U3"/"L3" a seed, "W12" the winner of match 12). */
+export interface MatchSlot {
+  slot: string
+  team_id: string | null
+  team_name: string | null
+}
+
+export interface CupMatch {
+  id: string
+  match_no: number
+  level_id: string
+  level_name: string
+  stage: 'group' | 'ko'
+  bracket: 'upper' | 'lower' | null
+  round: number
+  group_label: string | null
+  a: MatchSlot
+  b: MatchSlot
+  est_start: string | null
+}
+
+export interface DrawTeam {
+  id: string
+  name: string
+  status: TeamStatus
+  group_label: string | null
+  group_pos: number | null
+  players: PublicPlayer[]
+}
+
+export interface DrawLevel {
+  level: Level
+  confirmed: number
+  not_ready: number
+  groups: string[]
+  teams: DrawTeam[]
+}
+
+export interface DrawState {
+  tournament_id: string
+  levels: DrawLevel[]
+  matches: CupMatch[]
+  est_end: string | null
+  published_at: string | null
 }
 
 export interface PublicTournament {
@@ -73,6 +133,8 @@ export interface PublicTournament {
   status: TournamentStatus
   taking_entries: boolean
   levels: PublicLevel[]
+  schedule_published: boolean
+  matches: CupMatch[]
 }
 
 export interface Details {
@@ -311,6 +373,17 @@ export const tournamentAdmin = {
   ): Promise<Money> => request(`${A}/tournaments/${id}/money`, json('POST', body)),
   deleteMoney: (moneyId: string): Promise<void> => request(`${A}/money/${moneyId}`, { method: 'DELETE' }),
   receipt: (moneyId: string, f: File): Promise<Money> => request(`${A}/money/${moneyId}/receipt`, file(f)),
+
+  draw: (id: string): Promise<DrawState> => request(`${A}/tournaments/${id}/draw`),
+  drawLevel: (id: string, levelId: string): Promise<DrawState> =>
+    request(`${A}/tournaments/${id}/levels/${levelId}/draw`, { method: 'POST' }),
+  clearLevel: (id: string, levelId: string): Promise<DrawState> =>
+    request(`${A}/tournaments/${id}/levels/${levelId}/draw`, { method: 'DELETE' }),
+  place: (teamId: string, groupLabel: string, groupPos: number): Promise<DrawState> =>
+    request(`${A}/teams/${teamId}/group`, json('PUT', { group_label: groupLabel, group_pos: groupPos })),
+  makeSchedule: (id: string): Promise<DrawState> => request(`${A}/tournaments/${id}/schedule`, { method: 'POST' }),
+  clearSchedule: (id: string): Promise<DrawState> => request(`${A}/tournaments/${id}/schedule`, { method: 'DELETE' }),
+  publish: (id: string, on: boolean): Promise<DrawState> => request(`${A}/tournaments/${id}/publish`, json('POST', { on })),
 
   admins: (): Promise<{ id: string; username: string }[]> => request(`${A}/admins`),
   activity: (day?: string): Promise<TournamentActivity[]> => request(`${A}/activity${day ? `?day=${day}` : ''}`),

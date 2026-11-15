@@ -13,10 +13,12 @@ import { getPublicTournament, type PublicTournament } from '@/api/tournament'
 import { getLineConfig } from '@/api/line'
 import { formatDateTime, formatDateWithWeekday, money } from '@/utils/format'
 import type { Locale } from '@/i18n'
+import { clock, roundLabel, sideLabel } from '@/utils/cupMatch'
 
 const { t, locale } = useI18n()
 const cup = ref<PublicTournament | null>(null)
 const loaded = ref(false)
+const matchLevel = ref('')
 const lineHref = ref('https://line.me/R/ti/p/@369iojcn')
 
 onMounted(async () => {
@@ -82,6 +84,45 @@ function range(min: number | null, max: number | null): string {
       >
         {{ t('cup.signUpInLine') }}
       </a>
+
+      <!-- groups and the day's matches: "coming soon" until the organisers publish them -->
+      <section v-if="!cup.schedule_published" class="t-plan flex-col !items-center gap-1 py-5 text-center">
+        <span class="t-blink rounded-full border border-[#ffe14d] px-3 py-1 font-display text-[12px] font-bold tracking-[3px] text-[#ffe14d]">COMING SOON</span>
+        <h2 class="mt-2 font-display text-lg font-bold">{{ t('cup.schedule.title') }}</h2>
+        <p class="text-sm text-white/70">{{ t('cup.schedule.soon') }}</p>
+      </section>
+      <template v-else>
+        <section v-for="lv in cup.levels.filter((x) => x.groups.length)" :key="`g-${lv.id}`" class="t-plan flex-col !items-stretch gap-2">
+          <h2 class="font-display text-lg font-bold">{{ t('cup.schedule.groupsOf', { level: lv.name }) }}</h2>
+          <div class="grid grid-cols-2 gap-2">
+            <div v-for="g in lv.groups" :key="g.label" class="rounded-xl bg-white/5 p-2">
+              <p class="mb-1 font-display text-sm font-bold text-[#ff6cc0]">{{ t('cup.draw.group', { g: g.label }) }}</p>
+              <p v-for="(team, i) in g.teams" :key="team.name" class="truncate text-xs">
+                <span class="text-white/45">{{ g.label }}{{ i + 1 }}</span> {{ team.name }}
+              </p>
+            </div>
+          </div>
+        </section>
+        <section class="t-plan flex-col !items-stretch gap-2">
+          <div class="flex flex-wrap items-center gap-2">
+            <h2 class="font-display text-lg font-bold">{{ t('cup.schedule.title') }}</h2>
+            <select v-model="matchLevel" :aria-label="t('cup.level')" class="ml-auto min-h-11 rounded-lg border border-white/15 bg-[#1a0838] px-2 text-sm">
+              <option value="">{{ t('cup.draw.allLevels') }}</option>
+              <option v-for="lv in cup.levels" :key="lv.id" :value="lv.id">{{ lv.name }}</option>
+            </select>
+          </div>
+          <p class="text-xs text-white/55">{{ t('cup.schedule.estimate') }}</p>
+          <ul class="flex flex-col gap-1">
+            <li v-for="m in cup.matches.filter((x) => !matchLevel || x.level_id === matchLevel)" :key="m.id" class="flex items-center gap-2 rounded-lg bg-white/5 px-2 py-1.5">
+              <span class="w-11 shrink-0 text-center"><b class="block font-display text-xs">#{{ m.match_no }}</b><span class="text-[11px] text-white/55">{{ clock(m.est_start) }}</span></span>
+              <span class="min-w-0 flex-1 text-sm">
+                <span class="block truncate">{{ sideLabel(m.a, t) }} <span class="text-white/40">vs</span> {{ sideLabel(m.b, t) }}</span>
+                <span class="block truncate text-[11px] text-white/50">{{ m.level_name }} · {{ roundLabel(m, t) }}</span>
+              </span>
+            </li>
+          </ul>
+        </section>
+      </template>
 
       <section v-for="lv in cup.levels" :key="lv.id" class="t-plan flex-col !items-stretch gap-2">
         <div class="flex flex-wrap items-baseline gap-2">

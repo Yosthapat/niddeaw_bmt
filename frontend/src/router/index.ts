@@ -218,6 +218,12 @@ const router = createRouter({
       meta: { requiresAuth: true, area: 'tournament' },
     },
     {
+      path: '/admin/tournament/draw',
+      name: 'admin-tournament-draw',
+      component: () => import('../views/admin/tournament/TournamentDrawView.vue'),
+      meta: { requiresAuth: true, area: 'tournament' },
+    },
+    {
       path: '/admin/tournament/money',
       name: 'admin-tournament-money',
       component: () => import('../views/admin/tournament/TournamentMoneyView.vue'),
