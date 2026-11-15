@@ -1794,6 +1794,8 @@ export default {
       mineHint: 'Knockout matches depend on the group results; times are estimates',
     },
     draw: {
+      tabGroups: '{n} groups',
+      allMatchesHint: '{n} matches in the day, numbered across all levels',
       published: 'Published · players see the groups and matches',
       madeHidden: 'Match list made · not published',
       notMade: 'No match list yet',

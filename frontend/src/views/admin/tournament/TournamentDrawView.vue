@@ -12,6 +12,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AdminNav from '@/components/layout/AdminNav.vue'
+import LevelTabs from '@/components/admin/LevelTabs.vue'
 import { tournamentAdmin, type DrawLevel, type DrawState, type DrawTeam } from '@/api/tournament'
 import { apiErrorMessage } from '@/api/errors'
 import { useTournamentPick } from '@/composables/useTournamentPick'
@@ -142,8 +143,29 @@ async function publish(on: boolean): Promise<void> {
   if (ok) await run('publish', () => tournamentAdmin.publish(picked.value!.id, on))
 }
 
-const levelFilter = ref('')
-const shownMatches = computed(() => (state.value?.matches ?? []).filter((m) => !levelFilter.value || m.level_id === levelFilter.value))
+// One level at a time: the first with confirmed teams until one is picked.
+const picks = ref('')
+const activeId = computed(() => {
+  const levels = state.value?.levels ?? []
+  return levels.find((x) => x.level.id === picks.value)?.level.id ?? levels.find((x) => x.confirmed > 0)?.level.id ?? levels[0]?.level.id ?? ''
+})
+const active = computed(() => state.value?.levels.find((x) => x.level.id === activeId.value) ?? null)
+const tabs = computed(() =>
+  (state.value?.levels ?? []).map((x) => ({
+    id: x.level.id,
+    name: x.level.name,
+    badge: x.groups.length ? t('cup.draw.tabGroups', { n: x.groups.length }) : `${x.confirmed}/${x.level.max_teams}`,
+  })),
+)
+// that level's matches: the group stage, then each bracket
+const matchParts = computed(() => {
+  const mine = (state.value?.matches ?? []).filter((m) => m.level_id === activeId.value)
+  return [
+    { key: 'group', label: t('cup.schedule.groupStage'), matches: mine.filter((m) => m.stage === 'group') },
+    { key: 'upper', label: t('cup.bracket.upper'), matches: mine.filter((m) => m.stage === 'ko' && m.bracket === 'upper') },
+    { key: 'lower', label: t('cup.bracket.lower'), matches: mine.filter((m) => m.stage === 'ko' && m.bracket === 'lower') },
+  ].filter((p) => p.matches.length)
+})
 const when = (iso: string): string => formatDateTime(iso, locale.value as Locale)
 </script>
 
@@ -208,8 +230,11 @@ const when = (iso: string): string => formatDateTime(iso, locale.value as Locale
 
       <p v-if="problem" class="mt-4 text-sm text-status-error" role="alert">{{ problem }}</p>
 
-      <!-- each level's groups -->
-      <section v-for="lv in state.levels" :key="lv.level.id" class="hud-panel mt-4 border border-brand-pink/15 bg-brand-surface p-4">
+      <!-- one level at a time -->
+      <LevelTabs :levels="tabs" :model-value="activeId" :label="t('cup.level')" @update:model-value="(id) => { picks = id; moving = null }" />
+
+      <!-- its groups -->
+      <section v-for="lv in active ? [active] : []" :key="lv.level.id" class="hud-panel mt-3 border border-brand-pink/15 bg-brand-surface p-4">
         <div class="flex flex-wrap items-baseline gap-2">
           <h2 class="font-display text-base font-bold">{{ lv.level.name }}</h2>
           <span class="text-xs text-white/60">{{ t('cup.draw.confirmed', { n: lv.confirmed, max: lv.level.max_teams }) }}</span>
@@ -249,31 +274,30 @@ const when = (iso: string): string => formatDateTime(iso, locale.value as Locale
         </div>
       </section>
 
-      <!-- the match list -->
-      <section v-if="locked" class="mt-6">
-        <div class="flex flex-wrap items-center gap-2">
-          <h2 class="font-display text-lg font-bold">{{ t('cup.draw.matches') }}</h2>
-          <select v-model="levelFilter" :aria-label="t('cup.level')" class="ml-auto min-h-11 rounded-lg border border-brand-pink/25 bg-brand-black px-3 text-sm text-white">
-            <option value="">{{ t('cup.draw.allLevels') }}</option>
-            <option v-for="lv in state.levels" :key="lv.level.id" :value="lv.level.id">{{ lv.level.name }}</option>
-          </select>
-        </div>
-        <ul class="mt-3 space-y-1.5">
-          <li v-for="m in shownMatches" :key="m.id" class="hud-panel flex items-center gap-3 border border-brand-pink/10 bg-brand-surface px-3 py-2">
-            <span class="w-10 shrink-0 text-center">
-              <b class="block font-display text-sm">#{{ m.match_no }}</b>
-              <span class="text-[11px] text-white/50">{{ clock(m.est_start) }}</span>
-            </span>
-            <span class="min-w-0 flex-1">
-              <span class="block truncate text-sm">
-                <span :class="m.a.team_name ? '' : 'text-white/55'">{{ sideLabel(m.a, t) }}</span>
-                <span class="px-1 text-white/40">vs</span>
-                <span :class="m.b.team_name ? '' : 'text-white/55'">{{ sideLabel(m.b, t) }}</span>
+      <!-- its matches -->
+      <section v-if="locked && active" class="mt-6">
+        <h2 class="font-display text-lg font-bold">{{ t('cup.schedule.matchesOf', { level: active.level.name }) }}</h2>
+        <p class="mt-1 text-xs text-white/50">{{ t('cup.draw.allMatchesHint', { n: state.matches.length }) }}</p>
+        <template v-for="part in matchParts" :key="part.key">
+          <p class="mt-4 text-xs font-semibold text-white/70">{{ part.label }}</p>
+          <ul class="mt-1.5 space-y-1.5">
+            <li v-for="m in part.matches" :key="m.id" class="hud-panel flex items-center gap-3 border border-brand-pink/10 bg-brand-surface px-3 py-2">
+              <span class="w-10 shrink-0 text-center">
+                <b class="block font-display text-sm">#{{ m.match_no }}</b>
+                <span class="text-[11px] text-white/50">{{ clock(m.est_start) }}</span>
               </span>
-              <span class="block truncate text-[11px] text-white/50">{{ m.level_name }} · {{ roundLabel(m, t) }}</span>
-            </span>
-          </li>
-        </ul>
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-sm">
+                  <span :class="m.a.team_name ? '' : 'text-white/55'">{{ sideLabel(m.a, t) }}</span>
+                  <span class="px-1 text-white/40">vs</span>
+                  <span :class="m.b.team_name ? '' : 'text-white/55'">{{ sideLabel(m.b, t) }}</span>
+                </span>
+                <span class="block truncate text-[11px] text-white/50">{{ roundLabel(m, t) }}</span>
+              </span>
+            </li>
+          </ul>
+        </template>
+        <p v-if="!matchParts.length" class="mt-3 text-sm text-white/45">{{ t('cup.schedule.noneInLevel') }}</p>
       </section>
     </template>
   </main>

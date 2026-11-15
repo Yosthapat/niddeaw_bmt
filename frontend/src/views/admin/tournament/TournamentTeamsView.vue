@@ -8,6 +8,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AdminNav from '@/components/layout/AdminNav.vue'
+import LevelTabs from '@/components/admin/LevelTabs.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import {
   tournamentAdmin,
@@ -72,6 +73,12 @@ const counts = computed(() => ({
   slips: teams.value.filter(toCheck).length,
   refunds: teams.value.filter((x) => x.refund_owed > 0).length,
 }))
+const tabs = computed(() =>
+  (picked.value?.levels ?? []).map((lv) => {
+    const n = seats(lv.id)
+    return { id: lv.id, name: lv.name, badge: `${n.taken}/${lv.max_teams}${n.wait ? ` · ${t('cup.admin.waiting', { n: n.wait })}` : ''}` }
+  }),
+)
 function seats(levelId: string): { taken: number; wait: number } {
   const mine = teams.value.filter((x) => x.level_id === levelId)
   return {
@@ -232,22 +239,8 @@ const when = (iso: string | null): string => (iso ? formatDateTime(iso, locale.v
     <p v-else class="text-sm text-white/50">{{ t('cup.admin.noneYet') }}</p>
 
     <template v-if="picked">
-      <!-- seats per level -->
-      <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <button
-          v-for="lv in picked.levels"
-          :key="lv.id"
-          type="button"
-          class="hud-panel border bg-brand-surface p-3 text-left"
-          :class="levelFilter === lv.id ? 'border-brand-pink' : 'border-brand-pink/15'"
-          :aria-pressed="levelFilter === lv.id"
-          @click="levelFilter = levelFilter === lv.id ? '' : lv.id"
-        >
-          <span class="block text-xs text-white/60">{{ lv.name }}</span>
-          <span class="font-display text-lg font-bold">{{ seats(lv.id).taken }}<span class="text-sm text-white/45">/{{ lv.max_teams }}</span></span>
-          <span v-if="seats(lv.id).wait" class="block text-xs text-[#c9a7ff]">{{ t('cup.admin.waiting', { n: seats(lv.id).wait }) }}</span>
-        </button>
-      </div>
+      <!-- one level at a time, or all of them (slips are checked across levels) -->
+      <LevelTabs v-model="levelFilter" :levels="tabs" :all-label="t('cup.draw.allLevels')" :label="t('cup.level')" />
 
       <div class="mt-4 flex flex-wrap gap-1.5" role="group" :aria-label="t('cup.admin.filter')">
         <button
