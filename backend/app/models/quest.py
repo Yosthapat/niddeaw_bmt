@@ -15,7 +15,7 @@ class QuestState(BaseModel):
     value: int
     levels: list[QuestLevel]
     other_id: str | None = None
-    """The partner (buddy) or the เทกันจัง (revenge) the count is about."""
+    """The partner (buddy) or the ขาประจำฝั่งตรงข้าม (revenge) the count is about."""
     other_name: str | None = None
 
 

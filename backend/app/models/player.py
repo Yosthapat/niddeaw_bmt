@@ -94,7 +94,7 @@ class PlayerStats(BaseModel):
 
 
 class NemesisInfo(BaseModel):
-    """The opponent this player has faced most often ("เทกันจัง")."""
+    """The opponent this player has faced most often ("ขาประจำฝั่งตรงข้าม")."""
 
     player: Player
     encounters: int
