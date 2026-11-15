@@ -35,7 +35,7 @@ watch(
   { immediate: true },
 )
 
-const ICON: Record<LedgerEntry['kind'], string> = { topup: '🪙', bill: '🏸', refund: '↩️', adjust: '🛠' }
+const ICON: Record<LedgerEntry['kind'], string> = { topup: '🪙', bill: '🏸', refund: '↩️', adjust: '🛠', pass: '✦' }
 </script>
 
 <template>

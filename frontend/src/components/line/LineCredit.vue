@@ -98,7 +98,7 @@ function cancel(): void {
 const shown = computed<LedgerEntry[]>(() =>
   (data.value?.history ?? []).filter((h) => tab.value === 'all' || (tab.value === 'in' ? h.delta > 0 : h.delta < 0)),
 )
-const ICON: Record<LedgerEntry['kind'], string> = { topup: '🪙', bill: '🏸', refund: '↩️', adjust: '🛠' }
+const ICON: Record<LedgerEntry['kind'], string> = { topup: '🪙', bill: '🏸', refund: '↩️', adjust: '🛠', pass: '✦' }
 </script>
 
 <template>
