@@ -990,6 +990,8 @@ export default {
     toSite: 'ไปหน้าเว็บก๊วน',
     toClub: '← ไปหน้าแอดมินก๊วน',
     toTournament: 'ไปหน้าแอดมินทัวร์นาเมนต์ →',
+    sideCup: 'ทัวร์นาเมนต์',
+    sideClub: 'ก๊วน',
   },
   activityLog: {
     title: 'ประวัติการใช้งาน',

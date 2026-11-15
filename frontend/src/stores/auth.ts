@@ -35,8 +35,24 @@ function isTokenExpired(token: string): boolean {
   return payload.exp <= nowInSeconds
 }
 
+/**
+ * A token from before admins had separate club and tournament rights carries
+ * neither claim, and would quietly read as "club only" for up to its whole
+ * lifetime — an admin who runs the tournament would see no way in. Dropping it
+ * sends them to the login page once, where a token with their rights is made.
+ */
+function freshToken(stored: string | null): string | null {
+  if (!stored) return null
+  const payload = decodeJwtPayload(stored)
+  if (payload && !('club' in payload)) {
+    localStorage.removeItem(TOKEN_STORAGE_KEY)
+    return null
+  }
+  return stored
+}
+
 export const useAuthStore = defineStore('auth', () => {
-  const token = ref<string | null>(localStorage.getItem(TOKEN_STORAGE_KEY))
+  const token = ref<string | null>(freshToken(localStorage.getItem(TOKEN_STORAGE_KEY)))
 
   const isAuthenticated = computed(() => {
     return token.value !== null && !isTokenExpired(token.value)

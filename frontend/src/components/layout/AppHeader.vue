@@ -102,9 +102,16 @@ function isActive(to: string): boolean {
         <span class="truncate font-display text-[20px] font-bold tracking-tight text-white">นิดเดียว<span class="text-brand-pink">BMT</span></span>
         <span class="admin-chip">{{ inTournament ? 'CUP' : 'ADMIN' }}</span>
       </RouterLink>
-      <button type="button" class="fb-round font-display text-[13px] font-bold" :aria-label="t('nav.switchLang')" @click="toggleLocale">
-        {{ locale === 'th' ? 'TH' : 'EN' }}
-      </button>
+      <div class="flex shrink-0 items-center gap-2">
+        <!-- Both rights: the other side is one tap away, not inside a menu. -->
+        <RouterLink v-if="otherSide && !isLogin" :to="otherSide" class="side-switch" :aria-label="inTournament ? t('admin.toClub') : t('admin.toTournament')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true"><path d="M7 16V4m0 0L3 8m4-4 4 4M17 8v12m0 0 4-4m-4 4-4-4" /></svg>
+          {{ inTournament ? t('admin.sideClub') : t('admin.sideCup') }}
+        </RouterLink>
+        <button type="button" class="fb-round font-display text-[13px] font-bold" :aria-label="t('nav.switchLang')" @click="toggleLocale">
+          {{ locale === 'th' ? 'TH' : 'EN' }}
+        </button>
+      </div>
     </header>
 
     <!-- Admin from 900px: the public site's floating bar of glass, with the
@@ -112,10 +119,16 @@ function isActive(to: string): boolean {
     <header class="pointer-events-none sticky top-0 z-20 hidden h-[var(--header-h)] items-center justify-center px-4 min-[900px]:flex">
       <div class="glass-bar pointer-events-auto relative flex h-16 items-center gap-1 rounded-full pr-2.5 pl-3">
         <SlidePill v-if="!isLogin" :watch-key="[route.path, moreOpen]" />
-        <RouterLink :to="homeLink" class="mr-1 flex min-h-11 shrink-0 items-center gap-2.5 border-r border-white/15 pr-3">
-          <img src="/pwa-icons/pwa-192x192.png" alt="นิดเดียว Badminton Club logo" width="40" height="40" class="h-10 w-10 rounded-full ring-2 ring-white/30" />
-          <span class="admin-chip">{{ inTournament ? 'CUP' : 'ADMIN' }}</span>
-        </RouterLink>
+        <div class="mr-1 flex shrink-0 items-center gap-2 border-r border-white/15 pr-3">
+          <RouterLink :to="homeLink" class="flex min-h-11 items-center gap-2.5">
+            <img src="/pwa-icons/pwa-192x192.png" alt="นิดเดียว Badminton Club logo" width="40" height="40" class="h-10 w-10 rounded-full ring-2 ring-white/30" />
+            <span class="admin-chip">{{ inTournament ? 'CUP' : 'ADMIN' }}</span>
+          </RouterLink>
+          <RouterLink v-if="otherSide && !isLogin" :to="otherSide" class="side-switch relative z-[1]" :aria-label="inTournament ? t('admin.toClub') : t('admin.toTournament')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true"><path d="M7 16V4m0 0L3 8m4-4 4 4M17 8v12m0 0 4-4m-4 4-4-4" /></svg>
+            {{ inTournament ? t('admin.sideClub') : t('admin.sideCup') }}
+          </RouterLink>
+        </div>
         <template v-if="!isLogin">
           <nav :aria-label="t('admin.nav.label')" class="flex items-center gap-0.5">
             <RouterLink v-for="p in barPages" :key="p.to" v-slot="{ href, navigate }" :to="p.to" custom>
@@ -284,5 +297,23 @@ function isActive(to: string): boolean {
   font: 700 11px 'Chakra Petch', sans-serif;
   letter-spacing: 0.12em;
   color: #ffc2e3;
+}
+/* Club ⇄ tournament, for an admin who runs both: out in the bar, not in a menu. */
+.side-switch {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  border: 1px solid rgb(255 225 77 / 0.45);
+  background: rgb(255 225 77 / 0.1);
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: #ffe14d;
+}
+.side-switch:hover {
+  background: rgb(255 225 77 / 0.18);
 }
 </style>

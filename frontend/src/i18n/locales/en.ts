@@ -993,6 +993,8 @@ export default {
     toSite: 'Go to the club site',
     toClub: '← Club admin',
     toTournament: 'Tournament admin →',
+    sideCup: 'Tournament',
+    sideClub: 'Club',
   },
   activityLog: {
     title: 'Activity Log',
