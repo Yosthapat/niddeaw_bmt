@@ -10,10 +10,19 @@ from uuid import UUID
 
 from app.models.player import EloTier
 
-K_FACTOR = 4
-"""Low on purpose: an even match nets a ~2-point swing per game (not the
-32-point swings of a competitive-ELO K-factor), so climbing the six tiers
-is a gradual, many-games club journey rather than a fast few-game jump."""
+K_FACTOR = 20
+"""An even match moves both teams 10 points; the bigger the gap going in,
+the more the underdog wins and the less the favourite does (100 apart:
++13 against +7). At about 7 games a night once a week, a member who wins
+60% of even matches climbs a 200-point tier in roughly 100 games, about
+three months.
+
+It was 4 until November 2026, which members found did not move: an even
+game was ±2, and with rounding the underdog's extra all but disappeared
+(a tier took ~500 games). 32, the usual competitive value, was weighed
+and left: one losing night would cost more than half a tier, and the
+tiers also decide who can be paired with whom. Ratings already earned are
+kept; the new value applies from the next result recorded."""
 STARTING_SCORE = 1000
 SCORE_FLOOR = 100
 
