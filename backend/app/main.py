@@ -6,7 +6,7 @@ from app.config import get_settings
 from app.middleware.activity_log import AdminActivityLogMiddleware
 from app.middleware.body_limit import BodyLimitMiddleware
 from app.middleware.unhandled_errors import UnhandledErrorsMiddleware
-from app.routers import line, line_credit, line_pass, quests
+from app.routers import line, line_credit, line_pass, line_tournament, quests
 from app.routers.admin import activity_log as admin_activity_log
 from app.routers.admin import auth as admin_auth
 from app.routers.admin import backup as admin_backup
@@ -25,6 +25,7 @@ from app.routers.admin import shop_admin as admin_shop
 from app.routers.admin import slip_checks as admin_slip_checks
 from app.routers.admin import sponsors_admin as admin_sponsors
 from app.routers.admin import stats_audit_admin as admin_stats_audit
+from app.routers.admin import tournament as admin_tournament
 from app.routers.public import (
     credit_cards,
     hall_of_fame,
@@ -35,6 +36,7 @@ from app.routers.public import (
     seasons,
     shop,
     sponsors,
+    tournament,
     wallet,
 )
 
@@ -72,9 +74,11 @@ app.include_router(sponsors.router)
 app.include_router(credit_cards.router)
 app.include_router(wallet.router)
 app.include_router(shop.router)
+app.include_router(tournament.router)
 app.include_router(line.router)
 app.include_router(line_credit.router)
 app.include_router(line_pass.router)
+app.include_router(line_tournament.router)
 app.include_router(quests.public)
 app.include_router(quests.line)
 app.include_router(quests.admin)
@@ -97,6 +101,7 @@ app.include_router(admin_sheets.router)
 app.include_router(admin_line.router)
 app.include_router(admin_credit.router)
 app.include_router(admin_slip_checks.router)
+app.include_router(admin_tournament.router)
 app.include_router(admin_sheets.internal)
 
 

@@ -90,7 +90,7 @@ const router = createRouter({
       // /line/register: the OA's sign-up button; /line/checkin?c=…: tonight's
       // check-in QR; /line/shop: the OA's shop button, which learns who this
       // is and goes on to /shop (LIFF adds the path to the endpoint URL).
-      path: '/line/:section(register|checkin|checkout|bills|credit|badges|shop|profile|pass)?',
+      path: '/line/:section(register|checkin|checkout|bills|credit|badges|shop|profile|pass|tournament)?',
       name: 'line',
       component: () => import('../views/line/LineView.vue'),
       meta: { bare: true },
@@ -203,6 +203,45 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
 
+    // The tournament's own admin screens: only for admins with that right,
+    // and none of the club's screens are reached from here.
+    {
+      path: '/admin/tournament',
+      name: 'admin-tournament',
+      component: () => import('../views/admin/tournament/TournamentEventView.vue'),
+      meta: { requiresAuth: true, area: 'tournament' },
+    },
+    {
+      path: '/admin/tournament/teams',
+      name: 'admin-tournament-teams',
+      component: () => import('../views/admin/tournament/TournamentTeamsView.vue'),
+      meta: { requiresAuth: true, area: 'tournament' },
+    },
+    {
+      path: '/admin/tournament/draw',
+      name: 'admin-tournament-draw',
+      component: () => import('../views/admin/tournament/TournamentDrawView.vue'),
+      meta: { requiresAuth: true, area: 'tournament' },
+    },
+    {
+      path: '/admin/tournament/day',
+      name: 'admin-tournament-day',
+      component: () => import('../views/admin/tournament/TournamentDayView.vue'),
+      meta: { requiresAuth: true, area: 'tournament' },
+    },
+    {
+      path: '/admin/tournament/money',
+      name: 'admin-tournament-money',
+      component: () => import('../views/admin/tournament/TournamentMoneyView.vue'),
+      meta: { requiresAuth: true, area: 'tournament' },
+    },
+    {
+      path: '/admin/tournament/activity',
+      name: 'admin-tournament-activity',
+      component: () => import('../views/admin/tournament/TournamentActivityView.vue'),
+      meta: { requiresAuth: true, area: 'tournament' },
+    },
+
     // Last, so it only catches what nothing above matched. Without it an
     // unknown path matched no route at all and <RouterView> rendered
     // nothing — a blank page under the header, with no way back.
@@ -221,6 +260,11 @@ router.beforeEach((to) => {
   if (!authStore.isAuthenticated) {
     return { name: 'admin-login' }
   }
+  // Each side only for those with its right: the other side's screens
+  // send them to their own.
+  const tournamentArea = to.meta.area === 'tournament'
+  if (tournamentArea && !authStore.canTournament) return { path: '/admin' }
+  if (!tournamentArea && !authStore.canClub) return { path: '/admin/tournament' }
   return true
 })
 

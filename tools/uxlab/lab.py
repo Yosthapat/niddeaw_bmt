@@ -358,6 +358,93 @@ def pass_lab(db: MiniSupabase) -> None:
     db.tables["player_credits"].append({"player_id": ball["id"], "balance": 1000, "updated_at": _iso(590)})
 
 
+def cup_lab(db: MiniSupabase) -> None:
+    """UXLAB_CUP=1: a tournament taking entries. "admin" holds both rights;
+    "cupstaff" (same password) the tournament only. Everyone has played
+    enough games; Ball ("fake:U" + 32 b's + ":Ball") and James (32 c's)
+    are linked to LINE and in no team yet. Faa & Ton are confirmed in Soju
+    ขึ้นไป, Oum & Mew hold a Highball place with slips to check, Tan & P'Tee
+    are invited in Milk–Beer."""
+    from app.services import tournament_service as ts
+
+    for t in ("tournaments", "tournament_levels", "tournament_teams", "tournament_entrants",
+              "tournament_money", "slip_checks"):
+        db.tables.setdefault(t, [])
+    db.tables["admins"][0].update({"club_access": True, "tournament_access": True})
+    db.tables["admins"].append({
+        "id": str(uuid.uuid4()), "username": "cupstaff", "password_hash": db.tables["admins"][0]["password_hash"],
+        "role": "admin", "club_access": False, "tournament_access": True, "created_at": _iso(60),
+    })
+    people = {p["nickname"]: p for p in db.tables["players"]}
+    for i, p in enumerate(db.tables["players"]):
+        p["games"] = max(int(p.get("games") or 0), 5)
+        p["line_user_id"] = "U" + "bcdefghi"[i] * 32
+    people["Faa"]["elo_score"], people["Ton"]["elo_score"] = 1610, 1540
+    people["Oum"]["elo_score"], people["Mew"]["elo_score"] = 1190, 1230
+    row = ts.create_tournament(db, {
+        "name": "NIDDEAW CUP 1", "starts_on": (datetime.now() + timedelta(days=30)).date().isoformat(),
+        "venue": "KB โยธินพัฒนา", "opens_at": _iso(60 * 24), "closes_at": (datetime.now(timezone.utc) + timedelta(days=10)).isoformat(),
+    }, ADMIN_ID)
+    db.table(ts.TOURNAMENTS).update(
+        {"status": "open", "promptpay_id": "0812345678", "promptpay_type": "phone", "account_name": "NIDDEAW CUP"}
+    ).eq("id", row["id"]).execute()
+    row = ts.tournament(db, str(row["id"]))
+    levels = {lv["name"]: str(lv["id"]) for lv in ts.levels(db, str(row["id"]))}
+    me = {"first_name": "สมชาย", "last_name": "ใจดี", "phone": "0812345678"}
+    you = {"first_name": "สมหญิง", "last_name": "รักแบด", "phone": "0898765432"}
+    faa = ts.create_team(db, row, levels["Soju ขึ้นไป"], "ฟ้าต้นตบเบา", (people["Faa"], me), (people["Ton"], you), ADMIN_ID)
+    for e in ts.team_entrants(db, faa):
+        ts.mark_paid(db, e, ADMIN_ID, "cash")
+    oum = ts.create_team(db, row, levels["Highball"], "อุ้มหมิว", (people["Oum"], me), (people["Mew"], you))
+    for e in ts.team_entrants(db, oum):
+        path = f"tournament-slip-{e['id']}.png"
+        db.storage_bytes[f"shop/{path}"] = _slip_png()
+        ts.record_slip(db, e, f"{db.public_base}/storage/v1/object/public/shop/{path}")
+    ts.create_team(db, row, levels["Milk–Beer"], "ตันพี่ตี๋", (people["Tan"], me), (people["P'Tee"], None))
+    # enough confirmed pairs to draw: 11 more in Soju ขึ้นไป, 5 in Highball
+    extra = []
+    for i in range(32):
+        player = {
+            "id": str(uuid.uuid4()), "nickname": f"Guest{i + 1:02d}", "avatar_url": None,
+            "elo_score": 1550 if i < 22 else 1200, "elo_level": "soju" if i < 22 else "highball",
+            "line_id": None, "is_active": True, "member_seq": 100 + i, "dominant_hand": None,
+            "tiktok": None, "instagram": None, "quote": None, "games": 6, "wins": 0, "draws": 0,
+            "losses": 0, "created_at": _iso(60 * 24 * 30), "line_user_id": None,
+        }
+        db.tables["players"].append(player)
+        extra.append(player)
+    for n in range(16):
+        a, b = extra[2 * n], extra[2 * n + 1]
+        lv = levels["Soju ขึ้นไป"] if n < 11 else levels["Highball"]
+        team = ts.create_team(db, row, lv, f"ทีม {n + 1:02d}", (a, me), (b, you), ADMIN_ID)
+        for e in ts.team_entrants(db, team):
+            ts.mark_paid(db, e, ADMIN_ID, "cash")
+    db.table(ts.TOURNAMENTS).update({"courts": 6}).eq("id", row["id"]).execute()
+    for direction, category, name, amount in (
+        ("income", "sponsor", "ร้านกีฬา A", 5000), ("income", "sponsor", "คาเฟ่ B", 2000),
+        ("expense", "court", None, 8000), ("expense", "shuttle", None, 3600),
+    ):
+        db.table(ts.MONEY).insert({
+            "id": str(uuid.uuid4()), "tournament_id": str(row["id"]), "direction": direction, "category": category,
+            "category_other": name, "amount": amount, "entry_date": datetime.now().date().isoformat(),
+            "paid_by": ADMIN_ID if direction == "expense" else None, "entrant_id": None, "team_id": None,
+            "quantity": None, "unit_price": None, "paid_via": "transfer", "receipt_url": None, "note": None,
+            "created_by": ADMIN_ID, "created_at": _iso(30),
+        }).execute()
+
+
+def _slip_png() -> bytes:
+    import io
+
+    from PIL import Image, ImageDraw
+
+    img = Image.new("RGB", (300, 420), "white")
+    ImageDraw.Draw(img).text((20, 20), "slip 1,025.00", fill="black")
+    out = io.BytesIO()
+    img.save(out, format="PNG")
+    return out.getvalue()
+
+
 DB = seed()
 if os.environ.get("UXLAB_QUESTS"):
     quest_history(DB)
@@ -368,6 +455,8 @@ if os.environ.get("UXLAB_SLIPS"):
     slip_lab(DB)
 if os.environ.get("UXLAB_PASS"):
     pass_lab(DB)
+if os.environ.get("UXLAB_CUP"):
+    cup_lab(DB)
 app.dependency_overrides[get_supabase] = lambda: DB
 # The activity-log middleware reaches for the client directly rather than
 # through the dependency, so both names have to point at the stand-in.

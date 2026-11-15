@@ -2,8 +2,8 @@ from fastapi import APIRouter, HTTPException, Request, status
 
 from app.config import get_settings
 from app.db_utils import rows
-from app.deps import AdminDep, SupabaseDep
-from app.models.admin import AdminLoginRequest, AdminLoginResponse
+from app.deps import AnyAdminDep, SupabaseDep
+from app.models.admin import AdminLoginRequest, AdminLoginResponse, AdminMe
 from app.models.diagnostics import ClientIdentity
 from app.security import create_access_token, verify_password
 from app.services import login_throttle
@@ -32,7 +32,7 @@ def login(
 
     result = (
         supabase.table("admins")
-        .select("id, username, password_hash, role")
+        .select("id, username, password_hash, role, club_access, tournament_access")
         .eq("username", payload.username)
         .limit(1)
         .execute()
@@ -46,13 +46,46 @@ def login(
 
     login_throttle.clear(key)
     admin_row = admin_rows[0]
-    token = create_access_token(admin_id=admin_row["id"], role=admin_row["role"])
+    token = create_access_token(
+        admin_id=admin_row["id"],
+        role=admin_row["role"],
+        club_access=_flag(admin_row.get("club_access"), True),
+        tournament_access=_flag(admin_row.get("tournament_access"), False),
+    )
     settings = get_settings()
     return AdminLoginResponse(access_token=token, expires_in_minutes=settings.jwt_expire_minutes)
 
 
+def _flag(value: object, default: bool) -> bool:
+    """A right as stored, or the default before 0046 added the column."""
+    return default if value is None else bool(value)
+
+
+@router.get("/me", response_model=AdminMe)
+def me(supabase: SupabaseDep, admin: AnyAdminDep) -> AdminMe:
+    """The signed-in admin and their rights, read fresh from the table, so
+    a right taken away shows on the next screen rather than at the next
+    login. (The routes themselves still go by the token until it expires.)"""
+    found = rows(
+        supabase.table("admins")
+        .select("id, username, club_access, tournament_access")
+        .eq("id", str(admin.admin_id))
+        .limit(1)
+        .execute()
+    )
+    if not found:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Admin not found")
+    row = found[0]
+    return AdminMe(
+        id=row["id"],
+        username=row["username"],
+        club_access=_flag(row.get("club_access"), True) and admin.club_access,
+        tournament_access=_flag(row.get("tournament_access"), False) and admin.tournament_access,
+    )
+
+
 @router.get("/whoami", response_model=ClientIdentity)
-def whoami(request: Request, admin: AdminDep) -> ClientIdentity:
+def whoami(request: Request, admin: AnyAdminDep) -> ClientIdentity:
     """What the login throttle makes of the caller asking.
 
     Admin-only: it reports the address our edge saw, which is not

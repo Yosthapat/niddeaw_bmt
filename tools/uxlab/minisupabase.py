@@ -83,7 +83,7 @@ DEFAULTS: dict[str, Row] = {
                  "game_count": 0, "credit_used": 0},
     "expenses": {"receipt_url": None, "is_paid": False, "paid_at": None, "note": None},
     "other_income": {"slip_url": None, "note": None},
-    "admin_activity_log": {"detail": None},
+    "admin_activity_log": {"detail": None, "area": "club"},
     "products": {"description": None, "sizes": [], "preorder_closes_on": None,
                  "preorder_delivers_on": None, "image_urls": [], "is_active": True,
                  "sort_order": 0, "size_prices": {}},

@@ -10,7 +10,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { ADMIN_PAGES, MORE_ICON } from './adminPages'
+import { isTournamentPath, MORE_ICON, pagesFor } from './adminPages'
 import SlidePill from '@/components/common/SlidePill.vue'
 
 const route = useRoute()
@@ -18,10 +18,14 @@ const router = useRouter()
 const auth = useAuthStore()
 const { t } = useI18n()
 
-const night = ADMIN_PAGES.filter((p) => p.night)
-const rest = ADMIN_PAGES.filter((p) => p.listed && !p.night)
+// The side on screen decides the bar: the club's screens or the tournament's.
+const inTournament = computed(() => isTournamentPath(route.path))
+const night = computed(() => pagesFor(route.path).filter((p) => p.night))
+const rest = computed(() => pagesFor(route.path).filter((p) => p.listed && !p.night))
 const open = ref(false)
-const onRest = computed(() => rest.some((p) => p.to === route.path))
+const onRest = computed(() => rest.value.some((p) => p.to === route.path))
+/** An admin with both rights crosses to the other side from "เพิ่มเติม". */
+const otherSide = computed(() => (auth.canClub && auth.canTournament ? (inTournament.value ? '/admin' : '/admin/tournament') : null))
 watch(
   () => route.path,
   () => {
@@ -66,6 +70,13 @@ function logout(): void {
             {{ t(`admin.nav.${p.nav}`) }}
           </RouterLink>
         </div>
+        <RouterLink
+          v-if="otherSide"
+          :to="otherSide"
+          class="mt-2 flex min-h-12 items-center justify-center rounded-full border border-[#ffe14d]/40 bg-[#ffe14d]/10 text-sm font-bold text-[#ffe14d]"
+        >
+          {{ inTournament ? t('admin.toClub') : t('admin.toTournament') }}
+        </RouterLink>
         <div class="mt-2 flex gap-1.5">
           <RouterLink to="/" class="flex min-h-11 flex-1 items-center justify-center rounded-full bg-white/6 text-sm text-white/75">{{ t('admin.toSite') }}</RouterLink>
           <button type="button" class="flex min-h-11 flex-1 items-center justify-center rounded-full border border-white/15 text-sm text-white/75" @click="logout">

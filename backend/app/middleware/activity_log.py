@@ -11,6 +11,7 @@ from app.supabase_client import get_supabase_client
 # The logo preview stores nothing — it only shows the admin what a file
 # would look like on the band.
 _SKIP_PATHS = {"/api/admin/auth/login", "/api/admin/sponsors/logo-preview"}
+TOURNAMENT_PREFIX = "/api/admin/tournament"
 
 
 class AdminActivityLogMiddleware(BaseHTTPMiddleware):
@@ -57,6 +58,8 @@ class AdminActivityLogMiddleware(BaseHTTPMiddleware):
                     "method": request.method,
                     "path": path,
                     "detail": detail or None,
+                    # Each side reads only its own entries.
+                    "area": "tournament" if path.startswith(TOURNAMENT_PREFIX) else "club",
                 }
             ).execute()
         except Exception:

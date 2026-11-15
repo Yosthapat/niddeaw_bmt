@@ -84,7 +84,7 @@ async function submit(): Promise<void> {
     // Awaited, and `loading` is deliberately left set: clearing either
     // before the route swaps would drop the overlay and flash a bare login
     // form for a frame on the way to the dashboard.
-    await router.push('/admin')
+    await router.push(authStore.home)
   } catch (e) {
     if (e instanceof ApiError && e.status === 401) {
       error.value = t('login.invalidCredentials')
