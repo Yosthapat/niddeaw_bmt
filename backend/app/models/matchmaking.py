@@ -102,6 +102,16 @@ class WaitingEntry(BaseModel):
     estimated_wait_minutes: float
 
 
+class PairTonight(BaseModel):
+    """How often two players have been partners and opponents tonight, so
+    the admin sees a repeat before confirming one (suggested or edited)."""
+
+    player_a_id: UUID
+    player_b_id: UUID
+    teammates: int
+    opponents: int
+
+
 class MatchmakingQueueResponse(BaseModel):
     in_progress: list[QueueEntry]
     queued: list[QueueEntry] = []
@@ -109,6 +119,7 @@ class MatchmakingQueueResponse(BaseModel):
     waiting: list[WaitingEntry]
     avg_match_duration_minutes: float
     locked_pairs: list[LockedPair] = []
+    pairs_tonight: list[PairTonight] = []
 
 
 class LiveQueueResponse(BaseModel):

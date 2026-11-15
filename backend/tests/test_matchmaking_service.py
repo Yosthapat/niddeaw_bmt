@@ -1,3 +1,5 @@
+import random
+from collections import Counter
 from uuid import UUID, uuid4
 
 from app.services import matchmaking_service as mm
@@ -5,7 +7,9 @@ from app.services import matchmaking_service as mm
 
 def _checked_in(scores: list[int]) -> tuple[list[UUID], list[mm.CheckedInPlayer]]:
     ids = [uuid4() for _ in scores]
-    players = [mm.CheckedInPlayer(player_id=pid, elo_score=s) for pid, s in zip(ids, scores, strict=True)]
+    players = [
+        mm.CheckedInPlayer(player_id=pid, elo_score=s) for pid, s in zip(ids, scores, strict=True)
+    ]
     return ids, players
 
 
@@ -25,35 +29,94 @@ def test_no_history_still_groups_by_closest_elo() -> None:
         assert group == set(top4) or group == set(bottom4)
 
 
-def test_cross_group_rotation_avoids_recent_partners_even_with_equal_elo() -> None:
-    """Regression test for the "same 4 people keep getting grouped" report:
-    with everyone at equal ELO (so elo_balance_score never breaks the tie),
-    a player who's recently played with 3 others should end up in a
-    different group as long as a zero-fairness-penalty alternative exists
-    within the search window — not stuck rotating the same foursome's 3
-    possible splits forever."""
-    ids, players = _checked_in([1000] * 8)
-    a, b, c, d, e, f, g, h = ids
-
-    # a has recently teamed up with b and c, and faced off against d —
-    # all within the fairness lookback window.
-    history = [
-        mm.PairHistoryEntry(player_a_id=a, player_b_id=b, relation="teammate", round_no=1),
-        mm.PairHistoryEntry(player_a_id=a, player_b_id=c, relation="teammate", round_no=1),
-        mm.PairHistoryEntry(player_a_id=a, player_b_id=d, relation="opponent", round_no=1),
+def _played(
+    team1: tuple[UUID, ...], team2: tuple[UUID, ...], round_no: int
+) -> list[mm.PairHistoryEntry]:
+    return [
+        mm.PairHistoryEntry(
+            UUID(r["player_a_id"]), UUID(r["player_b_id"]), str(r["relation"]), round_no
+        )
+        for r in mm.build_pairing_history_rows(team1, team2, round_no)
     ]
 
-    splits, waiting = mm.suggest_doubles_pairings(players, history, current_round=2)
+
+def _together(split: mm.Split, a: UUID, b: UUID) -> bool:
+    return {a, b} <= set(split.team1) or {a, b} <= set(split.team2)
+
+
+def test_those_who_waited_go_on_before_those_who_just_came_off() -> None:
+    """Regression test for "the same 4 keep playing": a, b, c, d just
+    played; e, f, g, h have been waiting. The next court goes to the four
+    who waited, even though the others are the stronger players."""
+    ids, players = _checked_in([1300, 1300, 1300, 1300, 1000, 1000, 1000, 1000])
+    a, b, c, d, e, f, g, h = ids
+
+    splits, waiting = mm.suggest_doubles_pairings(
+        players, _played((a, b), (c, d), 1), current_round=2
+    )
 
     assert waiting == []
-    a_group = next(s for s in splits if a in s.team1 or a in s.team2)
-    a_groupmates = (set(a_group.team1) | set(a_group.team2)) - {a}
-    assert a_groupmates == {e, f, g} or a_groupmates == {e, f, h} or a_groupmates == {e, g, h} or a_groupmates == {
-        f,
-        g,
-        h,
-    }
-    assert not ({b, c, d} & a_groupmates)
+    first = splits[0]
+    assert set(first.team1) | set(first.team2) == {e, f, g, h}
+    # and the four who just played do not get the same partners again
+    assert not _together(splits[1], a, b) and not _together(splits[1], c, d)
+
+
+def test_partners_from_early_in_the_night_are_still_remembered() -> None:
+    """The old rule forgot anything older than the last 3 matches; partners
+    from the first match of the night count just as much at match 20."""
+    ids, players = _checked_in([1000] * 4)
+    a, b, c, d = ids
+
+    splits, _ = mm.suggest_doubles_pairings(players, _played((a, b), (c, d), 1), current_round=20)
+
+    assert not _together(splits[0], a, b)
+    assert not _together(splits[0], c, d)
+
+
+def test_the_same_two_are_never_partners_a_third_time_while_there_is_another_way() -> None:
+    ids, players = _checked_in([1000] * 4)
+    a, b, c, d = ids
+    # a+b have partnered twice already; a+c and a+d once each
+    history = (
+        _played((a, b), (c, d), 1) + _played((a, b), (c, d), 2) + _played((a, c), (b, d), 3)
+        + _played((a, d), (b, c), 4)
+    )  # fmt: skip
+
+    splits, _ = mm.suggest_doubles_pairings(players, history, current_round=5)
+
+    assert not _together(splits[0], a, b)
+
+
+def test_a_quiet_night_spreads_partners_games_and_keeps_matches_even() -> None:
+    """12 players on 2 courts for 40 matches, the admin always taking the
+    first suggestion: nobody partners anyone more than twice, everyone's
+    games stay within 3 of each other, and the teams stay close in ELO."""
+    rnd = random.Random(7)
+    ids, players = _checked_in([int(rnd.gauss(1150, 150)) for _ in range(12)])
+    history: list[mm.PairHistoryEntry] = []
+    playing: list[set[UUID]] = []
+    partners: Counter[frozenset[UUID]] = Counter()
+    games: Counter[UUID] = Counter()
+    gaps: list[float] = []
+    for round_no in range(1, 41):
+        if len(playing) == 2:
+            playing.pop(0)  # the court that started first is the one that frees
+        busy = set().union(*playing) if playing else set()
+        free = [p for p in players if p.player_id not in busy]
+        splits, _ = mm.suggest_doubles_pairings(free, history, round_no)
+        split = splits[0]
+        history += _played(split.team1, split.team2, round_no)
+        partners[frozenset(split.team1)] += 1
+        partners[frozenset(split.team2)] += 1
+        for pid in (*split.team1, *split.team2):
+            games[pid] += 1
+        gaps.append(split.elo_balance_score)
+        playing.append(set(split.team1) | set(split.team2))
+
+    assert max(partners.values()) <= mm.TEAMMATE_LIMIT
+    assert max(games[p] for p in ids) - min(games[p] for p in ids) <= 3
+    assert sum(gaps) / len(gaps) < 60
 
 
 def test_locked_pair_always_stays_on_the_same_team() -> None:
@@ -132,7 +195,7 @@ def test_wide_tier_gap_waits_instead_of_matching() -> None:
 
 
 def test_two_tier_gap_is_the_allowed_boundary() -> None:
-    """"Highball, Highball vs Wine, Beer" — a 2-tier span (Beer to Wine) —
+    """ "Highball, Highball vs Wine, Beer" — a 2-tier span (Beer to Wine) —
     is the user-confirmed OK case: it should still get matched."""
     ids, players = _checked_in([1200, 1200, 1400, 1000])  # highball, highball, wine, beer
 

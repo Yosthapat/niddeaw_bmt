@@ -46,7 +46,7 @@ import app.supabase_client as supabase_client  # noqa: E402
 from app.deps import get_supabase  # noqa: E402
 from app.main import app  # noqa: E402
 from app.security import hash_password  # noqa: E402
-from app.services import line_auth  # noqa: E402
+from app.services import line_auth, matchmaking_service  # noqa: E402
 
 ADMIN_ID = str(uuid.uuid4())
 # Names shaped like the club's real ones — English, capitalised, and
@@ -118,6 +118,14 @@ def seed() -> MiniSupabase:
     ]
     for p in players[:8]:
         p["games"], p["wins"], p["losses"] = 1, 1 if players.index(p) % 2 == 0 else 0, 0
+    # who partnered and faced whom, as confirming each match writes it
+    db.tables["pairing_history"] = [
+        {**row, "id": str(uuid.uuid4()), "session_id": session_id, "match_id": m["id"], "created_at": m["created_at"]}
+        for round_no, m in enumerate(db.tables["matches"], start=1)
+        for row in matchmaking_service.build_pairing_history_rows(
+            tuple(m["team1_player_ids"]), tuple(m["team2_player_ids"]), round_no
+        )
+    ]
 
     db.tables["quest_settings"] = [
         {"id": 1, "start_date": (datetime.now().date() - timedelta(days=14)).isoformat(),

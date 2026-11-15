@@ -78,6 +78,36 @@ function gaugeOf(team1: string[], team2: string[]): { a: number; b: number } | n
   return x === null || y === null ? null : { a: x, b: y }
 }
 
+// Tonight's repeats in a proposed pairing: partners again at all, or across
+// the net for the third time or more. The suggestion avoids them; this shows
+// what is left, and what a hand edit would bring back.
+const pairsTonight = computed(() => {
+  const m = new Map<string, { teammates: number; opponents: number }>()
+  for (const p of queue.value?.pairs_tonight ?? []) m.set([p.player_a_id, p.player_b_id].sort().join('|'), p)
+  return m
+})
+interface Repeat {
+  key: string
+  text: string
+  hot: boolean
+}
+function repeatsOf(team1: string[], team2: string[]): Repeat[] {
+  const seen = (a: string, b: string) => pairsTonight.value.get([a, b].sort().join('|'))
+  const out: Repeat[] = []
+  for (const team of [team1, team2]) {
+    const [a, b] = team
+    const n = a && b ? (seen(a, b)?.teammates ?? 0) : 0
+    if (a && b && n > 0) out.push({ key: `m${a}${b}`, text: t('matchmaking.repeatMates', { a: nameOf(a), b: nameOf(b), n }), hot: n >= 2 })
+  }
+  for (const a of team1) {
+    for (const b of team2) {
+      const n = seen(a, b)?.opponents ?? 0
+      if (n >= 2) out.push({ key: `o${a}${b}`, text: t('matchmaking.repeatFoes', { a: nameOf(a), b: nameOf(b), n }), hot: n >= 4 })
+    }
+  }
+  return out
+}
+
 function nameOf(playerId: string): string {
   const p = playersStore.byId(playerId)
   return p ? p.nickname : '?'
@@ -952,6 +982,9 @@ const pollControls = usePolling(refreshQueue, 7000)
                 :elo1="gaugeOf(s.team1_player_ids, s.team2_player_ids)!.a"
                 :elo2="gaugeOf(s.team1_player_ids, s.team2_player_ids)!.b"
               />
+              <ul v-if="repeatsOf(s.team1_player_ids, s.team2_player_ids).length" class="repeats mt-2">
+                <li v-for="r in repeatsOf(s.team1_player_ids, s.team2_player_ids)" :key="r.key" :class="{ hot: r.hot }">{{ r.text }}</li>
+              </ul>
               <div class="mt-2 flex items-center justify-center gap-2">
                 <button
                   class="tap rounded-full border border-white/20 px-3 text-xs text-white/60 hover:border-brand-pink hover:text-brand-pink"
@@ -999,6 +1032,15 @@ const pollControls = usePolling(refreshQueue, 7000)
                 :placeholder="t('matchmaking.courtPlaceholder')"
                 class="w-full rounded border border-brand-pink/25 bg-brand-black px-2 py-1 text-xs"
               />
+              <ul v-if="draftByGroup[s.group_no] && repeatsOf(draftByGroup[s.group_no].team1, draftByGroup[s.group_no].team2).length" class="repeats">
+                <li
+                  v-for="r in repeatsOf(draftByGroup[s.group_no].team1, draftByGroup[s.group_no].team2)"
+                  :key="r.key"
+                  :class="{ hot: r.hot }"
+                >
+                  {{ r.text }}
+                </li>
+              </ul>
               <p v-if="draftHasDuplicate(s.group_no)" class="text-xs text-status-error">
                 {{ t('matchmaking.duplicatePlayer') }}
               </p>
@@ -1042,3 +1084,28 @@ const pollControls = usePolling(refreshQueue, 7000)
     <p v-else class="mt-8 text-white/50">{{ t('common.loading') }}</p>
   </main>
 </template>
+
+<style scoped>
+.repeats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 6px;
+  font-size: 11px;
+}
+.repeats li {
+  border-radius: 999px;
+  padding: 2px 8px;
+  color: #ffd98a;
+  background: rgb(255 196 77 / 0.12);
+  border: 1px solid rgb(255 196 77 / 0.3);
+}
+.repeats li::before {
+  content: '↻ ';
+}
+.repeats li.hot {
+  color: #ffb3b3;
+  background: rgb(255 92 92 / 0.14);
+  border-color: rgb(255 92 92 / 0.4);
+}
+</style>

@@ -19,6 +19,7 @@ from app.models.matchmaking import (
     LockedPair,
     MatchmakingQueueResponse,
     PairingSuggestion,
+    PairTonight,
     QueueEntry,
     WaitingEntry,
 )
@@ -303,4 +304,21 @@ def build_queue(supabase: Client, session_id: UUID) -> MatchmakingQueueResponse:
         waiting=waiting,
         avg_match_duration_minutes=avg_duration,
         locked_pairs=locked_pairs_list,
+        pairs_tonight=_pairs_tonight(history),
     )
+
+
+def _pairs_tonight(history: list[matchmaking_service.PairHistoryEntry]) -> list[PairTonight]:
+    tonight = matchmaking_service.Tonight.from_history(history)
+    out: list[PairTonight] = []
+    for pair in set(tonight.teammates) | set(tonight.opponents):
+        a, b = sorted(pair, key=str)
+        out.append(
+            PairTonight(
+                player_a_id=a,
+                player_b_id=b,
+                teammates=tonight.teammates[pair],
+                opponents=tonight.opponents[pair],
+            )
+        )
+    return out
