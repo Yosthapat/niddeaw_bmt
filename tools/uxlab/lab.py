@@ -401,6 +401,17 @@ def cup_lab(db: MiniSupabase) -> None:
         db.storage_bytes[f"shop/{path}"] = _slip_png()
         ts.record_slip(db, e, f"{db.public_base}/storage/v1/object/public/shop/{path}")
     ts.create_team(db, row, levels["Milk–Beer"], "ตันพี่ตี๋", (people["Tan"], me), (people["P'Tee"], None))
+    for direction, category, name, amount in (
+        ("income", "sponsor", "ร้านกีฬา A", 5000), ("income", "sponsor", "คาเฟ่ B", 2000),
+        ("expense", "court", None, 8000), ("expense", "shuttle", None, 3600),
+    ):
+        db.table(ts.MONEY).insert({
+            "id": str(uuid.uuid4()), "tournament_id": str(row["id"]), "direction": direction, "category": category,
+            "category_other": name, "amount": amount, "entry_date": datetime.now().date().isoformat(),
+            "paid_by": ADMIN_ID if direction == "expense" else None, "entrant_id": None, "team_id": None,
+            "quantity": None, "unit_price": None, "paid_via": "transfer", "receipt_url": None, "note": None,
+            "created_by": ADMIN_ID, "created_at": _iso(30),
+        }).execute()
 
 
 def _slip_png() -> bytes:

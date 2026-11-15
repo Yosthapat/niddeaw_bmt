@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /**
- * The tournament's own money: what came in (entry fees, written from the
- * slips checked; sponsors) and went out (courts, shuttles, trophies, prizes,
- * refunds), and what is left. Nothing here is the club's: the club's
+ * The tournament's own money in three parts, each with its own total and
+ * list: income (entry fees, written from the slips checked; coupon sales),
+ * sponsors (kept apart, by name), and expenses (courts, shuttles, trophies,
+ * prizes, refunds) — and what is left. Nothing here is the club's: the club's
  * revenue and expense screens never count it.
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
@@ -20,7 +21,7 @@ const { confirm } = useConfirmDialog()
 const { all, picked, load, pick } = useTournamentPick()
 
 const INPUT = 'w-full rounded border border-brand-pink-dark/40 bg-brand-black px-2 py-1.5 text-sm text-white'
-const INCOME: MoneyCategory[] = ['sponsor', 'extra_shuttles', 'other_income']
+const INCOME: MoneyCategory[] = ['extra_shuttles', 'other_income']
 const EXPENSE: MoneyCategory[] = ['court', 'shuttle', 'trophy', 'prize', 'staff', 'photo', 'coupon_refund', 'other']
 
 const rows = ref<Money[]>([])
@@ -49,8 +50,28 @@ onMounted(async () => {
   await refresh()
 })
 
+type Tab = 'income' | 'sponsor' | 'expense'
+const TABS: Tab[] = ['income', 'sponsor', 'expense']
+const tab = ref<Tab>('income')
+const tabOf = (m: Money): Tab => (m.category === 'sponsor' ? 'sponsor' : m.direction)
+const shown = computed(() => rows.value.filter((m) => tabOf(m) === tab.value))
+const sum = (part: Tab): number => rows.value.filter((m) => tabOf(m) === part).reduce((n, m) => n + Number(m.amount), 0)
+const totals = computed(() => {
+  const income = sum('income')
+  const sponsor = sum('sponsor')
+  const expense = sum('expense')
+  return { income, sponsor, expense, balance: income + sponsor - expense }
+})
+
 const today = (): string => new Date().toISOString().slice(0, 10)
 const adding = ref(false)
+/** The form opens for the part on screen: a sponsor, an income, an expense. */
+function openAdd(): void {
+  form.direction = tab.value === 'expense' ? 'expense' : 'income'
+  form.category = tab.value === 'sponsor' ? 'sponsor' : tab.value === 'income' ? INCOME[0] : EXPENSE[0]
+  form.category_other = ''
+  adding.value = true
+}
 const form = reactive({
   direction: 'expense' as 'income' | 'expense',
   category: 'court' as MoneyCategory,
@@ -63,21 +84,20 @@ const form = reactive({
 })
 const file = ref<File | null>(null)
 const categories = computed(() => (form.direction === 'income' ? INCOME : EXPENSE))
-watch(
-  () => form.direction,
-  () => {
-    form.category = categories.value[0]
-  },
-)
 
 async function add(): Promise<void> {
   if (!picked.value) return
   problem.value = ''
+  if (form.category === 'sponsor' && !form.category_other.trim()) {
+    problem.value = t('cup.money.sponsorNameMissing')
+    return
+  }
   try {
     const made = await tournamentAdmin.addMoney(picked.value.id, {
       direction: form.direction,
       category: form.category,
-      category_other: form.category === 'other' ? form.category_other.trim() || null : null,
+      // a sponsor's name, or what an "other" was for
+      category_other: form.category === 'other' || form.category === 'sponsor' ? form.category_other.trim() || null : null,
       amount: Number(form.amount),
       entry_date: form.entry_date,
       paid_by: form.direction === 'expense' && form.paid_by ? form.paid_by : null,
@@ -105,7 +125,8 @@ async function remove(m: Money): Promise<void> {
   }
 }
 
-const label = (m: Money): string => (m.category === 'other' && m.category_other ? m.category_other : t(`cup.money.cat.${m.category}`))
+const label = (m: Money): string =>
+  (m.category === 'other' || m.category === 'sponsor') && m.category_other ? m.category_other : t(`cup.money.cat.${m.category}`)
 const payer = (id: string | null): string => admins.value.find((a) => a.id === id)?.username ?? ''
 </script>
 
@@ -128,23 +149,29 @@ const payer = (id: string | null): string => admins.value.find((a) => a.id === i
     <template v-if="picked">
       <p class="mt-3 text-xs text-white/50">{{ t('cup.money.apart') }}</p>
 
-      <!-- the totals -->
-      <section v-if="summary" class="mt-3 grid grid-cols-3 gap-2">
+      <!-- the totals: income, sponsors, expenses, what is left -->
+      <section class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <button
+          v-for="part in TABS"
+          :key="part"
+          type="button"
+          class="hud-panel border bg-brand-surface p-3 text-left"
+          :class="tab === part ? 'border-brand-pink' : 'border-brand-pink/15'"
+          :aria-pressed="tab === part"
+          @click="tab = part; adding = false"
+        >
+          <span class="block text-xs text-white/55">{{ t(`cup.money.part.${part}`) }}</span>
+          <b class="font-display text-lg" :class="part === 'expense' ? 'text-[#ff9fb2]' : part === 'sponsor' ? 'text-[#ffd34d]' : 'text-status-success'">
+            {{ money(totals[part]) }}
+          </b>
+        </button>
         <div class="hud-panel border border-brand-pink/15 bg-brand-surface p-3">
-          <span class="block text-xs text-white/55">{{ t('cup.money.income') }}</span>
-          <b class="font-display text-lg text-status-success">{{ money(summary.income) }}</b>
-        </div>
-        <div class="hud-panel border border-brand-pink/15 bg-brand-surface p-3">
-          <span class="block text-xs text-white/55">{{ t('cup.money.expense') }}</span>
-          <b class="font-display text-lg text-[#ff9fb2]">{{ money(summary.expense) }}</b>
-        </div>
-        <div class="hud-panel border border-brand-pink/15 bg-brand-surface p-3">
-          <span class="block text-xs text-white/55">{{ summary.balance >= 0 ? t('cup.money.profit') : t('cup.money.loss') }}</span>
-          <b class="font-display text-lg" :class="summary.balance >= 0 ? 'text-white' : 'text-status-error'">{{ money(Math.abs(summary.balance)) }}</b>
+          <span class="block text-xs text-white/55">{{ totals.balance >= 0 ? t('cup.money.left') : t('cup.money.loss') }}</span>
+          <b class="font-display text-lg" :class="totals.balance >= 0 ? 'text-white' : 'text-status-error'">{{ money(Math.abs(totals.balance)) }}</b>
         </div>
       </section>
+      <p class="mt-1.5 text-xs text-white/45">{{ t('cup.money.balanceHow') }}</p>
       <div v-if="summary" class="mt-2 flex flex-wrap gap-2 text-xs">
-        <span v-for="(amount, name) in summary.by_level" :key="name" class="rounded-full bg-brand-black px-2.5 py-1 text-white/65">{{ name }}: {{ money(amount) }}</span>
         <RouterLink v-if="summary.pending_slips" to="/admin/tournament/teams" class="rounded-full border border-[#7fd0ff]/40 px-2.5 py-1 text-[#7fd0ff]">
           {{ t('cup.money.pending', { n: summary.pending_slips, amount: money(summary.pending_amount) }) }}
         </RouterLink>
@@ -153,26 +180,39 @@ const payer = (id: string | null): string => admins.value.find((a) => a.id === i
         </RouterLink>
       </div>
 
-      <!-- add -->
-      <button v-if="!adding" type="button" class="tap hud-hover mt-5 w-full rounded-full border border-brand-pink/40 px-4 text-sm font-semibold text-brand-pink" @click="adding = true">
-        + {{ t('cup.money.add') }}
+      <!-- one part at a time -->
+      <div class="mt-5 grid grid-cols-3 gap-1 rounded-full border border-white/10 p-1" role="tablist" :aria-label="t('cup.money.parts')">
+        <button
+          v-for="part in TABS"
+          :key="part"
+          type="button"
+          role="tab"
+          class="min-h-11 rounded-full text-sm font-semibold"
+          :class="tab === part ? 'bg-brand-pink text-brand-black' : 'text-white/70'"
+          :aria-selected="tab === part"
+          @click="tab = part; adding = false"
+        >
+          {{ t(`cup.money.part.${part}`) }}
+        </button>
+      </div>
+
+      <div v-if="tab === 'income' && summary && Object.keys(summary.by_level).length" class="mt-3 flex flex-wrap gap-2 text-xs">
+        <span class="text-white/50">{{ t('cup.money.feesByLevel') }}</span>
+        <span v-for="(amount, name) in summary.by_level" :key="name" class="rounded-full bg-brand-black px-2.5 py-1 text-white/65">{{ name }}: {{ money(amount) }}</span>
+      </div>
+      <p v-if="tab === 'income'" class="mt-2 text-xs text-white/45">{{ t('cup.money.incomeHint') }}</p>
+
+      <!-- add, for the part on screen -->
+      <button v-if="!adding" type="button" class="tap hud-hover mt-4 w-full rounded-full border border-brand-pink/40 px-4 text-sm font-semibold text-brand-pink" @click="openAdd">
+        + {{ t(`cup.money.add.${tab}`) }}
       </button>
-      <section v-else class="hud-panel mt-5 border border-brand-pink/20 bg-brand-surface p-4">
-        <div class="flex gap-1.5" role="group">
-          <button
-            v-for="d in (['expense', 'income'] as const)"
-            :key="d"
-            type="button"
-            class="tap rounded-full px-4 text-xs font-semibold"
-            :class="form.direction === d ? 'bg-brand-pink text-brand-black' : 'border border-white/20 text-white/70'"
-            :aria-pressed="form.direction === d"
-            @click="form.direction = d"
-          >
-            {{ t(`cup.money.${d}`) }}
-          </button>
-        </div>
+      <section v-else class="hud-panel mt-4 border border-brand-pink/20 bg-brand-surface p-4">
+        <h2 class="text-sm font-semibold text-white/70">{{ t(`cup.money.add.${tab}`) }}</h2>
         <div class="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-          <label class="flex flex-col gap-1 text-xs text-white/50">
+          <label v-if="tab === 'sponsor'" class="col-span-2 flex flex-col gap-1 text-xs text-white/50 sm:col-span-3">
+            {{ t('cup.money.sponsorName') }}<input v-model="form.category_other" maxlength="60" :class="INPUT" />
+          </label>
+          <label v-else class="flex flex-col gap-1 text-xs text-white/50">
             {{ t('cup.money.category') }}
             <select v-model="form.category" :class="INPUT">
               <option v-for="c in categories" :key="c" :value="c">{{ t(`cup.money.cat.${c}`) }}</option>
@@ -213,10 +253,10 @@ const payer = (id: string | null): string => admins.value.find((a) => a.id === i
 
       <p v-if="problem" class="mt-4 text-sm text-status-error" role="alert">{{ problem }}</p>
       <p v-if="loading && !rows.length" class="mt-6 text-white/60">{{ t('common.loading') }}</p>
-      <p v-else-if="!rows.length" class="mt-6 text-sm text-white/40">{{ t('cup.money.empty') }}</p>
+      <p v-else-if="!shown.length" class="mt-6 text-sm text-white/40">{{ t(`cup.money.empty.${tab}`) }}</p>
 
-      <ul class="mt-5 space-y-2">
-        <li v-for="m in rows" :key="m.id" class="hud-panel flex items-start gap-3 border border-brand-pink/15 bg-brand-surface p-3">
+      <ul class="mt-4 space-y-2">
+        <li v-for="m in shown" :key="m.id" class="hud-panel flex items-start gap-3 border border-brand-pink/15 bg-brand-surface p-3">
           <a v-if="m.receipt_url" :href="m.receipt_url" target="_blank" rel="noopener" class="shrink-0">
             <img :src="m.receipt_url" :alt="t('cup.money.receipt')" class="h-12 w-12 rounded border border-white/15 object-cover" />
           </a>
@@ -231,7 +271,9 @@ const payer = (id: string | null): string => admins.value.find((a) => a.id === i
             <p v-if="m.note" class="text-xs text-white/45">{{ m.note }}</p>
           </div>
           <div class="flex shrink-0 flex-col items-end gap-1">
-            <b :class="m.direction === 'income' ? 'text-status-success' : 'text-[#ff9fb2]'">{{ m.direction === 'income' ? '+' : '−' }}{{ money(m.amount) }}</b>
+            <b :class="m.direction === 'income' ? (m.category === 'sponsor' ? 'text-[#ffd34d]' : 'text-status-success') : 'text-[#ff9fb2]'">
+              {{ m.direction === 'income' ? '+' : '−' }}{{ money(m.amount) }}
+            </b>
             <button v-if="!m.automatic" type="button" class="text-xs text-white/40 underline" @click="remove(m)">{{ t('cup.money.delete') }}</button>
           </div>
         </li>
