@@ -69,7 +69,7 @@ export interface PublicLevel extends Level {
   waitlist: number
   teams: PublicTeam[]
   /** only once the schedule is published */
-  groups: { label: string; teams: PublicTeam[] }[]
+  groups: { label: string; teams: PublicTeam[]; standings: StandingRow[] }[]
 }
 
 /** One side of a match: a team once known, else the place it comes from
@@ -93,6 +93,54 @@ export interface CupMatch {
   a: MatchSlot
   b: MatchSlot
   est_start: string | null
+  status: 'scheduled' | 'on_court' | 'done'
+  court: number | null
+  call_count: number
+  called_at: string | null
+  finished_at: string | null
+  sets: [number, number][] | null
+  winner: 'a' | 'b' | 'draw' | null
+  walkover: boolean
+  shuttles: number | null
+}
+
+export interface StandingRow {
+  team_id: string
+  rank: number
+  played: number
+  won: number
+  drawn: number
+  lost: number
+  points: number
+  scored: number
+  conceded: number
+  diff: number
+}
+
+export interface TeamCoupons {
+  team_id: string
+  team_name: string
+  level_name: string
+  players: PublicPlayer[]
+  sets: number
+  given: number
+  used: number
+  returned: number
+  left: number
+  next_match_no: number | null
+}
+
+export interface GameDay {
+  tournament_id: string
+  courts: number
+  published: boolean
+  matches: CupMatch[]
+  /** could be called now, in order: teams known, free, rested */
+  ready: string[]
+  coupons: TeamCoupons[]
+  extra_set_price: number
+  coupon_refund_price: number
+  coupons_per_set: number
 }
 
 export interface DrawTeam {
@@ -385,6 +433,17 @@ export const tournamentAdmin = {
   makeSchedule: (id: string): Promise<DrawState> => request(`${A}/tournaments/${id}/schedule`, { method: 'POST' }),
   clearSchedule: (id: string): Promise<DrawState> => request(`${A}/tournaments/${id}/schedule`, { method: 'DELETE' }),
   publish: (id: string, on: boolean): Promise<DrawState> => request(`${A}/tournaments/${id}/publish`, json('POST', { on })),
+
+  day: (id: string): Promise<GameDay> => request(`${A}/tournaments/${id}/day`),
+  call: (matchId: string, court: number): Promise<GameDay> => request(`${A}/matches/${matchId}/call`, json('POST', { court })),
+  callAgain: (matchId: string): Promise<GameDay> => request(`${A}/matches/${matchId}/call-again`, { method: 'POST' }),
+  uncall: (matchId: string): Promise<GameDay> => request(`${A}/matches/${matchId}/uncall`, { method: 'POST' }),
+  result: (matchId: string, body: { sets?: number[][]; shuttles?: number; walkover_winner?: 'a' | 'b' }): Promise<GameDay> =>
+    request(`${A}/matches/${matchId}/result`, json('POST', body)),
+  sellCoupons: (teamId: string, quantity: number, via: PaidVia, slip: File | null): Promise<GameDay> =>
+    request(`${A}/teams/${teamId}/coupons/sell?quantity=${quantity}&paid_via=${via}`, slip ? file(slip) : { method: 'POST' }),
+  returnCoupons: (teamId: string, quantity: number, via: PaidVia, slip: File | null): Promise<GameDay> =>
+    request(`${A}/teams/${teamId}/coupons/return?quantity=${quantity}&paid_via=${via}`, slip ? file(slip) : { method: 'POST' }),
 
   admins: (): Promise<{ id: string; username: string }[]> => request(`${A}/admins`),
   activity: (day?: string): Promise<TournamentActivity[]> => request(`${A}/activity${day ? `?day=${day}` : ''}`),

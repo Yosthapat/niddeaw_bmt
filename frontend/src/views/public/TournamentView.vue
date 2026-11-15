@@ -16,6 +16,8 @@ import { formatDateTime, formatDateWithWeekday, money } from '@/utils/format'
 import type { Locale } from '@/i18n'
 import CupMatchCard from '@/components/cup/CupMatchCard.vue'
 import CupTeamLine from '@/components/cup/CupTeamLine.vue'
+import CupStandings from '@/components/cup/CupStandings.vue'
+import { usePolling } from '@/composables/usePolling'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -24,14 +26,23 @@ const cup = ref<PublicTournament | null>(null)
 const loaded = ref(false)
 const lineHref = ref('https://line.me/R/ti/p/@369iojcn')
 
-onMounted(async () => {
+async function reload(): Promise<void> {
   try {
     cup.value = await getPublicTournament()
   } catch {
-    cup.value = null // the "coming soon" page, as before
+    if (!loaded.value) cup.value = null // the "coming soon" page, as before
   } finally {
     loaded.value = true
   }
+}
+// On the day, the board and results follow the desk without a refresh.
+usePolling(async () => {
+  if (cup.value?.schedule_published) await reload()
+}, 20000)
+const live = computed(() => (cup.value?.matches ?? []).filter((m) => m.status === 'on_court').sort((a, b) => (a.court ?? 0) - (b.court ?? 0)))
+
+onMounted(async () => {
+  await reload()
   try {
     const config = await getLineConfig()
     // LIFF adds the path to the endpoint: this opens /line/tournament in LINE
@@ -109,6 +120,17 @@ function range(min: number | null, max: number | null): string {
         {{ t('cup.signUpInLine') }}
       </a>
 
+      <!-- on court now, across every level -->
+      <section v-if="live.length" class="t-plan flex-col !items-stretch gap-2 !border-[#7ff0b4]/40">
+        <h2 class="flex items-center gap-2 font-display text-lg font-bold">
+          <span class="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-[#7ff0b4]" aria-hidden="true" />
+          {{ t('cup.day.liveTitle') }}
+        </h2>
+        <div class="grid gap-1.5 sm:grid-cols-2">
+          <CupMatchCard v-for="m in live" :key="m.id" :match="m" show-level />
+        </div>
+      </section>
+
       <!-- one level at a time -->
       <div class="sticky top-[calc(var(--header-h)+6px)] z-10 -mx-4 overflow-x-auto px-4 pb-1" role="tablist" :aria-label="t('cup.level')">
         <div class="flex w-max gap-1.5 rounded-full border border-white/12 bg-[#1a0838]/90 p-1 backdrop-blur">
@@ -169,6 +191,12 @@ function range(min: number | null, max: number | null): string {
 
         <!-- published: this level's groups and matches -->
         <template v-else>
+          <section v-if="shown.groups.some((g) => g.standings.length)" class="t-plan flex-col !items-stretch gap-2">
+            <h3 class="font-display text-base font-bold">{{ t('cup.table.title') }}</h3>
+            <div class="grid gap-2 sm:grid-cols-2">
+              <CupStandings v-for="g in shown.groups.filter((x) => x.standings.length)" :key="g.label" :label="g.label" :teams="g.teams" :standings="g.standings" />
+            </div>
+          </section>
           <section v-if="shown.groups.length" class="t-plan flex-col !items-stretch gap-2">
             <h3 class="font-display text-base font-bold">{{ t('cup.schedule.groups') }}</h3>
             <div class="grid gap-2 sm:grid-cols-2">

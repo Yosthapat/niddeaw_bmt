@@ -22,6 +22,8 @@ import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import BrandQr from '@/components/common/BrandQr.vue'
 import CupMatchCard from '@/components/cup/CupMatchCard.vue'
 import CupTeamLine from '@/components/cup/CupTeamLine.vue'
+import CupStandings from '@/components/cup/CupStandings.vue'
+import { usePolling } from '@/composables/usePolling'
 
 const props = defineProps<{ token: string }>()
 const emit = defineEmits<{ back: [] }>()
@@ -150,6 +152,18 @@ const myGroup = computed(() => {
   return lv?.groups.find((g) => g.teams.some((x) => x.id === team.value?.id)) ?? null
 })
 const myMatches = computed(() => (cup.value?.matches ?? []).filter((m) => m.a.team_id === team.value?.id || m.b.team_id === team.value?.id))
+
+const calledNow = computed(() => myMatches.value.find((m) => m.status === 'on_court') ?? null)
+// On the day: hear about a call without reopening the page.
+usePolling(async () => {
+  if (data.value?.tournament?.schedule_published && !busy.value) {
+    try {
+      data.value = await lineTournament.get(props.token)
+    } catch {
+      /* the next tick tries again */
+    }
+  }
+}, 20000)
 
 const rulesOf = (id: string): string => cup.value?.levels.find((lv) => lv.id === id)?.rules ?? ''
 
@@ -399,6 +413,13 @@ async function attach(event: Event): Promise<void> {
           </template>
         </div>
 
+        <!-- called to a court: the one thing that matters right now -->
+        <div v-if="calledNow" class="called flex flex-col items-center gap-1 rounded-3xl p-5 text-center" role="alert">
+          <span class="font-display text-sm font-bold tracking-[3px]">{{ t('cup.day.calledYou') }}</span>
+          <span class="font-display text-4xl font-bold">{{ t('cup.day.court', { n: calledNow.court }) }}</span>
+          <span class="text-sm">#{{ calledNow.match_no }} · {{ t('cup.day.calledHint') }}</span>
+        </div>
+
         <!-- my group and my matches: "coming soon" until published -->
         <div v-if="team.status === 'confirmed'" class="world-card flex flex-col gap-2 p-4">
           <h3 class="font-display text-base font-bold">{{ t('cup.schedule.mine') }}</h3>
@@ -413,6 +434,7 @@ async function attach(event: Event): Promise<void> {
                 <CupTeamLine v-for="(x, i) in myGroup.teams" :key="x.name" :name="x.name" :players="x.players" :prefix="`${myGroup.label}${i + 1}`" :mine="x.id === team.id" />
               </div>
             </div>
+            <CupStandings v-if="myGroup?.standings.length" :label="myGroup.label" :teams="myGroup.teams" :standings="myGroup.standings" :mine-id="team.id" />
             <div class="flex flex-col gap-1.5">
               <CupMatchCard v-for="m in myMatches" :key="m.id" :match="m" :mine-id="team.id" />
             </div>
@@ -428,6 +450,11 @@ async function attach(event: Event): Promise<void> {
 
 
 <style scoped>
+.called {
+  background: linear-gradient(#7ff0b4, #2fbf7f);
+  color: #06281a;
+  box-shadow: 0 10px 28px rgb(47 191 127 / 0.45);
+}
 /* the screen's one next step, as on the bill screen (LineBillPay.vue) */
 .cta {
   background: linear-gradient(#ff8fd0, #ea4ca4);
