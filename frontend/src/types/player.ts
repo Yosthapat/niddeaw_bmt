@@ -36,7 +36,7 @@ export interface PlayerStats {
   score_percent: number
 }
 
-/** The opponent this player has faced most often ("เทกันจัง"). */
+/** The opponent this player has faced most often ("ขาประจำฝั่งตรงข้าม"). */
 export interface NemesisInfo {
   player: Player
   encounters: number

@@ -87,7 +87,7 @@ class NemesisRecord:
 def find_nemesis(
     player_id: UUID, matches: list[CompletedMatchRow]
 ) -> tuple[UUID, NemesisRecord] | None:
-    """Finds the opponent `player_id` has faced most often ("เทกันจัง"),
+    """Finds the opponent `player_id` has faced most often ("ขาประจำฝั่งตรงข้าม"),
     with the head-to-head record from `player_id`'s perspective."""
     records: dict[UUID, NemesisRecord] = {}
 

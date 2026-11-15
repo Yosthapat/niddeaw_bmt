@@ -20,7 +20,7 @@ Medals (thresholds per level, bronze → silver → gold → special):
     marathon   games in one night
     mixer      different doubles partners
     buddy      wins with the same partner
-    revenge    wins over a team with their "เทกันจัง" (most-faced opponent,
+    revenge    wins over a team with their "ขาประจำฝั่งตรงข้าม" (most-faced opponent,
                met at least 5 times)
     podium     each ELO tier reached for the first time (above the tier
                they were at when counting started)
@@ -58,7 +58,7 @@ GIANT_GAP = 100
 UNBEATEN_MIN_GAMES = 4
 HISTORY_MATCH_NO = 1000
 NEMESIS_MIN_GAMES = 5
-"""A เทกันจัง met only once or twice is just the one person you played: beating
+"""A ขาประจำฝั่งตรงข้าม met only once or twice is just the one person you played: beating
 them is no payback."""
 
 
@@ -103,7 +103,7 @@ class Progress:
 
     value: int = 0
     earned: list[datetime | None] = field(default_factory=list)
-    other: str | None = None  # the partner (buddy) or the เทกันจัง (revenge)
+    other: str | None = None  # the partner (buddy) or the ขาประจำฝั่งตรงข้าม (revenge)
 
 
 @dataclass
@@ -162,7 +162,7 @@ def derive(
     """`players`: id -> current ELO. `nights`: the nights since counting
     started. `matches`: completed matches since then, oldest first (used for
     ELO history too). `all_time`: every completed match (team ids and
-    winner), for each member's เทกันจัง."""
+    winner), for each member's ขาประจำฝั่งตรงข้าม."""
     out = _blank(players)
 
     # ELO before each match, walked back from today's rating.
