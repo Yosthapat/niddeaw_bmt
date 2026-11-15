@@ -1,6 +1,6 @@
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.models.fields import Baht, EditForm, Handle
 
@@ -10,7 +10,7 @@ PaymentMethod = Literal["promptpay", "bank_account", "bank_account_qr", "uploade
 
 class ClubSettingsUpdate(EditForm):
     NOT_NULL = frozenset(
-        {"payment_method", "promptpay_id", "promptpay_type", "default_court_fee_per_person", "default_shuttlecock_price_per_game"}
+        {"payment_method", "promptpay_id", "promptpay_type", "default_court_fee_per_person", "default_shuttlecock_price_per_game", "pass_price"}
     )
 
     payment_method: PaymentMethod | None = None
@@ -21,6 +21,7 @@ class ClubSettingsUpdate(EditForm):
     bank_account_name: Handle | None = None
     default_court_fee_per_person: Baht | None = None
     default_shuttlecock_price_per_game: Baht | None = None
+    pass_price: Annotated[int, Field(ge=1, le=100000)] | None = None
 
 
 class ClubSettings(BaseModel):
@@ -33,3 +34,5 @@ class ClubSettings(BaseModel):
     uploaded_qr_url: str | None = None
     default_court_fee_per_person: float
     default_shuttlecock_price_per_game: float
+    pass_price: int = 249
+    """Credits for a 30-day Niddeaw Pass (0045_niddeaw_pass.sql)."""

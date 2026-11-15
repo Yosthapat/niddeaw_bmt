@@ -61,6 +61,8 @@ export interface ClubSettings {
   uploaded_qr_url: string | null
   default_court_fee_per_person: number
   default_shuttlecock_price_per_game: number
+  /** Credits for a 30-day Niddeaw Pass. */
+  pass_price?: number
 }
 
 /** Mirrors backend app/routers/admin/billing.py PaymentInfoResponse. */

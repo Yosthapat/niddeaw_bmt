@@ -264,6 +264,7 @@ onMounted(async () => {
   void loadSheets()
   try {
     settings.value = await adminApi.getClubSettings()
+    loadedPassPrice.value = settings.value.pass_price
   } catch (e) {
     loadError.value = apiErrorMessage(e, t('settings.loadFailed'))
   } finally {
@@ -289,6 +290,14 @@ const shuttlecockProblem = computed(() => {
   const p = settings.value && bahtProblem(settings.value.default_shuttlecock_price_per_game, { allowZero: true })
   return p ? t(`validation.${p}`) : null
 })
+const passPriceProblem = computed(() => {
+  const p = settings.value?.pass_price
+  return p !== undefined && (!Number.isInteger(p) || p < 1 || p > 100000) ? t('settings.passPriceBad') : null
+})
+// The pass price goes out only when changed: on a database without
+// 0045_niddeaw_pass.sql the column isn't there, and saving the rest of the
+// settings must still work.
+const loadedPassPrice = ref<number | undefined>(undefined)
 // Red only after the first Save, not while the id is half typed.
 const tried = ref(false)
 
@@ -296,12 +305,14 @@ async function save(): Promise<void> {
   if (!settings.value) return
   tried.value = true
   saved.value = false
-  if (promptpayProblem.value || courtFeeProblem.value || shuttlecockProblem.value) return
+  if (promptpayProblem.value || courtFeeProblem.value || shuttlecockProblem.value || passPriceProblem.value) return
   saving.value = true
   saved.value = false
   saveError.value = null
   try {
-    settings.value = await adminApi.updateClubSettings(settings.value)
+    const { pass_price, ...rest } = settings.value
+    settings.value = await adminApi.updateClubSettings(pass_price !== loadedPassPrice.value ? { ...rest, pass_price } : rest)
+    loadedPassPrice.value = settings.value.pass_price
     saved.value = true
   } catch (e) {
     saveError.value = apiErrorMessage(e, t('settings.saveFailed'))
@@ -448,6 +459,21 @@ const paymentMethodOptions = computed<{ value: PaymentMethod; label: string }[]>
           class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-surface px-3 outline-none focus:border-brand-pink"
         />
         <span v-if="tried && shuttlecockProblem" class="text-xs text-status-error">{{ shuttlecockProblem }}</span>
+      </label>
+
+      <label v-if="settings.pass_price !== undefined" class="flex flex-col gap-1 text-sm">
+        {{ t('settings.passPrice') }}
+        <input
+          v-model.number="settings.pass_price"
+          type="number"
+          inputmode="numeric"
+          min="1"
+          step="1"
+          :aria-invalid="tried && !!passPriceProblem"
+          class="min-h-11 rounded-lg border border-[#ffcf4d]/35 bg-brand-surface px-3 outline-none focus:border-[#ffcf4d]"
+        />
+        <span class="text-xs text-white/45">{{ t('settings.passPriceHint') }}</span>
+        <span v-if="tried && passPriceProblem" class="text-xs text-status-error">{{ passPriceProblem }}</span>
       </label>
 
       <p v-if="saved" class="text-sm text-status-success">{{ t('settings.saved') }}</p>

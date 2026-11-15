@@ -24,7 +24,7 @@ from app.models.matchmaking import (
     QueueEntry,
     WaitingEntry,
 )
-from app.services import matchmaking_service
+from app.services import matchmaking_service, pass_service
 
 RECENT_MATCHES_FOR_DURATION_AVG = 10
 
@@ -135,6 +135,19 @@ def current_round_no(supabase: Client, session_id: UUID) -> int:
     return (result.count or 0) + 1
 
 
+def fetch_pass_perks(
+    supabase: Client, session_id: UUID
+) -> tuple[frozenset[UUID], frozenset[frozenset[UUID]]]:
+    """Tonight's Niddeaw Pass holders, and the partners they asked not to
+    have. Nothing at all on a database without 0045_niddeaw_pass.sql."""
+    try:
+        holders = pass_service.holders(supabase)
+        blocked = pass_service.blocked_partners(supabase, session_id, holders)
+    except Exception:  # noqa: BLE001 — no pass tables yet: pair as before
+        return frozenset(), frozenset()
+    return frozenset(UUID(h) for h in holders), frozenset(blocked)
+
+
 def fetch_locked_pairs(supabase: Client, session_id: UUID) -> list[LockedPair]:
     result = (
         supabase.table("locked_pairs")
@@ -155,6 +168,7 @@ def build_suggestions(
     history: list[matchmaking_service.PairHistoryEntry] | None = None,
     current_round: int | None = None,
     checked_in: list[matchmaking_service.CheckedInPlayer] | None = None,
+    pass_perks: tuple[frozenset[UUID], frozenset[frozenset[UUID]]] | None = None,
 ) -> tuple[list[PairingSuggestion], list[UUID]]:
     """Every keyword-only param lets build_queue() pass in what it already
     fetched (in parallel) instead of this function re-querying the same
@@ -179,8 +193,11 @@ def build_suggestions(
         locked_pairs_list = fetch_locked_pairs(supabase, session_id)
     locked_pairs = tuple((lp.player_a_id, lp.player_b_id) for lp in locked_pairs_list)
 
+    if pass_perks is None:
+        pass_perks = fetch_pass_perks(supabase, session_id)
+    holders, blocked = pass_perks
     splits, waiting = matchmaking_service.suggest_doubles_pairings(
-        checked_in, history, current_round, locked_pairs
+        checked_in, history, current_round, locked_pairs, pass_holders=holders, blocked_partners=blocked
     )
     suggestions = [
         PairingSuggestion(
@@ -242,7 +259,7 @@ def build_queue(supabase: Client, session_id: UUID) -> MatchmakingQueueResponse:
     # its own Supabase network round-trip) instead of one after another,
     # since supabase-py's Client is synchronous and has no built-in way to
     # batch these into one request.
-    with ThreadPoolExecutor(max_workers=7) as pool:
+    with ThreadPoolExecutor(max_workers=8) as pool:
         in_progress_future = pool.submit(_fetch_queue_entries, supabase, session_id, "in_progress")
         queued_future = pool.submit(_fetch_queue_entries, supabase, session_id, "queued")
         locked_pairs_future = pool.submit(fetch_locked_pairs, supabase, session_id)
@@ -250,6 +267,7 @@ def build_queue(supabase: Client, session_id: UUID) -> MatchmakingQueueResponse:
         round_no_future = pool.submit(current_round_no, supabase, session_id)
         recent_future = pool.submit(_fetch_recent_completed, supabase, session_id)
         checkins_future = pool.submit(_fetch_checkins, supabase, session_id)
+        perks_future = pool.submit(fetch_pass_perks, supabase, session_id)
 
         in_progress = in_progress_future.result()
         queued = queued_future.result()
@@ -258,6 +276,7 @@ def build_queue(supabase: Client, session_id: UUID) -> MatchmakingQueueResponse:
         current_round = round_no_future.result()
         recent_rows = recent_future.result()
         checkins = checkins_future.result()
+        pass_perks = perks_future.result()
 
     checkin_ids = [UUID(row["player_id"]) for row in checkins if not row.get("paused_at")]
     paused = sorted(
@@ -288,6 +307,7 @@ def build_queue(supabase: Client, session_id: UUID) -> MatchmakingQueueResponse:
         history=history,
         current_round=current_round,
         checked_in=checked_in,
+        pass_perks=pass_perks,
     )
 
     durations = [

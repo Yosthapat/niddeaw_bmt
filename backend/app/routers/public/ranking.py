@@ -1,5 +1,5 @@
+from datetime import UTC, datetime
 from datetime import date as DateType
-from datetime import datetime, timezone
 from typing import Literal
 from uuid import UUID
 
@@ -7,8 +7,9 @@ from fastapi import APIRouter, Query
 
 from app.db_utils import rows
 from app.deps import SupabaseDep
+from app.models.niddeaw_pass import SeasonStanding
 from app.models.player import Player, PlayerStats
-from app.services import record_service, stats_service
+from app.services import pass_service, record_service, stats_service
 
 router = APIRouter(prefix="/api/ranking", tags=["public-ranking"])
 
@@ -37,6 +38,38 @@ def _play_dates(supabase: SupabaseDep) -> list[DateType]:
         supabase.table("sessions").select("id, date").in_("id", list(set(session_ids))).execute()
     )
     return stats_service.play_dates(session_ids, rows(sessions_result))  # type: ignore[arg-type]
+
+
+@router.get("/season", response_model=list[SeasonStanding])
+def season_standings(supabase: SupabaseDep, year: int | None = Query(None, ge=2000, le=2100)) -> list[SeasonStanding]:
+    """Season points for a calendar year (this one by default), most first:
+    the rating each win earned, 15% more while a Niddeaw Pass ran. ELO is
+    the skill ladder; this is who did most with the year."""
+    when = year or datetime.now(UTC).year
+    try:
+        points = pass_service.season_points(
+            supabase, datetime(when, 1, 1, tzinfo=UTC), datetime(when + 1, 1, 1, tzinfo=UTC)
+        )
+    except Exception:  # noqa: BLE001 — no passes table yet: count wins plainly
+        points = {}
+    if not points:
+        return []
+    players = {
+        str(p["id"]): p
+        for p in rows(supabase.table("players").select("id,nickname,avatar_url,elo_level").in_("id", list(points)).execute())
+    }
+    standings = [
+        SeasonStanding(
+            player_id=UUID(pid),
+            nickname=players[pid]["nickname"],
+            avatar_url=players[pid].get("avatar_url"),
+            elo_level=players[pid].get("elo_level"),
+            points=value,
+        )
+        for pid, value in points.items()
+        if pid in players and value > 0
+    ]
+    return sorted(standings, key=lambda s: (-s.points, s.nickname.lower()))
 
 
 @router.get("/days", response_model=list[DateType])
@@ -90,7 +123,7 @@ def get_ranking(
         # Bounded to this year's matches at the query level (not fetched in
         # full then filtered in Python), and paged, so it keeps counting
         # once a year of club nights passes PostgREST's 1000-row ceiling.
-        year_start = datetime(datetime.now(timezone.utc).year, 1, 1, tzinfo=timezone.utc)
+        year_start = datetime(datetime.now(UTC).year, 1, 1, tzinfo=UTC)
         records = stats_service.build_player_records(
             record_service.completed_matches(supabase, since=year_start)  # type: ignore[arg-type]
         )

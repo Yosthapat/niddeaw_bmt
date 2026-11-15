@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, StringConstraints, model_validator
 from app.models.player import Player
 
 TopupStatus = Literal["pending", "approved", "rejected"]
-LedgerKind = Literal["topup", "bill", "refund", "adjust"]
+LedgerKind = Literal["topup", "bill", "refund", "adjust", "pass"]
 
 Credits = Annotated[int, Field(ge=1, le=100000)]
 Reason = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]

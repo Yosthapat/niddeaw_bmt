@@ -338,6 +338,26 @@ def slip_lab(db: MiniSupabase) -> None:
     )
 
 
+def pass_lab(db: MiniSupabase) -> None:
+    """UXLAB_PASS=1: Ball is linked to LINE (log in with the fake ID token
+    "fake:U" + 32 b's + ":Ball") and holds a pink card: a 1,000 pack bought
+    through LINE, so the Niddeaw Pass can be bought."""
+    for t in ("credit_topups", "credit_ledger", "player_credits", "passes", "pass_blocks"):
+        db.tables.setdefault(t, [])
+    ball = next(p for p in db.tables["players"] if p["nickname"] == "Ball")
+    ball["line_user_id"] = "U" + "b" * 32
+    top = str(uuid.uuid4())
+    db.tables["credit_topups"].append({
+        "id": top, "player_id": ball["id"], "credits": 1000, "price": 950.0, "slip_url": None,
+        "slip_sent_at": _iso(600), "status": "approved", "note": None, "decided_at": _iso(590), "created_at": _iso(601),
+    })
+    db.tables["credit_ledger"].append({
+        "id": str(uuid.uuid4()), "player_id": ball["id"], "delta": 1000, "balance_after": 1000, "kind": "topup",
+        "cash": 950.0, "ref_id": top, "note": "uxlab", "admin_id": ADMIN_ID, "created_at": _iso(590),
+    })
+    db.tables["player_credits"].append({"player_id": ball["id"], "balance": 1000, "updated_at": _iso(590)})
+
+
 DB = seed()
 if os.environ.get("UXLAB_QUESTS"):
     quest_history(DB)
@@ -346,6 +366,8 @@ if os.environ.get("UXLAB_CARDS"):
 DB.public_base = f"http://127.0.0.1:{PORT}"
 if os.environ.get("UXLAB_SLIPS"):
     slip_lab(DB)
+if os.environ.get("UXLAB_PASS"):
+    pass_lab(DB)
 app.dependency_overrides[get_supabase] = lambda: DB
 # The activity-log middleware reaches for the client directly rather than
 # through the dependency, so both names have to point at the stand-in.

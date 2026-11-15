@@ -224,7 +224,7 @@ export interface CreditTopup {
   created_at: string
 }
 
-export type LedgerKind = 'topup' | 'bill' | 'refund' | 'adjust'
+export type LedgerKind = 'topup' | 'bill' | 'refund' | 'adjust' | 'pass'
 
 export interface LedgerEntry {
   id: string
@@ -280,6 +280,46 @@ export function sendTopupSlip(token: string, topupId: string, file: File): Promi
 
 export function cancelTopup(token: string, topupId: string): Promise<LineCredit> {
   return request(`/api/line/credit/topups/${topupId}`, { ...auth(token), method: 'DELETE' })
+}
+
+// Niddeaw Pass: bought with credit by card holders (backend pass_service)
+export interface PassPerson {
+  player_id: string
+  nickname: string
+  avatar_url: string | null
+}
+
+export interface LinePass {
+  price: number
+  days: number
+  balance: number
+  /** Holds a credit card: bought a 1,000 pack or more through LINE. */
+  eligible: boolean
+  /** When their pass ends; null when none runs. */
+  ends_at: string | null
+  season_points: number
+  season_year: number
+  max_blocks: number
+  /** In tonight: blocks can be chosen. */
+  checked_in: boolean
+  blocks: PassPerson[]
+  candidates: PassPerson[]
+}
+
+export function getPass(token: string): Promise<LinePass> {
+  return request('/api/line/pass', auth(token))
+}
+
+export function buyPass(token: string): Promise<LinePass> {
+  return request('/api/line/pass/buy', { ...auth(token), method: 'POST' })
+}
+
+export function addPassBlock(token: string, playerId: string): Promise<LinePass> {
+  return request('/api/line/pass/blocks', { ...auth(token), method: 'POST', body: JSON.stringify({ player_id: playerId }) })
+}
+
+export function removePassBlock(token: string, playerId: string): Promise<LinePass> {
+  return request(`/api/line/pass/blocks/${playerId}`, { ...auth(token), method: 'DELETE' })
 }
 
 /** The member's LINE token for this tab, kept so their own profile page can

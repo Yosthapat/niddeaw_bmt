@@ -6,7 +6,7 @@ from app.config import get_settings
 from app.middleware.activity_log import AdminActivityLogMiddleware
 from app.middleware.body_limit import BodyLimitMiddleware
 from app.middleware.unhandled_errors import UnhandledErrorsMiddleware
-from app.routers import line, line_credit, quests
+from app.routers import line, line_credit, line_pass, quests
 from app.routers.admin import activity_log as admin_activity_log
 from app.routers.admin import auth as admin_auth
 from app.routers.admin import backup as admin_backup
@@ -72,6 +72,7 @@ app.include_router(credit_cards.router)
 app.include_router(shop.router)
 app.include_router(line.router)
 app.include_router(line_credit.router)
+app.include_router(line_pass.router)
 app.include_router(quests.public)
 app.include_router(quests.line)
 app.include_router(quests.admin)

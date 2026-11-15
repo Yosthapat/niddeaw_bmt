@@ -27,6 +27,7 @@ import LineCheckout from '@/components/line/LineCheckout.vue'
 import LineBills from '@/components/line/LineBills.vue'
 import LineCredit from '@/components/line/LineCredit.vue'
 import LineBadges from '@/components/line/LineBadges.vue'
+import LinePass from '@/components/line/LinePass.vue'
 import LineBadgeCelebrate from '@/components/line/LineBadgeCelebrate.vue'
 import LineCardCelebrate from '@/components/line/LineCardCelebrate.vue'
 import PlayerShopOrders from '@/components/shop/PlayerShopOrders.vue'
@@ -60,7 +61,7 @@ const canScan = ref(false)
 const gpsCheckin = ref(false)
 // A linked member's other screens: tonight's checkout and their bills
 // (/line/checkout, /line/bills — the OA menu's "เช็คเอาท์ จ่ายเงิน").
-type Screen = 'home' | 'checkout' | 'bills' | 'credit' | 'badges'
+type Screen = 'home' | 'checkout' | 'bills' | 'credit' | 'badges' | 'pass'
 const screen = ref<Screen>('home')
 const tonight = ref<LineTonight | null>(null)
 const badgeCount = ref(0)
@@ -103,7 +104,7 @@ async function start(): Promise<void> {
     // /line/profile (the OA menu's profile button) is this page: their LINE
     // card, with checkout, bills, credit and badges.
     if (route.params.section === 'profile') void router.replace('/line')
-    if (status.player && (route.params.section === 'checkout' || route.params.section === 'bills' || route.params.section === 'credit' || route.params.section === 'badges')) {
+    if (status.player && (route.params.section === 'checkout' || route.params.section === 'bills' || route.params.section === 'credit' || route.params.section === 'badges' || route.params.section === 'pass')) {
       await go(route.params.section)
     }
     phase.value = 'ready'
@@ -352,6 +353,8 @@ onUnmounted(() => {
 
         <LineBadges v-else-if="me.player && screen === 'badges'" :token="token" @back="go('home')" />
 
+        <LinePass v-else-if="me.player && screen === 'pass'" :token="token" :name="me.player.nickname" @back="go('home')" @credit="go('credit')" />
+
         <!-- linked: who they are, and what's coming -->
         <section v-else-if="me.player" class="world-card flex flex-col items-center gap-3 p-6 text-center">
           <p v-if="justLinked" class="linked-now" role="status">
@@ -380,6 +383,7 @@ onUnmounted(() => {
             <button type="button" class="credit-pill col-span-full justify-center" @click="go('credit')">
               <span class="coin-dot" aria-hidden="true">฿</span>{{ t('lineCredit.open') }}<CreditCardMark :player-id="me.player.id" class="ml-1" />
             </button>
+            <button type="button" class="pass-pill col-span-full justify-center" @click="go('pass')">✦ Niddeaw Pass</button>
             <button type="button" class="glass-pill col-span-full justify-center gap-2" @click="go('badges')">
               <img src="/badges/fire_10.webp" alt="" width="64" height="64" class="h-7 w-7 object-contain" />
               {{ t('quests.mine') }}<span v-if="badgeCount" class="text-[#f2c14e]">· {{ badgeCount }}</span>
@@ -537,6 +541,19 @@ onUnmounted(() => {
   .linked-now {
     animation: none;
   }
+}
+.pass-pill {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  border-radius: 999px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #fff1b8;
+  background: linear-gradient(135deg, #2a1a05, #5a3a08 50%, #2a1a05);
+  border: 1px solid rgb(255 207 77 / 0.55);
+  box-shadow: 0 0 18px rgb(255 207 77 / 0.15);
 }
 .credit-pill {
   display: flex;
