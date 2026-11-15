@@ -13,8 +13,9 @@ import { apiErrorMessage } from '@/api/errors'
 import { useTournamentPick } from '@/composables/useTournamentPick'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { money } from '@/utils/format'
+import DatePick, { type QuickPick } from '@/components/admin/DatePick.vue'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { confirm } = useConfirmDialog()
 const { all, picked, loading, problem, load, pick, replace } = useTournamentPick()
 
@@ -30,10 +31,50 @@ function toLocalInput(iso: string | null): string {
 }
 const fromLocalInput = (v: string): string | null => (v ? new Date(v).toISOString() : null)
 
+// --- one-tap answers under the date fields --------------------------------------
+const pad2 = (n: number): string => String(n).padStart(2, '0')
+const ymd = (d: Date): string => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+function shortDay(d: Date): string {
+  return new Intl.DateTimeFormat(locale.value === 'th' ? 'th-TH' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).format(d)
+}
+/** The Saturdays two to five weeks out: time enough to fill the levels. */
+const startQuick = computed<QuickPick[]>(() => {
+  const d = new Date()
+  d.setDate(d.getDate() + ((6 - d.getDay() + 7) % 7) + 14)
+  return [0, 1, 2, 3].map((w) => {
+    const x = new Date(d)
+    x.setDate(d.getDate() + 7 * w)
+    return { label: shortDay(x), value: ymd(x) }
+  })
+})
+const opensQuick = computed<QuickPick[]>(() => {
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  return [
+    { label: t('cup.admin.opensNow'), value: '' },
+    { label: t('cup.admin.tomorrowAt', { time: '20:00' }), value: `${ymd(tomorrow)}T20:00` },
+  ]
+})
+/** Midnight-ish a few days before the match day. */
+function closeBefore(startsOn: string, days: number): string {
+  const [y, m, d] = startsOn.split('-').map(Number)
+  return `${ymd(new Date(y, m - 1, d - days))}T23:59`
+}
+function closesQuick(startsOn: string): QuickPick[] {
+  if (!startsOn) return []
+  return [3, 7, 14].map((n) => ({ label: t('cup.admin.daysBefore', { n }), value: closeBefore(startsOn, n) }))
+}
+
 // --- making one ---------------------------------------------------------------
 const creating = ref(false)
 const createForm = reactive({ name: '', starts_on: '', venue: '', opens_at: '', closes_at: '' })
 const createError = ref('')
+watch(
+  () => createForm.starts_on,
+  (day) => {
+    if (day && !createForm.closes_at) createForm.closes_at = closeBefore(day, 7)
+  },
+)
 async function create(): Promise<void> {
   createError.value = ''
   if (!createForm.name.trim() || !createForm.starts_on || !createForm.closes_at) {
@@ -200,10 +241,10 @@ onMounted(load)
       <h2 class="text-sm font-semibold text-white/70">{{ t('cup.admin.new') }}</h2>
       <div class="mt-3 grid grid-cols-2 gap-2.5">
         <label class="col-span-2 flex flex-col gap-1 text-xs text-white/50">{{ t('cup.admin.name') }}<input v-model="createForm.name" :class="INPUT" placeholder="NIDDEAW CUP 2026" /></label>
-        <label class="flex flex-col gap-1 text-xs text-white/50">{{ t('cup.admin.startsOn') }}<input v-model="createForm.starts_on" type="date" :class="INPUT" /></label>
-        <label class="flex flex-col gap-1 text-xs text-white/50">{{ t('cup.admin.venue') }}<input v-model="createForm.venue" :class="INPUT" /></label>
-        <label class="col-span-2 flex flex-col gap-1 text-xs text-white/50">{{ t('cup.admin.opensAt') }}<input v-model="createForm.opens_at" type="datetime-local" :class="INPUT" /></label>
-        <label class="col-span-2 flex flex-col gap-1 text-xs text-white/50">{{ t('cup.admin.closesAt') }}<input v-model="createForm.closes_at" type="datetime-local" :class="INPUT" /></label>
+        <div class="col-span-2 flex flex-col gap-1 text-xs text-white/50">{{ t('cup.admin.startsOn') }}<DatePick v-model="createForm.starts_on" :placeholder="t('cup.admin.pickDay')" :quick="startQuick" :aria-label="t('cup.admin.startsOn')" /></div>
+        <label class="col-span-2 flex flex-col gap-1 text-xs text-white/50">{{ t('cup.admin.venue') }}<input v-model="createForm.venue" :class="INPUT" class="min-h-11" /></label>
+        <div class="col-span-2 flex flex-col gap-1 text-xs text-white/50">{{ t('cup.admin.opensAt') }}<DatePick v-model="createForm.opens_at" with-time :placeholder="t('cup.admin.opensNowLong')" :quick="opensQuick" :aria-label="t('cup.admin.opensAt')" /></div>
+        <div class="col-span-2 flex flex-col gap-1 text-xs text-white/50">{{ t('cup.admin.closesAt') }}<DatePick v-model="createForm.closes_at" with-time default-time="23:59" :placeholder="t('cup.admin.pickDay')" :quick="closesQuick(createForm.starts_on)" :aria-label="t('cup.admin.closesAt')" /></div>
       </div>
       <p class="mt-2 text-xs text-white/50">{{ t('cup.admin.newHint') }}</p>
       <p v-if="createError" class="mt-2 text-sm text-status-error" role="alert">{{ createError }}</p>
@@ -236,10 +277,10 @@ onMounted(load)
         <h2 class="text-sm font-semibold text-white/70">{{ t('cup.admin.event') }}</h2>
         <div class="mt-3 grid grid-cols-2 gap-2.5">
           <label class="col-span-2 flex flex-col gap-1 text-xs text-white/50">{{ t('cup.admin.name') }}<input v-model="form.name" :class="INPUT" /></label>
-          <label class="flex flex-col gap-1 text-xs text-white/50">{{ t('cup.admin.startsOn') }}<input v-model="form.starts_on" type="date" :class="INPUT" /></label>
-          <label class="flex flex-col gap-1 text-xs text-white/50">{{ t('cup.admin.venue') }}<input v-model="form.venue" :class="INPUT" /></label>
-          <label class="col-span-2 flex flex-col gap-1 text-xs text-white/50">{{ t('cup.admin.opensAt') }}<input v-model="form.opens_at" type="datetime-local" :class="INPUT" /></label>
-          <label class="col-span-2 flex flex-col gap-1 text-xs text-white/50">{{ t('cup.admin.closesAt') }}<input v-model="form.closes_at" type="datetime-local" :class="INPUT" /></label>
+          <div class="col-span-2 flex flex-col gap-1 text-xs text-white/50">{{ t('cup.admin.startsOn') }}<DatePick v-model="form.starts_on" :placeholder="t('cup.admin.pickDay')" :quick="startQuick" :aria-label="t('cup.admin.startsOn')" /></div>
+          <label class="col-span-2 flex flex-col gap-1 text-xs text-white/50">{{ t('cup.admin.venue') }}<input v-model="form.venue" :class="INPUT" class="min-h-11" /></label>
+          <div class="col-span-2 flex flex-col gap-1 text-xs text-white/50">{{ t('cup.admin.opensAt') }}<DatePick v-model="form.opens_at" with-time :placeholder="t('cup.admin.opensNowLong')" :quick="opensQuick" :aria-label="t('cup.admin.opensAt')" /></div>
+          <div class="col-span-2 flex flex-col gap-1 text-xs text-white/50">{{ t('cup.admin.closesAt') }}<DatePick v-model="form.closes_at" with-time default-time="23:59" :placeholder="t('cup.admin.pickDay')" :quick="closesQuick(form.starts_on)" :aria-label="t('cup.admin.closesAt')" /></div>
           <label class="flex flex-col gap-1 text-xs text-white/50">{{ t('cup.admin.minGames') }}<input v-model.number="form.min_games" type="number" min="0" max="100" :class="INPUT" /></label>
           <label class="flex flex-col gap-1 text-xs text-white/50">{{ t('cup.admin.courts') }}<input v-model.number="form.courts" type="number" min="1" max="60" :class="INPUT" /></label>
         </div>
