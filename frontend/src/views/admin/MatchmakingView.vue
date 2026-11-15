@@ -1025,20 +1025,6 @@ const pollControls = usePolling(refreshQueue, 7000)
                   {{ confirming === s.group_no ? '...' : t('matchmaking.confirm') }}
                 </button>
               </div>
-              <div class="rest-row">
-                <span class="text-white/45">{{ t('matchmaking.restOne') }}</span>
-                <button
-                  v-for="pid in [...s.team1_player_ids, ...s.team2_player_ids]"
-                  :key="pid"
-                  type="button"
-                  class="rest-chip"
-                  :aria-label="t('matchmaking.pauseAria', { name: nameOf(pid) })"
-                  :disabled="pauseBusy === pid"
-                  @click="setResting(pid, true)"
-                >
-                  {{ nameOf(pid) }}
-                </button>
-              </div>
             </div>
 
             <div v-else class="space-y-3">
@@ -1177,32 +1163,6 @@ const pollControls = usePolling(refreshQueue, 7000)
   border: 1px solid rgb(127 211 255 / 0.35);
 }
 .pause-btn:disabled {
-  opacity: 0.5;
-}
-.rest-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px dashed rgb(255 255 255 / 0.1);
-  font-size: 12px;
-}
-.rest-chip {
-  min-height: 30px;
-  padding: 0 10px;
-  border-radius: 999px;
-  color: #7fd3ff;
-  background: rgb(127 211 255 / 0.08);
-  border: 1px solid rgb(127 211 255 / 0.3);
-}
-.rest-chip::before {
-  content: '⏸ ';
-  font-size: 10px;
-}
-.rest-chip:disabled {
   opacity: 0.5;
 }
 .rest-title {

@@ -311,7 +311,6 @@ export default {
     restingJust: 'Just sat down',
     restingHint: 'Still checked in and billed as usual · not paired until brought back',
     resume: 'Back in',
-    restOne: 'Rest:',
     pauseFailed: 'Could not do that, try again',
     pausedNote: '{n} resting',
     repeatMates: '{a} and {b} have partnered {n}× tonight',
