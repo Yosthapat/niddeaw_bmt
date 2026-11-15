@@ -43,7 +43,7 @@ LINE ให้ user id คนละชุดในแต่ละ **provider** �
 1. ในช่องทางเดียวกัน แท็บ **LIFF** › **Add**
    - LIFF app name: `นิดเดียว BMT`
    - Size: **Full**
-   - Endpoint URL: `https://niddeaw-bmt.yosthapatk-mbai.workers.dev/line`
+   - Endpoint URL: `https://niddeaw.fyi/line` (โดเมนของก๊วน ผูกกับ Worker niddeaw-bmt ใน Cloudflare › Workers & Pages › niddeaw-bmt › Domains)
    - Scopes: ติ๊ก **openid** และ **profile** (ต้องมี openid ไม่งั้นระบบยืนยันตัวตนไม่ได้)
    - Add friend option (Bot link feature): **On (Normal)** เพื่อชวนเพิ่มเพื่อน OA ไปด้วย
    - Scan QR: **On** — ให้ปุ่ม "สแกน QR เช็คอิน" ในหน้า LINE เปิดกล้องของ LINE ได้ (LIFF ที่สร้างไว้แล้ว แก้ได้ที่ LIFF › Edit)
