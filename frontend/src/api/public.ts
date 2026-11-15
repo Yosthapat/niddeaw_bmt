@@ -159,16 +159,3 @@ export async function placeShopOrder(order: { buyer: ShopBuyer; items: CartLine[
 export async function getMemberOrders(playerId: string): Promise<ShopOrder[]> {
   return request(`/api/shop/orders?player_id=${playerId}`)
 }
-
-/** Season points for a calendar year (this one by default), most first. */
-export interface SeasonStanding {
-  player_id: string
-  nickname: string
-  avatar_url: string | null
-  elo_level: string | null
-  points: number
-}
-
-export async function getSeasonStandings(year?: number): Promise<SeasonStanding[]> {
-  return request(`/api/ranking/season${year ? `?year=${year}` : ''}`)
-}

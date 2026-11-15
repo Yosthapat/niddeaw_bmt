@@ -2,8 +2,7 @@
 import SlidePill from '@/components/common/SlidePill.vue'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { getPlayDates, getRanking, getSeasonStandings } from '@/api/public'
-import type { SeasonStanding } from '@/api/public'
+import { getPlayDates, getRanking } from '@/api/public'
 import type { PlayerStats } from '@/types'
 import EloBadge from '@/components/players/EloBadge.vue'
 import TierMascot from '@/components/players/TierMascot.vue'
@@ -18,10 +17,8 @@ import { formatDate } from '@/utils/format'
 
 const { t, locale } = useI18n()
 
-const period = ref<'all' | 'year' | 'day' | 'season'>('all')
+const period = ref<'all' | 'year' | 'day'>('all')
 const stats = ref<PlayerStats[]>([])
-// season points: the rating each win earned this year (backend pass_service)
-const season = ref<SeasonStanding[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 
@@ -43,9 +40,7 @@ async function load(quiet = false): Promise<void> {
     error.value = null
   }
   try {
-    if (period.value === 'season') {
-      season.value = await getSeasonStandings()
-    } else if (period.value === 'day') {
+    if (period.value === 'day') {
       if (playDates.value.length === 0) {
         playDates.value = await getPlayDates()
       }
@@ -76,8 +71,8 @@ onRevisit(() => void load(true))
 const podium = computed(() => stats.value.slice(0, 3))
 const rest = computed(() => stats.value.slice(3))
 
-const PERIODS = ['all', 'year', 'day', 'season'] as const
-const periodLabel = { all: 'ranking.allTime', year: 'ranking.thisYear', day: 'ranking.byDay', season: 'ranking.season' } as const
+const PERIODS = ['all', 'year', 'day'] as const
+const periodLabel = { all: 'ranking.allTime', year: 'ranking.thisYear', day: 'ranking.byDay' } as const
 </script>
 
 <template>
@@ -120,26 +115,6 @@ const periodLabel = { all: 'ranking.allTime', year: 'ranking.thisYear', day: 'ra
           </div>
         </div>
         <p v-else-if="error" class="world-card p-5 text-status-error">{{ error }}</p>
-        <section v-else-if="period === 'season'" aria-labelledby="season-title">
-          <div class="world-card mb-3 p-4 sm:p-5">
-            <h2 id="season-title" class="world-title text-xl">{{ t('ranking.seasonTitle', { year: new Date().getFullYear() }) }}</h2>
-            <p class="mt-1 text-sm text-white/60">{{ t('ranking.seasonHow') }}</p>
-          </div>
-          <p v-if="season.length === 0" class="world-card p-5 text-white/65">{{ t('ranking.seasonEmpty') }}</p>
-          <ol v-else class="space-y-2">
-            <li v-for="(s, i) in season" :key="s.player_id" v-reveal="i">
-              <RouterLink :to="`/members/${s.player_id}`" class="rank-row season-row world-card">
-                <span class="rank-no" :class="{ 'season-top': i < 3 }">{{ i + 1 }}</span>
-                <PlayerAvatar :name="s.nickname" :avatar-url="s.avatar_url ?? undefined" size="md" round />
-                <span class="min-w-0 truncate font-display text-[15px] font-semibold sm:text-base">{{ s.nickname }}</span>
-                <span class="flex flex-col items-end leading-none">
-                  <span class="pts font-display text-[22px] font-bold sm:text-2xl">{{ s.points.toLocaleString('en-US', { maximumFractionDigits: 1 }) }}</span>
-                  <span class="mt-1 text-[10px] text-white/50">{{ t('ranking.seasonPoints') }}</span>
-                </span>
-              </RouterLink>
-            </li>
-          </ol>
-        </section>
         <p v-else-if="stats.length === 0" class="world-card p-5 text-white/65">
           {{ period === 'day' && playDates.length === 0 ? t('ranking.noPlayDays') : t('ranking.empty') }}
         </p>
@@ -197,18 +172,6 @@ const periodLabel = { all: 'ranking.allTime', year: 'ranking.thisYear', day: 'ra
   transition:
     transform 0.2s,
     border-color 0.2s;
-}
-.season-row {
-  grid-template-columns: 30px 44px minmax(0, 1fr) auto;
-}
-@media (min-width: 640px) {
-  .season-row {
-    grid-template-columns: 38px 44px minmax(0, 1fr) auto;
-  }
-}
-.season-top {
-  color: #2a1a05;
-  background: linear-gradient(135deg, #ffcf4d, #ffe58f);
 }
 .rank-row:hover {
   transform: translateY(-2px);

@@ -320,12 +320,19 @@ def test_season_points_are_the_wins_rating_and_fifteen_percent_more_with_a_pass(
     # a win from before the pass ran counts plain
     _won(db, [ball, faa], [bank, ton], 10, now - timedelta(days=3))
 
-    standings = client.get("/api/ranking/season").json()
-    points = {s["nickname"]: s["points"] for s in standings}
-    assert points == {"Ball": 21.5, "Faa": 23.0, "Ton": 13.0, "Bank": 10.0}
-    assert [s["nickname"] for s in standings] == ["Faa", "Ball", "Ton", "Bank"]
-    me = client.get("/api/line/pass", headers=member("Ball")).json()
-    assert me["season_points"] == 21.5
+    def points(name: str) -> float:
+        line = "U" + chr(ord("a") + NAMES.index(name)) * 32
+        res = client.get(
+            "/api/line/pass", headers={"Authorization": f"Bearer {create_line_token(line, 'x')}"}
+        )
+        return float(res.json()["season_points"])
+
+    assert {n: points(n) for n in ("Ball", "Faa", "Ton", "Bank")} == {
+        "Ball": 21.5,
+        "Faa": 23.0,
+        "Ton": 13.0,
+        "Bank": 10.0,
+    }
 
     # ELO is the results' own deltas, untouched by the pass
     assert all(m["elo_delta_team1"] in (10, 13) for m in db.tables["matches"])

@@ -32,11 +32,3 @@ class LinePass(BaseModel):
 
 class PassBlockIn(BaseModel):
     player_id: UUID
-
-
-class SeasonStanding(BaseModel):
-    player_id: UUID
-    nickname: str
-    avatar_url: str | None = None
-    elo_level: str | None = None
-    points: float
