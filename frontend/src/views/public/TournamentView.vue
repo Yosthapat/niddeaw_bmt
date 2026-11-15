@@ -7,6 +7,7 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
 import TierMascot from '@/components/players/TierMascot.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import { getPublicTournament, type PublicTournament } from '@/api/tournament'
@@ -16,9 +17,10 @@ import type { Locale } from '@/i18n'
 import { clock, roundLabel, sideLabel } from '@/utils/cupMatch'
 
 const { t, locale } = useI18n()
+const route = useRoute()
+const router = useRouter()
 const cup = ref<PublicTournament | null>(null)
 const loaded = ref(false)
-const matchLevel = ref('')
 const lineHref = ref('https://line.me/R/ti/p/@369iojcn')
 
 onMounted(async () => {
@@ -38,6 +40,27 @@ onMounted(async () => {
   }
 })
 
+// The level on screen: ?level=… (so a level's page can be shared in a
+// group chat), else the first level anyone has signed up for.
+const shown = computed(() => {
+  const levels = cup.value?.levels ?? []
+  const asked = typeof route.query.level === 'string' ? route.query.level : ''
+  return levels.find((lv) => lv.id === asked) ?? levels.find((lv) => lv.seats_taken > 0) ?? levels[0] ?? null
+})
+function choose(id: string): void {
+  void router.replace({ query: { ...route.query, level: id } })
+}
+// That level's matches: the group stage, then each bracket.
+const matchParts = computed(() => {
+  const mine = (cup.value?.matches ?? []).filter((m) => m.level_id === shown.value?.id)
+  const parts = [
+    { key: 'group', label: t('cup.schedule.groupStage'), matches: mine.filter((m) => m.stage === 'group') },
+    { key: 'upper', label: t('cup.bracket.upper'), matches: mine.filter((m) => m.stage === 'ko' && m.bracket === 'upper') },
+    { key: 'lower', label: t('cup.bracket.lower'), matches: mine.filter((m) => m.stage === 'ko' && m.bracket === 'lower') },
+  ]
+  return parts.filter((p) => p.matches.length)
+})
+
 const perPlayer = computed(() => (cup.value ? Math.ceil((cup.value.entry_fee + cup.value.shuttle_fee) / 2) : 0))
 const day = (iso: string): string => formatDateWithWeekday(iso, locale.value as Locale)
 const when = (iso: string): string => formatDateTime(iso, locale.value as Locale)
@@ -50,7 +73,7 @@ function range(min: number | null, max: number | null): string {
 </script>
 
 <template>
-  <main v-if="cup" class="relative isolate overflow-hidden">
+  <main v-if="cup" class="relative isolate overflow-x-clip">
     <div class="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
       <div class="absolute inset-0 bg-[radial-gradient(80%_50%_at_50%_20%,#5a1a7a_0%,#1a0838_55%,#0a0416_80%)]" />
     </div>
@@ -85,69 +108,96 @@ function range(min: number | null, max: number | null): string {
         {{ t('cup.signUpInLine') }}
       </a>
 
-      <!-- groups and the day's matches: "coming soon" until the organisers publish them -->
-      <section v-if="!cup.schedule_published" class="t-plan flex-col !items-center gap-1 py-5 text-center">
-        <span class="t-blink rounded-full border border-[#ffe14d] px-3 py-1 font-display text-[12px] font-bold tracking-[3px] text-[#ffe14d]">COMING SOON</span>
-        <h2 class="mt-2 font-display text-lg font-bold">{{ t('cup.schedule.title') }}</h2>
-        <p class="text-sm text-white/70">{{ t('cup.schedule.soon') }}</p>
-      </section>
-      <template v-else>
-        <section v-for="lv in cup.levels.filter((x) => x.groups.length)" :key="`g-${lv.id}`" class="t-plan flex-col !items-stretch gap-2">
-          <h2 class="font-display text-lg font-bold">{{ t('cup.schedule.groupsOf', { level: lv.name }) }}</h2>
-          <div class="grid grid-cols-2 gap-2">
-            <div v-for="g in lv.groups" :key="g.label" class="rounded-xl bg-white/5 p-2">
-              <p class="mb-1 font-display text-sm font-bold text-[#ff6cc0]">{{ t('cup.draw.group', { g: g.label }) }}</p>
-              <p v-for="(team, i) in g.teams" :key="team.name" class="truncate text-xs">
-                <span class="text-white/45">{{ g.label }}{{ i + 1 }}</span> {{ team.name }}
-              </p>
-            </div>
-          </div>
-        </section>
-        <section class="t-plan flex-col !items-stretch gap-2">
-          <div class="flex flex-wrap items-center gap-2">
-            <h2 class="font-display text-lg font-bold">{{ t('cup.schedule.title') }}</h2>
-            <select v-model="matchLevel" :aria-label="t('cup.level')" class="ml-auto min-h-11 rounded-lg border border-white/15 bg-[#1a0838] px-2 text-sm">
-              <option value="">{{ t('cup.draw.allLevels') }}</option>
-              <option v-for="lv in cup.levels" :key="lv.id" :value="lv.id">{{ lv.name }}</option>
-            </select>
-          </div>
-          <p class="text-xs text-white/55">{{ t('cup.schedule.estimate') }}</p>
-          <ul class="flex flex-col gap-1">
-            <li v-for="m in cup.matches.filter((x) => !matchLevel || x.level_id === matchLevel)" :key="m.id" class="flex items-center gap-2 rounded-lg bg-white/5 px-2 py-1.5">
-              <span class="w-11 shrink-0 text-center"><b class="block font-display text-xs">#{{ m.match_no }}</b><span class="text-[11px] text-white/55">{{ clock(m.est_start) }}</span></span>
-              <span class="min-w-0 flex-1 text-sm">
-                <span class="block truncate">{{ sideLabel(m.a, t) }} <span class="text-white/40">vs</span> {{ sideLabel(m.b, t) }}</span>
-                <span class="block truncate text-[11px] text-white/50">{{ m.level_name }} · {{ roundLabel(m, t) }}</span>
-              </span>
-            </li>
-          </ul>
-        </section>
-      </template>
+      <!-- one level at a time -->
+      <div class="sticky top-[calc(var(--header-h)+6px)] z-10 -mx-4 overflow-x-auto px-4 pb-1" role="tablist" :aria-label="t('cup.level')">
+        <div class="flex w-max gap-1.5 rounded-full border border-white/12 bg-[#1a0838]/90 p-1 backdrop-blur">
+          <button
+            v-for="lv in cup.levels"
+            :key="lv.id"
+            type="button"
+            role="tab"
+            class="flex min-h-11 items-center gap-1.5 rounded-full px-4 text-sm whitespace-nowrap"
+            :class="shown?.id === lv.id ? 'bg-[#ff6cc0] font-bold text-[#1a0838]' : 'text-white/80'"
+            :aria-selected="shown?.id === lv.id"
+            @click="choose(lv.id)"
+          >
+            {{ lv.name }}
+            <span class="text-xs" :class="shown?.id === lv.id ? 'text-[#1a0838]/70' : 'text-white/50'">{{ lv.seats_taken }}/{{ lv.max_teams }}</span>
+          </button>
+        </div>
+      </div>
 
-      <section v-for="lv in cup.levels" :key="lv.id" class="t-plan flex-col !items-stretch gap-2">
-        <div class="flex flex-wrap items-baseline gap-2">
-          <h2 class="font-display text-lg font-bold">{{ lv.name }}</h2>
-          <span class="text-xs text-white/60">{{ range(lv.min_elo, lv.max_elo) }}</span>
-          <span class="ml-auto font-display text-sm font-bold">{{ lv.seats_taken }}/{{ lv.max_teams }}</span>
-        </div>
-        <div class="h-1.5 overflow-hidden rounded-full bg-white/10" aria-hidden="true">
-          <div class="h-full rounded-full bg-[#ff6cc0]" :style="{ width: `${Math.min(100, (lv.seats_taken / lv.max_teams) * 100)}%` }" />
-        </div>
-        <p v-if="lv.rules" class="text-xs text-[#ffd34d]">{{ t('cup.rulesLine', { rules: lv.rules }) }}</p>
-        <p v-if="lv.waitlist" class="text-xs text-[#c9a7ff]">{{ t('cup.waitlistCount', { n: lv.waitlist }) }}</p>
-        <ul v-if="lv.teams.length" class="grid gap-1.5 sm:grid-cols-2">
-          <li v-for="team in lv.teams" :key="team.name" class="flex items-center gap-2 rounded-xl bg-white/5 px-2.5 py-2">
-            <div class="flex -space-x-2">
-              <PlayerAvatar v-for="p in team.players" :key="p.nickname" :name="p.nickname" :avatar-url="p.avatar_url" size="sm" round />
+      <template v-if="shown">
+        <!-- the level -->
+        <section class="t-plan flex-col !items-stretch gap-2">
+          <div class="flex flex-wrap items-baseline gap-2">
+            <h2 class="font-display text-xl font-bold">{{ shown.name }}</h2>
+            <span class="text-xs text-white/60">{{ range(shown.min_elo, shown.max_elo) }}</span>
+            <span class="ml-auto font-display text-sm font-bold">{{ t('cup.seats', { n: shown.seats_taken, max: shown.max_teams }) }}</span>
+          </div>
+          <div class="h-1.5 overflow-hidden rounded-full bg-white/10" aria-hidden="true">
+            <div class="h-full rounded-full bg-[#ff6cc0]" :style="{ width: `${Math.min(100, (shown.seats_taken / shown.max_teams) * 100)}%` }" />
+          </div>
+          <p v-if="shown.rules" class="text-xs text-[#ffd34d]">{{ t('cup.rulesLine', { rules: shown.rules }) }}</p>
+          <p v-if="shown.waitlist" class="text-xs text-[#c9a7ff]">{{ t('cup.waitlistCount', { n: shown.waitlist }) }}</p>
+        </section>
+
+        <!-- before publishing: who is in, and "coming soon" for the rest -->
+        <template v-if="!cup.schedule_published">
+          <section class="t-plan flex-col !items-center gap-1 py-4 text-center">
+            <span class="t-blink rounded-full border border-[#ffe14d] px-3 py-1 font-display text-[12px] font-bold tracking-[3px] text-[#ffe14d]">COMING SOON</span>
+            <h2 class="mt-1.5 font-display text-base font-bold">{{ t('cup.schedule.title') }}</h2>
+            <p class="text-sm text-white/70">{{ t('cup.schedule.soon') }}</p>
+          </section>
+          <section class="t-plan flex-col !items-stretch gap-2">
+            <h3 class="font-display text-base font-bold">{{ t('cup.teamsIn', { level: shown.name }) }}</h3>
+            <ul v-if="shown.teams.length" class="grid gap-1.5 sm:grid-cols-2">
+              <li v-for="team in shown.teams" :key="team.name" class="flex items-center gap-2 rounded-xl bg-white/5 px-2.5 py-2">
+                <div class="flex -space-x-2">
+                  <PlayerAvatar v-for="p in team.players" :key="p.nickname" :name="p.nickname" :avatar-url="p.avatar_url" size="sm" round />
+                </div>
+                <div class="min-w-0">
+                  <p class="truncate text-sm font-semibold">{{ team.name }}</p>
+                  <p class="truncate text-xs text-white/60">{{ team.players.map((p) => p.nickname).join(' / ') }}</p>
+                </div>
+              </li>
+            </ul>
+            <p v-else class="text-xs text-white/50">{{ t('cup.noTeamsYet') }}</p>
+          </section>
+        </template>
+
+        <!-- published: this level's groups and matches -->
+        <template v-else>
+          <section v-if="shown.groups.length" class="t-plan flex-col !items-stretch gap-2">
+            <h3 class="font-display text-base font-bold">{{ t('cup.schedule.groups') }}</h3>
+            <div class="grid grid-cols-2 gap-2">
+              <div v-for="g in shown.groups" :key="g.label" class="rounded-xl bg-white/5 p-2">
+                <p class="mb-1 font-display text-sm font-bold text-[#ff6cc0]">{{ t('cup.draw.group', { g: g.label }) }}</p>
+                <p v-for="(team, i) in g.teams" :key="team.name" class="truncate text-xs leading-6">
+                  <span class="text-white/45">{{ g.label }}{{ i + 1 }}</span> {{ team.name }}
+                </p>
+              </div>
             </div>
-            <div class="min-w-0">
-              <p class="truncate text-sm font-semibold">{{ team.name }}</p>
-              <p class="truncate text-xs text-white/60">{{ team.players.map((p) => p.nickname).join(' / ') }}</p>
-            </div>
-          </li>
-        </ul>
-        <p v-else class="text-xs text-white/50">{{ t('cup.noTeamsYet') }}</p>
-      </section>
+          </section>
+          <section class="t-plan flex-col !items-stretch gap-2">
+            <h3 class="font-display text-base font-bold">{{ t('cup.schedule.matchesOf', { level: shown.name }) }}</h3>
+            <p class="text-xs text-white/55">{{ t('cup.schedule.estimate') }}</p>
+            <template v-for="part in matchParts" :key="part.key">
+              <p class="mt-1 text-xs font-semibold text-white/70">{{ part.label }}</p>
+              <ul class="flex flex-col gap-1">
+                <li v-for="m in part.matches" :key="m.id" class="flex items-center gap-2 rounded-lg bg-white/5 px-2 py-1.5">
+                  <span class="w-11 shrink-0 text-center"><b class="block font-display text-xs">#{{ m.match_no }}</b><span class="text-[11px] text-white/55">{{ clock(m.est_start) }}</span></span>
+                  <span class="min-w-0 flex-1 text-sm">
+                    <span class="block truncate">{{ sideLabel(m.a, t) }} <span class="text-white/40">vs</span> {{ sideLabel(m.b, t) }}</span>
+                    <span class="block truncate text-[11px] text-white/50">{{ roundLabel(m, t) }}</span>
+                  </span>
+                </li>
+              </ul>
+            </template>
+            <p v-if="!matchParts.length" class="text-xs text-white/50">{{ t('cup.schedule.noneInLevel') }}</p>
+          </section>
+        </template>
+      </template>
     </div>
   </main>
 

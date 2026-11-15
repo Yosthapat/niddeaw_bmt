@@ -1763,6 +1763,8 @@ export default {
       "I'm Absinthe — the green legend everyone's heard of but almost nobody's actually played. Rarest, strongest — getting matched with me is basically an achievement unlock. 👑 National-team caliber. No rank letter needed.",
   },
   cup: {
+    seats: '{n}/{max} teams',
+    teamsIn: '{level} teams',
     slot: {
       group: '{group}{n}',
       upper: 'Upper #{n}',
@@ -1780,6 +1782,10 @@ export default {
       lower: 'Lower',
     },
     schedule: {
+      groups: 'Groups',
+      matchesOf: '{level} matches',
+      groupStage: 'Group stage',
+      noneInLevel: 'No matches in this level',
       title: 'Groups · match list',
       soon: 'The organisers are drawing the groups and making the match list — soon',
       groupsOf: '{level} groups',
