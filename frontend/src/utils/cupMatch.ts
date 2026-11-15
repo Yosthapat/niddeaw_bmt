@@ -6,9 +6,12 @@ import type { CupMatch, MatchSlot } from '@/api/tournament'
 
 type T = (key: string, values?: Record<string, unknown>) => string
 
-/** "A1" → A1 · "U3" → upper #3 · "L3" → lower #3 · "W12" → winner of #12 */
+/** "A1" → A1 · "U3" → upper #3 · "L3" → lower #3 · "W12" → winner of #12 ·
+ *  "P2"/"Q2" → an opponent drawn by lot once the groups are done */
 export function slotLabel(slot: string, t: T): string {
   if (/^[A-H][1-4]$/.test(slot)) return t('cup.slot.group', { group: slot[0], n: slot.slice(1) })
+  if (slot.startsWith('P')) return t('cup.slot.drawUpper')
+  if (slot.startsWith('Q')) return t('cup.slot.drawLower')
   if (slot.startsWith('U')) return t('cup.slot.upper', { n: slot.slice(1) })
   if (slot.startsWith('L')) return t('cup.slot.lower', { n: slot.slice(1) })
   if (slot.startsWith('W')) return t('cup.slot.winner', { n: slot.slice(1) })

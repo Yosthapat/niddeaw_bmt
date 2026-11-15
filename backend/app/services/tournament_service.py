@@ -410,21 +410,6 @@ def _deadline(tournament_row: dict[str, Any], hours: int) -> str:
     return iso(min(limit, closes) if closes else limit)
 
 
-def check_name_free(
-    supabase: Client, level_id: str, name: str, except_team: str | None = None
-) -> None:
-    wanted = name.strip().lower()
-    for t in rows(
-        supabase.table(TEAMS).select("id,name,status").eq("level_id", level_id).execute()
-    ):
-        if (
-            t["status"] in LIVE
-            and str(t["id"]) != except_team
-            and str(t["name"]).strip().lower() == wanted
-        ):
-            raise refuse(status.HTTP_409_CONFLICT, f'มีทีมชื่อ "{name}" ในมือนี้แล้ว — ตั้งชื่ออื่น')
-
-
 @dataclass
 class Pair:
     captain: dict[str, Any]
@@ -478,7 +463,6 @@ def create_team(
     """Write a team and its two entrants. From LINE the partner's details
     come when they accept; an admin signing a pair up gives both."""
     tid = str(tournament_row["id"])
-    check_name_free(supabase, level_id, name)
     cap_share, partner_share = shares(tournament_row)
     team_id = str(uuid4())
     moment = now()

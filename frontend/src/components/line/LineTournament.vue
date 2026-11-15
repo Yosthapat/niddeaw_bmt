@@ -136,10 +136,6 @@ async function decline(): Promise<void> {
   })
   if (ok) await run('decline', () => lineTournament.decline(props.token), t('cup.line.actionFailed'))
 }
-async function withdraw(): Promise<void> {
-  const ok = await confirm({ title: t('cup.line.withdrawTitle'), message: t('cup.line.withdrawBody'), confirmLabel: t('cup.line.withdraw') })
-  if (ok) await run('withdraw', () => lineTournament.withdraw(props.token), t('cup.line.actionFailed'))
-}
 const renaming = ref(false)
 const newName = ref('')
 async function rename(): Promise<void> {
@@ -400,7 +396,7 @@ async function attach(event: Event): Promise<void> {
 
           <p v-if="problem" class="text-sm text-status-error" role="alert">{{ problem }}</p>
 
-          <!-- rename / withdraw, while entries are open -->
+          <!-- rename while entries are open; pulling out goes through the organisers -->
           <template v-if="cup.taking_entries && team.status !== 'invited'">
             <div v-if="renaming" class="flex gap-2">
               <input v-model="newName" maxlength="40" :class="INPUT" :aria-label="t('cup.teamName')" />
@@ -408,8 +404,8 @@ async function attach(event: Event): Promise<void> {
             </div>
             <div class="flex flex-wrap justify-center gap-x-4 text-xs text-white/55">
               <button v-if="!renaming" type="button" class="min-h-11 underline" @click="renaming = true; newName = team.name">{{ t('cup.line.rename') }}</button>
-              <button type="button" class="min-h-11 underline" @click="withdraw">{{ t('cup.line.withdraw') }}</button>
             </div>
+            <p class="text-center text-xs text-white/45">{{ t('cup.line.withdrawByAdmin') }}</p>
           </template>
         </div>
 
@@ -431,7 +427,7 @@ async function attach(event: Event): Promise<void> {
             <div v-if="myGroup" class="rounded-xl bg-white/5 p-2.5">
               <p class="mb-1.5 font-display text-sm font-bold text-[#ff6cc0]">{{ t('cup.draw.group', { g: myGroup.label }) }}</p>
               <div class="flex flex-col gap-2">
-                <CupTeamLine v-for="(x, i) in myGroup.teams" :key="x.name" :name="x.name" :players="x.players" :prefix="`${myGroup.label}${i + 1}`" :mine="x.id === team.id" />
+                <CupTeamLine v-for="(x, i) in myGroup.teams" :key="x.id ?? x.name" :name="x.name" :players="x.players" :prefix="`${myGroup.label}${i + 1}`" :mine="x.id === team.id" />
               </div>
             </div>
             <CupStandings v-if="myGroup?.standings.length" :label="myGroup.label" :teams="myGroup.teams" :standings="myGroup.standings" :mine-id="team.id" />

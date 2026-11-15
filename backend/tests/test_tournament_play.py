@@ -114,21 +114,42 @@ def _tables(groups: int, size: int = 4) -> dict[str, list[tp.Row]]:
 
 def test_24_teams_seed_16_up_with_the_best_thirds() -> None:
     lv = {"max_teams": 24, "cut_24": False}
-    slots, tiers = tp.seeds(lv, _tables(6))
+    slots, tiers, draws = tp.seeds(lv, _tables(6))
     upper = [slots[f"U{i}"] for i in range(1, 17)]
-    lower = [slots[f"L{i}"] for i in range(1, 9)]
-    assert {t[1] for t in upper[:6]} == {"1"} and {t[1] for t in upper[6:12]} == {"2"}
-    assert {t[1] for t in upper[12:]} == {"3"} and len(upper[12:]) == 4
-    assert [t[1] for t in lower] == ["3", "3"] + ["4"] * 6
-    # within a tier, the better record first (here group F has the best difference)
-    assert upper[0] == "F1" and tiers["U1"] == 1
+    # seeded: the six winners in group order, then the two best runners-up
+    # (groups E and F have the best difference here), in group order
+    assert upper[:8] == ["A1", "B1", "C1", "D1", "E1", "F1", "E2", "F2"]
+    assert draws["upper"].seeded == upper[:8]
+    # drawn against them: the other four runners-up and the four best thirds
+    assert sorted(draws["upper"].pool) == ["A2", "B2", "C2", "C3", "D2", "D3", "E3", "F3"]
+    # below: the two other thirds and two best fourths seeded, four fourths drawn
+    assert draws["lower"].seeded == ["A3", "B3", "E4", "F4"]
+    assert sorted(draws["lower"].pool) == ["A4", "B4", "C4", "D4"]
+    assert tiers["U1"] == 1
 
 
 def test_24_teams_with_the_cut_seed_8_and_8() -> None:
-    slots, _ = tp.seeds({"max_teams": 24, "cut_24": True}, _tables(6))
-    assert len([k for k in slots if k.startswith("U")]) == 8
-    assert len([k for k in slots if k.startswith("L")]) == 8
-    assert [slots[f"L{i}"][1] for i in range(1, 9)] == ["2"] * 4 + ["3"] * 4
+    _, _, draws = tp.seeds({"max_teams": 24, "cut_24": True}, _tables(6))
+    # four best winners seeded, the other two and the two best runners-up drawn
+    assert draws["upper"].seeded == ["C1", "D1", "E1", "F1"]
+    assert sorted(draws["upper"].pool) == ["A1", "B1", "E2", "F2"]
+    assert sorted(draws["lower"].seeded) == ["A2", "B2", "C2", "D2"]
+    assert len(draws["lower"].pool) == 4 and all(t.endswith("3") for t in draws["lower"].pool)
+
+
+def test_the_draw_never_pairs_a_team_with_its_own_group() -> None:
+    import random
+
+    seeded = ["A1", "B1", "C1", "D1"]
+    pool = ["A2", "B2", "C2", "D2"]
+    group_of = {t: t[0] for t in seeded + pool}
+    seen = set()
+    for i in range(40):
+        drawn = tp.draw_opponents(seeded, pool, group_of, random.Random(i))
+        assert sorted(drawn) == sorted(pool)
+        assert all(group_of[s] != group_of[o] for s, o in zip(seeded, drawn))
+        seen.add(tuple(drawn))
+    assert len(seen) > 3  # by lot, not one fixed pattern
 
 
 def test_group_mates_are_kept_apart_in_the_first_round() -> None:
@@ -283,8 +304,24 @@ def test_the_groups_fill_the_knockout_and_winners_move_on(db: Any, client: TestC
     second_of = {g["label"]: g["standings"][1]["team_id"] for g in soju["groups"]}
     ko = [m for m in day["matches"] if m["stage"] == "ko"]
     opener = next(m for m in ko if m["a"]["slot"] == "A1")
-    assert opener["a"]["team_id"] == first_of["A"] and opener["b"]["team_id"] == second_of["B"]
+    assert opener["a"]["team_id"] == first_of["A"] and opener["b"]["slot"] == "P1"
+    # every winner meets a runner-up drawn from another group
+    group_of = {tid: g for g, tid in first_of.items()} | {tid: g for g, tid in second_of.items()}
+    first_round = [m for m in ko if m["round"] == 8 and m["bracket"] == "upper"]
+    assert sorted(m["b"]["team_id"] for m in first_round) == sorted(second_of.values())
+    assert all(group_of[m["a"]["team_id"]] != group_of[m["b"]["team_id"]] for m in first_round)
     assert all(m["a"]["team_id"] for m in ko if m["round"] == 8)
+
+    # the draw stands: correcting a group result that changes nobody's place keeps it
+    drawn = {m["id"]: m["b"]["team_id"] for m in first_round}
+    last_group = [m for m in day["matches"] if m["stage"] == "group"][-1]
+    client.post(
+        f"/api/admin/tournament/matches/{last_group['id']}/result",
+        json={"sets": [[21, 10], [21, 12]]},
+        headers=BOTH,
+    )
+    again = {m["id"]: m["b"]["team_id"] for m in _day(client, t)["matches"] if m["id"] in drawn}
+    assert again == drawn
 
     # a quarter-final won moves its winner into the semi
     _play(client, opener, [[21, 10], [21, 10]])

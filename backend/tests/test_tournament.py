@@ -402,14 +402,27 @@ def test_a_pair_plays_the_stronger_one_s_level_or_above(
     assert sign_up(client, db, t, 0, 20, "Soju ขึ้นไป", "ขึ้นสูง").status_code == 200
 
 
-def test_one_team_per_player_and_names_unique_in_a_level(
-    db: MiniSupabase, client: TestClient
-) -> None:
+def test_one_team_per_player_and_names_may_repeat(db: MiniSupabase, client: TestClient) -> None:
     t = open_tournament(client)
-    assert sign_up(client, db, t, 20, 21, "Wine", "ทีมแมว").status_code == 200
+    assert sign_up(client, db, t, 20, 21, "Wine", "BADMINTON 3D").status_code == 200
     assert sign_up(client, db, t, 22, 21, "Wine", "ทีมหมา").status_code == 409  # 21 is taken
-    assert sign_up(client, db, t, 22, 23, "Wine", " ทีมแมว ").status_code == 409  # same name
-    assert sign_up(client, db, t, 30, 31, "Soju ขึ้นไป", "ทีมแมว").status_code == 200  # other level
+    # a club's several teams may share its name (the draw keeps them apart)
+    assert sign_up(client, db, t, 22, 23, "Wine", "badminton 3d").status_code == 200
+
+
+def test_players_cannot_withdraw_from_line(db: MiniSupabase, client: TestClient) -> None:
+    """Only a tournament admin withdraws a team."""
+    t = open_tournament(client)
+    sign_up(client, db, t, 20, 21, "Wine", "ทีมแมว")
+    client.post("/api/line/tournament/accept", json=PARTNER, headers=member(21))
+    assert client.post("/api/line/tournament/withdraw", headers=member(20)).status_code in (
+        404,
+        405,
+    )
+    assert (
+        client.get("/api/line/tournament", headers=member(20)).json()["team"]["status"]
+        == "awaiting_payment"
+    )
 
 
 def test_declining_frees_both_players(db: MiniSupabase, client: TestClient) -> None:
@@ -563,7 +576,11 @@ def test_a_refund_is_the_tournament_s_expense(db: MiniSupabase, client: TestClie
             f"/api/admin/tournament/entrants/{entrant_of(db, i)['id']}/approve", headers=BOTH
         )
     e20, e21 = entrant_of(db, 20), entrant_of(db, 21)
-    assert client.post("/api/line/tournament/withdraw", headers=member(20)).status_code == 200
+    team_id = e20["team_id"]
+    withdrawn = client.post(
+        f"/api/admin/tournament/teams/{team_id}/withdraw", json={}, headers=BOTH
+    )
+    assert withdrawn.status_code == 200
 
     summary = client.get(
         f"/api/admin/tournament/tournaments/{t['id']}/summary", headers=BOTH

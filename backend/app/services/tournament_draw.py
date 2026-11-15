@@ -39,35 +39,6 @@ ROUND_ROBIN: dict[int, list[list[tuple[int, int]]]] = {
     2: [[(1, 2)]],
 }
 
-# Full levels play the cross-group pairs of the tournament this is modelled
-# on: A1-B2, C1-D2, A2-B1, C2-D1 … and the same with 3rd and 4th below.
-CROSS_UPPER = {
-    4: ["A1", "B2", "C1", "D2", "A2", "B1", "C2", "D1"],
-    8: [
-        "A1",
-        "B2",
-        "C1",
-        "D2",
-        "A2",
-        "B1",
-        "C2",
-        "D1",
-        "E1",
-        "F2",
-        "G1",
-        "H2",
-        "E2",
-        "F1",
-        "G2",
-        "H1",
-    ],
-}
-
-
-def cross_lower(groups: int) -> list[str]:
-    return [s.replace("1", "3").replace("2", "4") for s in CROSS_UPPER[groups]]
-
-
 # --- the draw ---------------------------------------------------------------
 
 
@@ -80,17 +51,55 @@ def group_sizes(n: int) -> list[int]:
     return [base + 1] * extra + [base] * (groups - extra)
 
 
-def draw(team_ids: list[str], rng: random.Random | None = None) -> dict[str, tuple[str, int]]:
-    """By lot: team id -> (group letter, place 1–4)."""
-    order = list(team_ids)
-    (rng or random.SystemRandom()).shuffle(order)
-    out: dict[str, tuple[str, int]] = {}
-    i = 0
-    for g, size in enumerate(group_sizes(len(order))):
-        for pos in range(1, size + 1):
-            out[order[i]] = (GROUP_NAMES[g], pos)
-            i += 1
-    return out
+def name_key(name: str) -> str:
+    return " ".join(name.split()).lower()
+
+
+def draw(
+    teams: list[tuple[str, str]], rng: random.Random | None = None
+) -> dict[str, tuple[str, int]]:
+    """By lot: team id -> (group letter, place 1–4), for (id, name) pairs.
+    Teams of one name — a club's several teams — go to different groups
+    whenever there are groups enough; when not, as few share as can."""
+    pick = rng or random.SystemRandom()
+    sizes = group_sizes(len(teams))
+    best: dict[str, tuple[str, int]] = {}
+    best_shared = len(teams) + 1
+    for _ in range(300):
+        order = list(teams)
+        pick.shuffle(order)
+        # the biggest families first, so they have room to spread
+        counts: dict[str, int] = {}
+        for _, name in order:
+            counts[name_key(name)] = counts.get(name_key(name), 0) + 1
+        order.sort(key=lambda t: -counts[name_key(t[1])])
+        members: list[list[tuple[str, str]]] = [[] for _ in sizes]
+        shared = 0
+        for tid, name in order:
+            open_groups = [g for g in range(len(sizes)) if len(members[g]) < sizes[g]]
+            fresh = [
+                g for g in open_groups if all(name_key(n) != name_key(name) for _, n in members[g])
+            ]
+            g = (
+                pick.choice(fresh)
+                if fresh
+                else min(
+                    open_groups,
+                    key=lambda x: sum(name_key(n) == name_key(name) for _, n in members[x]),
+                )
+            )
+            shared += 0 if fresh else 1
+            members[g].append((tid, name))
+        if shared < best_shared:
+            best_shared = shared
+            best = {}
+            for g, group in enumerate(members):
+                pick.shuffle(group)
+                for pos, (tid, _) in enumerate(group, start=1):
+                    best[tid] = (GROUP_NAMES[g], pos)
+        if shared == 0:
+            break
+    return best
 
 
 # --- the knockout -------------------------------------------------------------
@@ -118,18 +127,34 @@ def bracket_counts(level: dict[str, Any], n_teams: int, groups: list[int]) -> tu
 def first_slots(
     level: dict[str, Any], n_teams: int, groups: list[int], bracket: str
 ) -> list[str | None]:
-    """The first round's places, in bracket order; None is a bye."""
+    """The first round's places, in bracket order; None is a bye.
+
+    A bracket of 4, 8 or 16 is drawn (spec §3.3): its seeds — the group
+    winners (or 3rd places below), in group order A B C … — each against an
+    opponent drawn by lot from the other half, never from their own group:
+    "A1" v "P1", "B1" v "P2" … ("Q" below). Other sizes seed by record,
+    the top seeds taking the byes."""
     full = n_teams == int(level["max_teams"]) and all(s == 4 for s in groups)
-    if full and n_teams in (16, 32):
-        return list(CROSS_UPPER[len(groups)] if bracket == "upper" else cross_lower(len(groups)))
     upper, lower = bracket_counts(level, n_teams, groups)
     k = upper if bracket == "upper" else lower
     if k < 2:
         return []
+    prefix = "U" if bracket == "upper" else "L"
+    if k & (k - 1) == 0:
+        half = k // 2
+        if full and n_teams in (16, 32):
+            place = 1 if bracket == "upper" else 3
+            seeded = [f"{GROUP_NAMES[g]}{place}" for g in range(len(groups))]
+        else:
+            seeded = [f"{prefix}{i}" for i in range(1, half + 1)]
+        drawn = "P" if bracket == "upper" else "Q"
+        out: list[str | None] = []
+        for i, seed in enumerate(seeded, start=1):
+            out += [seed, f"{drawn}{i}"]
+        return out
     size = 1
     while size < k:
         size *= 2
-    prefix = "U" if bracket == "upper" else "L"
     return [f"{prefix}{s}" if s <= k else None for s in seed_order(size)]
 
 
@@ -342,7 +367,7 @@ def draw_level(
     for t in ts.teams(supabase, tournament_id):
         if str(t["level_id"]) == level_id and t.get("group_label"):
             _place(supabase, str(t["id"]), None, None)
-    for team_id, (group, pos) in draw([str(t["id"]) for t in pool], rng).items():
+    for team_id, (group, pos) in draw([(str(t["id"]), str(t["name"])) for t in pool], rng).items():
         _place(supabase, team_id, group, pos)
 
 

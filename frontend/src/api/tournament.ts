@@ -358,7 +358,6 @@ export const lineTournament = {
   decline: (token: string): Promise<LineTournament> => request(`${L}/decline`, line(token, { method: 'POST' })),
   rename: (token: string, teamName: string): Promise<LineTournament> =>
     request(`${L}/team`, line(token, json('PATCH', { team_name: teamName }))),
-  withdraw: (token: string): Promise<LineTournament> => request(`${L}/withdraw`, line(token, { method: 'POST' })),
   payInfo: (token: string): Promise<PaymentInfoResponse> => request(`${L}/pay`, line(token)),
   sendSlip: (token: string, f: File): Promise<LineTournament> => request(`${L}/slip`, line(token, file(f))),
 }

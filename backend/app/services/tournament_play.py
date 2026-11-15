@@ -12,6 +12,7 @@ Scores (spec §3.2–3.3):
 - knockout: best of three to 21 with deuce, capped at 30.
 """
 
+import random
 from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import Any
@@ -145,12 +146,26 @@ def across(rows_: list[Row]) -> list[Row]:
     return sorted(rows_, key=lambda r: (tuple(-v for v in r.per_match()), r.group, r.team_id))
 
 
+def is_power_of_two(k: int) -> bool:
+    return k >= 2 and k & (k - 1) == 0
+
+
+@dataclass
+class BracketDraw:
+    """A bracket whose first round is drawn: its seeds, in the order they
+    stand (group winners A B C …), and the teams drawn against them."""
+
+    seeded: list[str]
+    pool: list[str]
+
+
 def seeds(
     level: dict[str, Any], tables: dict[str, list[Row]]
-) -> tuple[dict[str, str], dict[str, int]]:
-    """Every knockout slot of a level whose groups are done: "A1" places and
-    "U#"/"L#" seeds -> team id; and each seed's tier (teams swap only within
-    a tier to keep group-mates apart)."""
+) -> tuple[dict[str, str], dict[str, int], dict[str, BracketDraw]]:
+    """For a level whose groups are done: every "A1" group place and every
+    "U#"/"L#" seed -> team id; each seed's tier; and, per bracket whose size
+    is a power of two, the seeded teams and the pool their opponents are
+    drawn from (spec §3.3: the better-placed half seeded, in group order)."""
     slots: dict[str, str] = {}
     for g, table in tables.items():
         for r in table:
@@ -180,11 +195,40 @@ def seeds(
         for rank in sorted(ranked):
             (upper if rank <= 2 else lower).extend((r, rank) for r in ranked[rank])
     tiers: dict[str, int] = {}
-    for prefix, chosen in (("U", upper), ("L", lower)):
+    draws: dict[str, BracketDraw] = {}
+    for bracket, prefix, chosen in (("upper", "U", upper), ("lower", "L", lower)):
+        if is_power_of_two(len(chosen)):
+            half = len(chosen) // 2
+            # the better half are seeds, standing in group order
+            top = sorted(chosen[:half], key=lambda x: (x[1], x[0].group))
+            chosen = top + chosen[half:]
+            draws[bracket] = BracketDraw(
+                seeded=[r.team_id for r, _ in top], pool=[r.team_id for r, _ in chosen[half:]]
+            )
         for i, (r, tier) in enumerate(chosen, start=1):
             slots[f"{prefix}{i}"] = r.team_id
             tiers[f"{prefix}{i}"] = tier
-    return slots, tiers
+    return slots, tiers, draws
+
+
+def draw_opponents(
+    seeded: list[str], pool: list[str], group_of: dict[str, str], rng: random.Random | None = None
+) -> list[str]:
+    """By lot, an opponent from the pool for each seed, never from the seed's
+    own group. If no draw can keep every pair apart, the one with fewest
+    group-mates meeting."""
+    pick = rng or random.SystemRandom()
+    best: list[str] = list(pool)
+    best_clashes = len(pool) + 1
+    for _ in range(500):
+        order = list(pool)
+        pick.shuffle(order)
+        clashes = sum(1 for s, o in zip(seeded, order) if group_of.get(s) == group_of.get(o))
+        if clashes < best_clashes:
+            best, best_clashes = order, clashes
+        if clashes == 0:
+            break
+    return best
 
 
 def keep_apart(
@@ -282,17 +326,49 @@ def coupons(supabase: Client, tournament_row: dict[str, Any]) -> dict[str, dict[
 # --- what follows a result ------------------------------------------------------
 
 
+def _drawn(
+    mine: list[dict[str, Any]],
+    bracket: str,
+    letter: str,
+    draw: BracketDraw,
+    known: dict[str, str],
+    group_of: dict[str, str],
+) -> dict[str, str]:
+    """The opponents drawn for a bracket's first round ("P#"/"Q#" slots). A
+    draw already made stands while it still fits the pool; it is made again
+    only if a corrected group result changed who is in it — and never once
+    any of that round has been called."""
+    first = sorted(
+        (
+            m
+            for m in mine
+            if m["stage"] == "ko" and m["bracket"] == bracket and m["slot_b"].startswith(letter)
+        ),
+        key=lambda m: int(m["slot_b"][1:]),
+    )
+    current = [str(m.get("team_b") or "") for m in first]
+    seeds_now = [known.get(m["slot_a"], "") for m in first]
+    if any(m["status"] != "scheduled" for m in first):
+        return {m["slot_b"]: t for m, t in zip(first, current) if t}
+    fits = sorted(current) == sorted(draw.pool) and all(
+        group_of.get(s) != group_of.get(o) for s, o in zip(seeds_now, current)
+    )
+    chosen = current if fits else draw_opponents(seeds_now, draw.pool, group_of)
+    return {m["slot_b"]: t for m, t in zip(first, chosen)}
+
+
 def refresh(supabase: Client, tournament_id: str, level_id: str) -> None:
-    """Fill the knockout of a level from what is known: its seeds once every
-    group match is done, and each finished match's winner — for every match
-    not yet called. A match already on court or done keeps its teams."""
+    """Fill the knockout of a level from what is known: its seeds and the
+    drawn opponents once every group match is done, and each finished
+    match's winner — for every match not yet called. A match already on
+    court or done keeps its teams."""
     lv = ts.level(supabase, tournament_id, level_id)
     mine = [m for m in td.matches(supabase, tournament_id) if str(m["level_id"]) == level_id]
     teams = [t for t in ts.teams(supabase, tournament_id) if str(t["level_id"]) == level_id]
     groups_done = all(m["status"] == "done" for m in mine if m["stage"] == "group")
     known: dict[str, str] = {}
     if groups_done and any(m["stage"] == "group" for m in mine):
-        slots, tiers = seeds(lv, level_tables(mine, teams))
+        slots, tiers, draws = seeds(lv, level_tables(mine, teams))
         group_of = {str(t["id"]): str(t.get("group_label") or "") for t in teams}
         for bracket in ("upper", "lower"):
             ko = [m for m in mine if m["stage"] == "ko" and m["bracket"] == bracket]
@@ -301,6 +377,9 @@ def refresh(supabase: Client, tournament_id: str, level_id: str) -> None:
                 pairs = [(m["slot_a"], m["slot_b"]) for m in ko if int(m["round"]) == widest]
                 slots = keep_apart(pairs, slots, tiers, group_of)
         known.update(slots)
+        for bracket, letter in (("upper", "P"), ("lower", "Q")):
+            if bracket in draws:
+                known.update(_drawn(mine, bracket, letter, draws[bracket], known, group_of))
     by_no = {int(m["match_no"]): m for m in mine}
     for m in sorted(mine, key=lambda m: int(m["match_no"])):
         if m["stage"] != "ko" or m["status"] != "scheduled":

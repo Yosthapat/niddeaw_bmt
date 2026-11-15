@@ -48,7 +48,7 @@ def test_groups_are_four_then_as_even_as_can_be(n: int, sizes: list[int]) -> Non
 
 def test_the_draw_places_everyone_once() -> None:
     ids = [str(i) for i in range(14)]
-    placed = td.draw(ids, random.Random(7))
+    placed = td.draw([(i, f"team {i}") for i in ids], random.Random(7))
     assert sorted(placed) == sorted(ids)
     assert len(set(placed.values())) == 14
     counts: dict[str, int] = {}
@@ -58,8 +58,31 @@ def test_the_draw_places_everyone_once() -> None:
 
 
 def test_the_draw_is_by_lot() -> None:
-    ids = [str(i) for i in range(16)]
-    assert td.draw(ids, random.Random(1)) != td.draw(ids, random.Random(2))
+    teams = [(str(i), f"team {i}") for i in range(16)]
+    assert td.draw(teams, random.Random(1)) != td.draw(teams, random.Random(2))
+
+
+def test_teams_of_one_name_go_to_different_groups() -> None:
+    # a club with four teams in a 16-team level, two clubs with two
+    names = (
+        ["BADMINTON 3D"] * 4 + ["Kill It", "kill it "] + ["Teddy"] * 2 + [f"t{i}" for i in range(8)]
+    )
+    teams = [(str(i), n) for i, n in enumerate(names)]
+    for seed in range(30):
+        placed = td.draw(teams, random.Random(seed))
+        for name in ("badminton 3d", "kill it", "teddy"):
+            groups = [placed[tid][0] for tid, n in teams if td.name_key(n) == name]
+            assert len(groups) == len(set(groups)), (seed, name, groups)
+
+
+def test_more_of_one_name_than_groups_share_as_little_as_can_be() -> None:
+    teams = [(str(i), "Same") for i in range(6)] + [(str(10 + i), f"t{i}") for i in range(2)]
+    placed = td.draw(teams, random.Random(1))  # 8 teams = 2 groups of 4
+    per_group: dict[str, int] = {}
+    for tid, n in teams:
+        if n == "Same":
+            per_group[placed[tid][0]] = per_group.get(placed[tid][0], 0) + 1
+    assert sorted(per_group.values()) == [3, 3]
 
 
 def test_seeds_meet_as_late_as_possible() -> None:
@@ -72,58 +95,54 @@ def _level(max_teams: int, cut: bool = False) -> dict[str, Any]:
     return {"id": "L", "name": "x", "max_teams": max_teams, "cut_24": cut, "sort": 0}
 
 
-def test_full_16_and_32_play_the_cross_group_pairs() -> None:
+def test_a_full_bracket_is_seeds_against_drawn_opponents() -> None:
+    # 16 teams: group winners in group order, each against an opponent drawn by lot
     assert td.first_slots(_level(16), 16, [4] * 4, "upper") == [
         "A1",
-        "B2",
-        "C1",
-        "D2",
-        "A2",
+        "P1",
         "B1",
-        "C2",
+        "P2",
+        "C1",
+        "P3",
         "D1",
+        "P4",
     ]
     assert td.first_slots(_level(16), 16, [4] * 4, "lower") == [
         "A3",
-        "B4",
-        "C3",
-        "D4",
-        "A4",
+        "Q1",
         "B3",
-        "C4",
+        "Q2",
+        "C3",
+        "Q3",
         "D3",
+        "Q4",
     ]
-    assert td.first_slots(_level(32), 32, [4] * 8, "upper")[8:] == [
-        "E1",
-        "F2",
-        "G1",
-        "H2",
-        "E2",
-        "F1",
-        "G2",
-        "H1",
-    ]
+    assert td.first_slots(_level(32), 32, [4] * 8, "upper")[::2] == [f"{g}1" for g in "ABCDEFGH"]
 
 
 def test_24_teams_go_16_up_8_down_or_8_and_8_with_the_cut() -> None:
     assert td.bracket_counts(_level(24), 24, [4] * 6) == (16, 8)
     assert td.bracket_counts(_level(24, cut=True), 24, [4] * 6) == (8, 8)
-    assert td.first_slots(_level(24), 24, [4] * 6, "upper")[:4] == ["U1", "U16", "U8", "U9"]
+    upper = td.first_slots(_level(24), 24, [4] * 6, "upper")
+    assert upper[::2] == [f"U{i}" for i in range(1, 9)] and upper[1::2] == [
+        f"P{i}" for i in range(1, 9)
+    ]
     assert td.first_slots(_level(24), 24, [4] * 6, "lower") == [
         "L1",
-        "L8",
-        "L4",
-        "L5",
+        "Q1",
         "L2",
-        "L7",
+        "Q2",
         "L3",
-        "L6",
+        "Q3",
+        "L4",
+        "Q4",
     ]
 
 
 def test_a_level_not_full_gives_the_top_seeds_byes() -> None:
-    # 14 teams: groups 4+4+3+3 -> 8 up, 6 down; the lower bracket of 8 has two byes
+    # 14 teams: groups 4+4+3+3 -> 8 up (drawn), 6 down: a bracket of 8 with two byes
     assert td.bracket_counts(_level(16), 14, [4, 4, 3, 3]) == (8, 6)
+    assert td.first_slots(_level(16), 14, [4, 4, 3, 3], "upper")[1::2] == ["P1", "P2", "P3", "P4"]
     lower = td.first_slots(_level(16), 14, [4, 4, 3, 3], "lower")
     assert lower == ["L1", None, "L4", "L5", "L2", None, "L3", "L6"]
     rounds = td.knockout("L", lower, "lower")
@@ -131,7 +150,7 @@ def test_a_level_not_full_gives_the_top_seeds_byes() -> None:
 
 
 def _teams(level: str, n: int) -> list[dict[str, Any]]:
-    placed = td.draw([f"{level}{i}" for i in range(n)], random.Random(3))
+    placed = td.draw([(f"{level}{i}", f"{level}{i}") for i in range(n)], random.Random(3))
     return [{"id": tid, "group_label": g, "group_pos": p} for tid, (g, p) in placed.items()]
 
 

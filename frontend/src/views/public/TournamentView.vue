@@ -175,7 +175,7 @@ function range(min: number | null, max: number | null): string {
           <section class="t-plan flex-col !items-stretch gap-2">
             <h3 class="font-display text-base font-bold">{{ t('cup.teamsIn', { level: shown.name }) }}</h3>
             <ul v-if="shown.teams.length" class="grid gap-1.5 sm:grid-cols-2">
-              <li v-for="team in shown.teams" :key="team.name" class="flex items-center gap-2 rounded-xl bg-white/5 px-2.5 py-2">
+              <li v-for="team in shown.teams" :key="team.id ?? team.name" class="flex items-center gap-2 rounded-xl bg-white/5 px-2.5 py-2">
                 <div class="flex -space-x-2">
                   <PlayerAvatar v-for="p in team.players" :key="p.nickname" :name="p.nickname" :avatar-url="p.avatar_url" size="sm" round />
                 </div>
@@ -203,7 +203,7 @@ function range(min: number | null, max: number | null): string {
               <div v-for="g in shown.groups" :key="g.label" class="rounded-xl bg-white/5 p-2.5">
                 <p class="mb-1.5 font-display text-sm font-bold text-[#ff6cc0]">{{ t('cup.draw.group', { g: g.label }) }}</p>
                 <div class="flex flex-col gap-2">
-                  <CupTeamLine v-for="(team, i) in g.teams" :key="team.name" :name="team.name" :players="team.players" :prefix="`${g.label}${i + 1}`" />
+                  <CupTeamLine v-for="(team, i) in g.teams" :key="team.id ?? team.name" :name="team.name" :players="team.players" :prefix="`${g.label}${i + 1}`" />
                 </div>
               </div>
             </div>

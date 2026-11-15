@@ -335,9 +335,6 @@ def update_team(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="ไม่มีอะไรให้แก้")
     target = str(changes.get("level_id") or t["level_id"])
     new_level = ts.level(supabase, tid, target)
-    ts.check_name_free(
-        supabase, target, str(changes.get("name") or t["name"]), except_team=str(t["id"])
-    )
     moving = target != str(t["level_id"])
     if moving and t["status"] in ts.SEATED:
         if ts.seats_taken(ts.teams(supabase, tid), target) >= int(new_level["max_teams"]):

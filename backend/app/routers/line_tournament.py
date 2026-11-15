@@ -4,6 +4,8 @@ Anyone in the club's list who has played at least `min_games` games here
 may sign up — a member or not — once their LINE is linked to their name.
 Who they are comes from their LINE token, never from the page. Fees are
 paid by transfer to the tournament's own account, never from club credit.
+A team that has accepted can't pull out from here: only a tournament admin
+withdraws a team (routers/admin/tournament.py).
 """
 
 from typing import Any
@@ -189,20 +191,7 @@ def rename(payload: RenameIn, supabase: SupabaseDep, member: LineMemberDep) -> L
     _open(row)
     entry = _entry(supabase, row, _player(supabase, member))
     t = ts.team(supabase, str(entry["team_id"]))
-    ts.check_name_free(supabase, str(t["level_id"]), payload.team_name, except_team=str(t["id"]))
     supabase.table(ts.TEAMS).update({"name": payload.team_name}).eq("id", str(t["id"])).execute()
-    return state(supabase, member)
-
-
-@router.post("/withdraw", response_model=LineTournament)
-def withdraw(supabase: SupabaseDep, member: LineMemberDep) -> LineTournament:
-    """Either player may pull the team out before entries close. What they
-    paid is given back by a tournament admin (owed, not automatic)."""
-    row = _current(supabase)
-    _open(row)
-    entry = _entry(supabase, row, _player(supabase, member))
-    t = ts.team(supabase, str(entry["team_id"]))
-    ts.end_team(supabase, t, "withdrawn")
     return state(supabase, member)
 
 
