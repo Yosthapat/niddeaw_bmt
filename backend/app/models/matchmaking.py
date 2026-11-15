@@ -112,6 +112,13 @@ class PairTonight(BaseModel):
     opponents: int
 
 
+class PausedEntry(BaseModel):
+    """A member resting: checked in, left out of pairings until resumed."""
+
+    player_id: UUID
+    paused_at: datetime
+
+
 class MatchmakingQueueResponse(BaseModel):
     in_progress: list[QueueEntry]
     queued: list[QueueEntry] = []
@@ -120,6 +127,7 @@ class MatchmakingQueueResponse(BaseModel):
     avg_match_duration_minutes: float
     locked_pairs: list[LockedPair] = []
     pairs_tonight: list[PairTonight] = []
+    paused: list[PausedEntry] = []
 
 
 class LiveQueueResponse(BaseModel):
