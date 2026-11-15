@@ -15,7 +15,7 @@
    - Build: `pip install pdm && pdm install --prod --no-editable`
    - Start: `pdm run uvicorn app.main:app --host 0.0.0.0 --port $PORT`
    - Health check path: `/health`
-3. Set env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `JWT_SECRET` (generate a long random string, e.g. `openssl rand -hex 32`), `CORS_ORIGINS` (your Cloudflare Pages URL).
+3. Set env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `JWT_SECRET` (generate a long random string, e.g. `openssl rand -hex 32`), `CORS_ORIGINS` (every address the site is opened at, comma-separated: `https://niddeaw.fyi` and the Worker's `https://niddeaw-bmt.yosthapatk-mbai.workers.dev`).
 4. Note the Render URL once deployed — you'll need it for the frontend's `VITE_API_BASE_URL`.
 
 ## 3. Cloudflare Pages (frontend)
