@@ -45,6 +45,12 @@ export interface PairTonight {
   opponents: number
 }
 
+/** A member resting: checked in, left out of pairings until resumed. */
+export interface PausedEntry {
+  player_id: string
+  paused_at: string
+}
+
 export interface MatchmakingQueueResponse {
   in_progress: QueueEntry[]
   queued: QueueEntry[]
@@ -53,6 +59,7 @@ export interface MatchmakingQueueResponse {
   avg_match_duration_minutes: number
   locked_pairs: LockedPair[]
   pairs_tonight?: PairTonight[]
+  paused?: PausedEntry[]
 }
 
 /** Public view: carries the confirmed `queued` pairings where the admin

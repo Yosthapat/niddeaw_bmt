@@ -20,6 +20,7 @@ from app.models.matchmaking import (
     MatchmakingQueueResponse,
     PairingSuggestion,
     PairTonight,
+    PausedEntry,
     QueueEntry,
     WaitingEntry,
 )
@@ -28,15 +29,21 @@ from app.services import matchmaking_service
 RECENT_MATCHES_FOR_DURATION_AVG = 10
 
 
-def _fetch_checkin_player_ids(supabase: Client, session_id: UUID) -> list[UUID]:
-    checkins_result = (
+def _fetch_checkins(supabase: Client, session_id: UUID) -> list[dict[str, Any]]:
+    # "*" rather than naming paused_at, so the queue still loads on a
+    # database that has not had 0044_checkin_pause.sql run yet.
+    return rows(
         supabase.table("checkins")
-        .select("player_id")
+        .select("*")
         .eq("session_id", str(session_id))
         .is_("checkout_time", "null")
         .execute()
     )
-    return [UUID(row["player_id"]) for row in rows(checkins_result)]
+
+
+def _fetch_checkin_player_ids(supabase: Client, session_id: UUID) -> list[UUID]:
+    """Who is in tonight and not resting: the players pairings are made from."""
+    return [UUID(row["player_id"]) for row in _fetch_checkins(supabase, session_id) if not row.get("paused_at")]
 
 
 def _fetch_players_by_ids(
@@ -242,7 +249,7 @@ def build_queue(supabase: Client, session_id: UUID) -> MatchmakingQueueResponse:
         history_future = pool.submit(fetch_pairing_history, supabase, session_id)
         round_no_future = pool.submit(current_round_no, supabase, session_id)
         recent_future = pool.submit(_fetch_recent_completed, supabase, session_id)
-        checkin_ids_future = pool.submit(_fetch_checkin_player_ids, supabase, session_id)
+        checkins_future = pool.submit(_fetch_checkins, supabase, session_id)
 
         in_progress = in_progress_future.result()
         queued = queued_future.result()
@@ -250,7 +257,17 @@ def build_queue(supabase: Client, session_id: UUID) -> MatchmakingQueueResponse:
         history = history_future.result()
         current_round = round_no_future.result()
         recent_rows = recent_future.result()
-        checkin_ids = checkin_ids_future.result()
+        checkins = checkins_future.result()
+
+    checkin_ids = [UUID(row["player_id"]) for row in checkins if not row.get("paused_at")]
+    paused = sorted(
+        (
+            PausedEntry(player_id=UUID(row["player_id"]), paused_at=row["paused_at"])
+            for row in checkins
+            if row.get("paused_at")
+        ),
+        key=lambda p: p.paused_at,
+    )
 
     committed_ids = {
         pid for entry in (*in_progress, *queued) for pid in (*entry.team1_player_ids, *entry.team2_player_ids)
@@ -305,6 +322,7 @@ def build_queue(supabase: Client, session_id: UUID) -> MatchmakingQueueResponse:
         avg_match_duration_minutes=avg_duration,
         locked_pairs=locked_pairs_list,
         pairs_tonight=_pairs_tonight(history),
+        paused=paused,
     )
 
 

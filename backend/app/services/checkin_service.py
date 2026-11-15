@@ -48,9 +48,14 @@ def check_in(supabase: Client, session_id: UUID, player_id: UUID, via: Via) -> d
     if existing:
         if existing[0].get("checkout_time") is None:
             return existing[0]
+        change: dict[str, Any] = {"checkout_time": None, "via": via}
+        if existing[0].get("paused_at"):
+            # back from home is not still resting (and a database without
+            # 0044_checkin_pause.sql never gets the column named)
+            change["paused_at"] = None
         reopened = (
             supabase.table("checkins")
-            .update({"checkout_time": None, "via": via})
+            .update(change)
             .eq("id", str(existing[0]["id"]))
             .execute()
         )

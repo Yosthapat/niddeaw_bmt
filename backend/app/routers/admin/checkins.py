@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, status
 
 from app.db_utils import rows
 from app.deps import AdminDep, SupabaseDep
-from app.models.checkin import Checkin, CheckinCreate
+from app.models.checkin import Checkin, CheckinCreate, CheckinPause
 from app.services import checkin_service
 
 router = APIRouter(prefix="/api/admin/checkins", tags=["admin-checkins"])
@@ -42,3 +42,32 @@ def check_out(checkin_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> Check
     if not result_rows:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Checkin not found")
     return Checkin.model_validate(result_rows[0])
+
+
+def _set_paused(supabase: SupabaseDep, payload: CheckinPause, paused_at: str | None) -> Checkin:
+    result = (
+        supabase.table("checkins")
+        .update({"paused_at": paused_at})
+        .eq("session_id", str(payload.session_id))
+        .eq("player_id", str(payload.player_id))
+        .is_("checkout_time", "null")
+        .execute()
+    )
+    found = rows(result)
+    if not found:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ผู้เล่นคนนี้ไม่ได้เช็คอินอยู่")
+    return Checkin.model_validate(found[0])
+
+
+@router.post("/pause", response_model=Checkin)
+def pause(payload: CheckinPause, supabase: SupabaseDep, admin: AdminDep) -> Checkin:
+    """Rest a member who is in but needs a break: they stay checked in (and
+    billed as usual) and are left out of the suggested pairings until
+    resumed."""
+    return _set_paused(supabase, payload, datetime.now(UTC).isoformat())
+
+
+@router.post("/resume", response_model=Checkin)
+def resume(payload: CheckinPause, supabase: SupabaseDep, admin: AdminDep) -> Checkin:
+    """Back from a rest: in the queue again, as anyone else waiting."""
+    return _set_paused(supabase, payload, None)

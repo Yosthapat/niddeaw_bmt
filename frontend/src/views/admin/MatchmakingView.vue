@@ -185,6 +185,7 @@ async function refreshQueue(): Promise<void> {
     ])
     playedMatches.value = played
     queue.value = nextQueue
+    now.value = Date.now()
     queueError.value = null
   } catch (e) {
     // Keep the last-known-good queue on screen when a single poll fails (a
@@ -500,9 +501,33 @@ const noSuggestionsReason = computed(() => {
   if (!queue.value) return t('matchmaking.waitingForPlayers')
   const free = queue.value.waiting.length
   const playing = queue.value.in_progress.length + queue.value.queued.length
-  if (free < 4 && playing > 0) return t('matchmaking.everyoneInAMatch', { n: free })
-  return t('matchmaking.waitingForPlayers')
+  const resting = queue.value.paused?.length ?? 0
+  const why = free < 4 && playing > 0 ? t('matchmaking.everyoneInAMatch', { n: free }) : t('matchmaking.waitingForPlayers')
+  return resting ? `${why} · ${t('matchmaking.pausedNote', { n: resting })}` : why
 })
+
+// Resting: a member who needs a break between games but is not going home.
+// They stay checked in (billed as usual) and out of the pairings until the
+// admin brings them back.
+const pauseBusy = ref<string | null>(null)
+const pauseError = ref<string | null>(null)
+const now = ref(Date.now())
+const restMinutes = (at: string): number => Math.max(0, Math.floor((now.value - new Date(at).getTime()) / 60000))
+async function setResting(playerId: string, rest: boolean): Promise<void> {
+  const sessionId = sessionsStore.currentSessionId
+  if (!sessionId || !queue.value) return
+  pauseBusy.value = playerId
+  pauseError.value = null
+  try {
+    if (rest) await adminApi.pauseMember(sessionId, playerId)
+    else await adminApi.resumeMember(sessionId, playerId)
+    await refreshQueue()
+  } catch (e) {
+    pauseError.value = apiErrorMessage(e, t('matchmaking.pauseFailed'))
+  } finally {
+    pauseBusy.value = null
+  }
+}
 
 const pollControls = usePolling(refreshQueue, 7000)
 </script>
@@ -1000,6 +1025,20 @@ const pollControls = usePolling(refreshQueue, 7000)
                   {{ confirming === s.group_no ? '...' : t('matchmaking.confirm') }}
                 </button>
               </div>
+              <div class="rest-row">
+                <span class="text-white/45">{{ t('matchmaking.restOne') }}</span>
+                <button
+                  v-for="pid in [...s.team1_player_ids, ...s.team2_player_ids]"
+                  :key="pid"
+                  type="button"
+                  class="rest-chip"
+                  :aria-label="t('matchmaking.pauseAria', { name: nameOf(pid) })"
+                  :disabled="pauseBusy === pid"
+                  @click="setResting(pid, true)"
+                >
+                  {{ nameOf(pid) }}
+                </button>
+              </div>
             </div>
 
             <div v-else class="space-y-3">
@@ -1062,6 +1101,35 @@ const pollControls = usePolling(refreshQueue, 7000)
         </ul>
       </section>
 
+      <section v-if="queue.paused?.length" class="mt-8" aria-labelledby="resting-title">
+        <h2 id="resting-title" class="rest-title text-sm font-semibold">☕ {{ t('matchmaking.resting') }} ({{ queue.paused.length }})</h2>
+        <p class="mt-1 text-xs text-white/45">{{ t('matchmaking.restingHint') }}</p>
+        <ul class="mt-2 space-y-2">
+          <li v-for="r in queue.paused" :key="r.player_id" class="rest-card">
+            <span class="rest-av">
+              <PlayerAvatar :name="nameOf(r.player_id)" :avatar-url="avatarOf(r.player_id)" size="sm" />
+              <span class="cup" aria-hidden="true">☕</span>
+            </span>
+            <span class="min-w-0 flex-1">
+              <b class="block truncate font-medium">{{ nameOf(r.player_id) }}</b>
+              <small class="text-xs text-white/50">
+                {{ restMinutes(r.paused_at) < 1 ? t('matchmaking.restingJust') : t('matchmaking.restingFor', { n: restMinutes(r.paused_at) }) }}
+              </small>
+            </span>
+            <button
+              type="button"
+              class="tap shrink-0 rounded-full bg-brand-pink px-4 text-sm font-semibold text-brand-black disabled:opacity-50"
+              :disabled="pauseBusy === r.player_id"
+              @click="setResting(r.player_id, false)"
+            >
+              ▶ {{ t('matchmaking.resume') }}
+            </button>
+          </li>
+        </ul>
+      </section>
+
+      <p v-if="pauseError" role="alert" class="mt-3 text-sm text-status-error">{{ pauseError }}</p>
+
       <section class="mt-8">
         <h2 class="text-sm font-semibold text-white/70">{{ t('matchmaking.inQueue') }} ({{ queue.waiting.length }})</h2>
         <ul class="mt-2 flex flex-wrap gap-2">
@@ -1076,6 +1144,16 @@ const pollControls = usePolling(refreshQueue, 7000)
             {{ nameOf(w.player_id) }}
             <CreditCardMark :player-id="w.player_id" />
             <span class="text-xs text-white/40">~{{ Math.round(w.estimated_wait_minutes) }} {{ t('matches.minutes') }}</span>
+            <button
+              type="button"
+              class="pause-btn"
+              :aria-label="t('matchmaking.pauseAria', { name: nameOf(w.player_id) })"
+              :title="t('matchmaking.pauseAria', { name: nameOf(w.player_id) })"
+              :disabled="pauseBusy === w.player_id"
+              @click="setResting(w.player_id, true)"
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
+            </button>
           </li>
         </ul>
       </section>
@@ -1086,6 +1164,70 @@ const pollControls = usePolling(refreshQueue, 7000)
 </template>
 
 <style scoped>
+/* resting is light blue, apart from the pink of playing */
+.pause-btn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-right: -6px;
+  border-radius: 50%;
+  color: #7fd3ff;
+  background: rgb(127 211 255 / 0.1);
+  border: 1px solid rgb(127 211 255 / 0.35);
+}
+.pause-btn:disabled {
+  opacity: 0.5;
+}
+.rest-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed rgb(255 255 255 / 0.1);
+  font-size: 12px;
+}
+.rest-chip {
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  color: #7fd3ff;
+  background: rgb(127 211 255 / 0.08);
+  border: 1px solid rgb(127 211 255 / 0.3);
+}
+.rest-chip::before {
+  content: '⏸ ';
+  font-size: 10px;
+}
+.rest-chip:disabled {
+  opacity: 0.5;
+}
+.rest-title {
+  color: #7fd3ff;
+}
+.rest-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px dashed rgb(127 211 255 / 0.35);
+  background: linear-gradient(90deg, rgb(127 211 255 / 0.08), transparent);
+}
+.rest-av {
+  position: relative;
+  filter: grayscale(0.6);
+  opacity: 0.8;
+}
+.rest-av .cup {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  font-size: 13px;
+}
 .repeats {
   display: flex;
   flex-wrap: wrap;

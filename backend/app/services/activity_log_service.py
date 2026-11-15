@@ -71,6 +71,8 @@ _ROUTE_LABELS: list[tuple[str, str, re.Pattern[str]]] = [
     ("POST", "เปลี่ยน QR เช็คอิน", re.compile(r"^/api/admin/line/checkin-qr/rotate$")),
     ("PUT", "ปักหมุดเช็คอิน GPS", re.compile(r"^/api/admin/line/checkin-spot$")),
     ("POST", "ตรวจสลิปย้อนหลัง", re.compile(r"^/api/admin/slip-checks/backfill$")),
+    ("POST", "พักผู้เล่น", re.compile(r"^/api/admin/checkins/pause$")),
+    ("POST", "ให้ผู้เล่นกลับมาเล่น", re.compile(r"^/api/admin/checkins/resume$")),
     ("DELETE", "ปิดเช็คอิน GPS", re.compile(r"^/api/admin/line/checkin-spot$")),
     ("POST", "สลิปไม่ผ่าน", re.compile(r"^/api/admin/billing/[^/]+/reject-slip$")),
     ("POST", "อนุมัติเติมเครดิต", re.compile(r"^/api/admin/credit/topups/[^/]+/approve$")),

@@ -120,6 +120,15 @@ export async function checkoutPlayer(checkinId: string): Promise<Checkin> {
   return request(`/api/admin/checkins/${checkinId}/checkout`, { method: 'POST' })
 }
 
+/** Rest a checked-in member: left out of pairings until resumed. */
+export async function pauseMember(sessionId: string, playerId: string): Promise<Checkin> {
+  return request('/api/admin/checkins/pause', { method: 'POST', body: JSON.stringify({ session_id: sessionId, player_id: playerId }) })
+}
+
+export async function resumeMember(sessionId: string, playerId: string): Promise<Checkin> {
+  return request('/api/admin/checkins/resume', { method: 'POST', body: JSON.stringify({ session_id: sessionId, player_id: playerId }) })
+}
+
 // Matchmaking
 export async function suggestPairings(sessionId: string): Promise<MatchmakingSuggestionResponse> {
   return request(`/api/admin/matchmaking/suggest?session_id=${sessionId}`)
