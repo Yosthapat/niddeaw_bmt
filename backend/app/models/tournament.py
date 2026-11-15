@@ -64,6 +64,11 @@ class Tournament(BaseModel):
     courts: int | None = None
     status: TournamentStatus
     created_at: datetime | None = None
+    day_start: str = "09:00"
+    group_minutes: int = 20
+    ko_minutes: int = 30
+    rest_minutes: int = 10
+    schedule_published_at: datetime | None = None
     levels: list[Level] = []
     # Once anyone has paid, the price is fixed, so nobody pays a different one.
     fees_locked: bool = False
@@ -80,7 +85,8 @@ class TournamentCreate(BaseModel):
 class TournamentUpdate(EditForm):
     NOT_NULL = frozenset(
         {"name", "starts_on", "venue", "entry_fee", "shuttle_fee", "coupons_per_set",
-         "extra_set_price", "coupon_refund_price", "closes_at", "min_games", "status"}
+         "extra_set_price", "coupon_refund_price", "closes_at", "min_games", "status",
+         "day_start", "group_minutes", "ko_minutes", "rest_minutes"}
     )  # fmt: skip
 
     name: (
@@ -105,6 +111,12 @@ class TournamentUpdate(EditForm):
     min_games: Annotated[int, Field(ge=0, le=100)] | None = None
     courts: Annotated[int, Field(ge=1, le=60)] | None = None
     status: TournamentStatus | None = None
+    day_start: (
+        Annotated[str, StringConstraints(pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9](:00)?$")] | None
+    ) = None
+    group_minutes: Annotated[int, Field(ge=5, le=120)] | None = None
+    ko_minutes: Annotated[int, Field(ge=5, le=120)] | None = None
+    rest_minutes: Annotated[int, Field(ge=0, le=120)] | None = None
 
 
 class LevelIn(BaseModel):
@@ -147,14 +159,45 @@ class PublicPlayer(BaseModel):
 
 
 class PublicTeam(BaseModel):
+    id: UUID | None = None
     name: str
     players: list[PublicPlayer]
+
+
+class PublicGroup(BaseModel):
+    label: str
+    teams: list[PublicTeam]
 
 
 class PublicLevel(Level):
     seats_taken: int = 0
     waitlist: int = 0
     teams: list[PublicTeam] = []
+    # Only once the schedule is published.
+    groups: list[PublicGroup] = []
+
+
+class MatchSlot(BaseModel):
+    """One side of a match: a team once known, else the place it comes from
+    ("A1", "U3", "W12")."""
+
+    slot: str
+    team_id: UUID | None = None
+    team_name: str | None = None
+
+
+class Match(BaseModel):
+    id: UUID
+    match_no: int
+    level_id: UUID
+    level_name: str
+    stage: Literal["group", "ko"]
+    bracket: Literal["upper", "lower"] | None = None
+    round: int
+    group_label: str | None = None
+    a: MatchSlot
+    b: MatchSlot
+    est_start: datetime | None = None
 
 
 class PublicTournament(BaseModel):
@@ -171,6 +214,10 @@ class PublicTournament(BaseModel):
     status: TournamentStatus
     taking_entries: bool
     levels: list[PublicLevel]
+    # The groups and the match list are shown once an admin publishes them;
+    # until then the pages say "coming soon".
+    schedule_published: bool = False
+    matches: list[Match] = []
 
 
 class Details(BaseModel):
@@ -390,3 +437,41 @@ class AdminActivity(BaseModel):
     path: str
     detail: dict[str, object] | None = None
     created_at: datetime
+
+
+# --- phase 2: groups and the match list ---------------------------------------
+
+
+class DrawTeam(BaseModel):
+    id: UUID
+    name: str
+    status: TeamStatus
+    group_label: str | None = None
+    group_pos: int | None = None
+    players: list[PublicPlayer]
+
+
+class DrawLevel(BaseModel):
+    level: Level
+    confirmed: int
+    not_ready: int
+    """Teams holding or waiting for a place but not confirmed yet: not drawn."""
+    groups: list[str]
+    teams: list[DrawTeam]
+
+
+class DrawState(BaseModel):
+    tournament_id: UUID
+    levels: list[DrawLevel]
+    matches: list[Match]
+    est_end: datetime | None = None
+    published_at: datetime | None = None
+
+
+class PlaceIn(BaseModel):
+    group_label: Annotated[str, StringConstraints(pattern=r"^[A-H]$")]
+    group_pos: Annotated[int, Field(ge=1, le=4)]
+
+
+class PublishIn(BaseModel):
+    on: bool

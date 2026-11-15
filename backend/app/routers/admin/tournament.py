@@ -20,6 +20,9 @@ from app.db_utils import rows
 from app.deps import SupabaseDep, TournamentAdminDep
 from app.models.tournament import (
     AdminActivity,
+    DrawState,
+    PlaceIn,
+    PublishIn,
     AdminSignUpIn,
     AdminTeam,
     EntrantUpdate,
@@ -36,6 +39,7 @@ from app.models.tournament import (
     WithdrawIn,
 )
 from app.services import promptpay_service
+from app.services import tournament_draw as td
 from app.services import tournament_service as ts
 from app.services import tournament_views as views
 from app.services.image_service import resize_jpeg
@@ -429,6 +433,68 @@ async def refund_entrant(
     url = await _store(supabase, file, "refund") if file is not None else None
     ts.refund(supabase, e, str(admin.admin_id), url)
     return views.admin_teams(supabase, str(e["tournament_id"]))
+
+
+# --- phase 2: groups and the match list ----------------------------------------
+
+
+@router.get("/tournaments/{tournament_id}/draw", response_model=DrawState)
+def draw_state(tournament_id: UUID, supabase: SupabaseDep, admin: TournamentAdminDep) -> DrawState:
+    ts.sweep(supabase, str(tournament_id))
+    return views.draw_state(supabase, str(tournament_id))
+
+
+@router.post("/tournaments/{tournament_id}/levels/{level_id}/draw", response_model=DrawState)
+def draw_level(
+    tournament_id: UUID, level_id: UUID, supabase: SupabaseDep, admin: TournamentAdminDep
+) -> DrawState:
+    """Draw a level's groups by lot from its confirmed teams — again, if it
+    was drawn before, as long as no match list has been made."""
+    td.draw_level(supabase, str(tournament_id), str(level_id))
+    return views.draw_state(supabase, str(tournament_id))
+
+
+@router.delete("/tournaments/{tournament_id}/levels/{level_id}/draw", response_model=DrawState)
+def clear_draw(
+    tournament_id: UUID, level_id: UUID, supabase: SupabaseDep, admin: TournamentAdminDep
+) -> DrawState:
+    td.clear_level(supabase, str(tournament_id), str(level_id))
+    return views.draw_state(supabase, str(tournament_id))
+
+
+@router.put("/teams/{team_id}/group", response_model=DrawState)
+def place_team(
+    team_id: UUID, payload: PlaceIn, supabase: SupabaseDep, admin: TournamentAdminDep
+) -> DrawState:
+    """Move a team into a group's place, swapping with whoever holds it."""
+    t = ts.team(supabase, str(team_id))
+    td.move(supabase, str(team_id), payload.group_label, payload.group_pos)
+    return views.draw_state(supabase, str(t["tournament_id"]))
+
+
+@router.post("/tournaments/{tournament_id}/schedule", response_model=DrawState)
+def make_schedule(
+    tournament_id: UUID, supabase: SupabaseDep, admin: TournamentAdminDep
+) -> DrawState:
+    td.build(supabase, str(tournament_id))
+    return views.draw_state(supabase, str(tournament_id))
+
+
+@router.delete("/tournaments/{tournament_id}/schedule", response_model=DrawState)
+def clear_schedule(
+    tournament_id: UUID, supabase: SupabaseDep, admin: TournamentAdminDep
+) -> DrawState:
+    td.clear(supabase, str(tournament_id))
+    return views.draw_state(supabase, str(tournament_id))
+
+
+@router.post("/tournaments/{tournament_id}/publish", response_model=DrawState)
+def publish(
+    tournament_id: UUID, payload: PublishIn, supabase: SupabaseDep, admin: TournamentAdminDep
+) -> DrawState:
+    """Show the groups and the match list on /tournament and in LINE, or hide them again."""
+    td.publish(supabase, str(tournament_id), payload.on)
+    return views.draw_state(supabase, str(tournament_id))
 
 
 # --- money -------------------------------------------------------------------

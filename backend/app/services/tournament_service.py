@@ -267,6 +267,11 @@ def create_tournament(supabase: Client, payload: dict[str, Any], admin_id: str) 
         "min_games": 3,
         "courts": None,
         "status": "draft",
+        "day_start": "09:00",
+        "group_minutes": 20,
+        "ko_minutes": 30,
+        "rest_minutes": 10,
+        "schedule_published_at": None,
         "created_by": admin_id,
         "created_at": iso(now()),
     }
