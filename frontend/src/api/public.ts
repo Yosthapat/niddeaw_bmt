@@ -1,4 +1,5 @@
 import { request } from './client'
+import type { CreditPackage } from './line'
 import type {
   PaymentInfoResponse,
   Product,
@@ -117,6 +118,16 @@ export async function getMatchDetail(matchId: string): Promise<MatchDetail> {
 
 export async function getLiveStatus(): Promise<LiveQueueResponse> {
   return request('/api/live')
+}
+
+// The home page's wallet cards: the packages on sale and the pass price.
+export interface WalletOffer {
+  packages: CreditPackage[]
+  pass_price: number
+}
+
+export async function getWalletOffer(): Promise<WalletOffer> {
+  return request('/api/wallet-offer')
 }
 
 export async function getSponsors(): Promise<Sponsor[]> {
