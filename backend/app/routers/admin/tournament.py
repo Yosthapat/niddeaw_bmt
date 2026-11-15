@@ -20,6 +20,10 @@ from app.db_utils import rows
 from app.deps import SupabaseDep, TournamentAdminDep
 from app.models.tournament import (
     AdminActivity,
+    CallIn,
+    CouponSaleIn,
+    GameDay,
+    ResultIn,
     DrawState,
     PlaceIn,
     PublishIn,
@@ -40,6 +44,7 @@ from app.models.tournament import (
 )
 from app.services import promptpay_service
 from app.services import tournament_draw as td
+from app.services import tournament_play as tp
 from app.services import tournament_service as ts
 from app.services import tournament_views as views
 from app.services.image_service import resize_jpeg
@@ -495,6 +500,88 @@ def publish(
     """Show the groups and the match list on /tournament and in LINE, or hide them again."""
     td.publish(supabase, str(tournament_id), payload.on)
     return views.draw_state(supabase, str(tournament_id))
+
+
+# --- phase 3: the day ----------------------------------------------------------
+
+
+@router.get("/tournaments/{tournament_id}/day", response_model=GameDay)
+def game_day(tournament_id: UUID, supabase: SupabaseDep, admin: TournamentAdminDep) -> GameDay:
+    return views.game_day(supabase, str(tournament_id))
+
+
+def _day_of(supabase: Client, match_id: UUID) -> GameDay:
+    return views.game_day(supabase, str(tp.match(supabase, str(match_id))["tournament_id"]))
+
+
+@router.post("/matches/{match_id}/call", response_model=GameDay)
+def call_match(
+    match_id: UUID, payload: CallIn, supabase: SupabaseDep, admin: TournamentAdminDep
+) -> GameDay:
+    tp.call(supabase, str(match_id), payload.court)
+    return _day_of(supabase, match_id)
+
+
+@router.post("/matches/{match_id}/call-again", response_model=GameDay)
+def call_match_again(match_id: UUID, supabase: SupabaseDep, admin: TournamentAdminDep) -> GameDay:
+    tp.call_again(supabase, str(match_id))
+    return _day_of(supabase, match_id)
+
+
+@router.post("/matches/{match_id}/uncall", response_model=GameDay)
+def uncall_match(match_id: UUID, supabase: SupabaseDep, admin: TournamentAdminDep) -> GameDay:
+    tp.uncall(supabase, str(match_id))
+    return _day_of(supabase, match_id)
+
+
+@router.post("/matches/{match_id}/result", response_model=GameDay)
+def match_result(
+    match_id: UUID, payload: ResultIn, supabase: SupabaseDep, admin: TournamentAdminDep
+) -> GameDay:
+    """From the signed score sheet — or a walkover — and again to correct it,
+    until a match it decides has been called."""
+    tp.record(
+        supabase,
+        str(match_id),
+        payload.sets,
+        payload.shuttles,
+        str(admin.admin_id),
+        payload.walkover_winner,
+    )
+    return _day_of(supabase, match_id)
+
+
+@router.post("/teams/{team_id}/coupons/sell", response_model=GameDay)
+async def sell_coupons(
+    team_id: UUID,
+    supabase: SupabaseDep,
+    admin: TournamentAdminDep,
+    quantity: int = 1,
+    paid_via: str = "cash",
+    file: UploadFile | None = None,
+) -> GameDay:
+    """Extra coupon sets at the desk, at the price set for the day; the
+    transfer's slip, if there is one, is kept with the income."""
+    sale = CouponSaleIn(quantity=quantity, paid_via=paid_via)  # type: ignore[arg-type]
+    url = await _store(supabase, file, "coupons") if file is not None else None
+    tp.sell_sets(supabase, str(team_id), sale.quantity, sale.paid_via, url, str(admin.admin_id))
+    return views.game_day(supabase, str(ts.team(supabase, str(team_id))["tournament_id"]))
+
+
+@router.post("/teams/{team_id}/coupons/return", response_model=GameDay)
+async def return_coupons(
+    team_id: UUID,
+    supabase: SupabaseDep,
+    admin: TournamentAdminDep,
+    quantity: int = 1,
+    paid_via: str = "cash",
+    file: UploadFile | None = None,
+) -> GameDay:
+    """Coupons a team didn't use, bought back at the day's price."""
+    sale = CouponSaleIn(quantity=quantity, paid_via=paid_via)  # type: ignore[arg-type]
+    url = await _store(supabase, file, "coupon-refund") if file is not None else None
+    tp.buy_back(supabase, str(team_id), sale.quantity, sale.paid_via, url, str(admin.admin_id))
+    return views.game_day(supabase, str(ts.team(supabase, str(team_id))["tournament_id"]))
 
 
 # --- money -------------------------------------------------------------------

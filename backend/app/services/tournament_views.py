@@ -10,6 +10,9 @@ from supabase import Client
 
 from app.models.tournament import (
     AdminTeam,
+    Coupons,
+    GameDay,
+    StandingRow,
     DrawLevel,
     DrawState,
     DrawTeam,
@@ -28,6 +31,7 @@ from app.models.tournament import (
 )
 from app.services import slip_check
 from app.services import tournament_draw as td
+from app.services import tournament_play as tp
 from app.services import tournament_service as ts
 
 PRIVATE = ("first_name", "last_name", "phone")
@@ -132,6 +136,15 @@ def match_models(supabase: Client, tournament_id: str) -> list[Match]:
             a=side(m["slot_a"], m.get("team_a")),
             b=side(m["slot_b"], m.get("team_b")),
             est_start=m.get("est_start"),
+            status=m.get("status") or "scheduled",
+            court=m.get("court"),
+            call_count=int(m.get("call_count") or 0),
+            called_at=m.get("called_at"),
+            finished_at=m.get("finished_at"),
+            sets=m.get("sets"),
+            winner=m.get("winner"),
+            walkover=bool(m.get("walkover")),
+            shuttles=m.get("shuttles"),
         )
         for m in found
     ]
@@ -141,7 +154,9 @@ def _groups(
     teams: list[dict[str, Any]],
     by_team: dict[str, list[dict[str, Any]]],
     players: dict[str, dict[str, Any]],
+    level_matches: list[dict[str, Any]] | None = None,
 ) -> list[PublicGroup]:
+    tables = tp.level_tables(level_matches or [], teams)
     placed = sorted(
         (t for t in teams if t.get("group_label") and t["status"] not in ts.ENDED),
         key=lambda t: (str(t["group_label"]), int(t.get("group_pos") or 0)),
@@ -154,6 +169,22 @@ def _groups(
                 for t in placed
                 if t["group_label"] == label
             ],
+            standings=[
+                StandingRow(
+                    team_id=UUID(r.team_id),
+                    rank=r.rank,
+                    played=r.played,
+                    won=r.won,
+                    drawn=r.drawn,
+                    lost=r.lost,
+                    points=r.points,
+                    scored=r.scored,
+                    conceded=r.conceded,
+                    diff=r.diff,
+                )
+                for r in tables.get(label, [])
+                if any(x.played for x in tables.get(label, []))
+            ],
         )
         for label in sorted({str(t["group_label"]) for t in placed})
     ]
@@ -165,6 +196,7 @@ def public_tournament(supabase: Client, row: dict[str, Any]) -> PublicTournament
     tid = str(row["id"])
     published = bool(row.get("schedule_published_at"))
     all_teams = ts.teams(supabase, tid)
+    all_matches = td.matches(supabase, tid) if published else []
     ents = ts.entrants(supabase, tid)
     players = ts.players_by_id(supabase, [str(e["player_id"]) for e in ents])
     by_team: dict[str, list[dict[str, Any]]] = {}
@@ -187,7 +219,14 @@ def public_tournament(supabase: Client, row: dict[str, Any]) -> PublicTournament
                     "teams": [
                         _public_team(t, by_team.get(str(t["id"]), []), players) for t in seated
                     ],
-                    "groups": _groups(mine, by_team, players) if published else [],
+                    "groups": _groups(
+                        mine,
+                        by_team,
+                        players,
+                        [m for m in all_matches if str(m["level_id"]) == lid],
+                    )
+                    if published
+                    else [],
                 }
             )
         )
@@ -305,3 +344,47 @@ def admin_teams(supabase: Client, tournament_id: str) -> list[AdminTeam]:
             )
         )
     return out
+
+
+def game_day(supabase: Client, tournament_id: str) -> GameDay:
+    row = ts.tournament(supabase, tournament_id)
+    found = match_models(supabase, tournament_id)
+    teams = {str(t["id"]): t for t in ts.teams(supabase, tournament_id)}
+    names = {str(lv["id"]): str(lv["name"]) for lv in ts.levels(supabase, tournament_id)}
+    ents = ts.entrants(supabase, tournament_id)
+    players = ts.players_by_id(supabase, [str(e["player_id"]) for e in ents])
+    by_team: dict[str, list[dict[str, Any]]] = {}
+    for e in ents:
+        by_team.setdefault(str(e["team_id"]), []).append(e)
+    upcoming: dict[str, int] = {}
+    for m in found:
+        if m.status == "scheduled":
+            for side in (m.a, m.b):
+                if side.team_id and str(side.team_id) not in upcoming:
+                    upcoming[str(side.team_id)] = m.match_no
+    held = tp.coupons(supabase, row)
+    return GameDay(
+        tournament_id=row["id"],
+        courts=int(row.get("courts") or 0),
+        published=bool(row.get("schedule_published_at")),
+        matches=found,
+        ready=[m["id"] for m in tp.ready(supabase, tournament_id)],
+        coupons=sorted(
+            (
+                Coupons(
+                    team_id=UUID(tid),
+                    team_name=str(teams[tid]["name"]),
+                    level_name=names.get(str(teams[tid]["level_id"]), "?"),
+                    players=_public_team(teams[tid], by_team.get(tid, []), players).players,
+                    next_match_no=upcoming.get(tid),
+                    **c,
+                )
+                for tid, c in held.items()
+                if tid in teams and teams[tid]["status"] not in ts.ENDED
+            ),
+            key=lambda c: (c.left, c.team_name),
+        ),
+        extra_set_price=int(row.get("extra_set_price") or 0),
+        coupon_refund_price=int(row.get("coupon_refund_price") or 0),
+        coupons_per_set=int(row.get("coupons_per_set") or 6),
+    )

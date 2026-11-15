@@ -164,9 +164,24 @@ class PublicTeam(BaseModel):
     players: list[PublicPlayer]
 
 
+class StandingRow(BaseModel):
+    team_id: UUID
+    rank: int
+    played: int
+    won: int
+    drawn: int
+    lost: int
+    points: int
+    scored: int
+    conceded: int
+    diff: int
+
+
 class PublicGroup(BaseModel):
     label: str
     teams: list[PublicTeam]
+    # the table, best first, once any of its matches is played
+    standings: list[StandingRow] = []
 
 
 class PublicLevel(Level):
@@ -200,6 +215,16 @@ class Match(BaseModel):
     a: MatchSlot
     b: MatchSlot
     est_start: datetime | None = None
+    # the day itself (phase 3)
+    status: Literal["scheduled", "on_court", "done"] = "scheduled"
+    court: int | None = None
+    call_count: int = 0
+    called_at: datetime | None = None
+    finished_at: datetime | None = None
+    sets: list[list[int]] | None = None
+    winner: Literal["a", "b", "draw"] | None = None
+    walkover: bool = False
+    shuttles: int | None = None
 
 
 class PublicTournament(BaseModel):
@@ -477,3 +502,51 @@ class PlaceIn(BaseModel):
 
 class PublishIn(BaseModel):
     on: bool
+
+
+# --- phase 3: the day ----------------------------------------------------------
+
+
+class CallIn(BaseModel):
+    court: Annotated[int, Field(ge=1, le=60)]
+
+
+class ResultIn(BaseModel):
+    sets: list[
+        Annotated[list[Annotated[int, Field(ge=0, le=30)]], Field(min_length=2, max_length=2)]
+    ] = Field(default_factory=list, max_length=3)
+    shuttles: Annotated[int, Field(ge=0, le=20)] = 2
+    walkover_winner: Literal["a", "b"] | None = None
+
+
+class Coupons(BaseModel):
+    team_id: UUID
+    team_name: str
+    level_name: str
+    players: list[PublicPlayer]
+    sets: int
+    given: int
+    used: int
+    returned: int
+    left: int
+    next_match_no: int | None = None
+
+
+class CouponSaleIn(BaseModel):
+    quantity: Annotated[int, Field(ge=1, le=20)]
+    paid_via: PaidVia
+
+
+class GameDay(BaseModel):
+    """Everything the admin's game-day screen needs at once."""
+
+    tournament_id: UUID
+    courts: int
+    published: bool
+    matches: list[Match]
+    ready: list[UUID]
+    """Matches that could be called now, in order (both teams known, free, rested)."""
+    coupons: list[Coupons]
+    extra_set_price: int
+    coupon_refund_price: int
+    coupons_per_set: int

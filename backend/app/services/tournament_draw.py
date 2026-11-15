@@ -429,6 +429,16 @@ def build(supabase: Client, tournament_id: str) -> datetime:
                 "team_a": m.team_a,
                 "team_b": m.team_b,
                 "est_start": m.est_start.isoformat() if m.est_start else None,
+                "status": "scheduled",
+                "court": None,
+                "called_at": None,
+                "call_count": 0,
+                "finished_at": None,
+                "sets": None,
+                "winner": None,
+                "walkover": False,
+                "shuttles": None,
+                "result_by": None,
                 "created_at": ts.iso(ts.now()),
             }
         ).execute()
