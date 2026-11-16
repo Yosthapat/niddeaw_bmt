@@ -2,7 +2,9 @@
  * Reading a tournament match out loud: which round, and who — a team once
  * known, else where it comes from (backend services/tournament_draw.py).
  */
-import type { CupMatch, MatchSlot, PublicLevel } from '@/api/tournament'
+import type { CupMatch, Level, MatchSlot, PublicLevel } from '@/api/tournament'
+import type { EloTier } from '@/types'
+import { useEloTier } from '@/composables/useEloTier'
 
 type T = (key: string, values?: Record<string, unknown>) => string
 
@@ -46,4 +48,16 @@ export function rankBands(level: Pick<PublicLevel, 'max_teams' | 'cut_24' | 'gro
   if (full && n === 24 && !level.cut_24) return { 1: 'upper', 2: 'upper', 3: 'upperOrLower', 4: 'lower' }
   if (full && n === 24) return { 1: 'upper', 2: 'upperOrLower', 3: 'lowerOrOut', 4: 'out' }
   return { 1: 'upper', 2: 'upper', 3: 'lower', 4: 'lower' }
+}
+
+const TIER_WORDS: EloTier[] = ['milk', 'beer', 'highball', 'wine', 'soju', 'whisky', 'vodka', 'absinthe']
+
+/** The mascots a level is drawn with: the tiers its name says ("Milk–Beer"
+ *  is two), else the tier its ELO range starts in. */
+export function levelTiers(level: Pick<Level, 'name' | 'min_elo' | 'max_elo'>): EloTier[] {
+  const name = level.name.toLowerCase()
+  const named = TIER_WORDS.filter((w) => name.includes(w))
+  if (named.length) return named.slice(0, 2)
+  const elo = level.min_elo ?? (level.max_elo !== null ? level.max_elo - 1 : 1000)
+  return [useEloTier(elo).tier]
 }

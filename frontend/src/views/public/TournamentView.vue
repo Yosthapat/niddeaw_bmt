@@ -18,7 +18,7 @@ import CupTeamLine from '@/components/cup/CupTeamLine.vue'
 import CupStandings from '@/components/cup/CupStandings.vue'
 import CupMatchRow from '@/components/cup/CupMatchRow.vue'
 import CupBracket from '@/components/cup/CupBracket.vue'
-import { rankBands } from '@/utils/cupMatch'
+import { levelTiers, rankBands } from '@/utils/cupMatch'
 import { usePolling } from '@/composables/usePolling'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 
@@ -200,21 +200,37 @@ function range(min: number | null, max: number | null): string {
         </div>
       </section>
 
-      <!-- one level at a time -->
-      <div class="sticky top-[calc(var(--header-h)+6px)] z-10 -mx-4 overflow-x-auto px-4 pb-1" role="tablist" :aria-label="t('cup.level')">
-        <div class="flex w-max gap-1.5 rounded-full border border-white/12 bg-[#1a0838]/90 p-1 backdrop-blur">
+      <!-- one level at a time: each its mascot, all on one row, nothing to swipe -->
+      <div class="sticky top-[calc(var(--header-h)+6px)] z-10" role="tablist" :aria-label="t('cup.level')">
+        <div
+          class="grid gap-1 rounded-[22px] border border-white/12 bg-[#1a0838]/92 p-1 backdrop-blur"
+          :style="{ gridTemplateColumns: `repeat(${Math.min(cup.levels.length, 4)}, minmax(0, 1fr))` }"
+        >
           <button
             v-for="lv in cup.levels"
             :key="lv.id"
             type="button"
             role="tab"
-            class="flex min-h-11 items-center gap-1.5 rounded-full px-4 text-sm whitespace-nowrap"
-            :class="shown?.id === lv.id ? 'bg-[#ff6cc0] font-bold text-[#1a0838]' : 'text-white/80'"
+            class="flex min-w-0 flex-col items-center rounded-[18px] px-1 pt-1.5 pb-1 transition-colors"
+            :class="shown?.id === lv.id ? 'bg-[#ff6cc0]/20 ring-1 ring-[#ff6cc0]' : 'hover:bg-white/6'"
             :aria-selected="shown?.id === lv.id"
+            :aria-label="`${lv.name} ${lv.seats_taken}/${lv.max_teams}`"
             @click="choose(lv.id)"
           >
-            {{ lv.name }}
-            <span class="text-xs" :class="shown?.id === lv.id ? 'text-[#1a0838]/70' : 'text-white/50'">{{ lv.seats_taken }}/{{ lv.max_teams }}</span>
+            <span class="flex h-10 items-end justify-center" :class="shown?.id === lv.id ? '' : 'opacity-60 saturate-50'">
+              <TierMascot
+                v-for="(tier, i) in levelTiers(lv)"
+                :key="tier"
+                :tier="tier"
+                :size="levelTiers(lv).length > 1 ? 32 : 40"
+                :interactive="false"
+                :class="i > 0 ? '-ml-3' : ''"
+              />
+            </span>
+            <span class="w-full truncate text-center font-display text-[12px] leading-[1.8]" :class="shown?.id === lv.id ? 'font-bold text-white' : 'text-white/75'">
+              {{ lv.name }}
+            </span>
+            <span class="font-display text-[10px] leading-tight" :class="shown?.id === lv.id ? 'text-[#ff9fd6]' : 'text-white/45'">{{ lv.seats_taken }}/{{ lv.max_teams }}</span>
           </button>
         </div>
       </div>
