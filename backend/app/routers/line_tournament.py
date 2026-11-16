@@ -8,6 +8,7 @@ A team that has accepted can't pull out from here: only a tournament admin
 withdraws a team (routers/admin/tournament.py).
 """
 
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -70,14 +71,24 @@ def _entry(supabase: Client, row: dict[str, Any], player: dict[str, Any]) -> dic
 
 
 def state(supabase: Client, member: LineContext) -> LineTournament:
-    row = ts.current(supabase)
-    if row is None:
-        return LineTournament(tournament=None)
+    """Everything the LINE page shows, read in three round trips: the
+    tournament and who this is together, then the tournament's rows and the
+    details they typed last time together, then the players."""
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        row_f = pool.submit(ts.current, supabase)
+        player_f = pool.submit(_player, supabase, member)
+        row = row_f.result()
+        if row is None:
+            return LineTournament(tournament=None)
+        player = player_f.result()
     tid = str(row["id"])
-    ts.sweep(supabase, tid)
-    player = _player(supabase, member)
     pid = str(player["id"])
-    own = ts.level_of(int(player.get("elo_score") or 0), ts.levels(supabase, tid))
+    published = bool(row.get("schedule_published_at"))
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        details_f = pool.submit(ts.last_details, supabase, pid)
+        snap = views.snapshot(supabase, tid, with_matches=published)
+        details = details_f.result()
+    own = ts.level_of(int(player.get("elo_score") or 0), snap.levels)
     me = Me(
         player_id=UUID(pid),
         nickname=player["nickname"],
@@ -88,17 +99,19 @@ def state(supabase: Client, member: LineContext) -> LineTournament:
         games_needed=ts.games_needed(player, row),
         level_id=own["id"] if own else None,
     )
-    entry = ts.active_entry(supabase, tid, pid)
+    entry = next((e for e in snap.entrants if str(e["player_id"]) == pid and e.get("active")), None)
     team = None
     if entry is not None:
-        t = ts.team(supabase, str(entry["team_id"]))
-        ents = ts.team_entrants(supabase, str(t["id"]))
-        players = ts.players_by_id(supabase, [str(e["player_id"]) for e in ents])
-        names = {str(lv["id"]): str(lv["name"]) for lv in ts.levels(supabase, tid)}
-        team = views.team_model(t, ents, players, names, show_private_of={pid})
-    details = ts.last_details(supabase, pid)
+        t = next((x for x in snap.teams if str(x["id"]) == str(entry["team_id"])), None)
+        if t is not None:
+            names = {str(lv["id"]): str(lv["name"]) for lv in snap.levels}
+            ents = sorted(
+                snap.by_team.get(str(t["id"]), []),
+                key=lambda e: 0 if e["role"] == "captain" else 1,
+            )
+            team = views.team_model(t, ents, snap.players, names, show_private_of={pid})
     return LineTournament(
-        tournament=views.public_tournament(supabase, row),
+        tournament=views.public_tournament(supabase, row, snap),
         me=me,
         team=team,
         my_role=entry["role"] if entry else None,

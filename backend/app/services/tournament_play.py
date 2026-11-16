@@ -293,16 +293,24 @@ def level_tables(
     return tables
 
 
-def coupons(supabase: Client, tournament_row: dict[str, Any]) -> dict[str, dict[str, int]]:
+def coupons(
+    supabase: Client,
+    tournament_row: dict[str, Any],
+    found_teams: list[dict[str, Any]] | None = None,
+    found_matches: list[dict[str, Any]] | None = None,
+    found_money: list[dict[str, Any]] | None = None,
+) -> dict[str, dict[str, int]]:
     """Per team: coupons given (the first set and every set bought), used
-    (a coupon a side per shuttle), bought back, and left."""
+    (a coupon a side per shuttle), bought back, and left. Rows the caller
+    already holds are used rather than read again."""
     tid = str(tournament_row["id"])
     per_set = int(tournament_row.get("coupons_per_set") or 6)
     out: dict[str, dict[str, int]] = {}
-    for t in ts.teams(supabase, tid):
+    for t in found_teams if found_teams is not None else ts.teams(supabase, tid):
         if t["status"] in {"confirmed", "slip_review"} or t.get("group_label"):
             out[str(t["id"])] = {"sets": 1, "given": per_set, "used": 0, "returned": 0, "left": 0}
-    for m in rows(supabase.table(ts.MONEY).select("*").eq("tournament_id", tid).execute()):
+    money = found_money if found_money is not None else money_rows(supabase, tid)
+    for m in money:
         team = str(m.get("team_id") or "")
         if team not in out or not m.get("quantity"):
             continue
@@ -311,7 +319,7 @@ def coupons(supabase: Client, tournament_row: dict[str, Any]) -> dict[str, dict[
             out[team]["given"] += int(m["quantity"]) * per_set
         elif m["category"] == "coupon_refund":
             out[team]["returned"] += int(m["quantity"])
-    for m in td.matches(supabase, tid):
+    for m in found_matches if found_matches is not None else td.matches(supabase, tid):
         if m["status"] != "done" or m.get("walkover"):
             continue
         for side in ("team_a", "team_b"):
@@ -321,6 +329,10 @@ def coupons(supabase: Client, tournament_row: dict[str, Any]) -> dict[str, dict[
     for c in out.values():
         c["left"] = c["given"] - c["used"] - c["returned"]
     return out
+
+
+def money_rows(supabase: Client, tournament_id: str) -> list[dict[str, Any]]:
+    return rows(supabase.table(ts.MONEY).select("*").eq("tournament_id", tournament_id).execute())
 
 
 # --- what follows a result ------------------------------------------------------
@@ -440,11 +452,16 @@ def on_court(supabase: Client, tournament_id: str) -> dict[int, dict[str, Any]]:
     }
 
 
-def ready(supabase: Client, tournament_id: str) -> list[dict[str, Any]]:
+def ready(
+    supabase: Client,
+    tournament_id: str,
+    row: dict[str, Any] | None = None,
+    found: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
     """Matches that could go on a court now, in their order: both teams
     known, neither on another court, and both rested."""
-    row = ts.tournament(supabase, tournament_id)
-    found = td.matches(supabase, tournament_id)
+    row = row or ts.tournament(supabase, tournament_id)
+    found = found if found is not None else td.matches(supabase, tournament_id)
     rest = timedelta(minutes=int(row.get("rest_minutes") or 10))
     busy = {
         str(t)

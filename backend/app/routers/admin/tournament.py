@@ -466,8 +466,7 @@ async def refund_entrant(
 
 @router.get("/tournaments/{tournament_id}/draw", response_model=DrawState)
 def draw_state(tournament_id: UUID, supabase: SupabaseDep, admin: TournamentAdminDep) -> DrawState:
-    ts.sweep(supabase, str(tournament_id))
-    return views.draw_state(supabase, str(tournament_id))
+    return views.draw_state(supabase, str(tournament_id), sweep=True)
 
 
 @router.post("/tournaments/{tournament_id}/levels/{level_id}/draw", response_model=DrawState)
