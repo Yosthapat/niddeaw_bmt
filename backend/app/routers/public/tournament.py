@@ -6,7 +6,7 @@ from fastapi import APIRouter
 
 from app.deps import SupabaseDep
 from app.models.tournament import PublicTournament
-from app.services import tournament_service as ts
+from app.services import tournament_cache
 from app.services import tournament_views as views
 
 router = APIRouter(prefix="/api/tournament", tags=["tournament"])
@@ -16,9 +16,7 @@ router = APIRouter(prefix="/api/tournament", tags=["tournament"])
 def current_tournament(supabase: SupabaseDep) -> PublicTournament | None:
     """None when no tournament is past its draft: the page shows "coming
     soon" then."""
-    row = ts.current(supabase)
-    if row is None:
+    row, snap = tournament_cache.current(supabase)
+    if row is None or snap is None:
         return None
-    published = bool(row.get("schedule_published_at"))
-    snap = views.snapshot(supabase, str(row["id"]), with_matches=published)
     return views.public_tournament(supabase, row, snap)

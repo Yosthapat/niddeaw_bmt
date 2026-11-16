@@ -28,7 +28,7 @@ from app.models.tournament import (
     SignUpIn,
 )
 from app.routers.line import MAX_SLIP_BYTES, SLIP_MAX_PX
-from app.services import night_bill, promptpay_service, slip_check
+from app.services import night_bill, promptpay_service, slip_check, tournament_cache
 from app.services import tournament_service as ts
 from app.services import tournament_views as views
 from app.services.image_service import resize_jpeg
@@ -71,23 +71,19 @@ def _entry(supabase: Client, row: dict[str, Any], player: dict[str, Any]) -> dic
 
 
 def state(supabase: Client, member: LineContext) -> LineTournament:
-    """Everything the LINE page shows, read in three round trips: the
-    tournament and who this is together, then the tournament's rows and the
-    details they typed last time together, then the players."""
+    """Everything the LINE page shows: the tournament (from the short cache,
+    else read in three round trips) alongside who this is, then the details
+    they typed last time."""
     with ThreadPoolExecutor(max_workers=2) as pool:
-        row_f = pool.submit(ts.current, supabase)
+        held_f = pool.submit(tournament_cache.current, supabase)
         player_f = pool.submit(_player, supabase, member)
-        row = row_f.result()
-        if row is None:
+        row, held = held_f.result()
+        if row is None or held is None:
             return LineTournament(tournament=None)
         player = player_f.result()
-    tid = str(row["id"])
     pid = str(player["id"])
-    published = bool(row.get("schedule_published_at"))
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        details_f = pool.submit(ts.last_details, supabase, pid)
-        snap = views.snapshot(supabase, tid, with_matches=published)
-        details = details_f.result()
+    snap = held
+    details = ts.last_details(supabase, pid)
     own = ts.level_of(int(player.get("elo_score") or 0), snap.levels)
     me = Me(
         player_id=UUID(pid),

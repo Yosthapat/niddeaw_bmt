@@ -14,6 +14,9 @@ os.environ["SUPABASE_URL"] = "http://supabase.invalid"
 os.environ["SUPABASE_SERVICE_ROLE_KEY"] = "test-service-role-key"
 os.environ["JWT_SECRET"] = "test-secret-not-used-anywhere-real"
 os.environ["CORS_ORIGINS"] = "http://localhost:5173"
+# Tests change rows straight in the stand-in database between requests;
+# the tournament cache would keep serving what was there before.
+os.environ["TOURNAMENT_CACHE_SECONDS"] = "0"
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
