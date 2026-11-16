@@ -21,16 +21,40 @@ from typing import Any
 from supabase import Client
 
 from app.config import get_settings
+from app.models.tournament import PublicTournament
 from app.services import tournament_service as ts
 from app.services import tournament_views as views
+
+
+@dataclass
+class Held:
+    """The current tournament's rows, and — made once, the first time a page
+    asks — the public view of them and that view as JSON. On the day each
+    viewer's poll is then a lookup, not a rebuild: on the free server's
+    tenth of a CPU, building the view for 300 phones every 20 s would not
+    keep up."""
+
+    row: dict[str, Any]
+    snap: views.Snapshot
+    _model: PublicTournament | None = None
+    _json: bytes | None = None
+
+    def model(self, supabase: Client) -> PublicTournament:
+        if self._model is None:
+            self._model = views.public_tournament(supabase, self.row, self.snap)
+        return self._model
+
+    def json(self, supabase: Client) -> bytes:
+        if self._json is None:
+            self._json = self.model(supabase).model_dump_json().encode()
+        return self._json
 
 
 @dataclass(frozen=True)
 class _Entry:
     at: float
     client: int
-    row: dict[str, Any] | None
-    snap: views.Snapshot | None
+    held: Held | None
 
 
 _lock = threading.Lock()
@@ -46,19 +70,22 @@ def invalidate() -> None:
         _generation += 1
 
 
-def current(supabase: Client) -> tuple[dict[str, Any] | None, views.Snapshot | None]:
-    """The tournament the public pages show and its rows (matches included
-    once the schedule is published), or (None, None) when there is none."""
+def current(supabase: Client) -> Held | None:
+    """The tournament the public pages show, its rows (matches included once
+    the schedule is published) and its public view; None when there is none."""
     global _entry
     ttl = get_settings().tournament_cache_seconds
     with _lock:
-        held, generation = _entry, _generation
-    if ttl > 0 and held and held.client == id(supabase) and time.monotonic() - held.at < ttl:
-        return held.row, held.snap
+        cached, generation = _entry, _generation
+    if ttl > 0 and cached and cached.client == id(supabase) and time.monotonic() - cached.at < ttl:
+        return cached.held
     row = ts.current(supabase)
-    snap = (
-        views.snapshot(
-            supabase, str(row["id"]), with_matches=bool(row.get("schedule_published_at"))
+    held = (
+        Held(
+            row,
+            views.snapshot(
+                supabase, str(row["id"]), with_matches=bool(row.get("schedule_published_at"))
+            ),
         )
         if row
         else None
@@ -67,5 +94,5 @@ def current(supabase: Client) -> tuple[dict[str, Any] | None, views.Snapshot | N
         # A write that landed while this was being read has already dropped
         # the cache; keeping this copy would bring the old rows back.
         if ttl > 0 and generation == _generation:
-            _entry = _Entry(time.monotonic(), id(supabase), row, snap)
-    return row, snap
+            _entry = _Entry(time.monotonic(), id(supabase), held)
+    return held

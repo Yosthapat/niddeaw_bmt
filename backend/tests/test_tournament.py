@@ -349,6 +349,23 @@ def test_the_public_tournament_is_cached_until_someone_writes(
     tournament_cache.invalidate()
 
 
+def test_the_line_page_s_spliced_reply_is_the_same_as_the_built_one(
+    db: MiniSupabase, client: TestClient
+) -> None:
+    from app.models.line import LineContext
+    from app.routers.line_tournament import state
+
+    t = open_tournament(client)
+    assert sign_up(client, db, t, 20, 21, "Wine", "ต่อกัน").status_code == 200
+    got = client.get("/api/line/tournament", headers=member(20))
+    assert got.status_code == 200
+    built = state(db, LineContext(line_user_id=line_id(20), line_name="x", line_picture=None))  # type: ignore[arg-type]
+    assert got.json() == built.model_dump(mode="json")
+    assert (
+        got.json()["team"]["name"] == "ต่อกัน" and got.json()["tournament"]["name"] == "NIDDEAW CUP 1"
+    )
+
+
 def test_it_won_t_open_without_its_own_account(db: MiniSupabase, client: TestClient) -> None:
     closes = (datetime.now(UTC) + timedelta(days=3)).isoformat()
     t = client.post(
