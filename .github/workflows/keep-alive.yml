@@ -39,4 +39,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Hit /api/players to keep Supabase + Render awake
-        run: curl -fsS --max-time 90 https://niddeaw-bmt.onrender.com/api/players -o /dev/null
+        run: curl -fsS --max-time 90 https://niddeaw-bmt-sg.onrender.com/api/players -o /dev/null

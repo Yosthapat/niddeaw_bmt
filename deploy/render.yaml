@@ -1,8 +1,11 @@
 services:
   - type: web
-    name: niddeaw-bmt-backend
+    name: niddeaw-bmt-sg
     runtime: python
     plan: free
+    # Next to Supabase (ap-southeast-1): every query is a few ms, not the
+    # ~200 ms round trip it was from Oregon. See MOVE_RENDER_TO_SINGAPORE.md.
+    region: singapore
     rootDir: backend
     # PDM's own private-Python management doesn't reliably persist between
     # Render's build and runtime steps, which can leave `pdm run` pointing at
