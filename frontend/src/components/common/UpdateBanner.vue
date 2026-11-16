@@ -29,6 +29,12 @@
  * Only someone part way through a form keeps the old build until they
  * move on or tap the banner, which still shows for them: the admin on a
  * court with a half-filled bill is why the update was never forced.
+ *
+ * And a phone whose worker never notices the deploy at all — an iPhone in
+ * Safari stayed on the old build with no banner — is caught by asking the
+ * server which build it has (/version.json, see vite.config.ts). If that is
+ * newer than this page and no new worker turns up, the banner shows anyway,
+ * and its tap drops the old worker and its caches and loads the page fresh.
  */
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -58,6 +64,44 @@ document.addEventListener('change', markTyped, true)
 // Set while the page reloads, so a second tap cannot start a second reload.
 const updating = ref(false)
 
+/** How long a new worker gets to show up once the server says there is a
+ *  newer build, before the page stops waiting for it. */
+const WORKER_GRACE_MS = 8_000
+// The server has a newer build than this page, and no new worker came.
+const stale = ref(false)
+let staleTimer: number | undefined
+async function checkVersion(): Promise<void> {
+  if (__BUILD_SHA__ === 'dev' || stale.value) return
+  try {
+    const res = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' })
+    if (!res.ok) return
+    const { sha } = (await res.json()) as { sha?: unknown }
+    if (typeof sha !== 'string' || sha === 'dev' || sha === __BUILD_SHA__) return
+    void swRegistration?.update()
+    window.clearTimeout(staleTimer)
+    staleTimer = window.setTimeout(() => {
+      if (needRefresh.value || newVersionInCharge) return
+      stale.value = true
+      // Just opened and nothing typed: nothing to lose, as with a worker.
+      // Once per build per tab, so a server that says "new" but still hands
+      // out the old page can't keep it reloading.
+      if (!typed && Date.now() - freshSince < FRESH_MS + WORKER_GRACE_MS && onceFor(sha)) void update()
+    }, WORKER_GRACE_MS)
+  } catch {
+    // Offline, or no version file yet: the worker's own check still runs.
+  }
+}
+function onceFor(sha: string): boolean {
+  try {
+    const key = `pwa-fresh-load:${sha}`
+    if (sessionStorage.getItem(key)) return false
+    sessionStorage.setItem(key, '1')
+    return true
+  } catch {
+    return false
+  }
+}
+
 const { needRefresh, updateServiceWorker } = useRegisterSW({
   onRegisteredSW(_url, registration) {
     if (!registration) return
@@ -76,6 +120,15 @@ const { needRefresh, updateServiceWorker } = useRegisterSW({
     }, RECHECK_MS)
   },
 })
+
+// The server's build, asked at the same moments as the worker: on opening,
+// on coming back to the app, and every half hour while it is open.
+void checkVersion()
+const onVisible = (): void => {
+  if (document.visibilityState === 'visible') void checkVersion()
+}
+document.addEventListener('visibilitychange', onVisible)
+const versionTimer = window.setInterval(onVisible, RECHECK_MS)
 
 // The reload, once the new worker has taken over. The plugin's own reload
 // listens for workbox's "controlling" with isUpdate set, which a worker
@@ -101,6 +154,7 @@ navigator.serviceWorker?.addEventListener('controllerchange', onControllerChange
 
 async function update(): Promise<void> {
   if (updating.value) return
+  if (!needRefresh.value) return freshLoad()
   updating.value = true
   // Tells the waiting worker to take over; onControllerChange reloads.
   await updateServiceWorker(true)
@@ -112,6 +166,22 @@ async function update(): Promise<void> {
   // answering a request. Reloading ends those requests; the new worker then
   // takes over and onControllerChange brings the page onto it.
   window.setTimeout(fallbackReload, 4000)
+}
+
+// No new worker to hand over to (stale): let the old one go with its
+// caches, and load the page from the network. The new build registers its
+// own worker as it loads.
+async function freshLoad(): Promise<void> {
+  updating.value = true
+  try {
+    const registrations = (await navigator.serviceWorker?.getRegistrations()) ?? []
+    await Promise.all(registrations.map((r) => r.unregister()))
+    const keys = 'caches' in window ? await caches.keys() : []
+    await Promise.all(keys.map((k) => caches.delete(k)))
+  } catch {
+    // Whatever could not be cleared, the reload below still asks the network.
+  }
+  reload()
 }
 
 // At most once a minute, so a worker that never takes over can't keep the
@@ -140,7 +210,7 @@ watch(needRefresh, (ready) => {
 const stopAfterEach = router.afterEach((to, from, failure) => {
   if (failure || to.fullPath === from.fullPath) return
   if (newVersionInCharge) reload()
-  else if (needRefresh.value) void update()
+  else if (needRefresh.value || stale.value) void update()
 })
 
 onBeforeUnmount(() => {
@@ -148,6 +218,9 @@ onBeforeUnmount(() => {
   document.removeEventListener('input', markTyped, true)
   document.removeEventListener('change', markTyped, true)
   navigator.serviceWorker?.removeEventListener('controllerchange', onControllerChange)
+  document.removeEventListener('visibilitychange', onVisible)
+  window.clearInterval(versionTimer)
+  window.clearTimeout(staleTimer)
 })
 </script>
 
@@ -157,7 +230,7 @@ onBeforeUnmount(() => {
        buttons that bill people. -->
   <Transition name="update-banner">
     <div
-      v-if="needRefresh"
+      v-if="needRefresh || stale"
       class="fixed inset-x-0 top-0 z-30 flex justify-center px-3 pt-3"
       role="status"
     >
