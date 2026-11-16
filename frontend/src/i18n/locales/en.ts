@@ -1875,11 +1875,10 @@ export default {
     rules: {
       title: 'Rule book',
       open: 'Read the rules',
-      openHint: 'Entry · levels · groups · knockout · the day · coupons',
+      openHint: 'Entry · levels · groups · knockout · the day · on court · coupons',
       contents: 'Contents',
       none: 'No tournament is open right now',
       back: 'Back to the tournament',
-      footer: 'Anything not written here is the organisers’ call',
       entry: {
         title: 'Entering',
         gist: 'Enter as a pair, {amount} each, paid to the event’s account with the slip sent in LINE',
@@ -1946,6 +1945,18 @@ export default {
         rest: 'Every team rests at least {n} minutes between matches',
         walkover: 'Called twice and not on court within 5 minutes: a walkover (counted 21–0 twice)',
         score: 'Keep score on the court’s sheet; the organisers enter it, and it shows on the site and in LINE at once',
+      },
+      court: {
+        title: 'On court',
+        gist: 'Play in good spirit; when a point isn’t clear, play it again',
+        min: 'min',
+        warmupShort: 'warm-up before the match',
+        injuryShort: 'injury breaks in all',
+        warmup: 'Before a match, up to 3 minutes of warm-up hitting',
+        injury: 'If injured, up to 2 breaks a match, 10 minutes in all',
+        stray: 'A shuttle from another court comes in: replay the point, always',
+        inOut: 'In or out, when the two sides disagree: replay the point — unless someone with neither team saw it clearly, or it was filmed; then that decides it',
+        spirit: 'Play in good spirit: what happens on court stays on court',
       },
       coupons: {
         title: 'Shuttles & coupons',

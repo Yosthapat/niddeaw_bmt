@@ -67,6 +67,7 @@ const CHAPTERS = [
   { id: 'groups', icon: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z' },
   { id: 'ko', icon: 'M4 6h5v4H4zM4 14h5v4H4zM15 10h5v4h-5zM9 8h3v8H9M12 12h3' },
   { id: 'day', icon: 'M12 7v5l3 2M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z' },
+  { id: 'court', icon: 'M3 4h18v16H3zM3 12h18M12 4v16' },
   { id: 'coupons', icon: 'M3 8a2 2 0 0 0 0 4v4h18v-4a2 2 0 0 0 0-4V4H3zM9 4v12' },
 ] as const
 function jump(id: string): void {
@@ -232,9 +233,26 @@ function jump(id: string): void {
           </ul>
         </section>
 
-        <!-- 6 · shuttles and coupons -->
+        <!-- 6 · on court: play and spirit -->
+        <section id="rule-court" class="r-card">
+          <h2 class="r-head"><span class="r-num">6</span><svg viewBox="0 0 24 24" class="r-icon" aria-hidden="true"><path :d="CHAPTERS[5].icon" /></svg>{{ t('cup.rules.court.title') }}</h2>
+          <p class="r-gist">{{ t('cup.rules.court.gist') }}</p>
+          <div class="grid grid-cols-2 gap-2 text-center">
+            <div class="r-chip"><b>3 {{ t('cup.rules.court.min') }}</b>{{ t('cup.rules.court.warmupShort') }}</div>
+            <div class="r-chip"><b>2 × / 10 {{ t('cup.rules.court.min') }}</b>{{ t('cup.rules.court.injuryShort') }}</div>
+          </div>
+          <ul class="r-list">
+            <li>{{ t('cup.rules.court.warmup') }}</li>
+            <li>{{ t('cup.rules.court.injury') }}</li>
+            <li>{{ t('cup.rules.court.stray') }}</li>
+            <li>{{ t('cup.rules.court.inOut') }}</li>
+          </ul>
+          <p class="rounded-xl border border-[#7ff0b4]/30 bg-[#7ff0b4]/10 px-3 py-2.5 text-sm text-[#c8ffe3]">{{ t('cup.rules.court.spirit') }}</p>
+        </section>
+
+        <!-- 7 · shuttles and coupons -->
         <section id="rule-coupons" class="r-card">
-          <h2 class="r-head"><span class="r-num">6</span><svg viewBox="0 0 24 24" class="r-icon" aria-hidden="true"><path :d="CHAPTERS[5].icon" /></svg>{{ t('cup.rules.coupons.title') }}</h2>
+          <h2 class="r-head"><span class="r-num">7</span><svg viewBox="0 0 24 24" class="r-icon" aria-hidden="true"><path :d="CHAPTERS[6].icon" /></svg>{{ t('cup.rules.coupons.title') }}</h2>
           <p class="r-gist">{{ t('cup.rules.coupons.gist', { n: cup.coupons_per_set }) }}</p>
           <div class="grid grid-cols-3 gap-2 text-center">
             <div class="r-chip"><b>{{ cup.coupons_per_set }}</b>{{ t('cup.rules.coupons.given') }}</div>
@@ -250,7 +268,6 @@ function jump(id: string): void {
           </ul>
         </section>
 
-        <p class="text-center text-xs text-white/50">{{ t('cup.rules.footer') }}</p>
         <button type="button" class="flex min-h-12 items-center justify-center rounded-full border border-white/15 text-sm text-white/85" @click="back">
           ← {{ t('cup.rules.back') }}
         </button>
