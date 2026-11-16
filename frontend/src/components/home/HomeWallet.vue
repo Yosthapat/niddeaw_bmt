@@ -1,18 +1,37 @@
 <script setup lang="ts">
 // Two doors under the tournament and the shop: topping up credit and the
 // Niddeaw Pass. Both lead to the /line page, where the member is known and
-// the buying happens; here they only show what is on sale. From 640px the
+// the buying happens; here they only show what is on sale.
+//
+// Through the LIFF link (liff.line.me/<id>/credit), not /line/credit: on a
+// phone that opens the LINE app, already signed in. /line straight from
+// Safari sends them to LINE's web login, which refuses anyone who has only
+// ever used LINE on their phone. /line is the fallback only while the LINE
+// config hasn't loaded, or when LINE login isn't switched on. From 640px the
 // credit card lists its packages (each opens the LINE page with that pack
 // picked) and the pass card its three perks.
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
+import { getLineConfig } from '@/api/line'
 import { getWalletOffer, type WalletOffer } from '@/api/public'
 
 const { t } = useI18n()
 const offer = ref<WalletOffer | null>(null)
 
+const liffId = ref<string | null>(null)
+// LIFF adds the path and query to its endpoint (niddeaw.fyi/line), so this
+// lands on /line/credit?pack=… inside LINE.
+const lineHref = (section: string, query = ''): string =>
+  liffId.value ? `https://liff.line.me/${liffId.value}/${section}${query}` : `/line/${section}${query}`
+
 onMounted(async () => {
+  getLineConfig()
+    .then((c) => {
+      if (c.enabled && c.liff_id) liffId.value = c.liff_id
+    })
+    .catch(() => {
+      // the /line fallback stays
+    })
   try {
     offer.value = await getWalletOffer()
   } catch {
@@ -36,27 +55,27 @@ const bonus = computed(() => Math.max(0, ...(offer.value?.packages ?? []).map((p
       <span class="w-title font-display">{{ t('homeWallet.creditTitle') }}</span>
       <span class="w-sub">{{ t('homeWallet.creditSub1') }}<br />{{ t('homeWallet.creditSub2') }}</span>
       <span v-if="offer?.packages.length" class="chips">
-        <RouterLink
+        <a
           v-for="p in offer.packages"
           :key="p.id"
-          :to="{ path: '/line/credit', query: { pack: p.id } }"
+          :href="lineHref('credit', `?pack=${encodeURIComponent(p.id)}`)"
           class="chip"
           :aria-label="t('homeWallet.packAria', { credits: num(p.credits), price: baht(p.price) })"
         >
           <span v-if="tier(p.credits)" class="dot" :class="tier(p.credits)!" aria-hidden="true"></span>
           {{ num(p.credits) }} <small>{{ baht(p.price) }}</small>
-        </RouterLink>
+        </a>
       </span>
-      <RouterLink to="/line/credit" class="w-go stretch bg-brand-pink text-white">
+      <a :href="lineHref('credit')" class="w-go stretch bg-brand-pink text-white">
         {{ t('homeWallet.creditGo') }}<span aria-hidden="true">→</span>
-      </RouterLink>
+      </a>
       <span class="art" aria-hidden="true">
         <span class="mc black"><i></i><img src="/credit/cat.webp" alt="" width="34" height="34" /></span>
         <span class="mc pink"><i></i><img src="/credit/cat.webp" alt="" width="34" height="34" /></span>
       </span>
     </div>
 
-    <RouterLink to="/line/pass" class="w-card pass [--glow:rgb(255_207_63/0.45)]">
+    <a :href="lineHref('pass')" class="w-card pass [--glow:rgb(255_207_63/0.45)]">
       <span class="w-tag border border-[#ffe14d] text-[#ffe14d]">✦ {{ t('homeWallet.passTag') }}</span>
       <span class="w-title font-display text-[#ffe58a]">Niddeaw Pass</span>
       <span class="w-sub">
@@ -70,7 +89,7 @@ const bonus = computed(() => Math.max(0, ...(offer.value?.packages ?? []).map((p
       <span class="w-go gold">{{ t('homeWallet.passGo') }}<span aria-hidden="true">→</span></span>
       <span class="tk" aria-hidden="true"><b>NIDDEAW</b><span>PASS</span></span>
       <span class="spark" aria-hidden="true">✦</span>
-    </RouterLink>
+    </a>
   </div>
 </template>
 
