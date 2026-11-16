@@ -20,6 +20,7 @@ import CupMatchRow from '@/components/cup/CupMatchRow.vue'
 import CupBracket from '@/components/cup/CupBracket.vue'
 import { rankBands } from '@/utils/cupMatch'
 import { usePolling } from '@/composables/usePolling'
+import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -378,7 +379,21 @@ function range(min: number | null, max: number | null): string {
     </div>
   </main>
 
-  <main v-else-if="loaded" class="relative isolate overflow-hidden">
+  <!-- the first read: the shape of the page, not a blank screen -->
+  <main v-else-if="!loaded" class="relative isolate overflow-x-clip" :aria-busy="true" :aria-label="t('common.loading')">
+    <div class="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
+      <div class="absolute inset-0 bg-[radial-gradient(80%_50%_at_50%_20%,#5a1a7a_0%,#1a0838_55%,#0a0416_80%)]" />
+    </div>
+    <div class="mx-auto flex max-w-2xl flex-col gap-4 px-4 pt-16 pb-12">
+      <HudSkeletonBlock class="mx-auto h-10 w-2/3" />
+      <HudSkeletonBlock class="mx-auto h-5 w-1/2" :delay="80" />
+      <HudSkeletonBlock class="h-36" :delay="160" />
+      <HudSkeletonBlock class="h-12" :delay="240" />
+      <HudSkeletonBlock class="h-24" :delay="320" />
+    </div>
+  </main>
+
+  <main v-else class="relative isolate overflow-hidden">
     <!-- same world as the home hero: a sky, a sun, a neon floor -->
     <div class="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
       <div class="absolute inset-0 bg-[radial-gradient(80%_50%_at_50%_30%,#5a1a7a_0%,#1a0838_55%,#0a0416_80%)]" />

@@ -19,5 +19,6 @@ def current_tournament(supabase: SupabaseDep) -> PublicTournament | None:
     row = ts.current(supabase)
     if row is None:
         return None
-    ts.sweep(supabase, str(row["id"]))
-    return views.public_tournament(supabase, row)
+    published = bool(row.get("schedule_published_at"))
+    snap = views.snapshot(supabase, str(row["id"]), with_matches=published)
+    return views.public_tournament(supabase, row, snap)

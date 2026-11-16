@@ -380,12 +380,23 @@ def settle(supabase: Client, team_id: str) -> None:
         _set_team(supabase, team_id, {"status": "slip_review", "confirmed_at": None})
 
 
-def sweep(supabase: Client, tournament_id: str) -> None:
+def sweep(
+    supabase: Client,
+    tournament_id: str,
+    found_teams: list[dict[str, Any]] | None = None,
+    found_levels: list[dict[str, Any]] | None = None,
+) -> bool:
     """End what has run out — an invite unanswered, a payment not made, a
-    refused slip not resent — and fill the places that frees."""
+    refused slip not resent — and fill the places that frees.
+
+    Every page of the tournament runs this on the way in, so the usual case
+    — nothing has run out, nobody can move up — costs at most the one read,
+    or none when the caller already holds the teams and levels. Returns
+    whether anything changed, so a caller holding rows knows to read again."""
     moment = now()
-    freed: set[str] = set()
-    for t in teams(supabase, tournament_id):
+    all_teams = found_teams if found_teams is not None else teams(supabase, tournament_id)
+    changed = False
+    for t in all_teams:
         expires = when(t.get("expires_at"))
         if (
             t["status"] in LIVE
@@ -393,15 +404,21 @@ def sweep(supabase: Client, tournament_id: str) -> None:
             and expires is not None
             and expires <= moment
         ):
-            if t["status"] in SEATED:
-                freed.add(str(t["level_id"]))
             _end(supabase, t, "cancelled")
-    for lv in levels(supabase, tournament_id):
-        if str(lv["id"]) in freed or any(
-            t["status"] == "waitlist" and str(t["level_id"]) == str(lv["id"])
-            for t in teams(supabase, tournament_id)
+            changed = True
+    if not any(t["status"] == "waitlist" for t in all_teams):
+        return changed
+    if changed:
+        all_teams = teams(supabase, tournament_id)
+    for lv in found_levels if found_levels is not None else levels(supabase, tournament_id):
+        lid = str(lv["id"])
+        free = int(lv["max_teams"]) - seats_taken(all_teams, lid)
+        if free > 0 and any(
+            t["status"] == "waitlist" and str(t["level_id"]) == lid for t in all_teams
         ):
             promote(supabase, tournament_id, lv)
+            changed = True
+    return changed
 
 
 def _deadline(tournament_row: dict[str, Any], hours: int) -> str:
