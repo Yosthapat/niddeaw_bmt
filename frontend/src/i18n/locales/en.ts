@@ -2041,6 +2041,16 @@ export default {
         refund: 'Coupons left at the end are bought back at {price} each',
       },
     },
+    share: {
+      entered: 'We’re in!',
+      enteredText: 'Team {team} is in {cup}!',
+      champion: '{level} champions · {bracket}',
+      championText: '{team}: champions of {cup}!',
+      teamButton: 'Share our team card',
+      championButton: 'Share the champions’ card',
+      making: 'Making the card…',
+      failed: 'Couldn’t make the card — try again',
+    },
     my: {
       liveMore: 'Show {n} more courts',
       liveLess: 'Show fewer',

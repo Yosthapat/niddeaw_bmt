@@ -10,7 +10,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import TierMascot from '@/components/players/TierMascot.vue'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
-import { getPublicTournament, type PublicTournament } from '@/api/tournament'
+import { getPublicTournament, type MatchSlot, type PublicTournament } from '@/api/tournament'
 import { getLineConfig } from '@/api/line'
 import { formatDateTime, formatDateWithWeekday, money } from '@/utils/format'
 import type { Locale } from '@/i18n'
@@ -22,6 +22,7 @@ import { levelTiers, rankBands } from '@/utils/cupMatch'
 import { usePolling } from '@/composables/usePolling'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 import CupMyTeam from '@/components/cup/CupMyTeam.vue'
+import { drawShareCard, shareImage } from '@/utils/cupShareCard'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -101,6 +102,29 @@ async function showTeam(levelId: string, stage: 'group' | 'ko' | 'results'): Pro
   if (stage === 'ko' && myKo.length) bracketPick.value = myKo[myKo.length - 1].bracket ?? 'upper'
   await router.replace({ query: { ...route.query, level: levelId, stage } })
   levelBar.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+// --- a champion's picture to post ------------------------------------------------
+const sharingChamp = ref<string | null>(null)
+async function shareChampion(p: { bracket: 'upper' | 'lower'; champion: MatchSlot }): Promise<void> {
+  if (!cup.value || !shown.value || sharingChamp.value) return
+  sharingChamp.value = p.bracket
+  try {
+    const bracket = t(`cup.bracket.${p.bracket}`)
+    const blob = await drawShareCard({
+      kind: 'champion',
+      eyebrow: t('cup.share.champion', { level: shown.value.name, bracket }),
+      title: cup.value.name,
+      team: p.champion.team_name ?? '',
+      players: p.champion.players.map((x) => ({ nickname: x.nickname, avatar_url: x.avatar_url })),
+      level: `${shown.value.name} · ${bracket}`,
+      tiers: levelTiers(shown.value),
+      footer: day(cup.value.starts_on),
+    })
+    await shareImage(blob, 'niddeaw-cup-champion.png', t('cup.share.championText', { team: p.champion.team_name ?? '', cup: cup.value.name }))
+  } finally {
+    sharingChamp.value = null
+  }
 }
 
 // --- the day: once it's on, what's happening comes first ------------------------
@@ -447,6 +471,14 @@ function range(min: number | null, max: number | null): string {
               <p class="font-display text-lg leading-tight font-bold">{{ p.champion.team_name }}</p>
               <p class="text-xs text-white/70">{{ p.champion.players.map((x) => x.nickname).join(' · ') }}</p>
               <p class="mt-1 text-xs text-white/55">{{ t('cup.view.runnerUp', { team: p.runnerUp.team_name ?? '—' }) }}</p>
+              <button
+                type="button"
+                class="mt-2 flex min-h-10 items-center gap-1.5 rounded-full border border-[#ffe14d]/50 px-4 text-xs font-semibold text-[#ffe14d] disabled:opacity-60"
+                :disabled="!!sharingChamp"
+                @click="shareChampion(p)"
+              >
+                {{ sharingChamp === p.bracket ? t('cup.share.making') : t('cup.share.championButton') }}
+              </button>
             </section>
           </div>
           <section class="t-plan flex-col !items-stretch gap-2">

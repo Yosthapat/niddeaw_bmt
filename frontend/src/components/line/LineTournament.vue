@@ -26,7 +26,8 @@ import CupStandings from '@/components/cup/CupStandings.vue'
 import CupMatchRow from '@/components/cup/CupMatchRow.vue'
 import CupSignUpSteps from '@/components/cup/CupSignUpSteps.vue'
 import { getLineConfig } from '@/api/line'
-import { rankBands, roundLabel } from '@/utils/cupMatch'
+import { levelTiers, rankBands, roundLabel } from '@/utils/cupMatch'
+import { drawShareCard, shareImage } from '@/utils/cupShareCard'
 import { usePolling } from '@/composables/usePolling'
 
 const props = defineProps<{ token: string }>()
@@ -230,6 +231,31 @@ async function copy(key: string, value: string): Promise<void> {
   }
 }
 
+// --- "we're in": a picture to post ---------------------------------------------
+const sharing = ref(false)
+async function shareTeam(): Promise<void> {
+  if (!team.value || !cup.value || sharing.value) return
+  sharing.value = true
+  try {
+    const lv = cup.value.levels.find((x) => x.id === team.value?.level_id)
+    const blob = await drawShareCard({
+      kind: 'entered',
+      eyebrow: t('cup.share.entered'),
+      title: cup.value.name,
+      team: team.value.name,
+      players: team.value.entrants.map((e) => ({ nickname: e.nickname, avatar_url: e.avatar_url })),
+      level: team.value.level_name,
+      tiers: lv ? levelTiers(lv) : ['soju'],
+      footer: `${day(cup.value.starts_on)}${cup.value.venue ? ' · ' + cup.value.venue : ''}`,
+    })
+    await shareImage(blob, 'niddeaw-cup-team.png', t('cup.share.enteredText', { team: team.value.name, cup: cup.value.name }))
+  } catch (e) {
+    problem.value = apiErrorMessage(e, t('cup.share.failed'))
+  } finally {
+    sharing.value = false
+  }
+}
+
 // --- paying ----------------------------------------------------------------
 const pay = ref<PaymentInfoResponse | null>(null)
 const toPay = computed(
@@ -419,6 +445,17 @@ async function attach(event: Event): Promise<void> {
             </span>
             <span v-if="team.expires_at" class="mt-1 block text-xs text-[#ffd34d]">{{ t('cup.line.expires', { at: when(team.expires_at) }) }}</span>
           </div>
+
+          <button
+            v-if="team.status === 'confirmed'"
+            type="button"
+            class="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-[#ffe14d]/50 bg-[#ffe14d]/10 font-display text-base font-bold text-[#ffe14d] disabled:opacity-60"
+            :disabled="sharing"
+            @click="shareTeam"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13" /></svg>
+            {{ sharing ? t('cup.share.making') : t('cup.share.teamButton') }}
+          </button>
 
           <!-- the invited partner answers -->
           <template v-if="team.status === 'invited' && data?.my_role === 'partner'">
