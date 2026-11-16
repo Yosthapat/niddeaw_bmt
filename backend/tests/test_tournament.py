@@ -284,6 +284,37 @@ def test_a_new_tournament_has_the_club_s_four_levels(db: MiniSupabase, client: T
     )  # fmt: skip
 
 
+def test_a_trial_tournament_can_be_deleted_until_it_is_played(
+    db: MiniSupabase, client: TestClient
+) -> None:
+    t = open_tournament(client)
+    assert sign_up(client, db, t, 20, 21, "Wine", "ลองเล่น").status_code == 200
+    mine = entrant_of(db, 20)
+    db.tables["slip_checks"] += [
+        {"id": str(uuid4()), "kind": "tournament", "target_id": mine["id"], "qr_hash": "a"},
+        {"id": str(uuid4()), "kind": "bill", "target_id": str(uuid4()), "qr_hash": "b"},
+    ]
+    # a club-only admin can't
+    no = client.delete(
+        f"/api/admin/tournament/tournaments/{t['id']}", headers=token(AEYA, True, False)
+    )
+    assert no.status_code == 403
+
+    got = client.delete(f"/api/admin/tournament/tournaments/{t['id']}", headers=BOTH)
+    assert got.status_code == 204, got.text
+    assert not [x for x in db.tables["tournaments"] if x["id"] == t["id"]]
+    # the trial's slip goes too, so the real payment isn't read as a repeat
+    assert [c["kind"] for c in db.tables["slip_checks"]] == ["bill"]
+
+    # one being played is the record of a real day
+    real = open_tournament(client)
+    for row in db.tables["tournaments"]:
+        if row["id"] == real["id"]:
+            row["status"] = "running"
+    kept = client.delete(f"/api/admin/tournament/tournaments/{real['id']}", headers=BOTH)
+    assert kept.status_code == 409
+
+
 def test_it_won_t_open_without_its_own_account(db: MiniSupabase, client: TestClient) -> None:
     closes = (datetime.now(UTC) + timedelta(days=3)).isoformat()
     t = client.post(

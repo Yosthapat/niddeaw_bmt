@@ -71,6 +71,7 @@ _ROUTE_LABELS: list[tuple[str, str, re.Pattern[str]]] = [
     # The tournament's own (area = 'tournament'), read on its own log.
     ("POST", "สร้างทัวร์นาเมนต์", re.compile(r"^/api/admin/tournament/tournaments$")),
     ("PATCH", "แก้ทัวร์นาเมนต์", re.compile(r"^/api/admin/tournament/tournaments/[^/]+$")),
+    ("DELETE", "ลบทัวร์นาเมนต์", re.compile(r"^/api/admin/tournament/tournaments/[^/]+$")),
     ("POST", "เพิ่มมือ", re.compile(r"^/api/admin/tournament/tournaments/[^/]+/levels$")),
     ("PATCH", "แก้มือ", re.compile(r"^/api/admin/tournament/tournaments/[^/]+/levels/[^/]+$")),
     ("DELETE", "ลบมือ", re.compile(r"^/api/admin/tournament/tournaments/[^/]+/levels/[^/]+$")),

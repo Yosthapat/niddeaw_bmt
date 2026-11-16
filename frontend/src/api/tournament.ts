@@ -373,6 +373,7 @@ export const tournamentAdmin = {
   get: (id: string): Promise<Tournament> => request(`${A}/tournaments/${id}`),
   update: (id: string, body: Partial<Omit<Tournament, 'id' | 'levels' | 'fees_locked'>>): Promise<Tournament> =>
     request(`${A}/tournaments/${id}`, json('PATCH', body)),
+  remove: (id: string): Promise<void> => request(`${A}/tournaments/${id}`, { method: 'DELETE' }),
   addLevel: (id: string, body: Omit<Level, 'id' | 'sort'>): Promise<Tournament> => request(`${A}/tournaments/${id}/levels`, json('POST', body)),
   updateLevel: (id: string, levelId: string, body: Partial<Omit<Level, 'id' | 'sort'>>): Promise<Tournament> =>
     request(`${A}/tournaments/${id}/levels/${levelId}`, json('PATCH', body)),

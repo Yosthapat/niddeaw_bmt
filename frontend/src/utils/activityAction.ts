@@ -76,6 +76,7 @@ const ROUTES: [string, RegExp, string][] = [
   ['POST', /^\/api\/admin\/line\/joins\/[^/]+\/reject$/, 'rejectLineJoin'],
   ['POST', /^\/api\/admin\/tournament\/tournaments$/, 'tCreate'],
   ['PATCH', /^\/api\/admin\/tournament\/tournaments\/[^/]+$/, 'tEdit'],
+  ['DELETE', /^\/api\/admin\/tournament\/tournaments\/[^/]+$/, 'tDelete'],
   ['POST', /^\/api\/admin\/tournament\/tournaments\/[^/]+\/levels$/, 'tAddLevel'],
   ['PATCH', /^\/api\/admin\/tournament\/tournaments\/[^/]+\/levels\/[^/]+$/, 'tEditLevel'],
   ['DELETE', /^\/api\/admin\/tournament\/tournaments\/[^/]+\/levels\/[^/]+$/, 'tDeleteLevel'],
