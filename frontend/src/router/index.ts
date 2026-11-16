@@ -86,6 +86,11 @@ const router = createRouter({
       component: () => import('../views/public/TournamentView.vue'),
     },
     {
+      path: '/tournament/rules',
+      name: 'tournament-rules',
+      component: () => import('../views/public/TournamentRulesView.vue'),
+    },
+    {
       // Opened inside LINE (the club OA's LIFF app); no header or tab bar.
       // /line/register: the OA's sign-up button; /line/checkin?c=…: tonight's
       // check-in QR; /line/shop: the OA's shop button, which learns who this

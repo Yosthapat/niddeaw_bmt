@@ -235,6 +235,11 @@ class PublicTournament(BaseModel):
     entry_fee: int
     shuttle_fee: int
     coupons_per_set: int
+    # For the rule book: what an extra set costs, what a coupon left over is
+    # bought back at, and the rest between a team's matches.
+    extra_set_price: int = 0
+    coupon_refund_price: int = 0
+    rest_minutes: int = 10
     opens_at: datetime | None = None
     closes_at: datetime
     min_games: int
