@@ -297,8 +297,6 @@ export interface LinePass {
   eligible: boolean
   /** When their pass ends; null when none runs. */
   ends_at: string | null
-  season_points: number
-  season_year: number
   max_blocks: number
   /** In tonight: blocks can be chosen. */
   checked_in: boolean
