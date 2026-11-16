@@ -17,6 +17,8 @@ const router = createRouter({
   // done at once, it moved the old page while it was still fading out (see
   // usePageSwap.ts). Anything without that fade scrolls straight away.
   scrollBehavior(to, from, savedPosition) {
+    // Only the query changed (a tab, a filter): stay where the reader is.
+    if (!savedPosition && from.matched.length > 0 && to.path === from.path) return false
     const target = savedPosition ?? { top: 0 }
     const fades =
       from.matched.length > 0 &&

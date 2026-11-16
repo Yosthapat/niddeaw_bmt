@@ -12,7 +12,7 @@ import { useI18n } from 'vue-i18n'
 import type { CupMatch } from '@/api/tournament'
 import { clock, sideLabel } from '@/utils/cupMatch'
 
-const props = defineProps<{ matches: CupMatch[] }>()
+const props = defineProps<{ matches: CupMatch[]; mineId?: string | null }>()
 const { t } = useI18n()
 const sides = ['a', 'b'] as const
 
@@ -67,7 +67,7 @@ const setsWon = (m: CupMatch, side: 'a' | 'b'): number =>
               class="flex items-center gap-1.5 rounded-md px-1 py-0.5"
               :class="[won(m, side) ? 'bg-[#7ff0b4]/12' : '', lost(m, side) ? 'opacity-45' : '']"
             >
-              <span class="min-w-0 flex-1 truncate text-[12.5px]" :class="[m[side].team_name ? (won(m, side) ? 'font-bold text-white' : 'text-white/85') : 'text-white/40 italic']">
+              <span class="min-w-0 flex-1 truncate text-[12.5px]" :class="[m[side].team_name ? (won(m, side) ? 'font-bold text-white' : 'text-white/85') : 'text-white/40 italic', mineId && m[side].team_id === mineId ? '!text-[#ff9fd6] font-bold' : '']">
                 {{ sideLabel(m[side], t) }}
               </span>
               <b v-if="m.sets" class="w-3 text-right font-display text-xs" :class="won(m, side) ? 'text-[#7ff0b4]' : 'font-normal text-white/60'">{{ setsWon(m, side) }}</b>
