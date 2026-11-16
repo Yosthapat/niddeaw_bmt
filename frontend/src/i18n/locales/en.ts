@@ -475,7 +475,6 @@ export default {
       sub: "The club's own cup",
       stage: {
         open: 'ENTRIES OPEN',
-        upcoming: 'SOON',
         closed: 'ENTRIES CLOSED',
         running: 'LIVE',
         done: 'FINISHED',

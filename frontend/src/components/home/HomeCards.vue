@@ -39,7 +39,11 @@ const stage = computed<Stage>(() => {
   if (c.status === 'open' && c.opens_at && new Date(c.opens_at) > new Date()) return 'upcoming'
   return 'closed'
 })
-const badge = computed(() => (stage.value === 'soon' ? 'COMING SOON' : t(`tournament.card.stage.${stage.value}`)))
+// Not taking entries yet — no tournament, or one whose entries open later —
+// is still "coming soon".
+const badge = computed(() =>
+  stage.value === 'soon' || stage.value === 'upcoming' ? 'COMING SOON' : t(`tournament.card.stage.${stage.value}`),
+)
 const title = computed(() => cup.value?.name ?? t('nav.tournament'))
 /** One line each, so a date never breaks across two. */
 const sub = computed<string[]>(() => {
@@ -60,8 +64,8 @@ const sub = computed<string[]>(() => {
         class="self-start rounded-full border px-2 py-1 font-display text-[10px] leading-none font-bold sm:text-xs"
         :class="[
           stage === 'open' || stage === 'running' ? 'border-[#4ade80] text-[#4ade80]' : 'border-[#ffe14d] text-[#ffe14d]',
-          stage === 'soon' || stage === 'open' || stage === 'running' ? 'card-blink' : '',
-          stage === 'soon' || locale === 'en' ? 'tracking-[1.5px]' : '',
+          stage === 'soon' || stage === 'upcoming' || stage === 'open' || stage === 'running' ? 'card-blink' : '',
+          stage === 'soon' || stage === 'upcoming' || locale === 'en' ? 'tracking-[1.5px]' : '',
         ]"
       >
         {{ badge }}
