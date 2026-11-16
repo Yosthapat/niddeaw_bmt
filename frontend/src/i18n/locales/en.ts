@@ -461,7 +461,6 @@ export default {
     passGo: 'See perks',
     perkEdge: '50%+ odds',
     perkBlock: 'Skip 2 partners',
-    perkSeason: 'Season points +5%',
   },
   tournament: {
     trophy: 'The NIDDEAW CUP trophy',
@@ -1408,8 +1407,6 @@ export default {
     perkOddsHint: 'Paired onto a side with at least a 50% chance, when it can be',
     perkBlock: 'Not partnered with {n} people a night',
     perkBlockHint: 'You can still meet across the net · nobody sees who',
-    perkSeason: '+5% season points for a win',
-    perkSeasonHint: 'Your {year} season: {points} points · ELO unchanged',
     buy: 'Buy the pass · {price} credit',
     renew: 'Add {days} days · {price} credit',
     buyTitle: 'Buy Niddeaw Pass',

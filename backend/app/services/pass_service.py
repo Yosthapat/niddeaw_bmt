@@ -9,10 +9,7 @@ While it runs, its holder:
 - goes onto the side with the better odds, PASS_EDGE or more, when the
   suggestion can manage it (matchmaking_service);
 - may name up to BLOCKS_PER_NIGHT members a night not to be partnered with.
-  They can still meet across the net, and nobody else sees the list;
-- earns SEASON_BONUS times the season points for a win. ELO itself is never
-  touched: season points are the rating a win earned, added up per calendar
-  year (season_service) and worked out from the results here.
+  They can still meet across the net, and nobody else sees the list.
 """
 
 from datetime import UTC, datetime, timedelta
@@ -28,7 +25,6 @@ from app.services import credit_card_service, credit_service, line_checkin
 PASS_DAYS = 30
 DEFAULT_PRICE = 249
 BLOCKS_PER_NIGHT = 2
-SEASON_BONUS = 1.05
 PASS_EDGE = 0.50
 
 
@@ -189,30 +185,3 @@ def blocked_partners(supabase: Client, session_id: UUID | str, pass_holders: set
         for b in rows(supabase.table("pass_blocks").select("*").eq("session_id", str(session_id)).execute())
         if str(b["session_id"]) == str(session_id) and str(b["player_id"]) in pass_holders
     }
-
-
-# ---------------------------------------------------------- season points
-
-
-def season_points(supabase: Client, start: datetime, end: datetime) -> dict[str, float]:
-    """Each player's season points for results recorded in [start, end): the
-    rating each win earned, times SEASON_BONUS while their pass ran."""
-    all_passes = rows(supabase.table("passes").select("player_id,starts_at,ends_at").execute())
-    by_player: dict[str, list[tuple[datetime, datetime]]] = {}
-    for p in all_passes:
-        by_player.setdefault(str(p["player_id"]), []).append((_when(p["starts_at"]), _when(p["ends_at"])))
-    points: dict[str, float] = {}
-    for m in rows(supabase.table("matches").select("*").eq("status", "completed").execute()):
-        if m.get("status") != "completed":
-            continue
-        when = _when(m.get("updated_at") or m["created_at"])
-        if not start <= when < end:
-            continue
-        for side, delta in (("team1", m.get("elo_delta_team1")), ("team2", m.get("elo_delta_team2"))):
-            if m.get("winner") != side or not delta or int(delta) <= 0:
-                continue
-            for pid in m.get(f"{side}_player_ids") or []:
-                key = str(pid)
-                boost = any(a <= when < b for a, b in by_player.get(key, []))
-                points[key] = points.get(key, 0.0) + int(delta) * (SEASON_BONUS if boost else 1.0)
-    return {k: round(v, 1) for k, v in points.items()}

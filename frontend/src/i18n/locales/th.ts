@@ -459,7 +459,6 @@ export default {
     passGo: 'ดูสิทธิ์',
     perkEdge: 'โอกาสชนะ 50% ขึ้นไป',
     perkBlock: 'ไม่คู่กับใคร 2 คน',
-    perkSeason: 'แต้มฤดูกาล +5%',
   },
   tournament: {
     trophy: 'ถ้วยรางวัล NIDDEAW CUP',
@@ -1405,8 +1404,6 @@ export default {
     perkOddsHint: 'ระบบเลือกฝั่งที่โอกาสชนะไม่ต่ำกว่า 50% ให้ เมื่อจัดได้',
     perkBlock: 'ไม่จับคู่หูกับใคร {n} คน / คืน',
     perkBlockHint: 'ยังเจอกันเป็นฝั่งตรงข้ามได้ · ไม่มีใครเห็นว่าเลือกใคร',
-    perkSeason: 'แต้มฤดูกาล +5% เมื่อชนะ',
-    perkSeasonHint: 'ฤดูกาล {year} ของคุณ: {points} แต้ม · ELO ไม่เปลี่ยน',
     buy: 'ซื้อ Pass · {price} เครดิต',
     renew: 'ต่ออายุอีก {days} วัน · {price} เครดิต',
     buyTitle: 'ซื้อ Niddeaw Pass',

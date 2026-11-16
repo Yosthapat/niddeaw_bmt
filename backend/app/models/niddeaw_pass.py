@@ -20,8 +20,6 @@ class LinePass(BaseModel):
     """Holds a credit card (a 1,000 pack or more bought through LINE)."""
     ends_at: datetime | None = None
     """When their pass ends; None when none runs."""
-    season_points: float
-    season_year: int
     max_blocks: int
     checked_in: bool
     """In tonight: blocks can be chosen."""
