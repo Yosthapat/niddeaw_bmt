@@ -471,6 +471,16 @@ export default {
     notifyHint: 'เปิดรับสมัครเมื่อไหร่ ประกาศใน LINE OA ก่อนที่แรก',
     card: {
       sub: 'ศึกชิงถ้วยของก๊วน',
+      stage: {
+        open: 'เปิดรับสมัคร',
+        closed: 'ปิดรับสมัครแล้ว',
+        running: 'กำลังแข่ง',
+        done: 'จบแล้ว',
+      },
+      closeSub: 'ปิดรับ {close}',
+      upcomingSub: 'เปิดรับสมัคร {open}',
+      playSub: 'แข่ง {play}',
+      doneSub: 'ดูผลการแข่งขัน',
     },
   },
   shop: {
