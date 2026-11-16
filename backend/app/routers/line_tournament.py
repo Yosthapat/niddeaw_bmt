@@ -241,6 +241,9 @@ def pay_info(supabase: SupabaseDep, member: LineMemberDep) -> PaymentInfoRespons
         amount=amount,
         data_uri=promptpay_service.generate_qr_data_uri(payload),
         qr_modules=promptpay_service.qr_modules(payload),
+        # Typed into a banking app by those who'd rather not scan.
+        bank_name="PromptPay",
+        bank_account_number=row["promptpay_id"],
         bank_account_name=row.get("account_name"),
     )
 
