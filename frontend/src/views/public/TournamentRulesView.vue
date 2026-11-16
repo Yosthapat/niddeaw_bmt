@@ -6,7 +6,7 @@
  * numbers — fees, coupons, prices, rest, the levels and their sizes — are
  * the tournament's own settings, so the book never says what the day won't do.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { getPublicTournament, type PublicLevel, type PublicTournament } from '@/api/tournament'
@@ -71,8 +71,52 @@ const CHAPTERS = [
   { id: 'coupons', icon: 'M3 8a2 2 0 0 0 0 4v4h18v-4a2 2 0 0 0 0-4V4H3zM9 4v12' },
 ] as const
 function jump(id: string): void {
+  menuOpen.value = false
   document.getElementById(`rule-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
+
+/* The contents sit at the top as a grid that fits a phone without sliding
+ * sideways. Once it scrolls away, a small button stays at the top saying
+ * which chapter this is ("3/7 รอบแบ่งกลุ่ม"); a tap opens the whole list. */
+const contents = ref<HTMLElement | null>(null)
+const contentsGone = ref(false)
+const active = ref<string>(CHAPTERS[0].id)
+const activeIndex = computed(() => CHAPTERS.findIndex((c) => c.id === active.value))
+const menuOpen = ref(false)
+let watchers: IntersectionObserver[] = []
+function observe(): void {
+  watchers.forEach((w) => w.disconnect())
+  watchers = []
+  if (contents.value) {
+    const w = new IntersectionObserver(([e]) => {
+      contentsGone.value = !e.isIntersecting && e.boundingClientRect.top < 0
+      if (!contentsGone.value) menuOpen.value = false
+    })
+    w.observe(contents.value)
+    watchers.push(w)
+  }
+  // the chapter crossing a line a third of the way down the screen is "this one"
+  const w = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) if (e.isIntersecting) active.value = e.target.id.replace('rule-', '')
+    },
+    { rootMargin: '-30% 0px -65% 0px' },
+  )
+  for (const c of CHAPTERS) {
+    const el = document.getElementById(`rule-${c.id}`)
+    if (el) w.observe(el)
+  }
+  watchers.push(w)
+}
+watch(cup, () => void nextTick(observe))
+const onKey = (e: KeyboardEvent): void => {
+  if (e.key === 'Escape') menuOpen.value = false
+}
+onMounted(() => document.addEventListener('keydown', onKey))
+onBeforeUnmount(() => {
+  watchers.forEach((w) => w.disconnect())
+  document.removeEventListener('keydown', onKey)
+})
 </script>
 
 <template>
@@ -105,16 +149,60 @@ function jump(id: string): void {
       <section v-else-if="!cup" class="r-card text-center text-sm text-white/70">{{ t('cup.rules.none') }}</section>
 
       <template v-else>
-        <!-- the chapters, one tap away -->
-        <nav class="sticky top-[calc(var(--header-h)+6px)] z-10 -mx-4 overflow-x-auto px-4" :aria-label="t('cup.rules.contents')">
-          <ol class="flex w-max gap-1.5 rounded-full border border-white/12 bg-[#1a0838]/90 p-1 backdrop-blur">
+        <!-- the chapters, one tap away: a grid that fits without sliding sideways -->
+        <nav ref="contents" class="r-card !gap-2 !p-3" :aria-label="t('cup.rules.contents')">
+          <p class="px-1 text-xs font-semibold tracking-wide text-white/55">{{ t('cup.rules.contents') }}</p>
+          <ol class="grid grid-cols-4 gap-1.5 sm:grid-cols-7">
             <li v-for="(c, i) in CHAPTERS" :key="c.id">
-              <button type="button" class="flex min-h-10 items-center gap-1.5 rounded-full px-3 text-[13px] whitespace-nowrap text-white/80 hover:bg-white/10" @click="jump(c.id)">
-                <span class="font-display text-[11px] text-[#ffe14d]">{{ i + 1 }}</span>{{ t(`cup.rules.${c.id}.title`) }}
+              <button
+                type="button"
+                class="flex h-full min-h-[76px] w-full flex-col items-center justify-center gap-1 rounded-xl bg-white/5 px-1 py-2 text-center hover:bg-white/10"
+                @click="jump(c.id)"
+              >
+                <span class="relative flex h-8 w-8 items-center justify-center rounded-full bg-[#ffe14d]/12">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#ffe14d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="h-[18px] w-[18px]" aria-hidden="true"><path :d="c.icon" /></svg>
+                  <span class="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#ffe14d] font-display text-[10px] font-bold text-[#1a0838]">{{ i + 1 }}</span>
+                </span>
+                <span class="text-[12px] leading-[1.5] text-white/85">{{ t(`cup.rules.${c.id}.title`) }}</span>
               </button>
             </li>
           </ol>
         </nav>
+
+        <!-- once the grid is gone: which chapter this is, and the list a tap away -->
+        <Transition name="r-float">
+          <div v-if="contentsGone" class="fixed top-[calc(var(--header-h)+8px)] left-1/2 z-30 w-[min(92vw,420px)] -translate-x-1/2">
+            <button
+              type="button"
+              class="flex min-h-11 w-full items-center gap-2 rounded-full border border-white/15 bg-[#1a0838]/95 px-4 text-left text-sm shadow-lg backdrop-blur"
+              :aria-expanded="menuOpen"
+              aria-controls="rule-menu"
+              @click="menuOpen = !menuOpen"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="#ffe14d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true"><path :d="CHAPTERS[activeIndex].icon" /></svg>
+              <span class="font-display text-xs text-[#ffe14d]">{{ activeIndex + 1 }}/{{ CHAPTERS.length }}</span>
+              <span class="min-w-0 flex-1 truncate font-semibold">{{ t(`cup.rules.${active}.title`) }}</span>
+              <span class="shrink-0 text-xs text-white/55">{{ t('cup.rules.contents') }}</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-4 w-4 shrink-0 text-white/60 transition-transform" :class="menuOpen ? 'rotate-180' : ''" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+            </button>
+            <ol v-if="menuOpen" id="rule-menu" class="mt-1.5 overflow-hidden rounded-2xl border border-white/15 bg-[#1a0838]/97 p-1 shadow-2xl backdrop-blur">
+              <li v-for="(c, i) in CHAPTERS" :key="c.id">
+                <button
+                  type="button"
+                  class="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm"
+                  :class="c.id === active ? 'bg-[#ffe14d]/12 font-semibold text-white' : 'text-white/80 hover:bg-white/8'"
+                  :aria-current="c.id === active ? 'location' : undefined"
+                  @click="jump(c.id)"
+                >
+                  <span class="w-4 text-center font-display text-xs text-[#ffe14d]">{{ i + 1 }}</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0 text-white/60" aria-hidden="true"><path :d="c.icon" /></svg>
+                  {{ t(`cup.rules.${c.id}.title`) }}
+                </button>
+              </li>
+            </ol>
+          </div>
+        </Transition>
+        <div v-if="menuOpen" class="fixed inset-0 z-20" aria-hidden="true" @click="menuOpen = false" />
 
         <!-- 1 · entering -->
         <section id="rule-entry" class="r-card">
@@ -277,6 +365,17 @@ function jump(id: string): void {
 </template>
 
 <style scoped>
+.r-float-enter-active,
+.r-float-leave-active {
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+.r-float-enter-from,
+.r-float-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
 .r-card {
   display: flex;
   scroll-margin-top: calc(var(--header-h) + 64px);
