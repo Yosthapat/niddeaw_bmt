@@ -381,11 +381,13 @@ onBeforeUnmount(() => {
   scroll-margin-top: calc(var(--header-h) + 64px);
   flex-direction: column;
   gap: 12px;
-  border: 1px solid rgb(255 255 255 / 0.14);
+  /* as the cup page's boxes: a firm edge on a darker fill, no backdrop
+     blur (iOS Safari drops parts of a rounded border under one) */
+  border: 1px solid rgb(255 255 255 / 0.22);
   border-radius: 18px;
-  background: rgb(255 255 255 / 0.06);
+  background: linear-gradient(160deg, rgb(255 255 255 / 0.08), rgb(18 6 40 / 0.5));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1);
   padding: 16px;
-  backdrop-filter: blur(10px);
 }
 .r-head {
   display: flex;
@@ -469,7 +471,7 @@ onBeforeUnmount(() => {
 .r-chip {
   display: flex;
   flex-direction: column;
-  border: 1px solid rgb(255 255 255 / 0.12);
+  border: 1px solid rgb(255 255 255 / 0.2);
   border-radius: 12px;
   padding: 8px 4px;
   font-size: 11px;
