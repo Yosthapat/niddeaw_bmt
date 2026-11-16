@@ -1,4 +1,6 @@
 import { execSync } from 'node:child_process'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
 import { defineConfig } from 'vite'
@@ -33,6 +35,58 @@ function buildSha(): string {
 const BUILD_SHA = buildSha()
 
 /**
+ * Link previews for the tournament. LINE and Facebook read the page's own
+ * HTML and run no script, so the app's one index.html can't show a
+ * different card for /tournament. After the build this writes copies of
+ * it — dist/tournament.html and dist/tournament/rules.html, which
+ * Cloudflare serves at /tournament and /tournament/rules — with the
+ * tournament's title, words and picture in their meta tags. The app in
+ * them is the same; only the preview differs.
+ */
+const SITE = 'https://niddeaw.fyi'
+const SHARE_PAGES: { file: string; path: string; title: string; description: string }[] = [
+  {
+    file: 'tournament.html',
+    path: '/tournament',
+    title: 'NIDDEAW CUP · ทัวร์นาเมนต์แบดมินตันของก๊วนนิดเดียว',
+    description: 'แบ่งมือตามระดับ ELO · สมัครเป็นคู่ผ่าน LINE · ดูกลุ่ม สายการแข่ง และผลสดได้จากมือถือ',
+  },
+  {
+    file: 'tournament/rules.html',
+    path: '/tournament/rules',
+    title: 'กติกาการแข่งขัน · NIDDEAW CUP',
+    description: 'การสมัคร · มือ · รอบแบ่งกลุ่ม · น็อคเอาท์ · วันแข่ง · ในสนาม · ลูกและคูปอง',
+  },
+]
+const shareCards = {
+  name: 'share-cards',
+  apply: 'build' as const,
+  enforce: 'post' as const,
+  closeBundle() {
+    const dist = fileURLToPath(new URL('./dist', import.meta.url))
+    const index = readFileSync(`${dist}/index.html`, 'utf8')
+    const meta = (prop: string, value: string): [RegExp, string] => [
+      new RegExp(`(<meta (?:property|name)="${prop}" content=")[^"]*(")`),
+      `$1${value}$2`,
+    ]
+    for (const page of SHARE_PAGES) {
+      let html = index.replace(/<title>[^<]*<\/title>/, `<title>${page.title}</title>`)
+      for (const [pattern, value] of [
+        meta('description', page.description),
+        meta('og:title', page.title),
+        meta('og:description', page.description),
+        meta('og:image', `${SITE}/og/tournament.jpg`),
+        meta('twitter:card', 'summary_large_image'),
+      ])
+        html = html.replace(pattern, value)
+      html = html.replace('<meta property="og:type"', `<meta property="og:url" content="${SITE}${page.path}" />\n    <meta property="og:type"`)
+      mkdirSync(dirname(`${dist}/${page.file}`), { recursive: true })
+      writeFileSync(`${dist}/${page.file}`, html)
+    }
+  },
+}
+
+/**
  * dist/version.json: which build the server has now. The page compares it
  * with the build it is running (UpdateBanner.vue) — a check that needs no
  * service worker, for the phone whose worker never notices a deploy. JSON
@@ -57,6 +111,7 @@ export default defineConfig({
   plugins: [
     vue(),
     versionFile,
+    shareCards,
     VitePWA({
       // 'prompt', not 'autoUpdate': the admin uses this standing on a court
       // with a half-filled bill on screen, and a build that swaps itself in

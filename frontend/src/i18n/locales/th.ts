@@ -2038,6 +2038,16 @@ export default {
         refund: 'จบงานแล้วคูปองเหลือ นำมาคืนได้ใบละ {price}',
       },
     },
+    share: {
+      entered: 'เราลงแข่งแล้ว!',
+      enteredText: 'ทีม {team} ลงแข่ง {cup} แล้ว!',
+      champion: 'แชมป์ {level} · {bracket}',
+      championText: '{team} แชมป์ {cup}!',
+      teamButton: 'แชร์การ์ดทีมเรา',
+      championButton: 'แชร์การ์ดแชมป์',
+      making: 'กำลังทำการ์ด…',
+      failed: 'ทำการ์ดไม่สำเร็จ ลองอีกครั้ง',
+    },
     my: {
       liveMore: 'ดูอีก {n} สนาม',
       liveLess: 'ย่อ',
