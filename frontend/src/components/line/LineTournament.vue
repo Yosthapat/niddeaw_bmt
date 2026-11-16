@@ -24,6 +24,8 @@ import CupMatchCard from '@/components/cup/CupMatchCard.vue'
 import CupTeamLine from '@/components/cup/CupTeamLine.vue'
 import CupStandings from '@/components/cup/CupStandings.vue'
 import CupMatchRow from '@/components/cup/CupMatchRow.vue'
+import CupSignUpSteps from '@/components/cup/CupSignUpSteps.vue'
+import { getLineConfig } from '@/api/line'
 import { rankBands, roundLabel } from '@/utils/cupMatch'
 import { usePolling } from '@/composables/usePolling'
 
@@ -52,6 +54,17 @@ async function run(key: string, job: () => Promise<LineTournament>, fallback: st
   }
 }
 onMounted(() => run('load', () => lineTournament.get(props.token), t('cup.line.loadFailed')))
+
+// The LIFF link to this page: what a partner taps in the chat to answer.
+const liffId = ref<string | null>(null)
+onMounted(async () => {
+  try {
+    const c = await getLineConfig()
+    if (c.enabled && c.liff_id) liffId.value = c.liff_id
+  } catch {
+    /* the share button then links the site's own page */
+  }
+})
 
 const cup = computed(() => data.value?.tournament ?? null)
 const me = computed(() => data.value?.me ?? null)
@@ -194,6 +207,29 @@ usePolling(async () => {
 
 const rulesOf = (id: string): string => cup.value?.levels.find((lv) => lv.id === id)?.rules ?? ''
 
+const bothSent = computed(() => !!team.value && team.value.entrants.every((e) => e.pay_status === 'slip_sent' || e.pay_status === 'paid'))
+
+/** A message for the chat with the partner: who asked, the team, and the link that opens the invite. */
+const inviteHref = computed(() => {
+  if (!team.value || !me.value) return ''
+  const link = liffId.value ? `https://liff.line.me/${liffId.value}/tournament` : `${window.location.origin}/line/tournament`
+  const text = t('cup.line.inviteText', { name: me.value.nickname, team: team.value.name, cup: cup.value?.name ?? '', link })
+  return `https://line.me/R/share?text=${encodeURIComponent(text)}`
+})
+
+const copied = ref<string | null>(null)
+async function copy(key: string, value: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(value)
+    copied.value = key
+    window.setTimeout(() => {
+      if (copied.value === key) copied.value = null
+    }, 1800)
+  } catch {
+    /* no clipboard (an old in-app browser): the text is on screen to type */
+  }
+}
+
 // --- paying ----------------------------------------------------------------
 const pay = ref<PaymentInfoResponse | null>(null)
 const toPay = computed(
@@ -270,6 +306,7 @@ async function attach(event: Event): Promise<void> {
         <template v-else>
           <div class="world-card flex flex-col gap-3 p-4">
             <h3 class="font-display text-lg font-bold">{{ t('cup.line.signUpTitle') }}</h3>
+            <CupSignUpSteps status="none" />
 
             <!-- partner -->
             <div>
@@ -366,6 +403,8 @@ async function attach(event: Event): Promise<void> {
             </li>
           </ul>
 
+          <CupSignUpSteps v-if="!['cancelled', 'withdrawn'].includes(team.status)" :status="team.status" :both-sent="bothSent" :role="data?.my_role ?? null" />
+
           <!-- where it stands -->
           <div class="rounded-2xl border border-white/12 bg-white/5 p-3 text-sm">
             <b class="block">{{ t(`cup.teamStatus.${team.status}`) }}</b>
@@ -398,7 +437,19 @@ async function attach(event: Event): Promise<void> {
             </button>
             <button type="button" class="glass-pill justify-center" :disabled="busy === 'decline'" @click="decline">{{ t('cup.line.decline') }}</button>
           </template>
-          <button v-else-if="team.status === 'invited'" type="button" class="glass-pill justify-center" :disabled="busy === 'decline'" @click="decline">{{ t('cup.line.cancelInvite') }}</button>
+          <template v-else-if="team.status === 'invited'">
+            <a
+              :href="inviteHref"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#06c755] font-display text-base font-bold text-white"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13" /></svg>
+              {{ t('cup.line.shareInvite', { name: other?.nickname ?? '' }) }}
+            </a>
+            <p class="-mt-1 text-center text-xs text-white/50">{{ t('cup.line.shareInviteHint') }}</p>
+            <button type="button" class="glass-pill justify-center" :disabled="busy === 'decline'" @click="decline">{{ t('cup.line.cancelInvite') }}</button>
+          </template>
 
           <!-- pay my half -->
           <template v-if="toPay && mine">
@@ -419,6 +470,27 @@ async function attach(event: Event): Promise<void> {
               />
               <div v-else class="flex h-56 w-56 items-center justify-center rounded-xl bg-white/5 text-sm text-white/50">{{ t('common.loading') }}</div>
               <span class="text-xs text-white/50">{{ t('cup.line.ownAccount') }}</span>
+              <!-- for paying by typing rather than scanning -->
+              <div class="mt-1 grid w-full grid-cols-2 gap-2">
+                <button
+                  v-if="pay?.bank_account_number"
+                  type="button"
+                  class="flex min-h-12 flex-col items-center justify-center rounded-xl border border-white/15 bg-white/5 px-2 text-center"
+                  @click="copy('number', pay.bank_account_number)"
+                >
+                  <span class="text-[11px] text-white/55">{{ copied === 'number' ? t('cup.line.copied') : t('cup.line.copyPromptpay') }}</span>
+                  <b class="font-display text-sm tracking-wide">{{ pay.bank_account_number }}</b>
+                </button>
+                <button
+                  type="button"
+                  class="flex min-h-12 flex-col items-center justify-center rounded-xl border border-white/15 bg-white/5 px-2 text-center"
+                  :class="pay?.bank_account_number ? '' : 'col-span-2'"
+                  @click="copy('amount', mine.share.toFixed(2))"
+                >
+                  <span class="text-[11px] text-white/55">{{ copied === 'amount' ? t('cup.line.copied') : t('cup.line.copyAmount') }}</span>
+                  <b class="font-display text-sm">{{ money(mine.share) }}</b>
+                </button>
+              </div>
             </div>
             <label class="cta flex min-h-14 cursor-pointer items-center justify-center rounded-2xl font-display text-base font-bold" :class="{ 'is-busy': busy === 'slip' }">
               {{ busy === 'slip' ? t('cup.line.sending') : t('cup.line.attachSlip') }}
