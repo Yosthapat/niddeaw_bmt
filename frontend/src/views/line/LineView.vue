@@ -382,7 +382,7 @@ onUnmounted(() => {
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
             {{ t('line.linkedNow') }}
           </p>
-          <p class="world-eyebrow">LINKED</p>
+          <p class="world-eyebrow mb-2">LINKED</p>
           <PlayerAvatar :player-id="me.player.id" :name="me.player.nickname" :avatar-url="me.player.avatar_url" size="lg" round />
           <h1 class="world-title flex items-center gap-2 text-2xl">{{ me.player.nickname }}<CreditCardMark :player-id="me.player.id" size="md" /></h1>
           <span class="inline-flex items-center gap-1.5 text-sm text-white/70">
