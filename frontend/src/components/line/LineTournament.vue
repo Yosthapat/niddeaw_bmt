@@ -245,8 +245,17 @@ async function attach(event: Event): Promise<void> {
         <h2 class="world-title text-xl">{{ cup.name }}</h2>
         <p class="text-sm text-white/75">{{ day(cup.starts_on) }}<template v-if="cup.venue"> · {{ cup.venue }}</template></p>
         <p class="text-sm text-white/75">{{ t('cup.feeLine', { amount: money(perPlayer) }) }}</p>
-        <p class="text-xs text-white/55">{{ t('cup.couponLine', { n: cup.coupons_per_set }) }}</p>
         <p class="text-xs text-white/55">{{ cup.taking_entries ? t('cup.closesAt', { at: when(cup.closes_at) }) : t('cup.closed') }}</p>
+        <RouterLink
+          to="/tournament/rules"
+          class="mt-2 flex min-h-11 items-center gap-2 rounded-xl border border-[#ffe14d]/40 bg-[#ffe14d]/10 px-3 text-sm font-semibold text-[#ffe14d]"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 shrink-0" aria-hidden="true">
+            <path d="M4 5a2 2 0 0 1 2-2h6v18H6a2 2 0 0 0-2 2zM20 5a2 2 0 0 0-2-2h-6v18h6a2 2 0 0 1 2 2z" />
+          </svg>
+          <span class="flex-1">{{ t('cup.rules.open') }}</span>
+          <span aria-hidden="true">›</span>
+        </RouterLink>
       </div>
 
       <!-- not signed up -->

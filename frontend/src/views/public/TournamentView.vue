@@ -155,15 +155,28 @@ function range(min: number | null, max: number | null): string {
         <p class="mt-1 text-[15px] text-white/85">{{ day(cup.starts_on) }}<template v-if="cup.venue"> · {{ cup.venue }}</template></p>
       </header>
 
-      <section class="t-plan flex-col !items-stretch gap-1.5 text-sm">
-        <p>{{ t('cup.feeLine', { amount: money(perPlayer) }) }}</p>
-        <p class="text-white/70">{{ t('cup.couponLine', { n: cup.coupons_per_set }) }}</p>
-        <p class="text-white/70">{{ t('cup.whoCan', { n: cup.min_games }) }}</p>
-        <p class="text-white/70">{{ t('cup.levelRule') }}</p>
-        <p class="font-semibold" :class="cup.taking_entries ? 'text-[#7ff0b4]' : 'text-white/60'">
-          {{ cup.taking_entries ? t('cup.closesAt', { at: when(cup.closes_at) }) : t('cup.closed') }}
-        </p>
+      <!-- the two things to know before signing up; everything else is in the rule book -->
+      <section class="grid grid-cols-2 gap-2">
+        <div class="t-plan flex-col !items-start !gap-0.5">
+          <span class="text-xs text-white/60">{{ t('cup.rules.entry.fee') }}</span>
+          <b class="font-display text-2xl leading-tight">{{ money(perPlayer) }}</b>
+          <span class="text-[11px] text-white/50">{{ t('cup.perPerson') }}</span>
+        </div>
+        <div class="t-plan flex-col !items-start !gap-0.5" :class="cup.taking_entries ? '!border-[#7ff0b4]/35' : ''">
+          <span class="text-xs text-white/60">{{ cup.taking_entries ? t('cup.rules.entry.closes') : t('cup.closed') }}</span>
+          <b class="font-display text-lg leading-tight" :class="cup.taking_entries ? 'text-[#7ff0b4]' : 'text-white/60'">{{ when(cup.closes_at) }}</b>
+        </div>
       </section>
+      <RouterLink to="/tournament/rules" class="t-book flex min-h-14 items-center gap-3 rounded-2xl px-4 text-left">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#ffe14d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="h-7 w-7 shrink-0" aria-hidden="true">
+          <path d="M4 5a2 2 0 0 1 2-2h6v18H6a2 2 0 0 0-2 2zM20 5a2 2 0 0 0-2-2h-6v18h6a2 2 0 0 1 2 2z" />
+        </svg>
+        <span class="min-w-0 flex-1">
+          <span class="block font-display text-base font-bold">{{ t('cup.rules.open') }}</span>
+          <span class="block truncate text-xs text-white/60">{{ t('cup.rules.openHint') }}</span>
+        </span>
+        <span class="text-xl text-white/60" aria-hidden="true">›</span>
+      </RouterLink>
 
       <a
         v-if="cup.taking_entries"
@@ -527,6 +540,13 @@ function range(min: number | null, max: number | null): string {
 .r-podium {
   background: radial-gradient(120% 80% at 50% 0%, rgb(255 225 77 / 0.2), rgb(255 255 255 / 0.04) 70%);
   box-shadow: 0 0 30px -6px rgb(255 207 63 / 0.35);
+}
+.t-book {
+  border: 1px solid rgb(255 225 77 / 0.45);
+  background: linear-gradient(120deg, rgb(255 225 77 / 0.14), rgb(255 255 255 / 0.04) 60%);
+}
+.t-book:hover {
+  background: linear-gradient(120deg, rgb(255 225 77 / 0.22), rgb(255 255 255 / 0.06) 60%);
 }
 .t-line {
   background: #037f36;
