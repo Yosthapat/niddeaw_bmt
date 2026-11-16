@@ -24,7 +24,7 @@ import { getWalletOffer } from '@/api/public'
 import type { CreditPackage } from '@/api/line'
 
 type Tab = 'perks' | 'style' | 'stats' | 'night'
-const props = defineProps<{ token: string; name: string; avatarUrl?: string | null; tier?: string; tab?: Tab }>()
+const props = defineProps<{ token: string; name: string; avatarUrl?: string | null; tier?: string; code?: string; tab?: Tab }>()
 const emit = defineEmits<{ back: []; credit: [] }>()
 const { t, locale } = useI18n()
 const { confirm } = useConfirmDialog()
@@ -150,7 +150,14 @@ async function block(playerId: string): Promise<void> {
         @saved="data = $event"
       />
       <LinePassStats v-else-if="shownTab === 'stats'" :token="token" />
-      <LinePassNight v-else-if="shownTab === 'night'" :token="token" :avatar-url="avatarUrl" />
+      <LinePassNight
+        v-else-if="shownTab === 'night'"
+        :token="token"
+        :avatar-url="avatarUrl"
+        :tier="tier"
+        :code="code"
+        :card="data.card && data.cards_open.includes(data.card) ? data.card : null"
+      />
 
       <template v-else>
       <!-- everything a pass gives, grouped by where it shows -->
