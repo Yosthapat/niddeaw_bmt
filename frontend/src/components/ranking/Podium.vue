@@ -35,7 +35,7 @@ const spots = computed(() =>
           :class="spot.lift"
           :style="{ boxShadow: `0 0 0 3px ${spot.ring}, 0 0 26px ${spot.glow}` }"
         >
-          <PlayerAvatar :name="spot.stats.player.nickname" :avatar-url="spot.stats.player.avatar_url" size="lg" round />
+          <PlayerAvatar :player-id="spot.stats.player.id" :name="spot.stats.player.nickname" :avatar-url="spot.stats.player.avatar_url" size="lg" round />
         </span>
         <span class="mt-2 w-full truncate text-center font-display text-[15px] font-semibold group-hover:text-brand-pink-light">
           {{ spot.stats.player.nickname }} <CreditCardMark :player-id="spot.stats.player.id" />

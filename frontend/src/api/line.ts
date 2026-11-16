@@ -302,6 +302,69 @@ export interface LinePass {
   checked_in: boolean
   blocks: PassPerson[]
   candidates: PassPerson[]
+  /** The look they chose; it shows only while open below. */
+  frame: PassFrame | null
+  card: PassCard | null
+  /** What they may wear now: pass looks while one runs, and earned ones. */
+  frames_open: PassFrame[]
+  cards_open: PassCard[]
+  /** Passes in a row up to now; 0 when none runs. */
+  streak: number
+  best_streak: number
+}
+
+export type PassFrame = 'gold' | 'neon' | 'crown' | 'moon' | 'king' | 'legend'
+export type PassCard = 'foil' | 'diamond'
+export interface PassLook {
+  frame: PassFrame | null
+  card: PassCard | null
+}
+
+export interface PassMate {
+  player: PassPerson
+  wins: number
+  games: number
+}
+
+export interface PassStats {
+  elo: number
+  series: { at: string; elo: number; delta: number; upset: boolean }[]
+  partner: PassMate | null
+  rival: PassMate | null
+  form: { bucket: 'early' | 'mid' | 'late'; wins: number; games: number }[]
+  last: ('W' | 'L' | 'D')[]
+  best_streak: number
+  games: number
+}
+
+export interface PassNight {
+  date: string
+  nickname: string
+  frame: PassFrame | null
+  games: number
+  wins: number
+  draws: number
+  elo_before: number
+  elo_after: number
+  upset: { rivals: PassPerson[]; odds: number } | null
+  partner: PassMate | null
+}
+
+export function setPassStyle(token: string, look: PassLook): Promise<LinePass> {
+  return request('/api/line/pass/style', { ...auth(token), method: 'PUT', body: JSON.stringify(look) })
+}
+
+export function getPassStats(token: string): Promise<PassStats> {
+  return request('/api/line/pass/stats', auth(token))
+}
+
+export function getPassNight(token: string): Promise<PassNight | null> {
+  return request('/api/line/pass/night', auth(token))
+}
+
+/** Everyone wearing a pass look now: {player_id: {frame, card}}. Public. */
+export function getPassStyles(): Promise<Record<string, PassLook>> {
+  return request('/api/pass-styles')
 }
 
 export function getPass(token: string): Promise<LinePass> {

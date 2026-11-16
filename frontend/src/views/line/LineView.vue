@@ -46,6 +46,12 @@ const me = ref<LineStatus | null>(null)
 const options = ref<LinkOption[]>([])
 const query = ref('')
 const wantPack = ref('')
+// The pass page's tab to open on: "night" from checking out.
+const passTab = ref<'perks' | 'night' | undefined>(undefined)
+function openNight(): void {
+  passTab.value = 'night'
+  void go('pass')
+}
 const picked = ref<string | null>(null)
 const sending = ref(false)
 const actionError = ref('')
@@ -350,7 +356,7 @@ onUnmounted(() => {
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
             {{ t('lineCheckout.back') }}
           </button>
-          <LineCheckout :token="token" :initial="tonight" @bills="go('bills')" @credit="go('credit')" />
+          <LineCheckout :token="token" :initial="tonight" @bills="go('bills')" @credit="go('credit')" @night="openNight" />
         </template>
         <LineBills v-else-if="me.player && screen === 'bills'" :token="token" @back="go('home')" @credit="go('credit')" />
 
@@ -358,7 +364,14 @@ onUnmounted(() => {
 
         <LineBadges v-else-if="me.player && screen === 'badges'" :token="token" @back="go('home')" />
 
-        <LinePass v-else-if="me.player && screen === 'pass'" :token="token" :name="me.player.nickname" @back="go('home')" @credit="go('credit')" />
+        <LinePass
+          v-else-if="me.player && screen === 'pass'"
+          :token="token"
+          :name="me.player.nickname"
+          :avatar-url="me.player.avatar_url"
+          :tier="me.player.elo_level"
+          :tab="passTab"
+          @back="go('home')" @credit="go('credit')" />
 
         <LineTournament v-else-if="me.player && screen === 'tournament'" :token="token" @back="go('home')" />
 

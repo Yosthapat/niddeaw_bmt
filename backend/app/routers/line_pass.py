@@ -3,17 +3,27 @@ two members not to be partnered with (pass_service). Only the member's own
 LINE token reaches these; nobody else, admins included, sees the choices."""
 
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, status
 from supabase import Client
 
 from app.db_utils import rows
 from app.deps import LineMemberDep, SupabaseDep
 from app.models.line import LineContext
-from app.models.niddeaw_pass import LinePass, PassBlockIn, PassPerson
+from app.models.niddeaw_pass import (
+    LinePass,
+    PassBlockIn,
+    PassMate,
+    PassNight,
+    PassPerson,
+    PassStats,
+    PassStyleIn,
+    PassUpset,
+)
 from app.routers.line import _member
-from app.services import credit_service, pass_service
+from app.services import credit_service, pass_perks, pass_service
 
 router = APIRouter(prefix="/api/line/pass", tags=["line-pass"])
 
@@ -43,16 +53,26 @@ def state(supabase: Client, member: LineContext) -> LinePass:
     if night is not None:
         blocks = pass_service.blocks_of(supabase, night["id"], pid)
         others = [p for p in pass_service.checked_in(supabase, night["id"]) if p != pid and p not in blocks]
+    ends_at = pass_service.runs_until(supabase, pid, now)
+    run = pass_perks.streak_of(pass_service.passes_of(supabase, pid), now)
+    frames_open, cards_open = pass_perks.allowed(ends_at is not None, run.best)
+    style = pass_perks.style_of(supabase, pid)
     return LinePass(
         price=pass_service.price(supabase),
         days=pass_service.PASS_DAYS,
         balance=credit_service.balance(supabase, pid),
         eligible=pass_service.eligible(supabase, pid),
-        ends_at=pass_service.runs_until(supabase, pid, now),
+        ends_at=ends_at,
         max_blocks=pass_service.BLOCKS_PER_NIGHT,
         checked_in=night is not None,
         blocks=_people(supabase, blocks),
         candidates=_people(supabase, others),
+        frame=style["frame"],
+        card=style["card"],
+        frames_open=frames_open,
+        cards_open=cards_open,
+        streak=run.current,
+        best_streak=run.best,
     )
 
 
@@ -78,3 +98,52 @@ def add_block(payload: PassBlockIn, supabase: SupabaseDep, member: LineMemberDep
 def remove_block(player_id: UUID, supabase: SupabaseDep, member: LineMemberDep) -> LinePass:
     pass_service.unblock(supabase, _member(supabase, member).id, player_id)
     return state(supabase, member)
+
+
+@router.put("/style", response_model=LinePass)
+def set_style(payload: PassStyleIn, supabase: SupabaseDep, member: LineMemberDep) -> LinePass:
+    """The frame round their picture and their card's face; None for none."""
+    pass_perks.set_style(supabase, _member(supabase, member).id, payload.frame, payload.card)
+    return state(supabase, member)
+
+
+def _holder(supabase: Client, member: LineContext) -> str:
+    pid = str(_member(supabase, member).id)
+    if pass_service.runs_until(supabase, pid) is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="ใช้ได้ระหว่างที่ Pass ยังไม่หมดอายุ")
+    return pid
+
+
+def _mate(supabase: Client, found: dict[str, Any] | None) -> PassMate | None:
+    if not found:
+        return None
+    people = _people(supabase, [found["player_id"]])
+    return PassMate(player=people[0], wins=found["wins"], games=found["games"]) if people else None
+
+
+@router.get("/stats", response_model=PassStats)
+def my_stats(supabase: SupabaseDep, member: LineMemberDep) -> PassStats:
+    numbers = pass_perks.stats(supabase, _holder(supabase, member))
+    return PassStats(
+        **{k: v for k, v in numbers.items() if k not in ("partner", "rival")},
+        partner=_mate(supabase, numbers["partner"]),
+        rival=_mate(supabase, numbers["rival"]),
+    )
+
+
+@router.get("/night", response_model=PassNight | None)
+def my_night(supabase: SupabaseDep, member: LineMemberDep) -> PassNight | None:
+    """Their last night with a result; None before their first."""
+    pid = _holder(supabase, member)
+    found = pass_perks.night(supabase, pid)
+    if found is None:
+        return None
+    player = _member(supabase, member)
+    upset = found["upset"]
+    return PassNight(
+        **{k: v for k, v in found.items() if k not in ("upset", "partner")},
+        nickname=player.nickname,
+        frame=pass_perks.looks(supabase).get(pid, {}).get("frame"),
+        upset=PassUpset(rivals=_people(supabase, upset["rival_ids"]), odds=upset["odds"]) if upset else None,
+        partner=_mate(supabase, found["partner"]),
+    )
