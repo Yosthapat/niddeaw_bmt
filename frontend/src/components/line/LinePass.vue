@@ -130,10 +130,6 @@ async function block(playerId: string): Promise<void> {
       <ul class="grid gap-1.5">
         <li class="perk"><span class="ic" aria-hidden="true">⚖︎</span><span><b>{{ t('pass.perkOdds') }}</b><small>{{ t('pass.perkOddsHint') }}</small></span></li>
         <li class="perk"><span class="ic" aria-hidden="true">⦸</span><span><b>{{ t('pass.perkBlock', { n: data.max_blocks }) }}</b><small>{{ t('pass.perkBlockHint') }}</small></span></li>
-        <li class="perk">
-          <span class="ic" aria-hidden="true">✦</span>
-          <span><b>{{ t('pass.perkSeason') }}</b><small>{{ t('pass.perkSeasonHint', { year: data.season_year, points: num(data.season_points) }) }}</small></span>
-        </li>
       </ul>
 
       <!-- buying -->

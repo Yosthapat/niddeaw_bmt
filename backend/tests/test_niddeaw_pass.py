@@ -1,6 +1,6 @@
 """Niddeaw Pass: bought with credit by card holders, it runs 30 days and
-gives the better side of the odds, two partner blocks a night and 15% more
-season points. ELO is not touched."""
+gives the better side of the odds and two partner blocks a night. ELO is
+not touched."""
 
 import os
 import sys
@@ -306,37 +306,6 @@ def _won(
         "elo_delta_team1": delta, "elo_delta_team2": -delta,
         "created_at": when.isoformat(), "updated_at": when.isoformat(),
     })  # fmt: skip
-
-
-def test_season_points_are_the_wins_rating_and_fifteen_percent_more_with_a_pass(
-    client: TestClient, db: MiniSupabase
-) -> None:
-    ball, bank, faa, ton = (pid(db, n) for n in ("Ball", "Bank", "Faa", "Ton"))
-    now = datetime.now(UTC)
-    db.tables["passes"].append({"id": str(uuid4()), "player_id": ball, "credits": 249,
-                                "starts_at": (now - timedelta(days=1)).isoformat(),
-                                "ends_at": (now + timedelta(days=29)).isoformat()})  # fmt: skip
-    _won(db, [ball, bank], [faa, ton], 10, now - timedelta(hours=1))
-    _won(db, [faa, ton], [ball, bank], 13, now - timedelta(hours=2))
-    # a win from before the pass ran counts plain
-    _won(db, [ball, faa], [bank, ton], 10, now - timedelta(days=3))
-
-    def points(name: str) -> float:
-        line = "U" + chr(ord("a") + NAMES.index(name)) * 32
-        res = client.get(
-            "/api/line/pass", headers={"Authorization": f"Bearer {create_line_token(line, 'x')}"}
-        )
-        return float(res.json()["season_points"])
-
-    assert {n: points(n) for n in ("Ball", "Faa", "Ton", "Bank")} == {
-        "Ball": 21.5,
-        "Faa": 23.0,
-        "Ton": 13.0,
-        "Bank": 10.0,
-    }
-
-    # ELO is the results' own deltas, untouched by the pass
-    assert all(m["elo_delta_team1"] in (10, 13) for m in db.tables["matches"])
 
 
 def test_pass_routes_are_for_linked_members(client: TestClient) -> None:

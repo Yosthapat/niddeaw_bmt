@@ -47,10 +47,6 @@ def state(supabase: Client, member: LineContext) -> LinePass:
     player = _member(supabase, member)
     pid = str(player.id)
     now = datetime.now(UTC)
-    year = now.year
-    points = pass_service.season_points(
-        supabase, datetime(year, 1, 1, tzinfo=UTC), datetime(year + 1, 1, 1, tzinfo=UTC)
-    ).get(pid, 0.0)
     night = pass_service.night_of(supabase, pid)
     blocks: list[str] = []
     others: list[str] = []
@@ -67,8 +63,6 @@ def state(supabase: Client, member: LineContext) -> LinePass:
         balance=credit_service.balance(supabase, pid),
         eligible=pass_service.eligible(supabase, pid),
         ends_at=ends_at,
-        season_points=points,
-        season_year=year,
         max_blocks=pass_service.BLOCKS_PER_NIGHT,
         checked_in=night is not None,
         blocks=_people(supabase, blocks),

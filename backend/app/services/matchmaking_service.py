@@ -44,7 +44,7 @@ OPPONENT_PENALTY = 1.2
 """Across the net again; grows faster than the number of meetings
 (OPPONENT_PENALTY × times^1.5), so a fourth meeting costs far more than a
 second."""
-PASS_EDGE = 0.52
+PASS_EDGE = 0.50
 """A Niddeaw Pass holder goes onto the side with at least these odds, when
 the suggestion can manage it (pass_service)."""
 PASS_SHORT_PENALTY = 10.0
