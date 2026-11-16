@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, HTTPException, UploadFile, status
+from fastapi import APIRouter, HTTPException, Response, UploadFile, status
 from supabase import Client
 
 from app.db_utils import rows
@@ -28,7 +28,7 @@ from app.models.tournament import (
     SignUpIn,
 )
 from app.routers.line import MAX_SLIP_BYTES, SLIP_MAX_PX
-from app.services import night_bill, promptpay_service, slip_check
+from app.services import night_bill, promptpay_service, slip_check, tournament_cache
 from app.services import tournament_service as ts
 from app.services import tournament_views as views
 from app.services.image_service import resize_jpeg
@@ -70,24 +70,22 @@ def _entry(supabase: Client, row: dict[str, Any], player: dict[str, Any]) -> dic
     return entry
 
 
-def state(supabase: Client, member: LineContext) -> LineTournament:
-    """Everything the LINE page shows, read in three round trips: the
-    tournament and who this is together, then the tournament's rows and the
-    details they typed last time together, then the players."""
+def _mine(
+    supabase: Client, member: LineContext
+) -> tuple[tournament_cache.Held | None, LineTournament]:
+    """The tournament (from the short cache, else read in three round trips)
+    alongside who this is, then the details they typed last time; and what
+    is theirs alone — everything but the tournament itself."""
     with ThreadPoolExecutor(max_workers=2) as pool:
-        row_f = pool.submit(ts.current, supabase)
+        held_f = pool.submit(tournament_cache.current, supabase)
         player_f = pool.submit(_player, supabase, member)
-        row = row_f.result()
-        if row is None:
-            return LineTournament(tournament=None)
+        held = held_f.result()
+        if held is None:
+            return None, LineTournament(tournament=None)
         player = player_f.result()
-    tid = str(row["id"])
+    row, snap = held.row, held.snap
     pid = str(player["id"])
-    published = bool(row.get("schedule_published_at"))
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        details_f = pool.submit(ts.last_details, supabase, pid)
-        snap = views.snapshot(supabase, tid, with_matches=published)
-        details = details_f.result()
+    details = ts.last_details(supabase, pid)
     own = ts.level_of(int(player.get("elo_score") or 0), snap.levels)
     me = Me(
         player_id=UUID(pid),
@@ -110,8 +108,8 @@ def state(supabase: Client, member: LineContext) -> LineTournament:
                 key=lambda e: 0 if e["role"] == "captain" else 1,
             )
             team = views.team_model(t, ents, snap.players, names, show_private_of={pid})
-    return LineTournament(
-        tournament=views.public_tournament(supabase, row, snap),
+    return held, LineTournament(
+        tournament=None,
         me=me,
         team=team,
         my_role=entry["role"] if entry else None,
@@ -119,9 +117,26 @@ def state(supabase: Client, member: LineContext) -> LineTournament:
     )
 
 
+def state(supabase: Client, member: LineContext) -> LineTournament:
+    """Everything the LINE page shows, as the reply to something they did."""
+    held, mine = _mine(supabase, member)
+    return mine.model_copy(update={"tournament": held.model(supabase) if held else None})
+
+
+NO_TOURNAMENT = '{"tournament":null'
+
+
 @router.get("", response_model=LineTournament)
-def my_tournament(supabase: SupabaseDep, member: LineMemberDep) -> LineTournament:
-    return state(supabase, member)
+def my_tournament(supabase: SupabaseDep, member: LineMemberDep) -> Response:
+    """Polled by every open LINE page on the day: the tournament's JSON is
+    the cached copy everyone shares, with this player's own part after it —
+    the same reply `state` gives, without rebuilding the tournament."""
+    held, mine = _mine(supabase, member)
+    own = mine.model_dump_json()
+    if held is None or not own.startswith(NO_TOURNAMENT):
+        return Response(content=own, media_type="application/json")
+    body = b'{"tournament":' + held.json(supabase) + own[len(NO_TOURNAMENT) :].encode()
+    return Response(content=body, media_type="application/json")
 
 
 @router.get("/candidates", response_model=list[Candidate])

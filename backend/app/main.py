@@ -5,6 +5,7 @@ from app import db_errors
 from app.config import get_settings
 from app.middleware.activity_log import AdminActivityLogMiddleware
 from app.middleware.body_limit import BodyLimitMiddleware
+from app.middleware.tournament_cache import TournamentCacheMiddleware
 from app.middleware.unhandled_errors import UnhandledErrorsMiddleware
 from app.routers import line, line_credit, line_pass, line_tournament, quests
 from app.routers.admin import activity_log as admin_activity_log
@@ -44,6 +45,7 @@ app = FastAPI(title="นิดเดียว Badminton Club API")
 db_errors.register(app)
 
 settings = get_settings()
+app.add_middleware(TournamentCacheMiddleware)
 app.add_middleware(AdminActivityLogMiddleware)
 # Added after the activity log and before CORS, so it sits between them: a
 # crash is turned into a 500 inside CORSMiddleware and keeps its headers.

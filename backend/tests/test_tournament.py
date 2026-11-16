@@ -315,6 +315,57 @@ def test_a_trial_tournament_can_be_deleted_until_it_is_played(
     assert kept.status_code == 409
 
 
+def test_the_public_tournament_is_cached_until_someone_writes(
+    db: MiniSupabase, client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from types import SimpleNamespace
+
+    from app.services import tournament_cache
+
+    monkeypatch.setattr(
+        tournament_cache, "get_settings", lambda: SimpleNamespace(tournament_cache_seconds=30)
+    )
+    tournament_cache.invalidate()
+    t = open_tournament(client)
+    assert client.get("/api/tournament").json()["name"] == "NIDDEAW CUP 1"
+
+    # a change behind the API's back waits for the cache to run out
+    for row in db.tables["tournaments"]:
+        row["venue"] = "elsewhere"
+    assert client.get("/api/tournament").json()["venue"] == "KB"
+
+    # any write through the API shows at once, on the public page and in LINE
+    got = client.patch(
+        f"/api/admin/tournament/tournaments/{t['id']}", json={"name": "Cup 2"}, headers=BOTH
+    )
+    assert got.status_code == 200, got.text
+    assert client.get("/api/tournament").json()["name"] == "Cup 2"
+    assert sign_up(client, db, t, 20, 21, "Wine", "ใหม่").status_code == 200
+    seen = client.get("/api/tournament").json()
+    assert [lv["seats_taken"] for lv in seen["levels"] if lv["name"] == "Wine"] == [0]
+    assert [team["name"] for lv in seen["levels"] for team in lv["teams"]] == []
+    mine = client.get("/api/line/tournament", headers=member(20)).json()
+    assert mine["team"]["name"] == "ใหม่"
+    tournament_cache.invalidate()
+
+
+def test_the_line_page_s_spliced_reply_is_the_same_as_the_built_one(
+    db: MiniSupabase, client: TestClient
+) -> None:
+    from app.models.line import LineContext
+    from app.routers.line_tournament import state
+
+    t = open_tournament(client)
+    assert sign_up(client, db, t, 20, 21, "Wine", "ต่อกัน").status_code == 200
+    got = client.get("/api/line/tournament", headers=member(20))
+    assert got.status_code == 200
+    built = state(db, LineContext(line_user_id=line_id(20), line_name="x", line_picture=None))  # type: ignore[arg-type]
+    assert got.json() == built.model_dump(mode="json")
+    assert (
+        got.json()["team"]["name"] == "ต่อกัน" and got.json()["tournament"]["name"] == "NIDDEAW CUP 1"
+    )
+
+
 def test_it_won_t_open_without_its_own_account(db: MiniSupabase, client: TestClient) -> None:
     closes = (datetime.now(UTC) + timedelta(days=3)).isoformat()
     t = client.post(

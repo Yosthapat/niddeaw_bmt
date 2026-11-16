@@ -28,6 +28,8 @@ PASSWORD = "uxlab"
 os.environ.setdefault("SUPABASE_URL", "http://supabase.invalid")
 os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "uxlab-not-a-real-key")
 os.environ.setdefault("JWT_SECRET", "uxlab-not-a-real-secret")
+# The lab seeds and rewrites rows directly; keep every tournament read fresh.
+os.environ.setdefault("TOURNAMENT_CACHE_SECONDS", "0")
 os.environ.setdefault(
     "CORS_ORIGINS",
     f"http://localhost:{STATIC_PORT},http://127.0.0.1:{STATIC_PORT},http://localhost:5173",

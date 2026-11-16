@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     # How long a member stays signed in on the /line page before LINE is
     # asked again. Opening it from LINE asks again anyway.
     line_token_minutes: int = 720
+    # How long the current tournament's rows are kept between reads of
+    # /tournament and the LINE page (services/tournament_cache.py). 0: off.
+    tournament_cache_seconds: float = 30
 
     @property
     def cors_origin_list(self) -> list[str]:
