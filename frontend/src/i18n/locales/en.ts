@@ -473,6 +473,17 @@ export default {
     notifyHint: 'Sign-ups are announced on LINE OA first',
     card: {
       sub: "The club's own cup",
+      stage: {
+        open: 'ENTRIES OPEN',
+        upcoming: 'SOON',
+        closed: 'ENTRIES CLOSED',
+        running: 'LIVE',
+        done: 'FINISHED',
+      },
+      closeSub: 'Closes {close}',
+      upcomingSub: 'Entries open {open}',
+      playSub: 'Plays {play}',
+      doneSub: 'See the results',
     },
   },
   shop: {

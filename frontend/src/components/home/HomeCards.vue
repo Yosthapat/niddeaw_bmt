@@ -2,20 +2,74 @@
 // The two doors under the hero, side by side on every screen: the
 // tournament that's coming and the club shop. Cards rather than tabs —
 // neither is something a member opens every Friday.
+//
+// The tournament door says what is on: "coming soon" until there is a
+// tournament to show, then its name and where it stands — taking entries,
+// closed, on today, over.
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
+import { getPublicTournament, type PublicTournament } from '@/api/tournament'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+const cup = ref<PublicTournament | null>(null)
+onMounted(async () => {
+  try {
+    cup.value = await getPublicTournament()
+  } catch {
+    cup.value = null // the door still says "coming soon"
+  }
+})
+
+function day(iso: string): string {
+  // A date-only string is read as local midnight, so the day doesn't slip.
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number)
+  return new Intl.DateTimeFormat(locale.value === 'th' ? 'th-TH' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).format(
+    iso.length > 10 ? new Date(iso) : new Date(y, m - 1, d),
+  )
+}
+
+type Stage = 'soon' | 'open' | 'upcoming' | 'closed' | 'running' | 'done'
+const stage = computed<Stage>(() => {
+  const c = cup.value
+  if (!c) return 'soon'
+  if (c.status === 'running') return 'running'
+  if (c.status === 'done') return 'done'
+  if (c.taking_entries) return 'open'
+  if (c.status === 'open' && c.opens_at && new Date(c.opens_at) > new Date()) return 'upcoming'
+  return 'closed'
+})
+const badge = computed(() => (stage.value === 'soon' ? 'COMING SOON' : t(`tournament.card.stage.${stage.value}`)))
+const title = computed(() => cup.value?.name ?? t('nav.tournament'))
+/** One line each, so a date never breaks across two. */
+const sub = computed<string[]>(() => {
+  const c = cup.value
+  if (!c) return [t('tournament.card.sub')]
+  if (stage.value === 'done') return [t('tournament.card.doneSub')]
+  const play = t('tournament.card.playSub', { play: day(c.starts_on) })
+  if (stage.value === 'open') return [play, t('tournament.card.closeSub', { close: day(c.closes_at) })]
+  if (stage.value === 'upcoming' && c.opens_at) return [play, t('tournament.card.upcomingSub', { open: day(c.opens_at) })]
+  return [play]
+})
 </script>
 
 <template>
   <div class="grid grid-cols-2 gap-2.5 sm:gap-4 min-[900px]:gap-5">
     <RouterLink to="/tournament" class="home-card border-[#ffe14d]/50 bg-[linear-gradient(140deg,#3b0f5c,#1a0838_70%)] [--glow:rgb(255_207_63/0.4)]">
-      <span class="card-blink self-start rounded-full border border-[#ffe14d] px-2 py-1 font-display text-[10px] leading-none font-bold tracking-[1.5px] text-[#ffe14d] sm:text-xs">
-        COMING SOON
+      <span
+        class="self-start rounded-full border px-2 py-1 font-display text-[10px] leading-none font-bold sm:text-xs"
+        :class="[
+          stage === 'open' || stage === 'running' ? 'border-[#4ade80] text-[#4ade80]' : 'border-[#ffe14d] text-[#ffe14d]',
+          stage === 'soon' || stage === 'open' || stage === 'running' ? 'card-blink' : '',
+          stage === 'soon' || locale === 'en' ? 'tracking-[1.5px]' : '',
+        ]"
+      >
+        {{ badge }}
       </span>
-      <span class="font-display text-[19px] font-bold sm:text-2xl">{{ t('nav.tournament') }}</span>
-      <span class="pr-10 text-[11px] font-light text-white/75 sm:text-sm">{{ t('tournament.card.sub') }}</span>
+      <span class="line-clamp-2 pr-8 font-display font-bold" :class="cup ? 'text-[16px] leading-tight sm:text-xl' : 'text-[19px] sm:text-2xl'">{{ title }}</span>
+      <span class="flex flex-col pr-10 text-[11px] font-light text-white/75 sm:text-sm">
+        <span v-for="line in sub" :key="line" class="whitespace-nowrap">{{ line }}</span>
+      </span>
       <svg viewBox="0 0 24 24" fill="none" stroke="#ffcf3f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="card-art h-10 w-10" aria-hidden="true">
         <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 6h3v2a3 3 0 0 1-3 3M7 6H4v2a3 3 0 0 0 3 3" />
       </svg>
