@@ -9,7 +9,9 @@
  * the match off. Results: each level's matches and group tables, where a
  * result can be corrected until a match it decides is called. Coupons:
  * every team's shuttle coupons, the lowest first; sell a set or buy back
- * what's left. Refreshes itself every 15 seconds.
+ * what's left. Check-in: every confirmed team, ticked as it reaches the desk;
+ * once the first is ticked, courts are only offered matches whose two teams
+ * are both here. Refreshes itself every 15 seconds.
  */
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -17,12 +19,12 @@ import AdminNav from '@/components/layout/AdminNav.vue'
 import LevelTabs from '@/components/admin/LevelTabs.vue'
 import CupMatchCard from '@/components/cup/CupMatchCard.vue'
 import CupTeamLine from '@/components/cup/CupTeamLine.vue'
-import { tournamentAdmin, type CupMatch, type GameDay, type PaidVia, type TeamCoupons } from '@/api/tournament'
+import { tournamentAdmin, type Arrival, type CupMatch, type GameDay, type PaidVia, type TeamCoupons } from '@/api/tournament'
 import { apiErrorMessage } from '@/api/errors'
 import { useTournamentPick } from '@/composables/useTournamentPick'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { usePolling } from '@/composables/usePolling'
-import { sideLabel } from '@/utils/cupMatch'
+import { clock, sideLabel } from '@/utils/cupMatch'
 import { money } from '@/utils/format'
 
 const { t } = useI18n()
@@ -33,7 +35,8 @@ const INPUT = 'w-full rounded border border-brand-pink-dark/40 bg-brand-black px
 const day = ref<GameDay | null>(null)
 const problem = ref('')
 const busy = ref<string | null>(null)
-type Tab = 'courts' | 'results' | 'coupons'
+type Tab = 'courts' | 'checkIn' | 'results' | 'coupons'
+const TABS: Tab[] = ['courts', 'checkIn', 'results', 'coupons']
 const tab = ref<Tab>('courts')
 
 async function refresh(): Promise<void> {
@@ -135,6 +138,28 @@ const levels = computed(() => {
 const activeLevel = computed(() => levels.value.find((l) => l.id === levelPick.value)?.id ?? levels.value[0]?.id ?? '')
 const levelMatches = computed(() => (day.value?.matches ?? []).filter((m) => m.level_id === activeLevel.value))
 
+// a draft (a rehearsal) isn't on the public pages: the board is told which one
+const boardHref = computed(() => (picked.value && picked.value.status === 'draft' ? `/tournament/board?t=${picked.value.id}` : '/tournament/board'))
+
+// --- check-in at the desk ------------------------------------------------------
+const arrivals = computed(() => day.value?.arrivals ?? [])
+const hereCount = computed(() => arrivals.value.filter((a) => a.arrived_at).length)
+const checking = computed(() => hereCount.value > 0)
+const isHere = (teamId: string | null): boolean => !checking.value || !!arrivals.value.find((a) => a.team_id === teamId)?.arrived_at
+const who = ref('')
+const onlyMissing = ref(false)
+const arrivalList = computed(() => {
+  const q = who.value.trim().toLowerCase()
+  return arrivals.value.filter(
+    (a) =>
+      (!onlyMissing.value || !a.arrived_at) &&
+      (!q || a.team_name.toLowerCase().includes(q) || a.players.some((p) => p.nickname.toLowerCase().includes(q))),
+  )
+})
+function checkIn(a: Arrival): void {
+  void run(a.team_id, () => tournamentAdmin.checkIn(a.team_id, !a.arrived_at))
+}
+
 // --- coupons -----------------------------------------------------------------
 const selling = ref<{ team: TeamCoupons; kind: 'sell' | 'return' } | null>(null)
 const sale = reactive({ quantity: 1, via: 'cash' as PaidVia, slip: null as File | null })
@@ -175,9 +200,13 @@ async function saveSale(): Promise<void> {
     <p v-if="problem" class="mb-3 text-sm text-status-error" role="alert">{{ problem }}</p>
 
     <template v-if="day && day.published">
-      <div class="grid grid-cols-3 gap-1 rounded-full border border-white/10 p-1" role="tablist">
+      <div class="mb-3 flex flex-wrap gap-1.5 text-xs">
+        <a :href="boardHref" target="_blank" rel="noopener" class="tap inline-flex items-center rounded-full border border-white/20 px-3 text-white/75">{{ t('cup.day.checkIn.board') }}</a>
+        <RouterLink :to="{ name: 'admin-tournament-print' }" class="tap inline-flex items-center rounded-full border border-white/20 px-3 text-white/75">{{ t('cup.day.checkIn.print') }}</RouterLink>
+      </div>
+      <div class="grid grid-cols-4 gap-1 rounded-full border border-white/10 p-1" role="tablist">
         <button
-          v-for="x in (['courts', 'results', 'coupons'] as Tab[])"
+          v-for="x in TABS"
           :key="x"
           type="button"
           role="tab"
@@ -186,7 +215,7 @@ async function saveSale(): Promise<void> {
           :aria-selected="tab === x"
           @click="tab = x"
         >
-          {{ t(`cup.day.tab.${x}`) }}
+          {{ t(`cup.day.tab.${x}`) }}<span v-if="x === 'checkIn' && checking" class="ml-1 rounded-full bg-black/25 px-1.5 text-[11px] tabular-nums">{{ hereCount }}</span>
         </button>
       </div>
 
@@ -229,7 +258,7 @@ async function saveSale(): Promise<void> {
               <div class="mt-2 flex gap-1.5">
                 <select v-model="chosen" :class="INPUT" :aria-label="t('cup.day.pickOther')">
                   <option value="">{{ t('cup.day.pickOther') }}</option>
-                  <option v-for="m in callable" :key="m.id" :value="m.id">#{{ m.match_no }} · {{ sideLabel(m.a, t) }} vs {{ sideLabel(m.b, t) }}</option>
+                  <option v-for="m in callable" :key="m.id" :value="m.id">#{{ m.match_no }} · {{ sideLabel(m.a, t) }} vs {{ sideLabel(m.b, t) }}{{ isHere(m.a.team_id) && isHere(m.b.team_id) ? '' : ` · ${t('cup.day.checkIn.missing')}` }}</option>
                 </select>
                 <button type="button" :disabled="!chosen" class="tap shrink-0 rounded-full bg-status-success px-4 text-xs font-semibold text-brand-black disabled:opacity-40" @click="call(callable.find((m) => m.id === chosen)!, n)">
                   {{ t('cup.day.call') }}
@@ -240,6 +269,39 @@ async function saveSale(): Promise<void> {
           </template>
         </div>
       </section>
+
+      <!-- check-in -->
+      <template v-if="tab === 'checkIn'">
+        <p class="mt-4 text-xs text-white/55">{{ t('cup.day.checkIn.hint') }}</p>
+        <div class="mt-3 flex items-center gap-2">
+          <b class="font-display text-lg" :class="arrivals.length && hereCount === arrivals.length ? 'text-status-success' : ''">{{ t('cup.day.checkIn.count', { n: hereCount, all: arrivals.length }) }}</b>
+          <div class="ml-auto grid grid-cols-2 gap-1 rounded-full border border-white/10 p-0.5 text-xs">
+            <button type="button" class="min-h-9 rounded-full px-3" :class="!onlyMissing ? 'bg-white/15 text-white' : 'text-white/60'" :aria-pressed="!onlyMissing" @click="onlyMissing = false">{{ t('cup.day.checkIn.all') }}</button>
+            <button type="button" class="min-h-9 rounded-full px-3" :class="onlyMissing ? 'bg-white/15 text-white' : 'text-white/60'" :aria-pressed="onlyMissing" @click="onlyMissing = true">{{ t('cup.day.checkIn.missing') }}</button>
+          </div>
+        </div>
+        <input v-model="who" type="search" :placeholder="t('cup.day.checkIn.search')" :aria-label="t('cup.day.checkIn.search')" class="mt-2 min-h-11 w-full rounded-lg border border-brand-pink/25 bg-brand-black px-3 text-sm text-white" />
+        <ul class="mt-3 space-y-1.5">
+          <li v-for="a in arrivalList" :key="a.team_id" class="hud-panel flex items-center gap-2 border bg-brand-surface p-2.5" :class="a.arrived_at ? 'border-[#7ff0b4]/40' : 'border-brand-pink/15'">
+            <CupTeamLine class="min-w-0 flex-1" :name="a.team_name" :players="a.players" />
+            <span class="shrink-0 text-right text-[11px] text-white/50">
+              {{ a.level_name }}<template v-if="a.group_label"> · {{ a.group_label }}</template>
+              <span v-if="a.arrived_at" class="block text-status-success">{{ t('cup.day.checkIn.at', { time: clock(a.arrived_at) }) }}</span>
+            </span>
+            <button
+              type="button"
+              :disabled="busy === a.team_id"
+              class="tap shrink-0 rounded-full px-4 text-xs font-semibold"
+              :class="a.arrived_at ? 'border border-white/20 text-white/60' : 'bg-status-success text-brand-black'"
+              :aria-label="`${a.arrived_at ? t('cup.day.checkIn.undo') : t('cup.day.checkIn.mark')} ${a.team_name}`"
+              @click="checkIn(a)"
+            >
+              {{ a.arrived_at ? t('cup.day.checkIn.undo') : t('cup.day.checkIn.mark') }}
+            </button>
+          </li>
+          <li v-if="!arrivalList.length" class="py-4 text-center text-sm text-white/50">{{ t('cup.day.checkIn.none') }}</li>
+        </ul>
+      </template>
 
       <!-- results by level -->
       <template v-if="tab === 'results'">

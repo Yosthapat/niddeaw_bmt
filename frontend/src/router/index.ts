@@ -88,6 +88,13 @@ const router = createRouter({
       component: () => import('../views/public/TournamentView.vue'),
     },
     {
+      // The TV in the hall: courts, what's next, the latest results.
+      path: '/tournament/board',
+      name: 'tournament-board',
+      component: () => import('../views/public/TournamentBoardView.vue'),
+      meta: { bare: true },
+    },
+    {
       path: '/tournament/rules',
       name: 'tournament-rules',
       component: () => import('../views/public/TournamentRulesView.vue'),
@@ -235,6 +242,13 @@ const router = createRouter({
       name: 'admin-tournament-day',
       component: () => import('../views/admin/tournament/TournamentDayView.vue'),
       meta: { requiresAuth: true, area: 'tournament' },
+    },
+    {
+      // Paper for the day: the match list and a score sheet per match.
+      path: '/admin/tournament/print',
+      name: 'admin-tournament-print',
+      component: () => import('../views/admin/tournament/TournamentPrintView.vue'),
+      meta: { requiresAuth: true, area: 'tournament', bare: true },
     },
     {
       path: '/admin/tournament/money',

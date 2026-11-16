@@ -21,6 +21,7 @@ from app.deps import SupabaseDep, TournamentAdminDep
 from app.models.tournament import (
     AdminActivity,
     CallIn,
+    CheckInIn,
     CouponSaleIn,
     GameDay,
     ResultIn,
@@ -586,6 +587,18 @@ async def sell_coupons(
     url = await _store(supabase, file, "coupons") if file is not None else None
     tp.sell_sets(supabase, str(team_id), sale.quantity, sale.paid_via, url, str(admin.admin_id))
     return views.game_day(supabase, str(ts.team(supabase, str(team_id))["tournament_id"]))
+
+
+@router.post("/teams/{team_id}/arrived", response_model=GameDay)
+def check_in_team(
+    team_id: UUID, payload: CheckInIn, supabase: SupabaseDep, admin: TournamentAdminDep
+) -> GameDay:
+    """The desk marks a team here, or takes the mark back."""
+    try:
+        row = tp.check_in(supabase, str(team_id), payload.arrived)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    return views.game_day(supabase, str(row["tournament_id"]))
 
 
 @router.post("/teams/{team_id}/coupons/return", response_model=GameDay)

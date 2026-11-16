@@ -240,6 +240,8 @@ class PublicTournament(BaseModel):
     extra_set_price: int = 0
     coupon_refund_price: int = 0
     rest_minutes: int = 10
+    # How many courts the day uses: the TV board draws one box each.
+    courts: int | None = None
     opens_at: datetime | None = None
     closes_at: datetime
     min_games: int
@@ -542,6 +544,21 @@ class CouponSaleIn(BaseModel):
     paid_via: PaidVia
 
 
+class Arrival(BaseModel):
+    """A team that plays on the day, and whether the desk has checked it in."""
+
+    team_id: UUID
+    team_name: str
+    level_name: str
+    group_label: str | None = None
+    players: list[PublicPlayer]
+    arrived_at: datetime | None = None
+
+
+class CheckInIn(BaseModel):
+    arrived: bool
+
+
 class GameDay(BaseModel):
     """Everything the admin's game-day screen needs at once."""
 
@@ -552,6 +569,7 @@ class GameDay(BaseModel):
     ready: list[UUID]
     """Matches that could be called now, in order (both teams known, free, rested)."""
     coupons: list[Coupons]
+    arrivals: list[Arrival] = []
     extra_set_price: int
     coupon_refund_price: int
     coupons_per_set: int

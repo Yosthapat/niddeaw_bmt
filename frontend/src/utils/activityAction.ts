@@ -103,6 +103,7 @@ const ROUTES: [string, RegExp, string][] = [
   ['POST', /^\/api\/admin\/tournament\/matches\/[^/]+\/result$/, 'tResult'],
   ['POST', /^\/api\/admin\/tournament\/teams\/[^/]+\/coupons\/sell$/, 'tSellCoupons'],
   ['POST', /^\/api\/admin\/tournament\/teams\/[^/]+\/coupons\/return$/, 'tReturnCoupons'],
+  ['POST', /^\/api\/admin\/tournament\/teams\/[^/]+\/arrived$/, 'tCheckIn'],
   ['POST', /^\/api\/admin\/line\/checkin-qr\/rotate$/, 'rotateCheckinQr'],
   ['PUT', /^\/api\/admin\/line\/checkin-spot$/, 'pinCheckinSpot'],
   ['DELETE', /^\/api\/admin\/line\/checkin-spot$/, 'unpinCheckinSpot'],
