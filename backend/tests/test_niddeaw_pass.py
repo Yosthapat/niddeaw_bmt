@@ -69,6 +69,7 @@ def db() -> Iterator[MiniSupabase]:
             "player_credits": [],
             "passes": [],
             "pass_blocks": [],
+            "pass_styles": [],
             "admin_activity_log": [],
         }
     )  # fmt: skip
