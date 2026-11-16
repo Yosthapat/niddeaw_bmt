@@ -30,16 +30,33 @@ function buildSha(): string {
   }
 }
 
+const BUILD_SHA = buildSha()
+
+/**
+ * dist/version.json: which build the server has now. The page compares it
+ * with the build it is running (UpdateBanner.vue) — a check that needs no
+ * service worker, for the phone whose worker never notices a deploy. JSON
+ * is outside the worker's precache (it keeps js, css and html), so the
+ * fetch always reaches the network.
+ */
+const versionFile = {
+  name: 'version-file',
+  generateBundle(this: { emitFile: (f: { type: 'asset'; fileName: string; source: string }) => void }) {
+    this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ sha: BUILD_SHA }) })
+  },
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   define: {
-    __BUILD_SHA__: JSON.stringify(buildSha()),
+    __BUILD_SHA__: JSON.stringify(BUILD_SHA),
     // Seconds are noise at a glance, and the minute is what a deploy log
     // shows beside it.
     __BUILD_TIME__: JSON.stringify(new Date().toISOString().slice(0, 16).replace('T', ' ')),
   },
   plugins: [
     vue(),
+    versionFile,
     VitePWA({
       // 'prompt', not 'autoUpdate': the admin uses this standing on a court
       // with a half-filled bill on screen, and a build that swaps itself in
