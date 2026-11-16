@@ -239,7 +239,9 @@ def stats(supabase: Client, player_id: UUID | str) -> dict[str, Any]:
     series: list[dict[str, Any]] = []
     elo = elo_now
     for g in reversed(games):
-        series.append({"at": g.at, "elo": elo, "upset": g.result == "W" and g.odds is not None and g.odds < 0.5})
+        series.append(
+            {"at": g.at, "elo": elo, "delta": g.delta, "upset": g.result == "W" and g.odds is not None and g.odds < 0.5}
+        )
         elo -= g.delta
     series.reverse()
 

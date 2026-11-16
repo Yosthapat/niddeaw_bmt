@@ -98,6 +98,7 @@ const { night, countdown, startsAt } = useGameNight()
             <PlayerAvatar
               v-for="(p, i) in team(match.team1_player_ids)"
               :key="p.id"
+              :player-id="p.id"
               :name="p.nickname"
               :avatar-url="p.avatar_url"
               size="lg"
@@ -112,6 +113,7 @@ const { night, countdown, startsAt } = useGameNight()
             <PlayerAvatar
               v-for="(p, i) in team(match.team2_player_ids)"
               :key="p.id"
+              :player-id="p.id"
               :name="p.nickname"
               :avatar-url="p.avatar_url"
               size="lg"

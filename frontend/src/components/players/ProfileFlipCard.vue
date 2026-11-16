@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { PlayerProfile } from '@/types'
 import { tierMeta } from '@/composables/useEloTier'
 import { TIER_CARD } from '@/utils/tierCard'
 import MemberCard from '@/components/players/MemberCard.vue'
 import CreditCardMark from '@/components/credit/CreditCardMark.vue'
+import { usePassStylesStore } from '@/stores/passStyles'
 
 // The profile's card: the same card as on the roster, which turns over to
 // show how this member plays — win rate, the split of their results, rank
@@ -14,6 +15,11 @@ const props = defineProps<{ profile: PlayerProfile; badges?: string[] }>()
 
 const { t } = useI18n()
 const flipped = ref(false)
+// A Niddeaw Pass card face: foil while a pass runs, diamond once earned
+// (backend pass_perks). Drawn over the tier card's own colours.
+const passStyles = usePassStylesStore()
+onMounted(() => void passStyles.load())
+const skin = computed(() => passStyles.cardOf(props.profile.player.id))
 const style = computed(() => TIER_CARD[props.profile.player.elo_level])
 const winRate = computed(() =>
   props.profile.games ? Math.round((props.profile.wins / props.profile.games) * 100) : 0,
@@ -29,7 +35,8 @@ const bars = computed(() => {
 </script>
 
 <template>
-  <div class="flip-wrap">
+  <div class="flip-wrap" :class="skin ? `skin skin-${skin}` : ''">
+    <span v-if="skin" class="skin-tag" aria-hidden="true">{{ skin === 'diamond' ? '◆ LEGEND' : '✦ PASS' }}</span>
     <!-- a div acting as the button: a real <button> may not hold the card's
          heading and blocks -->
     <div
@@ -168,9 +175,100 @@ const bars = computed(() => {
   font-family: var(--font-display);
   font-weight: 700;
 }
+
+/* ---- Niddeaw Pass faces: a turning foil edge, a light sweeping across ---- */
+@property --skin-a {
+  syntax: '<angle>';
+  inherits: true;
+  initial-value: 0deg;
+}
+@keyframes skin-turn {
+  to {
+    --skin-a: 360deg;
+  }
+}
+@keyframes skin-sweep {
+  0% {
+    background-position: 140% 0;
+  }
+  55%,
+  100% {
+    background-position: -60% 0;
+  }
+}
+.skin {
+  position: relative;
+  animation: skin-turn 6s linear infinite;
+}
+.skin-foil {
+  --skin-edge: conic-gradient(from var(--skin-a), #fff3b0, #f2c14e, #ff8fd0, #8ff7ff, #b88cff, #ffe58a, #f2c14e, #fff3b0);
+  --skin-glow: 0 0 26px rgb(242 193 78 / 0.45), 0 0 50px rgb(255 143 208 / 0.22);
+}
+.skin-diamond {
+  --skin-edge: conic-gradient(from var(--skin-a), #ffffff, #8ff7ff, #b88cff, #e8fbff, #8fffc1, #ff8fd0, #ffffff);
+  --skin-glow: 0 0 28px rgb(143 247 255 / 0.5), 0 0 56px rgb(184 140 255 / 0.3);
+}
+.skin :deep(.member-card),
+.skin .face--back {
+  background: var(--skin-edge);
+  box-shadow:
+    0 14px 32px rgb(6 0 20 / 0.55),
+    var(--skin-glow);
+}
+.skin :deep(.member-card)::after,
+.skin .face--back::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: 18px;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 35%,
+    rgb(255 255 255 / 0.28) 44%,
+    rgb(143 247 255 / 0.18) 49%,
+    rgb(255 143 208 / 0.18) 54%,
+    transparent 63%
+  );
+  background-size: 260% 100%;
+  mix-blend-mode: screen;
+  animation: skin-sweep 4.5s ease-in-out infinite;
+}
+.skin .face--back {
+  position: relative;
+}
+.skin-tag {
+  position: absolute;
+  z-index: 5;
+  top: -10px;
+  left: 50%;
+  translate: -50% 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: #3a2500;
+  background: linear-gradient(90deg, #ffe58a, #f2c14e);
+  box-shadow: 0 4px 12px rgb(242 193 78 / 0.5);
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.skin-diamond .skin-tag {
+  color: #12203a;
+  background: linear-gradient(90deg, #e8fbff, #8ff7ff 50%, #d6c2ff);
+  box-shadow: 0 4px 12px rgb(143 247 255 / 0.5);
+}
 @media (prefers-reduced-motion: reduce) {
   .flip {
     transition: none;
+  }
+  .skin,
+  .skin :deep(.member-card)::after,
+  .skin .face--back::after {
+    animation: none;
   }
 }
 </style>

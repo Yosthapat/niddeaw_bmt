@@ -16,6 +16,7 @@ import ProfileCredit from '@/components/players/ProfileCredit.vue'
 import BadgeShelf from '@/components/quests/BadgeShelf.vue'
 import BadgeLineGate from '@/components/quests/BadgeLineGate.vue'
 import { getPlayerBadges } from '@/api/quests'
+import { usePassStylesStore } from '@/stores/passStyles'
 import { awardImage, shelfItems, topThree, type BadgeItem } from '@/utils/quests'
 import type { Locale } from '@/i18n'
 
@@ -26,6 +27,8 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const matchesAnchor = ref<HTMLElement | null>(null)
 const shared = ref(false)
+const passStyles = usePassStylesStore()
+void passStyles.load()
 // The member's medals. Quiet when quests aren't switched on (the API
 // answers 503 until migration 0038 runs): the shelf just isn't there.
 // Badges are for members who linked LINE; for one who hasn't, `gate`
@@ -108,6 +111,16 @@ const bannerSub = computed(() => {
   <main class="pb-12 sm:pb-20">
     <PageBanner :eyebrow="eyebrow" :title="profile?.player.nickname ?? t('nav.members')" :sub="bannerSub" mascot="/hero/cat-color.webp">
       <div class="flex flex-wrap items-center gap-2">
+        <!-- their Niddeaw Pass frame, if they wear one (nothing shows otherwise) -->
+        <PlayerAvatar
+          v-if="profile && passStyles.frameOf(profile.player.id)"
+          :player-id="profile.player.id"
+          :name="profile.player.nickname"
+          :avatar-url="profile.player.avatar_url"
+          size="md"
+          round
+          class="mr-1"
+        />
         <RouterLink to="/members" class="glass-pill"><span aria-hidden="true">←</span> {{ t('profile.backToMembers') }}</RouterLink>
         <span v-if="profile?.player.tiktok" class="glass-pill">TikTok {{ profile.player.tiktok }}</span>
         <span v-if="profile?.player.instagram" class="glass-pill">IG {{ profile.player.instagram }}</span>
@@ -189,7 +202,7 @@ const bannerSub = computed(() => {
               <p class="world-eyebrow">NEMESIS</p>
               <h2 class="world-title mt-1 text-lg">{{ t('profile.nemesis') }}</h2>
               <RouterLink :to="`/members/${profile.nemesis.player.id}`" class="mt-3 flex items-center gap-3 rounded-2xl hover:bg-white/5">
-                <PlayerAvatar :name="profile.nemesis.player.nickname" :avatar-url="profile.nemesis.player.avatar_url" size="md" round />
+                <PlayerAvatar :player-id="profile.nemesis.player.id" :name="profile.nemesis.player.nickname" :avatar-url="profile.nemesis.player.avatar_url" size="md" round />
                 <div class="min-w-0 flex-1">
                   <p class="truncate font-display font-bold text-brand-pink-light">{{ profile.nemesis.player.nickname }}</p>
                   <p class="text-xs text-white/55">
@@ -208,7 +221,7 @@ const bannerSub = computed(() => {
               <ul class="mt-3 flex flex-wrap gap-2">
                 <li v-for="p in profile.similar_players" :key="p.id">
                   <RouterLink :to="`/members/${p.id}`" class="glass-pill !pl-1.5">
-                    <PlayerAvatar :name="p.nickname" :avatar-url="p.avatar_url" size="sm" round />
+                    <PlayerAvatar :player-id="p.id" :name="p.nickname" :avatar-url="p.avatar_url" size="sm" round />
                     <span class="font-medium">{{ p.nickname }}</span>
                   </RouterLink>
                 </li>

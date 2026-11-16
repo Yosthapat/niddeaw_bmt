@@ -65,6 +65,9 @@ class PassStyleIn(BaseModel):
 class EloPoint(BaseModel):
     at: datetime
     elo: int
+    """Their rating after this match."""
+    delta: int = 0
+    """What this match changed it by."""
     upset: bool = False
     """A win they had less than even odds of."""
 

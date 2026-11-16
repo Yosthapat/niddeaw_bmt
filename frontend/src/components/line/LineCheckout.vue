@@ -5,7 +5,7 @@
  * shown before they tap. While a match of theirs is still queued or on
  * court they can't — the bill would miss it.
  */
-import { ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as lineApi from '@/api/line'
 import type { LineBill, LineTonight } from '@/api/line'
@@ -15,7 +15,7 @@ import type { Locale } from '@/i18n'
 import LineBillPay from '@/components/line/LineBillPay.vue'
 
 const props = defineProps<{ token: string; initial: LineTonight }>()
-const emit = defineEmits<{ bills: []; credit: [] }>()
+const emit = defineEmits<{ bills: []; credit: []; night: [] }>()
 const { t, locale } = useI18n()
 
 const now = ref<LineTonight>(props.initial)
@@ -39,6 +39,19 @@ async function checkOut(): Promise<void> {
     sending.value = false
   }
 }
+
+// A pass holder, once out, can open the picture of their night.
+const passOn = ref(false)
+async function checkPass(): Promise<void> {
+  if (now.value.state !== 'out' || passOn.value) return
+  try {
+    passOn.value = !!(await lineApi.getPass(props.token)).ends_at
+  } catch {
+    // no button, then
+  }
+}
+onMounted(checkPass)
+watch(() => now.value.state, checkPass)
 
 function onPaid(bill: LineBill): void {
   if (now.value.bill) now.value = { ...now.value, bill }
@@ -95,12 +108,21 @@ function onPaid(bill: LineBill): void {
         <span class="font-display text-lg font-bold text-[#7ff0b4]">{{ t('lineCheckout.freeTitle') }}</span>
         <span class="text-sm text-white/65">{{ t('lineCheckout.thanks') }}</span>
       </div>
+      <button v-if="passOn" type="button" class="night-btn w-full" @click="emit('night')">{{ t('passPlus.openNight') }}</button>
       <button type="button" class="glass-pill mt-auto w-full justify-center" @click="emit('bills')">{{ t('lineCheckout.myBills') }}</button>
     </template>
   </section>
 </template>
 
 <style scoped>
+.night-btn {
+  min-height: 44px;
+  border: 1px solid rgb(242 193 78 / 0.55);
+  border-radius: 999px;
+  background: rgb(242 193 78 / 0.08);
+  color: #ffe8a3;
+  font-weight: 600;
+}
 .cta {
   background: linear-gradient(#ff8fd0, #ea4ca4);
   color: #1a0410;

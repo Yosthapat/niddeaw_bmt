@@ -68,7 +68,7 @@ const when = computed(() =>
       <div class="team" :class="[team.result ?? '', elo ? `side-${i + 1}` : '']">
         <div class="flex shrink-0">
           <span v-for="(id, k) in team.ids" :key="id" class="ring" :class="k > 0 ? '-ml-2.5' : ''">
-            <PlayerAvatar :name="nameOf(id)" :avatar-url="avatarOf(id)" size="md" round />
+            <PlayerAvatar :player-id="id" :name="nameOf(id)" :avatar-url="avatarOf(id)" size="md" round />
           </span>
         </div>
         <span class="min-w-0 truncate pl-1 font-display text-[15px] font-semibold sm:text-base"><TeamNames :ids="team.ids" :name-of="nameOf" /></span>

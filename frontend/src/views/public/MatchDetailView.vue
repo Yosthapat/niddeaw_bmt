@@ -196,7 +196,7 @@ watch(
               >
                 <div class="flex items-center gap-3">
                   <RouterLink :to="`/members/${stat.player.id}`" class="ring shrink-0">
-                    <PlayerAvatar :name="stat.player.nickname" :avatar-url="stat.player.avatar_url" size="lg" round />
+                    <PlayerAvatar :player-id="stat.player.id" :name="stat.player.nickname" :avatar-url="stat.player.avatar_url" size="lg" round />
                   </RouterLink>
                   <div class="min-w-0 flex-1">
                     <RouterLink
