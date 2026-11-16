@@ -130,6 +130,16 @@ export interface TeamCoupons {
   next_match_no: number | null
 }
 
+/** A confirmed team at the desk: here (arrived_at) or not yet. */
+export interface Arrival {
+  team_id: string
+  team_name: string
+  level_name: string
+  group_label: string | null
+  players: PublicPlayer[]
+  arrived_at: string | null
+}
+
 export interface GameDay {
   tournament_id: string
   courts: number
@@ -141,6 +151,8 @@ export interface GameDay {
   extra_set_price: number
   coupon_refund_price: number
   coupons_per_set: number
+  /** every confirmed team; once any is checked in, only teams here are ready */
+  arrivals: Arrival[]
 }
 
 export interface DrawTeam {
@@ -179,6 +191,7 @@ export interface PublicTournament {
   extra_set_price: number
   coupon_refund_price: number
   rest_minutes: number
+  courts?: number | null
   opens_at: string | null
   closes_at: string
   min_games: number
@@ -344,8 +357,9 @@ function file(f: File, init: RequestInit = {}): RequestInit {
 
 // --- public ---------------------------------------------------------------
 
-export function getPublicTournament(): Promise<PublicTournament | null> {
-  return request('/api/tournament')
+/** The current tournament; with an id, that one (the TV board's preview of a draft). */
+export function getPublicTournament(id?: string): Promise<PublicTournament | null> {
+  return request(id ? `/api/tournament?id=${encodeURIComponent(id)}` : '/api/tournament')
 }
 
 // --- LINE -----------------------------------------------------------------
@@ -441,6 +455,7 @@ export const tournamentAdmin = {
   call: (matchId: string, court: number): Promise<GameDay> => request(`${A}/matches/${matchId}/call`, json('POST', { court })),
   callAgain: (matchId: string): Promise<GameDay> => request(`${A}/matches/${matchId}/call-again`, { method: 'POST' }),
   uncall: (matchId: string): Promise<GameDay> => request(`${A}/matches/${matchId}/uncall`, { method: 'POST' }),
+  checkIn: (teamId: string, arrived: boolean): Promise<GameDay> => request(`${A}/teams/${teamId}/arrived`, json('POST', { arrived })),
   result: (matchId: string, body: { sets?: number[][]; shuttles?: number; walkover_winner?: 'a' | 'b' }): Promise<GameDay> =>
     request(`${A}/matches/${matchId}/result`, json('POST', body)),
   sellCoupons: (teamId: string, quantity: number, via: PaidVia, slip: File | null): Promise<GameDay> =>

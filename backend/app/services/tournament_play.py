@@ -331,6 +331,17 @@ def coupons(
     return out
 
 
+def check_in(supabase: Client, team_id: str, arrived: bool) -> dict[str, Any]:
+    """Mark a team here (or not) at the desk. Returns the team."""
+    row = ts.team(supabase, team_id)
+    if row["status"] in ts.ENDED:
+        raise ValueError("ทีมนี้ถอนตัวหรือถูกยกเลิกแล้ว")
+    supabase.table(ts.TEAMS).update({"arrived_at": ts.iso(ts.now()) if arrived else None}).eq(
+        "id", team_id
+    ).execute()
+    return row
+
+
 def money_rows(supabase: Client, tournament_id: str) -> list[dict[str, Any]]:
     return rows(supabase.table(ts.MONEY).select("*").eq("tournament_id", tournament_id).execute())
 
@@ -457,11 +468,15 @@ def ready(
     tournament_id: str,
     row: dict[str, Any] | None = None,
     found: list[dict[str, Any]] | None = None,
+    found_teams: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """Matches that could go on a court now, in their order: both teams
-    known, neither on another court, and both rested."""
+    known, neither on another court, both rested — and, once the desk has
+    started checking teams in, both here."""
     row = row or ts.tournament(supabase, tournament_id)
     found = found if found is not None else td.matches(supabase, tournament_id)
+    all_teams = found_teams if found_teams is not None else ts.teams(supabase, tournament_id)
+    here = {str(t["id"]) for t in all_teams if t.get("arrived_at")}
     rest = timedelta(minutes=int(row.get("rest_minutes") or 10))
     busy = {
         str(t)
@@ -484,6 +499,8 @@ def ready(
             continue
         sides = [str(m["team_a"]), str(m["team_b"])]
         if any(t in busy for t in sides):
+            continue
+        if here and any(t not in here for t in sides):
             continue
         if any(t in last and last[t] and last[t] + rest > moment for t in sides):
             continue

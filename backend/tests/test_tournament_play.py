@@ -287,6 +287,47 @@ def test_a_team_rests_before_it_is_ready_again(
     assert theirs[0]["id"] in _day(client, t)["ready"]
 
 
+def _arrive(client: TestClient, team_id: str, arrived: bool = True) -> Any:
+    return client.post(
+        f"/api/admin/tournament/teams/{team_id}/arrived", json={"arrived": arrived}, headers=BOTH
+    )
+
+
+def test_once_the_desk_checks_in_only_teams_that_are_here_are_ready(
+    db: Any, client: TestClient
+) -> None:
+    t = _ready_day(client, db)
+    day = _day(client, t)
+    assert len(day["arrivals"]) == 16 and not any(a["arrived_at"] for a in day["arrivals"])
+    before = set(day["ready"])
+    m = next(x for x in day["matches"] if x["id"] in before)
+    a, b = m["a"]["team_id"], m["b"]["team_id"]
+    # nobody checked in yet: every match is ready as before
+    one = _arrive(client, a)
+    assert one.status_code == 200, one.text
+    assert m["id"] not in one.json()["ready"]  # one of two is here
+    both = _arrive(client, b).json()
+    assert both["ready"] and all(
+        {x["a"]["team_id"], x["b"]["team_id"]} <= {a, b}
+        for x in both["matches"]
+        if x["id"] in both["ready"]
+    )
+    assert m["id"] in both["ready"]
+    here = {x["team_id"] for x in both["arrivals"] if x["arrived_at"]}
+    assert here == {a, b}
+    # taking both back off the list: back to no check-in at all
+    _arrive(client, a, False)
+    after = _arrive(client, b, False).json()
+    assert set(after["ready"]) == before
+
+
+def test_a_team_that_withdrew_cannot_check_in(db: Any, client: TestClient) -> None:
+    t = _ready_day(client, db)
+    team = _day(client, t)["arrivals"][0]["team_id"]
+    db.table("tournament_teams").update({"status": "withdrawn"}).eq("id", team).execute()
+    assert _arrive(client, team).status_code == 409
+
+
 def _play_groups(client: TestClient, t: dict[str, Any]) -> dict[str, Any]:
     day = _day(client, t)
     for m in [x for x in day["matches"] if x["stage"] == "group"]:
@@ -411,3 +452,16 @@ def test_the_public_page_shows_results_and_tables_but_nothing_private(
     text = client.get("/api/tournament").text
     for private in (DETAILS["first_name"], DETAILS["last_name"], PARTNER["phone"]):
         assert private not in text
+
+
+def test_the_board_can_preview_a_draft_by_its_id(db: Any, client: TestClient) -> None:
+    t = _ready_day(client, db)
+    client.patch(
+        f"/api/admin/tournament/tournaments/{t['id']}", json={"status": "draft"}, headers=BOTH
+    )
+    assert client.get("/api/tournament").json() is None  # a draft isn't public
+    seen = client.get(f"/api/tournament?id={t['id']}").json()
+    assert seen["id"] == t["id"] and seen["matches"] and seen["courts"] == 4
+    assert "phone" not in str(seen) and "first_name" not in str(seen)
+    gone = "00000000-0000-0000-0000-000000000000"
+    assert client.get(f"/api/tournament?id={gone}").status_code == 404

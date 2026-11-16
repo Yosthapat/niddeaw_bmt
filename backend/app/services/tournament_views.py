@@ -12,6 +12,7 @@ from supabase import Client
 
 from app.models.tournament import (
     AdminTeam,
+    Arrival,
     Coupons,
     GameDay,
     StandingRow,
@@ -422,7 +423,22 @@ def game_day(supabase: Client, tournament_id: str) -> GameDay:
         courts=int(row.get("courts") or 0),
         published=bool(row.get("schedule_published_at")),
         matches=found,
-        ready=[m["id"] for m in tp.ready(supabase, tournament_id, row, snap.matches)],
+        ready=[m["id"] for m in tp.ready(supabase, tournament_id, row, snap.matches, snap.teams)],
+        arrivals=sorted(
+            (
+                Arrival(
+                    team_id=UUID(str(tm["id"])),
+                    team_name=str(tm["name"]),
+                    level_name=names.get(str(tm["level_id"]), "?"),
+                    group_label=tm.get("group_label"),
+                    players=_public_team(tm, by_team.get(str(tm["id"]), []), players).players,
+                    arrived_at=tm.get("arrived_at"),
+                )
+                for tm in snap.teams
+                if tm["status"] == "confirmed"
+            ),
+            key=lambda a: (a.level_name, a.group_label or "Z", a.team_name),
+        ),
         coupons=sorted(
             (
                 Coupons(
