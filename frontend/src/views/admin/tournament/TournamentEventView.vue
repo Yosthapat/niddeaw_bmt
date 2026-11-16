@@ -180,6 +180,31 @@ watch(
   { immediate: true },
 )
 const groupsOf = (n: number): number => n / 4
+const TEAM_SIZES = [16, 24, 32] as const
+const RULE_PRESETS = ['cup.admin.noFlick', 'cup.admin.noRules'] as const
+/** One colour per level card, so four levels read as four, at a glance. */
+const LEVEL_HUES = ['#f2d16b', '#7dd3fc', '#f472b6', '#a78bfa', '#4ade80', '#fb923c']
+const totalTeams = computed(() => (picked.value?.levels ?? []).reduce((n, lv) => n + lv.max_teams, 0))
+function eloText(lv: Level): string {
+  const lo = lv.min_elo === null || String(lv.min_elo) === '' ? null : lv.min_elo
+  const hi = lv.max_elo === null || String(lv.max_elo) === '' ? null : lv.max_elo
+  if (lo === null && hi === null) return t('cup.admin.eloAny')
+  if (hi === null) return t('cup.admin.eloFrom', { lo })
+  if (lo === null) return t('cup.admin.eloBelow', { hi })
+  return t('cup.admin.eloRange', { lo, hi: Number(hi) - 1 })
+}
+function levelChanged(lv: Level): boolean {
+  const d = levelDrafts[lv.id]
+  const num = (v: unknown): number | null => (v === null || v === '' || v === undefined ? null : Number(v))
+  return (
+    d.name.trim() !== lv.name ||
+    num(d.min_elo) !== lv.min_elo ||
+    num(d.max_elo) !== lv.max_elo ||
+    Number(d.max_teams) !== lv.max_teams ||
+    (Number(d.max_teams) === 24 && d.cut_24 !== lv.cut_24) ||
+    d.rules.trim() !== lv.rules
+  )
+}
 function bracketsOf(lv: Level): string {
   if (lv.max_teams === 24) return lv.cut_24 ? t('cup.admin.br24cut') : t('cup.admin.br24')
   return t('cup.admin.brEven', { n: lv.max_teams / 2 })
@@ -210,8 +235,70 @@ async function saveLevel(id: string): Promise<void> {
   }
 }
 
+/** Fewer levels: one with nobody in it goes. Its players can still enter a
+ *  level above — unless it was the top one, which leaves the strongest out. */
+async function removeLevel(lv: Level): Promise<void> {
+  if (!picked.value) return
+  const ok = await confirm({
+    title: t('cup.admin.removeLevelTitle', { name: lv.name }),
+    message: lv.max_elo === null ? t('cup.admin.removeTopWarn', { elo: lv.min_elo ?? 0 }) : t('cup.admin.removeWarn'),
+    confirmLabel: t('cup.admin.removeLevel'),
+    danger: true,
+  })
+  if (!ok) return
+  levelError.value = ''
+  try {
+    replace(await tournamentAdmin.deleteLevel(picked.value.id, lv.id))
+  } catch (e) {
+    levelError.value = apiErrorMessage(e, t('cup.admin.saveFailed'))
+  }
+}
+
+async function addLevel(): Promise<void> {
+  if (!picked.value) return
+  levelError.value = ''
+  try {
+    replace(
+      await tournamentAdmin.addLevel(picked.value.id, {
+        name: t('cup.admin.newLevelName'),
+        min_elo: null,
+        max_elo: null,
+        max_teams: 16,
+        cut_24: false,
+        rules: '',
+      }),
+    )
+  } catch (e) {
+    levelError.value = apiErrorMessage(e, t('cup.admin.saveFailed'))
+  }
+}
+
+// --- trying it out ------------------------------------------------------------
+const deleting = ref(false)
+const deleteName = ref('')
+const deleteError = ref('')
+async function removeTournament(): Promise<void> {
+  if (!picked.value || deleteName.value.trim() !== picked.value.name) return
+  deleteError.value = ''
+  try {
+    await tournamentAdmin.remove(picked.value.id)
+    deleting.value = false
+    deleteName.value = ''
+    await load()
+  } catch (e) {
+    deleteError.value = apiErrorMessage(e, t('cup.admin.saveFailed'))
+  }
+}
+
 onMounted(load)
 </script>
+
+<style scoped>
+.level-card {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--hue) 9%, transparent), rgb(0 0 0 / 0.25) 55%);
+  border-top: 2px solid color-mix(in srgb, var(--hue) 55%, transparent);
+}
+</style>
 
 <template>
   <AdminNav />
@@ -322,42 +409,141 @@ onMounted(load)
 
       <!-- levels -->
       <section class="hud-panel mt-4 border border-brand-pink/15 bg-brand-surface p-4">
-        <h2 class="text-sm font-semibold text-white/70">{{ t('cup.admin.levels') }}</h2>
-        <p class="mt-1 text-xs text-white/50">{{ t('cup.admin.levelsHint') }}</p>
+        <div class="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 class="text-sm font-semibold text-white/70">{{ t('cup.admin.levels') }}</h2>
+          <span class="text-xs text-white/50">{{ t('cup.admin.levelsSummary', { n: picked.levels.length, teams: totalTeams }) }}</span>
+        </div>
+        <p class="mt-1 text-xs text-white/45">{{ t('cup.admin.levelsHint') }}</p>
         <p v-if="levelError" class="mt-2 text-sm text-status-error" role="alert">{{ levelError }}</p>
-        <ul class="mt-3 space-y-3">
-          <li v-for="lv in picked.levels" :key="lv.id" class="rounded-xl border border-white/10 bg-brand-black/40 p-3">
+        <ul class="mt-3 grid gap-3 lg:grid-cols-2">
+          <li v-for="(lv, i) in picked.levels" :key="lv.id" class="level-card rounded-2xl border border-white/10 p-3.5" :style="{ '--hue': LEVEL_HUES[i % LEVEL_HUES.length] }">
             <template v-if="levelDrafts[lv.id]">
-              <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <label class="col-span-2 flex flex-col gap-1 text-xs text-white/50">{{ t('cup.admin.levelName') }}<input v-model="levelDrafts[lv.id].name" :class="INPUT" /></label>
-                <label class="flex flex-col gap-1 text-xs text-white/50">{{ t('cup.admin.minElo') }}<input v-model.number="levelDrafts[lv.id].min_elo" type="number" :placeholder="t('cup.admin.noFloor')" :class="INPUT" /></label>
-                <label class="flex flex-col gap-1 text-xs text-white/50">{{ t('cup.admin.maxElo') }}<input v-model.number="levelDrafts[lv.id].max_elo" type="number" :placeholder="t('cup.admin.noCeiling')" :class="INPUT" /></label>
-                <label class="flex flex-col gap-1 text-xs text-white/50">
-                  {{ t('cup.admin.maxTeams') }}
-                  <select v-model.number="levelDrafts[lv.id].max_teams" :class="INPUT">
-                    <option :value="16">16</option>
-                    <option :value="24">24</option>
-                    <option :value="32">32</option>
-                  </select>
-                </label>
-                <label v-if="levelDrafts[lv.id].max_teams === 24" class="col-span-1 flex flex-col gap-1 text-xs text-white/50 sm:col-span-3">
-                  {{ t('cup.admin.format24') }}
-                  <select v-model="levelDrafts[lv.id].cut_24" :class="INPUT">
-                    <option :value="false">{{ t('cup.admin.br24') }}</option>
-                    <option :value="true">{{ t('cup.admin.br24cut') }}</option>
-                  </select>
-                </label>
-                <label class="col-span-2 flex flex-col gap-1 text-xs text-white/50 sm:col-span-4">{{ t('cup.admin.rules') }}<input v-model="levelDrafts[lv.id].rules" :class="INPUT" /></label>
+              <div class="flex items-start gap-2">
+                <span class="mt-1.5 h-3 w-3 shrink-0 rounded-full" :style="{ background: 'var(--hue)' }" aria-hidden="true" />
+                <div class="min-w-0 flex-1">
+                  <input
+                    v-model="levelDrafts[lv.id].name"
+                    :aria-label="t('cup.admin.levelName')"
+                    class="w-full rounded-md border border-transparent bg-transparent px-1 py-0.5 font-display text-lg font-bold text-white hover:border-white/15 focus:border-brand-pink/50 focus:outline-none"
+                  />
+                  <p class="px-1 text-xs text-white/55">{{ eloText(levelDrafts[lv.id]) }} · {{ t('cup.admin.teamsUnit', { n: levelDrafts[lv.id].max_teams }) }}</p>
+                </div>
+                <button
+                  v-if="picked.levels.length > 1"
+                  type="button"
+                  class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white/45 hover:bg-status-error/15 hover:text-status-error"
+                  :aria-label="t('cup.admin.removeLevelTitle', { name: lv.name })"
+                  @click="removeLevel(lv)"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="h-[18px] w-[18px]" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4h6v3" /></svg>
+                </button>
               </div>
-              <p class="mt-2 text-xs text-white/55">
-                {{ t('cup.admin.shape', { groups: groupsOf(levelDrafts[lv.id].max_teams), matches: matchesOf(levelDrafts[lv.id]) }) }} · {{ bracketsOf(levelDrafts[lv.id]) }}
-              </p>
-              <button type="button" class="tap mt-2 rounded-full border border-brand-pink/40 px-4 text-xs font-semibold text-brand-pink" @click="saveLevel(lv.id)">
-                {{ t('cup.admin.saveLevel') }}
-              </button>
+
+              <div class="mt-3 grid grid-cols-2 gap-2">
+                <label class="flex flex-col gap-1 text-xs text-white/50">{{ t('cup.admin.minElo') }}<input v-model.number="levelDrafts[lv.id].min_elo" type="number" inputmode="numeric" :placeholder="t('cup.admin.noFloor')" :class="INPUT" class="min-h-10" /></label>
+                <label class="flex flex-col gap-1 text-xs text-white/50">{{ t('cup.admin.maxElo') }}<input v-model.number="levelDrafts[lv.id].max_elo" type="number" inputmode="numeric" :placeholder="t('cup.admin.noCeiling')" :class="INPUT" class="min-h-10" /></label>
+              </div>
+
+              <p class="mt-3 text-xs text-white/50">{{ t('cup.admin.maxTeams') }}</p>
+              <div class="mt-1 grid grid-cols-3 gap-1 rounded-full bg-black/30 p-1" role="radiogroup" :aria-label="t('cup.admin.maxTeams')">
+                <button
+                  v-for="n in TEAM_SIZES"
+                  :key="n"
+                  type="button"
+                  role="radio"
+                  :aria-checked="levelDrafts[lv.id].max_teams === n"
+                  class="min-h-9 rounded-full text-sm font-semibold transition-colors"
+                  :class="levelDrafts[lv.id].max_teams === n ? 'bg-brand-pink text-brand-black' : 'text-white/65 hover:text-white'"
+                  @click="levelDrafts[lv.id].max_teams = n"
+                >
+                  {{ n }}
+                </button>
+              </div>
+              <div v-if="levelDrafts[lv.id].max_teams === 24" class="mt-2 flex flex-wrap gap-1.5">
+                <button
+                  v-for="cut in [false, true]"
+                  :key="String(cut)"
+                  type="button"
+                  class="min-h-9 rounded-full border px-3 text-xs"
+                  :class="levelDrafts[lv.id].cut_24 === cut ? 'border-brand-pink bg-brand-pink/20 font-semibold text-white' : 'border-white/15 text-white/65'"
+                  :aria-pressed="levelDrafts[lv.id].cut_24 === cut"
+                  @click="levelDrafts[lv.id].cut_24 = cut"
+                >
+                  {{ cut ? t('cup.admin.br24cut') : t('cup.admin.br24') }}
+                </button>
+              </div>
+
+              <p class="mt-3 text-xs text-white/50">{{ t('cup.admin.rules') }}</p>
+              <div class="mt-1 flex flex-wrap items-center gap-1.5">
+                <button
+                  v-for="r in RULE_PRESETS"
+                  :key="r"
+                  type="button"
+                  class="min-h-9 rounded-full border px-3 text-xs"
+                  :class="levelDrafts[lv.id].rules === t(r) || (r === 'cup.admin.noRules' && !levelDrafts[lv.id].rules) ? 'border-brand-pink bg-brand-pink/20 font-semibold text-white' : 'border-white/15 text-white/65'"
+                  @click="levelDrafts[lv.id].rules = r === 'cup.admin.noRules' ? '' : t(r)"
+                >
+                  {{ t(r) }}
+                </button>
+              </div>
+              <input v-model="levelDrafts[lv.id].rules" :aria-label="t('cup.admin.rules')" :class="INPUT" class="mt-1.5 min-h-10" />
+
+              <div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/8 pt-3">
+                <p class="text-xs text-white/55">
+                  {{ t('cup.admin.shape', { groups: groupsOf(levelDrafts[lv.id].max_teams), matches: matchesOf(levelDrafts[lv.id]) }) }}<br />{{ bracketsOf(levelDrafts[lv.id]) }}
+                </p>
+                <button
+                  v-if="levelChanged(lv)"
+                  type="button"
+                  class="tap rounded-full bg-brand-pink px-4 text-xs font-semibold text-brand-black"
+                  @click="saveLevel(lv.id)"
+                >
+                  {{ t('cup.admin.saveLevel') }}
+                </button>
+                <span v-else class="text-xs text-white/40">✓ {{ t('cup.admin.saved') }}</span>
+              </div>
             </template>
           </li>
+          <li>
+            <button
+              type="button"
+              class="flex h-full min-h-24 w-full flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-white/20 text-sm text-white/60 hover:border-brand-pink/50 hover:text-white"
+              @click="addLevel"
+            >
+              <span class="text-2xl leading-none">+</span>
+              {{ t('cup.admin.addLevel') }}
+            </button>
+          </li>
         </ul>
+      </section>
+
+      <!-- trying it out: the whole tournament can go, before it is played -->
+      <section v-if="picked.status !== 'running' && picked.status !== 'done'" class="hud-panel mt-4 border border-status-error/25 bg-brand-surface p-4">
+        <h2 class="text-sm font-semibold text-white/70">{{ t('cup.admin.deleteTitle') }}</h2>
+        <p class="mt-1 text-xs text-white/50">{{ t('cup.admin.deleteHint') }}</p>
+        <button v-if="!deleting" type="button" class="tap mt-3 rounded-full border border-status-error/50 px-4 text-xs font-semibold text-status-error" @click="deleting = true">
+          {{ t('cup.admin.deleteStart') }}
+        </button>
+        <div v-else class="mt-3 flex flex-col gap-2">
+          <label class="flex flex-col gap-1 text-xs text-white/60">
+            {{ t('cup.admin.deleteType', { name: picked.name }) }}
+            <input v-model="deleteName" :class="INPUT" class="min-h-10" :placeholder="picked.name" autocomplete="off" />
+          </label>
+          <p v-if="deleteError" class="text-sm text-status-error" role="alert">{{ deleteError }}</p>
+          <div class="flex gap-2">
+            <button
+              type="button"
+              class="tap rounded-full bg-status-error px-4 text-xs font-semibold text-white disabled:opacity-40"
+              :disabled="deleteName.trim() !== picked.name"
+              @click="removeTournament"
+            >
+              {{ t('cup.admin.deleteConfirm') }}
+            </button>
+            <button type="button" class="tap rounded-full border border-white/15 px-4 text-xs text-white/70" @click="deleting = false; deleteName = ''">
+              {{ t('common.cancel') }}
+            </button>
+          </div>
+        </div>
       </section>
     </template>
   </main>

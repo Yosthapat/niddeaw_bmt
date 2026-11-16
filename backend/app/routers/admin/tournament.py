@@ -99,6 +99,30 @@ def get_tournament(
     return views.tournament_model(supabase, ts.tournament(supabase, str(tournament_id)))
 
 
+@router.delete("/tournaments/{tournament_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_tournament(
+    tournament_id: UUID, supabase: SupabaseDep, admin: TournamentAdminDep
+) -> None:
+    """A tournament set up to try things out goes, with everything in it —
+    levels, teams, entries, money, matches. Not once it is being played or
+    is over: that is the record of a real day."""
+    tid = str(tournament_id)
+    row = ts.tournament(supabase, tid)
+    if row["status"] in ("running", "done"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="งานที่กำลังแข่งหรือจบแล้วลบไม่ได้",
+        )
+    # The slips' QR codes go too, or a slip from the trial would read as a
+    # duplicate when the same person pays for the real one.
+    entrant_ids = [str(e["id"]) for e in ts.entrants(supabase, tid)]
+    if entrant_ids:
+        supabase.table("slip_checks").delete().eq("kind", "tournament").in_(
+            "target_id", entrant_ids
+        ).execute()
+    supabase.table(ts.TOURNAMENTS).delete().eq("id", tid).execute()
+
+
 @router.patch("/tournaments/{tournament_id}", response_model=Tournament)
 def update_tournament(
     tournament_id: UUID, payload: TournamentUpdate, supabase: SupabaseDep, admin: TournamentAdminDep
