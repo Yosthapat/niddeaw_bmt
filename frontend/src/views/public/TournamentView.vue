@@ -5,7 +5,7 @@
  * full each is, the teams that hold a place (nicknames only — never a real
  * name or phone), and the way in through LINE.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import TierMascot from '@/components/players/TierMascot.vue'
@@ -21,6 +21,7 @@ import CupBracket from '@/components/cup/CupBracket.vue'
 import { levelTiers, rankBands } from '@/utils/cupMatch'
 import { usePolling } from '@/composables/usePolling'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
+import CupMyTeam from '@/components/cup/CupMyTeam.vue'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -43,6 +44,15 @@ usePolling(async () => {
   if (cup.value?.schedule_published) await reload()
 }, 20000)
 const live = computed(() => (cup.value?.matches ?? []).filter((m) => m.status === 'on_court').sort((a, b) => (a.court ?? 0) - (b.court ?? 0)))
+/** A full hall is many courts: the first few, the rest a tap away (my team's match always shows). */
+const LIVE_FIRST = 3
+const liveAll = ref(false)
+const liveShown = computed(() => {
+  if (liveAll.value) return live.value
+  const first = live.value.slice(0, LIVE_FIRST)
+  const mineOn = live.value.find((m) => !!myTeam.value && (m.a.team_id === myTeam.value || m.b.team_id === myTeam.value))
+  return mineOn && !first.includes(mineOn) ? [mineOn, ...first.slice(0, LIVE_FIRST - 1)] : first
+})
 
 onMounted(async () => {
   await reload()
@@ -65,6 +75,52 @@ const shown = computed(() => {
 function choose(id: string): void {
   void router.replace({ query: { ...route.query, level: id } })
 }
+
+// --- my team: a bookmark on this phone --------------------------------------------
+const MY_KEY = 'niddeaw_cup_my_team'
+function readMine(): string | null {
+  try {
+    return localStorage.getItem(MY_KEY)
+  } catch {
+    return null
+  }
+}
+const myTeam = ref<string | null>(readMine())
+watch(myTeam, (id) => {
+  try {
+    if (id) localStorage.setItem(MY_KEY, id)
+    else localStorage.removeItem(MY_KEY)
+  } catch {
+    /* a private window: it lasts this visit */
+  }
+})
+const levelBar = ref<HTMLElement | null>(null)
+async function showTeam(levelId: string, stage: 'group' | 'ko' | 'results'): Promise<void> {
+  // In the knockout, open the bracket my team is in.
+  const myKo = (cup.value?.matches ?? []).filter((m) => m.stage === 'ko' && (m.a.team_id === myTeam.value || m.b.team_id === myTeam.value))
+  if (stage === 'ko' && myKo.length) bracketPick.value = myKo[myKo.length - 1].bracket ?? 'upper'
+  await router.replace({ query: { ...route.query, level: levelId, stage } })
+  levelBar.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+// --- the day: once it's on, what's happening comes first ------------------------
+const onDay = computed(() => cup.value?.status === 'running' || cup.value?.status === 'done')
+
+// --- entries closing: a countdown, and the places left -------------------------
+const now = ref(Date.now())
+const tick = window.setInterval(() => (now.value = Date.now()), 60_000)
+onUnmounted(() => window.clearInterval(tick))
+const closesIn = computed(() => {
+  if (!cup.value?.taking_entries) return ''
+  const ms = new Date(cup.value.closes_at).getTime() - now.value
+  if (ms <= 0) return ''
+  const mins = Math.floor(ms / 60_000)
+  const days = Math.floor(mins / 1440)
+  const hours = Math.floor((mins % 1440) / 60)
+  if (days >= 1) return t('cup.my.closesInDays', { d: days, h: hours })
+  if (hours >= 1) return t('cup.my.closesInHours', { h: hours, m: mins % 60 })
+  return t('cup.my.closesInMins', { m: Math.max(1, mins) })
+})
 // --- one level, three stages ---------------------------------------------------
 type Stage = 'group' | 'ko' | 'results'
 const STAGES: Stage[] = ['group', 'ko', 'results']
@@ -156,7 +212,7 @@ function range(min: number | null, max: number | null): string {
       </header>
 
       <!-- the two things to know before signing up; everything else is in the rule book -->
-      <section class="grid grid-cols-2 gap-2">
+      <section v-if="!onDay" class="grid grid-cols-2 gap-2">
         <div class="t-plan flex-col !items-start !gap-0.5">
           <span class="text-xs text-white/60">{{ t('cup.rules.entry.fee') }}</span>
           <b class="font-display text-2xl leading-tight">{{ money(perPlayer) }}</b>
@@ -165,9 +221,11 @@ function range(min: number | null, max: number | null): string {
         <div class="t-plan flex-col !items-start !gap-0.5" :class="cup.taking_entries ? '!border-[#7ff0b4]/35' : ''">
           <span class="text-xs text-white/60">{{ cup.taking_entries ? t('cup.rules.entry.closes') : t('cup.closed') }}</span>
           <b class="font-display text-lg leading-tight" :class="cup.taking_entries ? 'text-[#7ff0b4]' : 'text-white/60'">{{ when(cup.closes_at) }}</b>
+          <span v-if="closesIn" class="mt-0.5 rounded-full bg-[#7ff0b4]/15 px-2 py-0.5 text-[11px] font-semibold text-[#7ff0b4]">{{ closesIn }}</span>
         </div>
       </section>
-      <RouterLink to="/tournament/rules" class="t-book flex min-h-14 items-center gap-3 rounded-2xl px-4 text-left">
+      <RouterLink v-if="onDay" to="/tournament/rules" class="-mt-2 self-center text-sm text-[#ffe14d] underline underline-offset-4">{{ t('cup.rules.open') }} ›</RouterLink>
+      <RouterLink v-else to="/tournament/rules" class="t-book flex min-h-14 items-center gap-3 rounded-2xl px-4 text-left">
         <svg viewBox="0 0 24 24" fill="none" stroke="#ffe14d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="h-7 w-7 shrink-0" aria-hidden="true">
           <path d="M4 5a2 2 0 0 1 2-2h6v18H6a2 2 0 0 0-2 2zM20 5a2 2 0 0 0-2-2h-6v18h6a2 2 0 0 1 2 2z" />
         </svg>
@@ -188,6 +246,9 @@ function range(min: number | null, max: number | null): string {
         {{ t('cup.signUpInLine') }}
       </a>
 
+      <!-- find a team, and keep one as mine -->
+      <CupMyTeam v-model:mine="myTeam" :cup="cup" @show="showTeam" />
+
       <!-- on court now, across every level -->
       <section v-if="live.length" class="t-plan flex-col !items-stretch gap-2 !border-[#7ff0b4]/40">
         <h2 class="flex items-center gap-2 font-display text-lg font-bold">
@@ -196,11 +257,15 @@ function range(min: number | null, max: number | null): string {
         </h2>
         <!-- one tidy row each, so a full hall of courts doesn't push the levels off the screen -->
         <div class="grid gap-1.5 sm:grid-cols-2">
-          <CupMatchRow v-for="m in live" :key="m.id" :match="m" show-level />
+          <CupMatchRow v-for="m in liveShown" :key="m.id" :match="m" show-level :mine-id="myTeam" />
         </div>
+        <button v-if="live.length > LIVE_FIRST" type="button" class="min-h-10 rounded-full border border-white/15 text-xs text-white/75" @click="liveAll = !liveAll">
+          {{ liveAll ? t('cup.my.liveLess') : t('cup.my.liveMore', { n: live.length - LIVE_FIRST }) }}
+        </button>
       </section>
 
       <!-- one level at a time: each its mascot, all on one row, nothing to swipe -->
+      <div ref="levelBar" class="scroll-mt-24" aria-hidden="true" />
       <div class="sticky top-[calc(var(--header-h)+6px)] z-10" role="tablist" :aria-label="t('cup.level')">
         <div
           class="grid gap-1 rounded-[22px] border border-white/12 bg-[#1a0838]/92 p-1 backdrop-blur"
@@ -246,6 +311,9 @@ function range(min: number | null, max: number | null): string {
           <div class="h-1.5 overflow-hidden rounded-full bg-white/10" aria-hidden="true">
             <div class="h-full rounded-full bg-[#ff6cc0]" :style="{ width: `${Math.min(100, (shown.seats_taken / shown.max_teams) * 100)}%` }" />
           </div>
+          <p v-if="cup.taking_entries" class="text-xs font-semibold" :class="shown.seats_taken >= shown.max_teams ? 'text-[#c9a7ff]' : shown.max_teams - shown.seats_taken <= 3 ? 'text-[#ff9fb2]' : 'text-[#7ff0b4]'">
+            {{ shown.seats_taken >= shown.max_teams ? t('cup.my.full') : t('cup.my.left', { n: shown.max_teams - shown.seats_taken }) }}
+          </p>
           <p v-if="shown.rules" class="text-xs text-[#ffd34d]">{{ t('cup.rulesLine', { rules: shown.rules }) }}</p>
           <p v-if="shown.waitlist" class="text-xs text-[#c9a7ff]">{{ t('cup.waitlistCount', { n: shown.waitlist }) }}</p>
         </section>
@@ -316,9 +384,9 @@ function range(min: number | null, max: number | null): string {
                 <h3 class="font-display text-base font-bold">{{ t('cup.draw.group', { g: g.label }) }}</h3>
                 <span class="ml-auto text-xs text-white/55">{{ t('cup.view.played', { n: g.done, of: g.matches.length }) }}</span>
               </div>
-              <CupStandings v-if="g.standings.length" :label="g.label" :teams="g.teams" :standings="g.standings" :bands="rankBands(shown)" class="!bg-transparent !p-0 [&>p:first-child]:hidden" />
+              <CupStandings v-if="g.standings.length" :label="g.label" :teams="g.teams" :standings="g.standings" :bands="rankBands(shown)" :mine-id="myTeam" class="!bg-transparent !p-0 [&>p:first-child]:hidden" />
               <div v-else class="flex flex-col gap-2">
-                <CupTeamLine v-for="(team, i) in g.teams" :key="team.id ?? team.name" :name="team.name" :players="team.players" :prefix="`${g.label}${i + 1}`" />
+                <CupTeamLine v-for="(team, i) in g.teams" :key="team.id ?? team.name" :name="team.name" :players="team.players" :prefix="`${g.label}${i + 1}`" :mine="!!myTeam && team.id === myTeam" />
               </div>
               <details v-if="g.matches.length" class="group/m" :open="groupsWithMatches.length <= 2 || undefined">
                 <summary class="flex min-h-10 cursor-pointer list-none items-center gap-1.5 rounded-lg px-1 text-xs font-semibold text-white/70 hover:text-white">
@@ -326,7 +394,7 @@ function range(min: number | null, max: number | null): string {
                   {{ t('cup.view.groupMatches', { n: g.matches.length }) }}
                 </summary>
                 <div class="mt-1 flex flex-col gap-1.5">
-                  <CupMatchRow v-for="m in g.matches" :key="m.id" :match="m" />
+                  <CupMatchRow v-for="m in g.matches" :key="m.id" :match="m" :mine-id="myTeam" />
                 </div>
               </details>
             </section>
@@ -360,7 +428,7 @@ function range(min: number | null, max: number | null): string {
             </div>
             <section class="t-plan flex-col !items-stretch gap-2 !px-3">
               <p class="text-xs text-white/55">{{ koUnderway ? t('cup.view.koHint') : t('cup.view.koDrawHint') }}</p>
-              <CupBracket :matches="bracketMatches" />
+              <CupBracket :matches="bracketMatches" :mine-id="myTeam" />
             </section>
           </template>
         </template>
@@ -399,7 +467,7 @@ function range(min: number | null, max: number | null): string {
               </div>
             </div>
             <div v-if="results.length" class="flex flex-col gap-1.5">
-              <CupMatchRow v-for="m in results" :key="m.id" :match="m" show-round />
+              <CupMatchRow v-for="m in results" :key="m.id" :match="m" show-round :mine-id="myTeam" />
             </div>
             <p v-else class="py-4 text-center text-sm text-white/55">{{ t('cup.view.noResults') }}</p>
           </section>

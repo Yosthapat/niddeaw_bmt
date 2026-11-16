@@ -9,7 +9,8 @@ import { useI18n } from 'vue-i18n'
 import type { CupMatch } from '@/api/tournament'
 import { clock, roundLabel, sideLabel } from '@/utils/cupMatch'
 
-const props = defineProps<{ match: CupMatch; showRound?: boolean; showLevel?: boolean }>()
+const props = defineProps<{ match: CupMatch; showRound?: boolean; showLevel?: boolean; mineId?: string | null }>()
+const isMine = (side: 'a' | 'b'): boolean => !!props.mineId && props.match[side].team_id === props.mineId
 const { t } = useI18n()
 const sides = ['a', 'b'] as const
 const won = (side: 'a' | 'b'): boolean => props.match.winner === side
@@ -30,7 +31,7 @@ const points = (side: 'a' | 'b'): number[] => (props.match.sets ?? []).map((s) =
         <template v-if="showLevel">{{ match.level_name }} · </template>{{ roundLabel(match, t) }}
       </p>
       <div v-for="side in sides" :key="side" class="flex items-center gap-2" :class="lost(side) ? 'opacity-50' : ''">
-        <span class="min-w-0 flex-1 truncate text-[13px]" :class="[won(side) ? 'font-bold text-white' : 'text-white/85', match[side].team_name ? '' : 'text-white/45 italic']">
+        <span class="min-w-0 flex-1 truncate text-[13px]" :class="[won(side) ? 'font-bold text-white' : 'text-white/85', match[side].team_name ? '' : 'text-white/45 italic', isMine(side) ? '!text-[#ff9fd6] font-bold' : '']">
           {{ sideLabel(match[side], t) }}
         </span>
         <span v-if="match.sets" class="flex shrink-0 gap-1.5 font-display text-[13px] tabular-nums">
