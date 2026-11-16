@@ -19,6 +19,9 @@ import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import LinePassNight from '@/components/line/LinePassNight.vue'
 import LinePassStats from '@/components/line/LinePassStats.vue'
 import LinePassStyle from '@/components/line/LinePassStyle.vue'
+import CreditCardMark from '@/components/credit/CreditCardMark.vue'
+import { getWalletOffer } from '@/api/public'
+import type { CreditPackage } from '@/api/line'
 
 type Tab = 'perks' | 'style' | 'stats' | 'night'
 const props = defineProps<{ token: string; name: string; avatarUrl?: string | null; tier?: string; tab?: Tab }>()
@@ -34,6 +37,7 @@ const search = ref('')
 
 const num = (n: number): string => n.toLocaleString('en-US', { maximumFractionDigits: 1 })
 const active = computed(() => !!data.value?.ends_at)
+const FRAMES = ['gold', 'neon', 'crown'] as const
 // The pages beyond the perks: the looks while a pass runs or once one is
 // earned; the numbers and tonight's picture only while it runs.
 const tab = ref<Tab>(props.tab ?? 'perks')
@@ -61,7 +65,29 @@ async function run(key: string, job: () => Promise<LinePass>, fallback: string):
   }
 }
 
-onMounted(() => run('load', () => lineApi.getPass(props.token), t('pass.loadFailed')))
+onMounted(async () => {
+  await run('load', () => lineApi.getPass(props.token), t('pass.loadFailed'))
+  // No card yet: say which pack earns which card, at today's prices.
+  if (data.value && !data.value.eligible) {
+    try {
+      packs.value = (await getWalletOffer()).packages
+    } catch {
+      // the plain sentence stays
+    }
+  }
+})
+
+// The packs that earn a card: the cheapest 1,000+ (pink) and 5,000+ (black).
+const packs = ref<CreditPackage[]>([])
+const baht = (n: number): string => `฿${n.toLocaleString('en-US', { maximumFractionDigits: 2 })}`
+const cardPacks = computed(() => {
+  const first = (min: number, max = Infinity): CreditPackage | undefined =>
+    packs.value.filter((p) => p.credits >= min && p.credits < max).sort((a, b) => a.price - b.price)[0]
+  return [
+    { tier: 'pink' as const, pack: first(1000, 5000) },
+    { tier: 'black' as const, pack: first(5000) },
+  ].filter((c): c is { tier: 'pink' | 'black'; pack: CreditPackage } => !!c.pack)
+})
 
 async function buy(): Promise<void> {
   if (!data.value) return
@@ -127,10 +153,49 @@ async function block(playerId: string): Promise<void> {
       <LinePassNight v-else-if="shownTab === 'night'" :token="token" :avatar-url="avatarUrl" />
 
       <template v-else>
-      <ul class="grid gap-1.5">
-        <li class="perk"><span class="ic" aria-hidden="true">⚖︎</span><span><b>{{ t('pass.perkOdds') }}</b><small>{{ t('pass.perkOddsHint') }}</small></span></li>
-        <li class="perk"><span class="ic" aria-hidden="true">⦸</span><span><b>{{ t('pass.perkBlock', { n: data.max_blocks }) }}</b><small>{{ t('pass.perkBlockHint') }}</small></span></li>
-      </ul>
+      <!-- everything a pass gives, grouped by where it shows -->
+      <div class="flex flex-col gap-3">
+        <div>
+          <p class="grp">{{ t('pass.groupCourt') }}</p>
+          <ul class="grid gap-1.5">
+            <li class="perk"><span class="ic" aria-hidden="true">⚖︎</span><span><b>{{ t('pass.perkOdds') }}</b><small>{{ t('pass.perkOddsHint') }}</small></span></li>
+            <li class="perk"><span class="ic" aria-hidden="true">⦸</span><span><b>{{ t('pass.perkBlock', { n: data.max_blocks }) }}</b><small>{{ t('pass.perkBlockHint') }}</small></span></li>
+          </ul>
+        </div>
+        <div>
+          <p class="grp">{{ t('pass.groupLook') }}</p>
+          <ul class="grid gap-1.5">
+            <li class="perk">
+              <span class="ic" aria-hidden="true">◎</span>
+              <span class="min-w-0 flex-1"><b>{{ t('pass.perkFrame') }}</b><small>{{ t('pass.perkFrameHint') }}</small></span>
+              <span class="flex shrink-0 gap-2.5 pr-1" aria-hidden="true">
+                <PlayerAvatar v-for="f in FRAMES" :key="f" :name="name" :avatar-url="avatarUrl" size="sm" round :frame="f" />
+              </span>
+            </li>
+            <li class="perk">
+              <span class="ic" aria-hidden="true">▣</span>
+              <span class="min-w-0 flex-1"><b>{{ t('pass.perkCard') }}</b><small>{{ t('pass.perkCardHint') }}</small></span>
+              <span class="foil-mini" aria-hidden="true"><img :src="`/tiers/${tier ?? 'beer'}.webp`" alt="" /></span>
+            </li>
+          </ul>
+        </div>
+        <div>
+          <p class="grp">{{ t('pass.groupMine') }}</p>
+          <ul class="grid gap-1.5">
+            <li class="perk"><span class="ic" aria-hidden="true">↗</span><span><b>{{ t('pass.perkStats') }}</b><small>{{ t('pass.perkStatsHint') }}</small></span></li>
+            <li class="perk"><span class="ic" aria-hidden="true">✦</span><span><b>{{ t('pass.perkNight') }}</b><small>{{ t('pass.perkNightHint') }}</small></span></li>
+          </ul>
+        </div>
+        <div>
+          <p class="grp">{{ t('pass.groupLoyal') }}</p>
+          <ul class="grid gap-1.5">
+            <li class="perk"><span class="ic" aria-hidden="true">3</span><span><b>{{ t('pass.perkLoyal3') }}</b><small>{{ t('pass.perkLoyal3Hint') }}</small></span></li>
+            <li class="perk"><span class="ic" aria-hidden="true">6</span><span><b>{{ t('pass.perkLoyal6') }}</b><small>{{ t('pass.perkLoyal6Hint') }}</small></span></li>
+            <li class="perk"><span class="ic" aria-hidden="true">12</span><span><b>{{ t('pass.perkLoyal12') }}</b><small>{{ t('pass.perkLoyal12Hint') }}</small></span></li>
+          </ul>
+          <p class="mt-1.5 px-1 text-[11px] leading-relaxed text-white/50">{{ t('pass.perkLoyalRule') }}</p>
+        </div>
+      </div>
 
       <!-- buying -->
       <template v-if="data.eligible">
@@ -141,6 +206,16 @@ async function block(playerId: string): Promise<void> {
       </template>
       <div v-else class="need-card">
         <p>{{ t('pass.needCard') }}</p>
+        <ul v-if="cardPacks.length" class="mt-2.5 grid gap-1.5">
+          <li v-for="c in cardPacks" :key="c.tier" class="need-pack">
+            <CreditCardMark :tier="c.tier" size="md" />
+            <span class="min-w-0 flex-1">
+              <b>{{ t('pass.needPack', { credits: c.pack.credits.toLocaleString('en-US'), price: baht(c.pack.price) }) }}</b>
+              <small>{{ t(c.tier === 'pink' ? 'pass.needPink' : 'pass.needBlack') }}</small>
+            </span>
+          </li>
+        </ul>
+        <p v-if="cardPacks.length" class="mt-2 text-[11px] leading-relaxed text-white/50">{{ t('pass.needUse') }}</p>
         <button type="button" class="glass-pill mt-2 w-full justify-center" @click="emit('credit')">{{ t('pass.toCredit') }}</button>
       </div>
 
@@ -288,6 +363,30 @@ async function block(playerId: string): Promise<void> {
   color: #4ade80;
   border: 1px solid rgb(74 222 128 / 0.4);
 }
+.grp {
+  margin: 0 2px 6px;
+  color: #ffcf4d;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.foil-mini {
+  display: grid;
+  flex: none;
+  width: 30px;
+  height: 40px;
+  margin-right: 4px;
+  place-items: center;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: 7px;
+  background:
+    radial-gradient(circle at 50% 35%, #5a3a0e, #1a0d22 70%) padding-box,
+    conic-gradient(from 210deg, #fff3b0, #f2c14e, #ff8fd0, #8ff7ff, #b88cff, #ffe58a, #fff3b0) border-box;
+}
+.foil-mini img {
+  width: 22px;
+}
 .perk {
   display: flex;
   gap: 10px;
@@ -325,6 +424,25 @@ async function block(playerId: string): Promise<void> {
 }
 .buy-btn:disabled {
   opacity: 0.6;
+}
+.need-pack {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.04);
+}
+.need-pack b {
+  display: block;
+  color: #fff;
+  font-weight: 600;
+}
+.need-pack small {
+  display: block;
+  color: rgb(255 255 255 / 0.6);
+  font-size: 11px;
 }
 .need-card {
   border-radius: 14px;
