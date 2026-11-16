@@ -64,7 +64,7 @@ onMounted(async () => {
           :aria-label="player.nickname"
           :tabindex="i < half.length ? 0 : -1"
         >
-          <PlayerAvatar :name="player.nickname" :avatar-url="player.avatar_url" size="md" round />
+          <PlayerAvatar :player-id="player.id" :name="player.nickname" :avatar-url="player.avatar_url" size="md" round />
           <span class="flex items-center gap-1 text-xs leading-none whitespace-nowrap">
             <!-- Not interactive here: its interactive form is a <button>,
                  which cannot sit inside this link and would swallow the tap

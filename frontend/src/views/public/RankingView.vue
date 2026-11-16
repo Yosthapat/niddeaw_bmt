@@ -131,7 +131,7 @@ const periodLabel = { all: 'ranking.allTime', year: 'ranking.thisYear', day: 'ra
             <li v-for="(s, i) in rest" :key="s.player.id" v-reveal="i">
               <RouterLink :to="`/members/${s.player.id}`" class="rank-row world-card">
                 <span class="rank-no">{{ i + 4 }}</span>
-                <PlayerAvatar :name="s.player.nickname" :avatar-url="s.player.avatar_url" size="md" round />
+                <PlayerAvatar :player-id="s.player.id" :name="s.player.nickname" :avatar-url="s.player.avatar_url" size="md" round />
                 <span class="min-w-0">
                   <span class="block truncate font-display text-[15px] font-semibold sm:text-base">{{ s.player.nickname }} <CreditCardMark :player-id="s.player.id" /></span>
                   <span class="block truncate text-[11px] text-white/55 sm:text-xs">

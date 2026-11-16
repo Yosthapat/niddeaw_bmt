@@ -43,6 +43,7 @@ AUTO: dict[str, dict[str, Callable[[], Any]]] = {
     "pairing_history": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
     "passes": {"id": lambda: str(uuid.uuid4()), "starts_at": _now, "created_at": _now},
     "pass_blocks": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
+    "pass_styles": {"updated_at": _now},
     "admin_activity_log": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
     "products": {"id": lambda: str(uuid.uuid4()), "created_at": _now},
     "line_link_requests": {"id": lambda: str(uuid.uuid4()), "created_at": _now},

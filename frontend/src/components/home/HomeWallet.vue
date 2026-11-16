@@ -9,7 +9,7 @@
 // ever used LINE on their phone. /line is the fallback only while the LINE
 // config hasn't loaded, or when LINE login isn't switched on. From 640px the
 // credit card lists its packages (each opens the LINE page with that pack
-// picked) and the pass card its three perks.
+// picked) and the pass card its perks.
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getLineConfig } from '@/api/line'
@@ -84,7 +84,6 @@ const bonus = computed(() => Math.max(0, ...(offer.value?.packages ?? []).map((p
       <span class="chips">
         <span class="chip gold">⚖ {{ t('homeWallet.perkEdge') }}</span>
         <span class="chip gold">⦸ {{ t('homeWallet.perkBlock') }}</span>
-        <span class="chip gold">✦ {{ t('homeWallet.perkSeason') }}</span>
       </span>
       <span class="w-go gold">{{ t('homeWallet.passGo') }}<span aria-hidden="true">→</span></span>
       <span class="tk" aria-hidden="true"><b>NIDDEAW</b><span>PASS</span></span>

@@ -149,6 +149,7 @@ usePolling(refresh, 7000)
                     <PlayerAvatar
                       v-for="(pid, k) in side"
                       :key="pid"
+                      :player-id="pid"
                       :name="nameOf(pid)"
                       :avatar-url="avatarOf(pid)"
                       size="lg"
@@ -185,6 +186,7 @@ usePolling(refresh, 7000)
                       <PlayerAvatar
                         v-for="(pid, j) in ids"
                         :key="pid"
+                        :player-id="pid"
                         :name="nameOf(pid)"
                         :avatar-url="avatarOf(pid)"
                         size="sm"
@@ -212,7 +214,7 @@ usePolling(refresh, 7000)
               </h2>
               <ul v-if="live.waiting.length" class="mt-3 flex flex-wrap gap-2">
                 <li v-for="w in live.waiting" :key="w.player_id" class="wait-chip">
-                  <PlayerAvatar :name="nameOf(w.player_id)" :avatar-url="avatarOf(w.player_id)" size="sm" round />
+                  <PlayerAvatar :player-id="w.player_id" :name="nameOf(w.player_id)" :avatar-url="avatarOf(w.player_id)" size="sm" round />
                   {{ nameOf(w.player_id) }}
                   <CreditCardMark :player-id="w.player_id" />
                 </li>

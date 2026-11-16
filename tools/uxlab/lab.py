@@ -360,6 +360,30 @@ def pass_lab(db: MiniSupabase) -> None:
     db.tables["player_credits"].append({"player_id": ball["id"], "balance": 1000, "updated_at": _iso(590)})
 
 
+def pass_perks_lab(db: MiniSupabase) -> None:
+    """UXLAB_PASS_PERKS=1 (with UXLAB_PASS): Ball's third pass in a row is
+    running (the silver moon frame is earned) and he wears the gold frame
+    and the foil card; James held twelve in a row last year and wears the
+    legend frame and the diamond card, with no pass now."""
+    db.tables.setdefault("pass_styles", [])
+    people = {p["nickname"]: p for p in db.tables["players"]}
+    day = 60 * 24
+    for i in range(3):  # Ball: 60 days ago, 30 days ago, now
+        db.tables["passes"].append({
+            "id": str(uuid.uuid4()), "player_id": people["Ball"]["id"], "credits": 249,
+            "starts_at": _iso(day * (61 - 30 * i)), "ends_at": _iso(day * (31 - 30 * i)), "created_at": _iso(day * (61 - 30 * i)),
+        })
+    for i in range(12):  # James: twelve, ending 60 days ago
+        db.tables["passes"].append({
+            "id": str(uuid.uuid4()), "player_id": people["James"]["id"], "credits": 249,
+            "starts_at": _iso(day * (420 - 30 * i)), "ends_at": _iso(day * (390 - 30 * i)), "created_at": _iso(day * (420 - 30 * i)),
+        })
+    db.tables["pass_styles"] += [
+        {"player_id": people["Ball"]["id"], "frame": "gold", "card": "foil", "updated_at": _iso(5)},
+        {"player_id": people["James"]["id"], "frame": "legend", "card": "diamond", "updated_at": _iso(5)},
+    ]
+
+
 def cup_lab(db: MiniSupabase) -> None:
     """UXLAB_CUP=1: a tournament taking entries. "admin" holds both rights;
     "cupstaff" (same password) the tournament only. Everyone has played
@@ -457,6 +481,8 @@ if os.environ.get("UXLAB_SLIPS"):
     slip_lab(DB)
 if os.environ.get("UXLAB_PASS"):
     pass_lab(DB)
+    if os.environ.get("UXLAB_PASS_PERKS"):
+        pass_perks_lab(DB)
 if os.environ.get("UXLAB_CUP"):
     cup_lab(DB)
 app.dependency_overrides[get_supabase] = lambda: DB

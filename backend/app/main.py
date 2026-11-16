@@ -32,6 +32,7 @@ from app.routers.public import (
     hall_of_fame,
     live,
     matches,
+    pass_styles,
     players,
     ranking,
     seasons,
@@ -75,6 +76,7 @@ app.include_router(seasons.router)
 app.include_router(sponsors.router)
 app.include_router(credit_cards.router)
 app.include_router(wallet.router)
+app.include_router(pass_styles.router)
 app.include_router(shop.router)
 app.include_router(tournament.router)
 app.include_router(line.router)

@@ -16,8 +16,12 @@ import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { formatDate } from '@/utils/format'
 import type { Locale } from '@/i18n'
 import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
+import LinePassNight from '@/components/line/LinePassNight.vue'
+import LinePassStats from '@/components/line/LinePassStats.vue'
+import LinePassStyle from '@/components/line/LinePassStyle.vue'
 
-const props = defineProps<{ token: string; name: string }>()
+type Tab = 'perks' | 'style' | 'stats' | 'night'
+const props = defineProps<{ token: string; name: string; avatarUrl?: string | null; tier?: string; tab?: Tab }>()
 const emit = defineEmits<{ back: []; credit: [] }>()
 const { t, locale } = useI18n()
 const { confirm } = useConfirmDialog()
@@ -30,6 +34,15 @@ const search = ref('')
 
 const num = (n: number): string => n.toLocaleString('en-US', { maximumFractionDigits: 1 })
 const active = computed(() => !!data.value?.ends_at)
+// The pages beyond the perks: the looks while a pass runs or once one is
+// earned; the numbers and tonight's picture only while it runs.
+const tab = ref<Tab>(props.tab ?? 'perks')
+const tabs = computed<Tab[]>(() => {
+  if (!data.value) return []
+  if (active.value) return ['perks', 'style', 'stats', 'night']
+  return data.value.frames_open.length || data.value.cards_open.length ? ['perks', 'style'] : []
+})
+const shownTab = computed<Tab>(() => (tabs.value.includes(tab.value) ? tab.value : 'perks'))
 const left = computed(() => (data.value ? data.value.max_blocks - data.value.blocks.length : 0))
 const shown = computed(() => {
   const q = search.value.trim().toLowerCase()
@@ -87,13 +100,36 @@ async function block(playerId: string): Promise<void> {
         </p>
       </div>
 
+      <div v-if="tabs.length" class="tabs" role="tablist">
+        <button
+          v-for="k in tabs"
+          :key="k"
+          type="button"
+          role="tab"
+          :aria-selected="shownTab === k"
+          :class="{ on: shownTab === k }"
+          @click="tab = k"
+        >
+          {{ t(`passPlus.tab${k[0]!.toUpperCase()}${k.slice(1)}`) }}
+        </button>
+      </div>
+
+      <LinePassStyle
+        v-if="shownTab === 'style'"
+        :token="token"
+        :data="data"
+        :name="name"
+        :avatar-url="avatarUrl"
+        :tier="tier"
+        @saved="data = $event"
+      />
+      <LinePassStats v-else-if="shownTab === 'stats'" :token="token" />
+      <LinePassNight v-else-if="shownTab === 'night'" :token="token" :avatar-url="avatarUrl" />
+
+      <template v-else>
       <ul class="grid gap-1.5">
         <li class="perk"><span class="ic" aria-hidden="true">⚖︎</span><span><b>{{ t('pass.perkOdds') }}</b><small>{{ t('pass.perkOddsHint') }}</small></span></li>
         <li class="perk"><span class="ic" aria-hidden="true">⦸</span><span><b>{{ t('pass.perkBlock', { n: data.max_blocks }) }}</b><small>{{ t('pass.perkBlockHint') }}</small></span></li>
-        <li class="perk">
-          <span class="ic" aria-hidden="true">✦</span>
-          <span><b>{{ t('pass.perkSeason') }}</b><small>{{ t('pass.perkSeasonHint', { year: data.season_year, points: num(data.season_points) }) }}</small></span>
-        </li>
       </ul>
 
       <!-- buying -->
@@ -148,6 +184,7 @@ async function block(playerId: string): Promise<void> {
           <p class="mt-2 text-xs leading-relaxed text-white/50">🔒 {{ t('pass.private') }}</p>
         </template>
       </section>
+      </template>
     </template>
 
     <p v-if="problem" role="alert" class="text-sm text-status-error">{{ problem }}</p>
@@ -155,6 +192,27 @@ async function block(playerId: string): Promise<void> {
 </template>
 
 <style scoped>
+.tabs {
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.3);
+}
+.tabs button {
+  min-height: 36px;
+  border-radius: 999px;
+  color: rgb(255 255 255 / 0.65);
+  font-size: 13px;
+  font-weight: 600;
+}
+.tabs button.on {
+  background: linear-gradient(90deg, #ffe58a, #f2c14e);
+  color: #2a1a00;
+}
 .pass-card {
   position: relative;
   overflow: hidden;
