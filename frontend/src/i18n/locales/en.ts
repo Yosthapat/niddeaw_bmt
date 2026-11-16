@@ -1899,6 +1899,13 @@ export default {
       },
       noResults: 'No results yet',
     },
+    band: {
+      upper: 'To the upper bracket',
+      lower: 'To the lower bracket',
+      upperOrLower: 'The best go up',
+      lowerOrOut: 'The best go to the lower',
+      out: 'Out',
+    },
     bracket: {
       upper: 'Upper',
       lower: 'Lower',
@@ -2006,6 +2013,14 @@ export default {
       unchecked: 'Not read',
     },
     line: {
+      nextMatch: 'Your next match',
+      laterMatches: 'Still to play',
+      played: 'Played',
+      waitingDraw: 'Your group is done — waiting for the others and the knockout draw',
+      seeAll: 'See every group and bracket',
+      out: 'Out',
+      champion: '{bracket} champions!',
+      groupPlace: 'Group {g} · {n}',
       open: 'NIDDEAW CUP · Sign up',
       back: 'Back',
       loadFailed: 'Couldn’t load the tournament',

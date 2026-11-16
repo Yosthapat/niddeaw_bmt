@@ -18,6 +18,7 @@ import CupTeamLine from '@/components/cup/CupTeamLine.vue'
 import CupStandings from '@/components/cup/CupStandings.vue'
 import CupMatchRow from '@/components/cup/CupMatchRow.vue'
 import CupBracket from '@/components/cup/CupBracket.vue'
+import { rankBands } from '@/utils/cupMatch'
 import { usePolling } from '@/composables/usePolling'
 
 const { t, locale } = useI18n()
@@ -285,7 +286,7 @@ function range(min: number | null, max: number | null): string {
                 <h3 class="font-display text-base font-bold">{{ t('cup.draw.group', { g: g.label }) }}</h3>
                 <span class="ml-auto text-xs text-white/55">{{ t('cup.view.played', { n: g.done, of: g.matches.length }) }}</span>
               </div>
-              <CupStandings v-if="g.standings.length" :label="g.label" :teams="g.teams" :standings="g.standings" class="!bg-transparent !p-0 [&>p]:hidden" />
+              <CupStandings v-if="g.standings.length" :label="g.label" :teams="g.teams" :standings="g.standings" :bands="rankBands(shown)" class="!bg-transparent !p-0 [&>p:first-child]:hidden" />
               <div v-else class="flex flex-col gap-2">
                 <CupTeamLine v-for="(team, i) in g.teams" :key="team.id ?? team.name" :name="team.name" :players="team.players" :prefix="`${g.label}${i + 1}`" />
               </div>
