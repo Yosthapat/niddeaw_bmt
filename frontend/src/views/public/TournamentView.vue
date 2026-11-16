@@ -14,9 +14,10 @@ import { getPublicTournament, type PublicTournament } from '@/api/tournament'
 import { getLineConfig } from '@/api/line'
 import { formatDateTime, formatDateWithWeekday, money } from '@/utils/format'
 import type { Locale } from '@/i18n'
-import CupMatchCard from '@/components/cup/CupMatchCard.vue'
 import CupTeamLine from '@/components/cup/CupTeamLine.vue'
 import CupStandings from '@/components/cup/CupStandings.vue'
+import CupMatchRow from '@/components/cup/CupMatchRow.vue'
+import CupBracket from '@/components/cup/CupBracket.vue'
 import { usePolling } from '@/composables/usePolling'
 
 const { t, locale } = useI18n()
@@ -62,16 +63,68 @@ const shown = computed(() => {
 function choose(id: string): void {
   void router.replace({ query: { ...route.query, level: id } })
 }
-// That level's matches: the group stage, then each bracket.
-const matchParts = computed(() => {
-  const mine = (cup.value?.matches ?? []).filter((m) => m.level_id === shown.value?.id)
-  const parts = [
-    { key: 'group', label: t('cup.schedule.groupStage'), matches: mine.filter((m) => m.stage === 'group') },
-    { key: 'upper', label: t('cup.bracket.upper'), matches: mine.filter((m) => m.stage === 'ko' && m.bracket === 'upper') },
-    { key: 'lower', label: t('cup.bracket.lower'), matches: mine.filter((m) => m.stage === 'ko' && m.bracket === 'lower') },
-  ]
-  return parts.filter((p) => p.matches.length)
+// --- one level, three stages ---------------------------------------------------
+type Stage = 'group' | 'ko' | 'results'
+const STAGES: Stage[] = ['group', 'ko', 'results']
+const mine = computed(() => (cup.value?.matches ?? []).filter((m) => m.level_id === shown.value?.id))
+const groupMatches = computed(() => mine.value.filter((m) => m.stage === 'group'))
+const koMatches = computed(() => mine.value.filter((m) => m.stage === 'ko'))
+const doneMatches = computed(() =>
+  mine.value
+    .filter((m) => m.status === 'done')
+    .sort((a, b) => (b.finished_at ?? '').localeCompare(a.finished_at ?? '') || b.match_no - a.match_no),
+)
+/** The knockout is where the day is once its first teams are known. */
+const koUnderway = computed(() => koMatches.value.some((m) => m.status !== 'scheduled' || (m.a.team_id && m.b.team_id)))
+const stage = computed<Stage>(() => {
+  const asked = route.query.stage
+  if (typeof asked === 'string' && (STAGES as string[]).includes(asked)) return asked as Stage
+  return koUnderway.value ? 'ko' : 'group'
 })
+function pickStage(s: Stage): void {
+  void router.replace({ query: { ...route.query, stage: s } })
+}
+const stageCount = (s: Stage): string => {
+  if (!cup.value?.schedule_published) return ''
+  if (s === 'group') return `${groupMatches.value.filter((m) => m.status === 'done').length}/${groupMatches.value.length}`
+  if (s === 'ko') return koMatches.value.length ? `${koMatches.value.filter((m) => m.status === 'done').length}/${koMatches.value.length}` : ''
+  return doneMatches.value.length ? String(doneMatches.value.length) : ''
+}
+
+// group stage: each group with its own matches
+const groupsWithMatches = computed(() =>
+  (shown.value?.groups ?? []).map((g) => {
+    const ms = groupMatches.value.filter((m) => m.group_label === g.label).sort((a, b) => a.match_no - b.match_no)
+    return { ...g, matches: ms, done: ms.filter((m) => m.status === 'done').length }
+  }),
+)
+function jumpTo(label: string): void {
+  document.getElementById(`cup-group-${label}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+// knockout: upper or lower bracket
+const bracketPick = ref<'upper' | 'lower'>('upper')
+const brackets = computed(() => (['upper', 'lower'] as const).filter((b) => koMatches.value.some((m) => m.bracket === b)))
+const bracketShown = computed(() => (brackets.value.includes(bracketPick.value) ? bracketPick.value : (brackets.value[0] ?? 'upper')))
+const bracketMatches = computed(() => koMatches.value.filter((m) => m.bracket === bracketShown.value))
+function formatOf(maxTeams: number, cut: boolean): string {
+  if (maxTeams === 24) return cut ? t('cup.admin.br24cut') : t('cup.admin.br24')
+  return t('cup.admin.brEven', { n: maxTeams / 2 })
+}
+
+// results: the champions, then every result, latest first
+const resultFilter = ref<'all' | 'group' | 'ko'>('all')
+const results = computed(() => doneMatches.value.filter((m) => resultFilter.value === 'all' || m.stage === resultFilter.value))
+const podiums = computed(() =>
+  (['upper', 'lower'] as const).flatMap((b) => {
+    const ko = koMatches.value.filter((m) => m.bracket === b)
+    if (!ko.length) return []
+    const final = ko.reduce((x, y) => (y.round < x.round || (y.round === x.round && y.match_no > x.match_no) ? y : x))
+    if (final.status !== 'done' || (final.winner !== 'a' && final.winner !== 'b')) return []
+    const loser = final.winner === 'a' ? 'b' : 'a'
+    return [{ bracket: b, champion: final[final.winner], runnerUp: final[loser] }]
+  }),
+)
 
 const perPlayer = computed(() => (cup.value ? Math.ceil((cup.value.entry_fee + cup.value.shuttle_fee) / 2) : 0))
 const day = (iso: string): string => formatDateWithWeekday(iso, locale.value as Locale)
@@ -126,8 +179,9 @@ function range(min: number | null, max: number | null): string {
           <span class="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-[#7ff0b4]" aria-hidden="true" />
           {{ t('cup.day.liveTitle') }}
         </h2>
+        <!-- one tidy row each, so a full hall of courts doesn't push the levels off the screen -->
         <div class="grid gap-1.5 sm:grid-cols-2">
-          <CupMatchCard v-for="m in live" :key="m.id" :match="m" show-level />
+          <CupMatchRow v-for="m in live" :key="m.id" :match="m" show-level />
         </div>
       </section>
 
@@ -165,59 +219,158 @@ function range(min: number | null, max: number | null): string {
           <p v-if="shown.waitlist" class="text-xs text-[#c9a7ff]">{{ t('cup.waitlistCount', { n: shown.waitlist }) }}</p>
         </section>
 
-        <!-- before publishing: who is in, and "coming soon" for the rest -->
-        <template v-if="!cup.schedule_published">
-          <section class="t-plan flex-col !items-center gap-1 py-4 text-center">
-            <span class="t-blink rounded-full border border-[#ffe14d] px-3 py-1 font-display text-[12px] font-bold tracking-[3px] text-[#ffe14d]">COMING SOON</span>
-            <h2 class="mt-1.5 font-display text-base font-bold">{{ t('cup.schedule.title') }}</h2>
-            <p class="text-sm text-white/70">{{ t('cup.schedule.soon') }}</p>
-          </section>
-          <section class="t-plan flex-col !items-stretch gap-2">
-            <h3 class="font-display text-base font-bold">{{ t('cup.teamsIn', { level: shown.name }) }}</h3>
-            <ul v-if="shown.teams.length" class="grid gap-1.5 sm:grid-cols-2">
-              <li v-for="team in shown.teams" :key="team.id ?? team.name" class="flex items-center gap-2 rounded-xl bg-white/5 px-2.5 py-2">
-                <div class="flex -space-x-2">
-                  <PlayerAvatar v-for="p in team.players" :key="p.nickname" :name="p.nickname" :avatar-url="p.avatar_url" size="sm" round />
+        <!-- the level's three stages -->
+        <div class="grid grid-cols-3 gap-1 rounded-2xl border border-white/12 bg-[#1a0838]/80 p-1" role="tablist" :aria-label="t('cup.view.stages')">
+          <button
+            v-for="s in STAGES"
+            :key="s"
+            type="button"
+            role="tab"
+            class="flex min-h-12 flex-col items-center justify-center rounded-xl px-1 leading-tight transition-colors"
+            :class="stage === s ? 'bg-[linear-gradient(135deg,#ff6cc0,#c13cff)] text-white shadow-[0_6px_18px_-6px_rgb(255_108_192/0.7)]' : 'text-white/70 hover:text-white'"
+            :aria-selected="stage === s"
+            @click="pickStage(s)"
+          >
+            <span class="font-display text-[13px] font-bold">{{ t(`cup.view.stage.${s}`) }}</span>
+            <span v-if="stageCount(s)" class="font-display text-[10px]" :class="stage === s ? 'text-white/85' : 'text-white/45'">{{ stageCount(s) }}</span>
+          </button>
+        </div>
+
+        <!-- 1 · the group stage -->
+        <template v-if="stage === 'group'">
+          <template v-if="!cup.schedule_published">
+            <section class="t-plan flex-col !items-center gap-1 py-4 text-center">
+              <span class="t-blink rounded-full border border-[#ffe14d] px-3 py-1 font-display text-[12px] font-bold tracking-[3px] text-[#ffe14d]">COMING SOON</span>
+              <h2 class="mt-1.5 font-display text-base font-bold">{{ t('cup.schedule.title') }}</h2>
+              <p class="text-sm text-white/70">{{ t('cup.schedule.soon') }}</p>
+            </section>
+            <section class="t-plan flex-col !items-stretch gap-2">
+              <h3 class="font-display text-base font-bold">{{ t('cup.teamsIn', { level: shown.name }) }}</h3>
+              <ul v-if="shown.teams.length" class="grid gap-1.5 sm:grid-cols-2">
+                <li v-for="team in shown.teams" :key="team.id ?? team.name" class="flex items-center gap-2 rounded-xl bg-white/5 px-2.5 py-2">
+                  <div class="flex -space-x-2">
+                    <PlayerAvatar v-for="p in team.players" :key="p.nickname" :name="p.nickname" :avatar-url="p.avatar_url" size="sm" round />
+                  </div>
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-semibold">{{ team.name }}</p>
+                    <p class="truncate text-xs text-white/60">{{ team.players.map((p) => p.nickname).join(' / ') }}</p>
+                  </div>
+                </li>
+              </ul>
+              <p v-else class="text-xs text-white/50">{{ t('cup.noTeamsYet') }}</p>
+            </section>
+          </template>
+          <template v-else>
+            <div v-if="groupsWithMatches.length > 2" class="-mx-4 overflow-x-auto px-4">
+              <div class="flex w-max gap-1.5">
+                <button
+                  v-for="g in groupsWithMatches"
+                  :key="g.label"
+                  type="button"
+                  class="min-h-9 rounded-full border border-white/15 px-3.5 font-display text-sm font-bold text-white/80 hover:border-[#ff6cc0]/60"
+                  @click="jumpTo(g.label)"
+                >
+                  {{ t('cup.draw.group', { g: g.label }) }}
+                </button>
+              </div>
+            </div>
+            <section
+              v-for="g in groupsWithMatches"
+              :id="`cup-group-${g.label}`"
+              :key="g.label"
+              class="t-plan scroll-mt-40 flex-col !items-stretch gap-2.5"
+            >
+              <div class="flex items-center gap-2">
+                <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-[#ff6cc0]/20 font-display text-lg font-bold text-[#ff6cc0]">{{ g.label }}</span>
+                <h3 class="font-display text-base font-bold">{{ t('cup.draw.group', { g: g.label }) }}</h3>
+                <span class="ml-auto text-xs text-white/55">{{ t('cup.view.played', { n: g.done, of: g.matches.length }) }}</span>
+              </div>
+              <CupStandings v-if="g.standings.length" :label="g.label" :teams="g.teams" :standings="g.standings" class="!bg-transparent !p-0 [&>p]:hidden" />
+              <div v-else class="flex flex-col gap-2">
+                <CupTeamLine v-for="(team, i) in g.teams" :key="team.id ?? team.name" :name="team.name" :players="team.players" :prefix="`${g.label}${i + 1}`" />
+              </div>
+              <details v-if="g.matches.length" class="group/m" :open="groupsWithMatches.length <= 2 || undefined">
+                <summary class="flex min-h-10 cursor-pointer list-none items-center gap-1.5 rounded-lg px-1 text-xs font-semibold text-white/70 hover:text-white">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4 transition-transform group-open/m:rotate-90" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+                  {{ t('cup.view.groupMatches', { n: g.matches.length }) }}
+                </summary>
+                <div class="mt-1 flex flex-col gap-1.5">
+                  <CupMatchRow v-for="m in g.matches" :key="m.id" :match="m" />
                 </div>
-                <div class="min-w-0">
-                  <p class="truncate text-sm font-semibold">{{ team.name }}</p>
-                  <p class="truncate text-xs text-white/60">{{ team.players.map((p) => p.nickname).join(' / ') }}</p>
-                </div>
-              </li>
-            </ul>
-            <p v-else class="text-xs text-white/50">{{ t('cup.noTeamsYet') }}</p>
-          </section>
+              </details>
+            </section>
+            <p class="text-center text-xs text-white/50">{{ t('cup.schedule.estimate') }}</p>
+          </template>
         </template>
 
-        <!-- published: this level's groups and matches -->
+        <!-- 2 · the knockout -->
+        <template v-else-if="stage === 'ko'">
+          <section v-if="!cup.schedule_published || !koMatches.length" class="t-plan flex-col !items-center gap-2 py-5 text-center">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#ff6cc0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="h-10 w-10" aria-hidden="true">
+              <path d="M4 6h5v4H4zM4 14h5v4H4zM15 10h5v4h-5zM9 8h3v8H9M12 12h3" />
+            </svg>
+            <h2 class="font-display text-base font-bold">{{ t('cup.view.koSoonTitle') }}</h2>
+            <p class="text-sm text-white/70">{{ t('cup.view.koSoon') }}</p>
+            <p class="rounded-full bg-white/8 px-3 py-1 text-xs text-white/80">{{ formatOf(shown.max_teams, shown.cut_24) }}</p>
+          </section>
+          <template v-else>
+            <div v-if="brackets.length > 1" class="grid grid-cols-2 gap-1 rounded-full bg-black/30 p-1">
+              <button
+                v-for="b in brackets"
+                :key="b"
+                type="button"
+                class="min-h-10 rounded-full font-display text-sm font-bold"
+                :class="bracketShown === b ? (b === 'upper' ? 'bg-[#ffe14d] text-[#2a1a00]' : 'bg-[#c9a7ff] text-[#1a0838]') : 'text-white/65'"
+                :aria-pressed="bracketShown === b"
+                @click="bracketPick = b"
+              >
+                {{ t(`cup.bracket.${b}`) }}
+              </button>
+            </div>
+            <section class="t-plan flex-col !items-stretch gap-2 !px-3">
+              <p class="text-xs text-white/55">{{ koUnderway ? t('cup.view.koHint') : t('cup.view.koDrawHint') }}</p>
+              <CupBracket :matches="bracketMatches" />
+            </section>
+          </template>
+        </template>
+
+        <!-- 3 · results -->
         <template v-else>
-          <section v-if="shown.groups.some((g) => g.standings.length)" class="t-plan flex-col !items-stretch gap-2">
-            <h3 class="font-display text-base font-bold">{{ t('cup.table.title') }}</h3>
-            <div class="grid gap-2 sm:grid-cols-2">
-              <CupStandings v-for="g in shown.groups.filter((x) => x.standings.length)" :key="g.label" :label="g.label" :teams="g.teams" :standings="g.standings" />
-            </div>
-          </section>
-          <section v-if="shown.groups.length" class="t-plan flex-col !items-stretch gap-2">
-            <h3 class="font-display text-base font-bold">{{ t('cup.schedule.groups') }}</h3>
-            <div class="grid gap-2 sm:grid-cols-2">
-              <div v-for="g in shown.groups" :key="g.label" class="rounded-xl bg-white/5 p-2.5">
-                <p class="mb-1.5 font-display text-sm font-bold text-[#ff6cc0]">{{ t('cup.draw.group', { g: g.label }) }}</p>
-                <div class="flex flex-col gap-2">
-                  <CupTeamLine v-for="(team, i) in g.teams" :key="team.id ?? team.name" :name="team.name" :players="team.players" :prefix="`${g.label}${i + 1}`" />
-                </div>
+          <div v-if="podiums.length" class="grid gap-2 sm:grid-cols-2">
+            <section v-for="p in podiums" :key="p.bracket" class="r-podium flex flex-col items-center gap-1 rounded-2xl border border-[#ffe14d]/45 p-4 text-center">
+              <span class="font-display text-[11px] font-bold tracking-[2px] text-[#ffe14d]">{{ t('cup.view.championOf', { bracket: t(`cup.bracket.${p.bracket}`) }) }}</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="#ffcf3f" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="h-9 w-9" aria-hidden="true">
+                <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 6h3v2a3 3 0 0 1-3 3M7 6H4v2a3 3 0 0 0 3 3" />
+              </svg>
+              <div class="flex -space-x-2">
+                <PlayerAvatar v-for="pl in p.champion.players" :key="pl.nickname" :name="pl.nickname" :avatar-url="pl.avatar_url" size="md" round class="ring-2 ring-[#ffe14d]/70" />
               </div>
-            </div>
-          </section>
+              <p class="font-display text-lg leading-tight font-bold">{{ p.champion.team_name }}</p>
+              <p class="text-xs text-white/70">{{ p.champion.players.map((x) => x.nickname).join(' · ') }}</p>
+              <p class="mt-1 text-xs text-white/55">{{ t('cup.view.runnerUp', { team: p.runnerUp.team_name ?? '—' }) }}</p>
+            </section>
+          </div>
           <section class="t-plan flex-col !items-stretch gap-2">
-            <h3 class="font-display text-base font-bold">{{ t('cup.schedule.matchesOf', { level: shown.name }) }}</h3>
-            <p class="text-xs text-white/55">{{ t('cup.schedule.estimate') }}</p>
-            <template v-for="part in matchParts" :key="part.key">
-              <p class="mt-1 text-xs font-semibold text-white/70">{{ part.label }}</p>
-              <div class="flex flex-col gap-1.5">
-                <CupMatchCard v-for="m in part.matches" :key="m.id" :match="m" />
+            <div class="flex flex-wrap items-center gap-2">
+              <h3 class="font-display text-base font-bold">{{ t('cup.view.latest') }}</h3>
+              <div class="ml-auto flex gap-1">
+                <button
+                  v-for="f in ['all', 'group', 'ko'] as const"
+                  :key="f"
+                  type="button"
+                  class="min-h-8 rounded-full border px-3 text-xs"
+                  :class="resultFilter === f ? 'border-[#ff6cc0] bg-[#ff6cc0]/20 font-semibold text-white' : 'border-white/15 text-white/65'"
+                  :aria-pressed="resultFilter === f"
+                  @click="resultFilter = f"
+                >
+                  {{ t(`cup.view.filter.${f}`) }}
+                </button>
               </div>
-            </template>
-            <p v-if="!matchParts.length" class="text-xs text-white/50">{{ t('cup.schedule.noneInLevel') }}</p>
+            </div>
+            <div v-if="results.length" class="flex flex-col gap-1.5">
+              <CupMatchRow v-for="m in results" :key="m.id" :match="m" show-round />
+            </div>
+            <p v-else class="py-4 text-center text-sm text-white/55">{{ t('cup.view.noResults') }}</p>
           </section>
         </template>
       </template>
@@ -353,6 +506,11 @@ function range(min: number | null, max: number | null): string {
   background: rgb(255 255 255 / 0.06);
   font-size: 14px;
   backdrop-filter: blur(10px);
+}
+/* a champion's card: gold light from above */
+.r-podium {
+  background: radial-gradient(120% 80% at 50% 0%, rgb(255 225 77 / 0.2), rgb(255 255 255 / 0.04) 70%);
+  box-shadow: 0 0 30px -6px rgb(255 207 63 / 0.35);
 }
 .t-line {
   background: #037f36;
