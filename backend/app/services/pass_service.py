@@ -28,8 +28,8 @@ from app.services import credit_card_service, credit_service, line_checkin
 PASS_DAYS = 30
 DEFAULT_PRICE = 249
 BLOCKS_PER_NIGHT = 2
-SEASON_BONUS = 1.15
-PASS_EDGE = 0.52
+SEASON_BONUS = 1.05
+PASS_EDGE = 0.50
 
 
 def _iso(when: datetime) -> str:

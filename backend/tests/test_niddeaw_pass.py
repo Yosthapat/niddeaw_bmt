@@ -1,5 +1,5 @@
 """Niddeaw Pass: bought with credit by card holders, it runs 30 days and
-gives the better side of the odds, two partner blocks a night and 15% more
+gives the better side of the odds, two partner blocks a night and 5% more
 season points. ELO is not touched."""
 
 import os
@@ -307,7 +307,7 @@ def _won(
     })  # fmt: skip
 
 
-def test_season_points_are_the_wins_rating_and_fifteen_percent_more_with_a_pass(
+def test_season_points_are_the_wins_rating_and_five_percent_more_with_a_pass(
     client: TestClient, db: MiniSupabase
 ) -> None:
     ball, bank, faa, ton = (pid(db, n) for n in ("Ball", "Bank", "Faa", "Ton"))
@@ -328,7 +328,7 @@ def test_season_points_are_the_wins_rating_and_fifteen_percent_more_with_a_pass(
         return float(res.json()["season_points"])
 
     assert {n: points(n) for n in ("Ball", "Faa", "Ton", "Bank")} == {
-        "Ball": 21.5,
+        "Ball": 20.5,
         "Faa": 23.0,
         "Ton": 13.0,
         "Bank": 10.0,
