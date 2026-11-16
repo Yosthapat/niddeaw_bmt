@@ -176,6 +176,9 @@ export interface PublicTournament {
   entry_fee: number
   shuttle_fee: number
   coupons_per_set: number
+  extra_set_price: number
+  coupon_refund_price: number
+  rest_minutes: number
   opens_at: string | null
   closes_at: string
   min_games: number
