@@ -33,4 +33,4 @@ jobs:
         run: |
           curl -fsS --retry 2 --retry-delay 30 --retry-all-errors --max-time 180 \
             -X POST -H "X-Sync-Secret: $SHEETS_SYNC_SECRET" \
-            https://niddeaw-bmt.onrender.com/api/internal/sheets-sync
+            https://niddeaw-bmt-sg.onrender.com/api/internal/sheets-sync

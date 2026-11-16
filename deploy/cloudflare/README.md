@@ -16,7 +16,7 @@ fields. That config lives at the **repo root**: `/wrangler.jsonc`, pointing
 3. **Deploy command**: leave as default (`npx wrangler deploy`, uses the
    repo-root `wrangler.jsonc` automatically).
 4. **Environment variable**: `VITE_API_BASE_URL` = your Render backend URL
-   (e.g. `https://niddeaw-bmt.onrender.com`) — must be set at **build**
+   (e.g. `https://niddeaw-bmt-sg.onrender.com`) — must be set at **build**
    time since Vite bakes `import.meta.env.VITE_*` values in at build, not
    runtime. Look for an "Environment Variables" section on the same setup
    screen, or under **Settings → Build & deploy** after the project is
