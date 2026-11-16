@@ -370,6 +370,7 @@ onUnmounted(() => {
           :name="me.player.nickname"
           :avatar-url="me.player.avatar_url"
           :tier="me.player.elo_level"
+          :code="me.player.member_code"
           :tab="passTab"
           @back="go('home')" @credit="go('credit')" />
 
@@ -382,7 +383,7 @@ onUnmounted(() => {
             {{ t('line.linkedNow') }}
           </p>
           <p class="world-eyebrow">LINKED</p>
-          <PlayerAvatar :name="me.player.nickname" :avatar-url="me.player.avatar_url" size="lg" round />
+          <PlayerAvatar :player-id="me.player.id" :name="me.player.nickname" :avatar-url="me.player.avatar_url" size="lg" round />
           <h1 class="world-title flex items-center gap-2 text-2xl">{{ me.player.nickname }}<CreditCardMark :player-id="me.player.id" size="md" /></h1>
           <span class="inline-flex items-center gap-1.5 text-sm text-white/70">
             <TierMascot :tier="me.player.elo_level" :size="22" :interactive="false" />
