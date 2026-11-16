@@ -23,6 +23,8 @@ import BrandQr from '@/components/common/BrandQr.vue'
 import CupMatchCard from '@/components/cup/CupMatchCard.vue'
 import CupTeamLine from '@/components/cup/CupTeamLine.vue'
 import CupStandings from '@/components/cup/CupStandings.vue'
+import CupMatchRow from '@/components/cup/CupMatchRow.vue'
+import { rankBands, roundLabel } from '@/utils/cupMatch'
 import { usePolling } from '@/composables/usePolling'
 
 const props = defineProps<{ token: string }>()
@@ -150,6 +152,35 @@ const myGroup = computed(() => {
 const myMatches = computed(() => (cup.value?.matches ?? []).filter((m) => m.a.team_id === team.value?.id || m.b.team_id === team.value?.id))
 
 const calledNow = computed(() => myMatches.value.find((m) => m.status === 'on_court') ?? null)
+const myLevel = computed(() => cup.value?.levels.find((x) => x.id === team.value?.level_id) ?? null)
+const pending = computed(() => myMatches.value.filter((m) => m.status !== 'done').sort((a, b) => a.match_no - b.match_no))
+const nextMatch = computed(() => calledNow.value ?? pending.value[0] ?? null)
+const laterMatches = computed(() => pending.value.filter((m) => m.id !== nextMatch.value?.id))
+const playedMatches = computed(() =>
+  myMatches.value.filter((m) => m.status === 'done').sort((a, b) => (b.finished_at ?? '').localeCompare(a.finished_at ?? '') || b.match_no - a.match_no),
+)
+const koMine = computed(() => myMatches.value.filter((m) => m.stage === 'ko').sort((a, b) => b.match_no - a.match_no))
+/** Where my team stands, in a word: still in its group, in a bracket, out, or champions. */
+const STANDING_CLASS = {
+  group: 'bg-[#ff6cc0]/20 text-[#ff9fd6]',
+  ko: 'bg-[#7ff0b4]/20 text-[#7ff0b4]',
+  out: 'bg-white/10 text-white/60',
+  champion: 'bg-[#ffe14d] text-[#2a1a00]',
+} as const
+const standing = computed<{ kind: keyof typeof STANDING_CLASS; text: string } | null>(() => {
+  const me = team.value?.id
+  const last = koMine.value[0]
+  if (last && me) {
+    const side = last.a.team_id === me ? 'a' : 'b'
+    const bracket = t(`cup.bracket.${last.bracket ?? 'upper'}`)
+    if (last.status === 'done' && last.winner && last.winner !== side) return { kind: 'out', text: t('cup.line.out') }
+    if (last.status === 'done' && last.winner === side && last.round === 2) return { kind: 'champion', text: t('cup.line.champion', { bracket }) }
+    return { kind: 'ko', text: `${bracket} · ${roundLabel(last, t).split(' · ').pop()}` }
+  }
+  const row = myGroup.value?.standings.find((r) => r.team_id === me)
+  if (myGroup.value) return { kind: 'group', text: row?.played ? t('cup.line.groupPlace', { g: myGroup.value.label, n: row.rank }) : t('cup.draw.group', { g: myGroup.value.label }) }
+  return null
+})
 // On the day: hear about a call without reopening the page.
 usePolling(async () => {
   if (data.value?.tournament?.schedule_published && !busy.value) {
@@ -416,25 +447,54 @@ async function attach(event: Event): Promise<void> {
           <span class="text-sm">#{{ calledNow.match_no }} · {{ t('cup.day.calledHint') }}</span>
         </div>
 
-        <!-- my group and my matches: "coming soon" until published -->
-        <div v-if="team.status === 'confirmed'" class="world-card flex flex-col gap-2 p-4">
-          <h3 class="font-display text-base font-bold">{{ t('cup.schedule.mine') }}</h3>
+        <!-- my team's day: where it stands, the next match, its group and its results -->
+        <div v-if="team.status === 'confirmed'" class="world-card flex flex-col gap-3 p-4">
+          <div class="flex flex-wrap items-center gap-2">
+            <h3 class="font-display text-base font-bold">{{ t('cup.schedule.mine') }}</h3>
+            <span v-if="cup.schedule_published && standing" class="ml-auto rounded-full px-2.5 py-1 font-display text-[11px] font-bold" :class="STANDING_CLASS[standing.kind]">
+              {{ standing.text }}
+            </span>
+          </div>
           <p v-if="!cup.schedule_published" class="text-sm text-white/70">
             <span class="mr-1 rounded-full border border-[#ffe14d] px-2 py-0.5 font-display text-[11px] font-bold tracking-[2px] text-[#ffe14d]">COMING SOON</span>
             {{ t('cup.schedule.soon') }}
           </p>
           <template v-else>
-            <div v-if="myGroup" class="rounded-xl bg-white/5 p-2.5">
+            <div v-if="nextMatch && !calledNow">
+              <p class="mb-1.5 text-xs font-semibold text-[#7ff0b4]">{{ t('cup.line.nextMatch') }}</p>
+              <CupMatchCard :match="nextMatch" :mine-id="team.id" />
+            </div>
+            <p v-else-if="!nextMatch && standing?.kind !== 'out' && standing?.kind !== 'champion'" class="rounded-xl bg-white/5 p-3 text-sm text-white/70">
+              {{ t('cup.line.waitingDraw') }}
+            </p>
+
+            <CupStandings v-if="myGroup?.standings.length" :label="myGroup.label" :teams="myGroup.teams" :standings="myGroup.standings" :mine-id="team.id" :bands="myLevel ? rankBands(myLevel) : undefined" />
+            <div v-else-if="myGroup" class="rounded-xl bg-white/5 p-2.5">
               <p class="mb-1.5 font-display text-sm font-bold text-[#ff6cc0]">{{ t('cup.draw.group', { g: myGroup.label }) }}</p>
               <div class="flex flex-col gap-2">
                 <CupTeamLine v-for="(x, i) in myGroup.teams" :key="x.id ?? x.name" :name="x.name" :players="x.players" :prefix="`${myGroup.label}${i + 1}`" :mine="x.id === team.id" />
               </div>
             </div>
-            <CupStandings v-if="myGroup?.standings.length" :label="myGroup.label" :teams="myGroup.teams" :standings="myGroup.standings" :mine-id="team.id" />
-            <div class="flex flex-col gap-1.5">
-              <CupMatchCard v-for="m in myMatches" :key="m.id" :match="m" :mine-id="team.id" />
+
+            <div v-if="laterMatches.length">
+              <p class="mb-1.5 text-xs font-semibold text-white/70">{{ t('cup.line.laterMatches') }}</p>
+              <div class="flex flex-col gap-1.5">
+                <CupMatchRow v-for="m in laterMatches" :key="m.id" :match="m" show-round />
+              </div>
+            </div>
+            <div v-if="playedMatches.length">
+              <p class="mb-1.5 text-xs font-semibold text-white/70">{{ t('cup.line.played') }}</p>
+              <div class="flex flex-col gap-1.5">
+                <CupMatchRow v-for="m in playedMatches" :key="m.id" :match="m" show-round />
+              </div>
             </div>
             <p class="text-xs text-white/50">{{ t('cup.schedule.mineHint') }}</p>
+            <RouterLink
+              :to="{ path: '/tournament', query: { level: team.level_id, stage: koMine ? 'ko' : 'group' } }"
+              class="flex min-h-11 items-center justify-center rounded-full border border-white/15 text-sm text-white/80"
+            >
+              {{ t('cup.line.seeAll') }} →
+            </RouterLink>
           </template>
         </div>
 

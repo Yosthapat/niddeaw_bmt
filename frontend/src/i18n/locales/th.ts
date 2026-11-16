@@ -1896,6 +1896,13 @@ export default {
       },
       noResults: 'ยังไม่มีผลการแข่งขัน',
     },
+    band: {
+      upper: 'เข้าสายบน',
+      lower: 'เข้าสายล่าง',
+      upperOrLower: 'ที่ดีที่สุดได้ขึ้นสายบน',
+      lowerOrOut: 'ที่ดีที่สุดได้เข้าสายล่าง',
+      out: 'ตกรอบ',
+    },
     bracket: {
       upper: 'สายบน',
       lower: 'สายล่าง',
@@ -2003,6 +2010,14 @@ export default {
       unchecked: 'ยังไม่ได้อ่าน',
     },
     line: {
+      nextMatch: 'แมทถัดไปของคุณ',
+      laterMatches: 'แมทที่เหลือ',
+      played: 'ผลที่แข่งแล้ว',
+      waitingDraw: 'รอบกลุ่มของคุณจบแล้ว รอผลกลุ่มอื่นและจับฉลากสายน็อคเอาท์',
+      seeAll: 'ดูกลุ่มและสายการแข่งทั้งหมด',
+      out: 'ตกรอบ',
+      champion: 'แชมป์{bracket}!',
+      groupPlace: 'กลุ่ม {g} · อันดับ {n}',
       open: 'NIDDEAW CUP · สมัครแข่ง',
       back: 'กลับ',
       loadFailed: 'โหลดข้อมูลทัวร์นาเมนต์ไม่สำเร็จ',

@@ -2,7 +2,7 @@
  * Reading a tournament match out loud: which round, and who — a team once
  * known, else where it comes from (backend services/tournament_draw.py).
  */
-import type { CupMatch, MatchSlot } from '@/api/tournament'
+import type { CupMatch, MatchSlot, PublicLevel } from '@/api/tournament'
 
 type T = (key: string, values?: Record<string, unknown>) => string
 
@@ -32,4 +32,18 @@ export function roundLabel(m: CupMatch, t: T): string {
 export function clock(iso: string | null): string {
   if (!iso) return ''
   return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' })
+}
+
+/** Where a group place goes once the groups are done (backend
+ *  tournament_play.seeds): straight to a bracket, or — when only the best
+ *  of that place go up — one of two. */
+export type Band = 'upper' | 'lower' | 'upperOrLower' | 'lowerOrOut' | 'out'
+
+export function rankBands(level: Pick<PublicLevel, 'max_teams' | 'cut_24' | 'groups'>): Record<number, Band> {
+  const sizes = level.groups.map((g) => g.teams.length)
+  const n = sizes.reduce((a, b) => a + b, 0)
+  const full = n === level.max_teams && sizes.every((s) => s === 4)
+  if (full && n === 24 && !level.cut_24) return { 1: 'upper', 2: 'upper', 3: 'upperOrLower', 4: 'lower' }
+  if (full && n === 24) return { 1: 'upper', 2: 'upperOrLower', 3: 'lowerOrOut', 4: 'out' }
+  return { 1: 'upper', 2: 'upper', 3: 'lower', 4: 'lower' }
 }
