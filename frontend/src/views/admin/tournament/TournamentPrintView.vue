@@ -192,7 +192,7 @@ const print = (): void => window.print()
               </tr>
             </tbody>
           </table>
-          <p class="mt-2 text-xs">{{ t('cup.print.winner') }} ________________________ &nbsp; {{ t('cup.day.shuttles') }} ______</p>
+          <p class="mt-2 text-xs">{{ t('cup.print.winner') }} ________________________<template v-if="m.stage === 'group'"> &nbsp; {{ t('cup.print.draw') }}</template> &nbsp; {{ t('cup.day.shuttles') }} ______</p>
           <div class="mt-6 grid grid-cols-3 gap-4 text-center text-[11px]">
             <p class="border-t border-black pt-1">{{ t('cup.print.umpire') }}</p>
             <p class="border-t border-black pt-1">{{ t('cup.print.captain', { team: sideLabel(m.a, t) }) }}</p>

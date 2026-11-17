@@ -1929,6 +1929,7 @@ export default {
       court: 'สนาม',
       score: 'ผล',
       winner: 'ทีมที่ชนะ',
+      draw: 'หรือ ☐ เสมอ 1–1',
       umpire: 'กรรมการ',
       captain: 'หัวหน้าทีม {team}',
     },

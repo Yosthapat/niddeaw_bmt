@@ -1932,6 +1932,7 @@ export default {
       court: 'Court',
       score: 'Score',
       winner: 'Winner',
+      draw: 'or ☐ draw 1–1',
       umpire: 'Umpire',
       captain: '{team} captain',
     },
