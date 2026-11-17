@@ -5,13 +5,15 @@
  *  - the match list: each level's matches in order, with the time, the
  *    teams, and empty boxes for the court and the score;
  *  - a score sheet per match, two to a page: the two teams and their
- *    players, a box per set, the shuttles used, and lines for the umpire's
- *    and both captains' signatures — the sheet the desk enters results from.
+ *    players (nickname and real name, so the desk can check who is on court),
+ *    a box per set, the shuttles used, and lines for the umpire's and both
+ *    captains' signatures — the sheet the desk enters results from.
+ * Real names come from the admin team list: this page is for admins only.
  * Pick a level, or only the matches not yet played, then print.
  */
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { tournamentAdmin, type CupMatch, type GameDay } from '@/api/tournament'
+import { tournamentAdmin, type AdminTeam, type CupMatch, type GameDay } from '@/api/tournament'
 import { apiErrorMessage } from '@/api/errors'
 import { useTournamentPick } from '@/composables/useTournamentPick'
 import { clock, roundLabel, sideLabel } from '@/utils/cupMatch'
@@ -21,13 +23,14 @@ import type { Locale } from '@/i18n'
 const { t, locale } = useI18n()
 const { all, picked, load } = useTournamentPick()
 const day = ref<GameDay | null>(null)
+const teams = ref<AdminTeam[]>([])
 const problem = ref('')
 
 async function refresh(): Promise<void> {
   problem.value = ''
   try {
     if (!all.value.length) await load()
-    if (picked.value) day.value = await tournamentAdmin.day(picked.value.id)
+    if (picked.value) [day.value, teams.value] = await Promise.all([tournamentAdmin.day(picked.value.id), tournamentAdmin.teams(picked.value.id)])
   } catch (e) {
     problem.value = apiErrorMessage(e, t('cup.admin.loadFailed'))
   }
@@ -55,7 +58,25 @@ const pages = computed(() => {
   return out
 })
 const sets = (m: CupMatch): number => (m.stage === 'group' ? 2 : 3)
-const players = (m: CupMatch, side: 'a' | 'b'): string => m[side].players.map((p) => p.nickname).join(' · ')
+/** Each player of a side: nickname and real name, captain first. Before the
+ *  team is known ("winner of #37") there is no one to list. */
+interface Person {
+  nickname: string
+  realName: string
+}
+const people = computed(() => {
+  const out = new Map<string, Person[]>()
+  for (const tm of teams.value) {
+    const order = [...tm.entrants].sort((a, b) => (a.role === b.role ? 0 : a.role === 'captain' ? -1 : 1))
+    out.set(tm.id, order.map((e) => ({ nickname: e.nickname, realName: [e.first_name, e.last_name].filter(Boolean).join(' ') })))
+  }
+  return out
+})
+function players(m: CupMatch, side: 'a' | 'b'): Person[] {
+  const id = m[side].team_id
+  if (!id) return []
+  return people.value.get(id) ?? m[side].players.map((p) => ({ nickname: p.nickname, realName: '' }))
+}
 const score = (m: CupMatch): string =>
   m.status !== 'done' ? '' : m.walkover ? t('cup.view.wo') : (m.sets ?? []).map(([a, b]) => `${a}-${b}`).join(' ')
 const date = computed(() => (picked.value ? formatDateWithWeekday(picked.value.starts_on, locale.value as Locale) : ''))
@@ -126,8 +147,10 @@ const print = (): void => window.print()
               <td class="text-center font-bold">{{ m.match_no }}</td>
               <td class="text-center">{{ clock(m.est_start) }}</td>
               <td>{{ roundLabel(m, t) }}</td>
-              <td>{{ sideLabel(m.a, t) }}</td>
-              <td>{{ sideLabel(m.b, t) }}</td>
+              <td v-for="side in (['a', 'b'] as const)" :key="side">
+                <b class="block">{{ sideLabel(m[side], t) }}</b>
+                <span v-for="p in players(m, side)" :key="p.nickname" class="block text-[10px] leading-tight">{{ p.nickname }}<template v-if="p.realName"> ({{ p.realName }})</template></span>
+              </td>
               <td class="text-center">{{ m.court ?? '' }}</td>
               <td class="text-center">{{ score(m) }}</td>
             </tr>
@@ -161,7 +184,9 @@ const print = (): void => window.print()
               <tr v-for="side in (['a', 'b'] as const)" :key="side">
                 <td class="h-14">
                   <b class="block text-base">{{ sideLabel(m[side], t) }}</b>
-                  <span class="text-xs">{{ players(m, side) }}</span>
+                  <span v-for="p in players(m, side)" :key="p.nickname" class="block text-xs leading-snug">
+                    <b>{{ p.nickname }}</b><template v-if="p.realName"> · {{ p.realName }}</template>
+                  </span>
                 </td>
                 <td v-for="n in sets(m)" :key="n" />
               </tr>
