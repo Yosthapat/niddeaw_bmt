@@ -76,7 +76,14 @@ const counts = computed(() => ({
 const tabs = computed(() =>
   (picked.value?.levels ?? []).map((lv) => {
     const n = seats(lv.id)
-    return { id: lv.id, name: lv.name, badge: `${n.taken}/${lv.max_teams}${n.wait ? ` · ${t('cup.admin.waiting', { n: n.wait })}` : ''}` }
+    return {
+      id: lv.id,
+      name: lv.name,
+      min_elo: lv.min_elo,
+      max_elo: lv.max_elo,
+      badge: `${n.taken}/${lv.max_teams}`,
+      note: n.wait ? t('cup.admin.waiting', { n: n.wait }) : undefined,
+    }
   }),
 )
 function seats(levelId: string): { taken: number; wait: number } {

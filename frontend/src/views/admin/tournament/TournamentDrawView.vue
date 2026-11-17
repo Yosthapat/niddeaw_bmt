@@ -154,6 +154,8 @@ const tabs = computed(() =>
   (state.value?.levels ?? []).map((x) => ({
     id: x.level.id,
     name: x.level.name,
+    min_elo: x.level.min_elo,
+    max_elo: x.level.max_elo,
     badge: x.groups.length ? t('cup.draw.tabGroups', { n: x.groups.length }) : `${x.confirmed}/${x.level.max_teams}`,
   })),
 )
