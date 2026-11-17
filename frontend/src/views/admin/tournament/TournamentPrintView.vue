@@ -177,12 +177,12 @@ const print = (): void => window.print()
             <thead>
               <tr>
                 <th class="text-left">{{ t('cup.print.team') }}</th>
-                <th v-for="n in sets(m)" :key="n" class="w-20">{{ t('cup.day.set', { n }) }}</th>
+                <th v-for="n in sets(m)" :key="n" class="w-24">{{ t('cup.day.set', { n }) }}</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="side in (['a', 'b'] as const)" :key="side">
-                <td class="h-14">
+                <td class="h-[17mm]">
                   <b class="block text-base">{{ sideLabel(m[side], t) }}</b>
                   <span v-for="p in players(m, side)" :key="p.nickname" class="block text-xs leading-snug">
                     <b>{{ p.nickname }}</b><template v-if="p.realName"> · {{ p.realName }}</template>
@@ -192,8 +192,16 @@ const print = (): void => window.print()
               </tr>
             </tbody>
           </table>
-          <p class="mt-2 text-xs">{{ t('cup.print.winner') }} ________________________<template v-if="m.stage === 'group'"> &nbsp; {{ t('cup.print.draw') }}</template> &nbsp; {{ t('cup.day.shuttles') }} ______</p>
-          <div class="mt-6 grid grid-cols-3 gap-4 text-center text-[11px]">
+          <!-- the result: room to write, under the scores -->
+          <div class="result mt-[7mm] flex items-end gap-4 text-sm">
+            <span class="shrink-0 font-semibold">{{ t('cup.print.winner') }}</span>
+            <span class="write-line flex-1" />
+            <span v-if="m.stage === 'group'" class="shrink-0 font-semibold">{{ t('cup.print.draw') }}</span>
+            <span class="shrink-0 font-semibold">{{ t('cup.day.shuttles') }}</span>
+            <span class="write-line w-[22mm] shrink-0" />
+          </div>
+          <!-- signatures: space above each line to sign -->
+          <div class="mt-[18mm] grid grid-cols-3 gap-6 text-center text-xs">
             <p class="border-t border-black pt-1">{{ t('cup.print.umpire') }}</p>
             <p class="border-t border-black pt-1">{{ t('cup.print.captain', { team: sideLabel(m.a, t) }) }}</p>
             <p class="border-t border-black pt-1">{{ t('cup.print.captain', { team: sideLabel(m.b, t) }) }}</p>
@@ -221,6 +229,10 @@ table td {
   display: flex;
   flex-direction: column;
   gap: 10mm;
+}
+.write-line {
+  height: 9mm;
+  border-bottom: 1px solid #000;
 }
 .sheet + .sheet {
   border-top: 1px dashed #000;
