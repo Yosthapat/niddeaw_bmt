@@ -641,16 +641,19 @@ function range(min: number | null, max: number | null): string {
     0 0 18px rgb(255 108 192 / 0.8),
     0 0 2px #fff;
 }
+/* A box on the page's glow. The edge must read wherever the glow is
+   brightest, so a darker fill under it and a firmer line; no backdrop
+   blur, which iOS Safari draws with parts of a rounded border missing. */
 .t-plan {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 12px;
-  border: 1px solid rgb(255 255 255 / 0.14);
+  border: 1px solid rgb(255 255 255 / 0.22);
   border-radius: 14px;
-  background: rgb(255 255 255 / 0.06);
+  background: linear-gradient(160deg, rgb(255 255 255 / 0.08), rgb(18 6 40 / 0.5));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1);
   font-size: 14px;
-  backdrop-filter: blur(10px);
 }
 /* a champion's card: gold light from above */
 .r-podium {

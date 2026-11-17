@@ -119,7 +119,7 @@ const bannerSub = computed(() => {
           :avatar-url="profile.player.avatar_url"
           size="md"
           round
-          class="mr-1"
+          class="mt-3 mr-1"
         />
         <RouterLink to="/members" class="glass-pill"><span aria-hidden="true">←</span> {{ t('profile.backToMembers') }}</RouterLink>
         <span v-if="profile?.player.tiktok" class="glass-pill">TikTok {{ profile.player.tiktok }}</span>

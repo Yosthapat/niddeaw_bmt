@@ -65,6 +65,8 @@ const shownFrame = computed<PassFrame | null>(() => {
   position: relative;
   display: inline-flex;
   flex-shrink: 0;
+  /* never stretched by a taller row: the ring must stay round */
+  align-self: center;
   isolation: isolate;
   border-radius: 9999px;
 }
@@ -141,9 +143,11 @@ const shownFrame = computed<PassFrame | null>(() => {
 .pf-x-crown {
   position: absolute;
   z-index: 2;
-  top: -40%;
+  /* seated on the ring, not floating above it, so it reaches little
+     beyond the picture */
+  top: -30%;
   left: 50%;
-  width: 62%;
+  width: 54%;
   translate: -50% 0;
   filter: drop-shadow(0 3px 3px rgb(0 0 0 / 0.5));
 }
