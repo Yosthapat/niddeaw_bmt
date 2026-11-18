@@ -228,6 +228,10 @@ def pay_info(supabase: SupabaseDep, member: LineMemberDep) -> PaymentInfoRespons
     """The tournament's own PromptPay QR with this player's half in it."""
     row = _current(supabase)
     entry = _entry(supabase, row, _player(supabase, member))
+    lowered = ts.take_pass_off(supabase, entry)
+    if lowered is not entry:
+        tournament_cache.invalidate()
+    entry = lowered
     if not row.get("promptpay_id") or not row.get("promptpay_type"):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="ผู้จัดยังไม่ได้ตั้งบัญชีรับเงินของงาน"

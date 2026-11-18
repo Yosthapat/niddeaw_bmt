@@ -59,6 +59,9 @@ const sending = ref(false)
 const sendError = ref<string | null>(null)
 const tried = ref(false)
 const placed = ref<ShopOrder | null>(null)
+// Whom `pay` (and `quote` since step 2) was priced for: a member's id, or
+// null for a guest.
+const pricedFor = ref<string | null | undefined>(undefined)
 
 onMounted(async () => {
   // Nothing to pay for: back to the cart, which says so.
@@ -174,9 +177,17 @@ async function toPay(): Promise<void> {
   }
   step.value = 2
   window.scrollTo({ top: 0 })
-  if (pay.value) return
+  // Priced again for whoever it is for: a pass holder buying for
+  // themselves from LINE pays less than the same cart for anyone else.
+  const forWhom = mode.value === 'member' ? buyerId.value : null
+  if (pay.value && pricedFor.value === forWhom) return
+  pay.value = null
+  payError.value = null
   try {
-    pay.value = await getCartPayment(cart.lines)
+    const [q, p] = await Promise.all([quoteCart(cart.lines, forWhom), getCartPayment(cart.lines, forWhom)])
+    quote.value = q
+    pay.value = p
+    pricedFor.value = forWhom
   } catch (e) {
     payError.value = apiErrorMessage(e, t('shop.payFailed'))
   }
@@ -201,7 +212,7 @@ async function send(): Promise<void> {
       ? { guestName: guestName.value.trim(), guestPhone: phone.value ?? '' }
       : { playerId: buyerId.value ?? '' }
   try {
-    placed.value = await placeShopOrder({ buyer: who, items: cart.lines, slip: slip.value })
+    placed.value = await placeShopOrder({ buyer: who, items: cart.lines, slip: slip.value, expectedTotal: pay.value?.amount })
     cart.clear()
     step.value = 3
     window.scrollTo({ top: 0 })
@@ -242,9 +253,13 @@ async function send(): Promise<void> {
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="chev text-white/60" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
           </summary>
           <ul class="flex flex-col gap-1.5 border-t border-white/10 px-3 py-2.5 text-sm">
-            <li v-for="l in quote.lines" :key="`${l.product_id}-${l.size}`" class="flex justify-between gap-3">
-              <span class="min-w-0 truncate">{{ l.product_name }}<span v-if="l.size" class="text-white/60"> · {{ l.size }}</span> × {{ l.qty }}</span>
+            <li v-for="l in quote.lines" :key="`${l.product_id}-${l.size}-${l.print_name ?? ''}`" class="flex justify-between gap-3">
+              <span class="min-w-0 truncate">{{ l.product_name }}<span v-if="l.size" class="text-white/60"> · {{ l.size }}</span><span v-if="l.print_name" class="text-white/60"> · “{{ l.print_name }}”</span> × {{ l.qty }}</span>
               <span class="shrink-0">{{ money(l.line_total) }}</span>
+            </li>
+            <li v-if="quote.pass_applied" class="flex justify-between gap-3 text-[#ffe58a]">
+              <span>✦ Pass −5%</span>
+              <span class="shrink-0">−{{ money(quote.pass_discount) }}</span>
             </li>
           </ul>
         </details>
@@ -379,6 +394,7 @@ async function send(): Promise<void> {
             <div class="text-center">
               <p class="text-sm text-white/70">{{ t('shop.payAmount') }}</p>
               <p class="font-display text-3xl font-bold text-brand-pink-light">{{ money(pay.amount) }}</p>
+              <p v-if="quote.pass_applied" class="mt-1 text-xs text-[#ffe58a]">✦ {{ t('shop.passSaved', { amount: money(quote.subtotal - quote.total) }) }}</p>
             </div>
             <a v-if="pay.data_uri && !pay.qr_modules" :href="pay.data_uri" download="niddeaw-shop-qr.png" class="ghost">{{ t('shop.saveQr') }}</a>
           </template>
@@ -416,8 +432,11 @@ async function send(): Promise<void> {
           <span v-else class="rounded-full border border-white/20 bg-white/8 px-4 py-1.5 font-display font-bold">{{ orderNo(placed.order_no) }}</span>
           <ul class="flex w-full flex-col gap-1 text-left text-sm text-white/80">
             <li v-for="(l, i) in placed.items" :key="i" class="flex justify-between gap-3">
-              <span class="min-w-0 truncate">{{ l.product_name }}<span v-if="l.size" class="text-white/60"> · {{ l.size }}</span> × {{ l.qty }}</span>
+              <span class="min-w-0 truncate">{{ l.product_name }}<span v-if="l.size" class="text-white/60"> · {{ l.size }}</span><span v-if="l.print_name" class="text-white/60"> · “{{ l.print_name }}”</span> × {{ l.qty }}</span>
               <span class="shrink-0">{{ money(l.line_total) }}</span>
+            </li>
+            <li v-if="placed.pass_discount" class="flex justify-between gap-3 text-[#ffe58a]">
+              <span>✦ Pass −5%</span><span>−{{ money(placed.pass_discount) }}</span>
             </li>
             <li class="flex justify-between gap-3 border-t border-white/12 pt-1 font-medium">
               <span>{{ t('shop.total') }}</span><span>{{ money(placed.total) }}</span>

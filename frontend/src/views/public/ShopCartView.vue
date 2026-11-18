@@ -9,6 +9,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { quoteCart } from '@/api/public'
+import { rememberedLineToken } from '@/api/line'
 import { apiErrorMessage } from '@/api/errors'
 import type { Quote, QuoteLine } from '@/types'
 import { money } from '@/utils/format'
@@ -47,20 +48,23 @@ watch(
   { immediate: true },
 )
 
-const key = (l: { product_id: string; size: string }): string => `${l.product_id}|${l.size}`
+const key = (l: QuoteLine): string => `${l.product_id}|${l.size}|${l.print_name ?? ''}`
 const units = computed(() => cart.count)
 const canOrder = computed(() => !!quote.value?.ok && !loading.value)
+// Not from LINE: the pass discount can't be had here, so say where it is.
+const fromLine = rememberedLineToken() !== null
+const offered = computed(() => !fromLine && !quote.value?.pass_applied)
 
 function step(l: QuoteLine, by: number): void {
-  cart.setQty(l.product_id, l.size, l.qty + by)
+  cart.setQty(l.product_id, l.size, l.qty + by, l.print_name)
 }
 function maxFor(l: QuoteLine): number {
   return Math.min(MAX_LINE_QTY, l.available ?? MAX_LINE_QTY)
 }
 /** The one-tap fix a problem line offers: fewer, or out of the cart. */
 function fix(l: QuoteLine): void {
-  if (l.available && l.available > 0 && l.available < l.qty) cart.setQty(l.product_id, l.size, l.available)
-  else cart.remove(l.product_id, l.size)
+  if (l.available && l.available > 0 && l.available < l.qty) cart.setQty(l.product_id, l.size, l.available, l.print_name)
+  else cart.remove(l.product_id, l.size, l.print_name)
 }
 function fixLabel(l: QuoteLine): string {
   return l.available && l.available > 0 && l.available < l.qty ? t('shop.fixTo', { n: l.available }) : t('shop.remove')
@@ -104,10 +108,19 @@ function fixLabel(l: QuoteLine): string {
                   {{ l.product_name }}
                   <span v-if="l.size" class="ml-1 rounded-md bg-white/12 px-1.5 py-0.5 font-display text-xs">{{ l.size }}</span>
                 </p>
-                <button type="button" class="-mt-1 -mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white/60 hover:bg-white/10" :aria-label="t('shop.removeLine', { name: l.product_name, size: l.size })" @click="cart.remove(l.product_id, l.size)">✕</button>
+                <button type="button" class="-mt-1 -mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white/60 hover:bg-white/10" :aria-label="t('shop.removeLine', { name: l.product_name, size: l.size })" @click="cart.remove(l.product_id, l.size, l.print_name)">✕</button>
               </div>
               <p class="text-xs text-white/60">
                 {{ l.sale_type === 'preorder' ? t('shop.filterPreorder') + ' · ' : '' }}{{ money(l.unit_price) }} / {{ t('shop.unit') }}
+              </p>
+              <!-- the name on the back, and what printing it costs (free with a pass) -->
+              <p v-if="l.print_name" class="flex flex-wrap items-center gap-1.5 text-xs">
+                <span class="print-tag">{{ t('shop.printOnBack') }} <b>{{ l.print_name }}</b></span>
+                <template v-if="l.print_list_price > 0 && l.print_price === 0">
+                  <s class="text-white/45">+{{ money(l.print_list_price) }}</s>
+                  <span class="font-bold text-[#ffe58a]">{{ t('shop.printFreePass') }}</span>
+                </template>
+                <span v-else-if="l.print_price > 0" class="text-white/60">+{{ money(l.print_price) }} / {{ t('shop.unit') }}</span>
               </p>
               <p v-if="l.problem" class="flex flex-wrap items-center gap-2 text-xs text-status-error">
                 {{ l.problem }}
@@ -125,11 +138,21 @@ function fixLabel(l: QuoteLine): string {
           </li>
         </ul>
 
+        <!-- the pass, taken off the whole order -->
+        <div v-if="quote?.pass_applied" class="pass-row mt-3">
+          <span class="pass-chip">✦ Pass −5%</span>
+          <span class="flex-1 text-xs text-white/70">{{ t('shop.passApplied') }}</span>
+          <span class="font-display font-bold text-[#ffe58a]">−{{ money(quote.pass_discount) }}</span>
+        </div>
+        <p v-else-if="offered" class="mt-3 text-xs text-white/55">✦ {{ t('shop.passOffer') }}</p>
+
         <!-- desktop: the total under the lines -->
         <div class="mt-5 hidden items-center justify-between gap-4 md:flex">
           <div>
             <p class="text-sm text-white/65">{{ t('shop.totalUnits', { n: units }) }}</p>
-            <p class="font-display text-3xl font-bold text-brand-pink-light">{{ money(quote?.total ?? 0) }}</p>
+            <p class="font-display text-3xl font-bold text-brand-pink-light">
+              <s v-if="quote?.pass_discount" class="mr-1.5 text-lg font-normal text-white/45">{{ money(quote.subtotal) }}</s>{{ money(quote?.total ?? 0) }}
+            </p>
           </div>
           <button type="button" class="cta min-w-64" :disabled="!canOrder" @click="router.push('/shop/checkout')">
             {{ quote && !quote.ok ? t('shop.fixFirst') : t('shop.checkout') }}
@@ -140,7 +163,9 @@ function fixLabel(l: QuoteLine): string {
         <div class="fixed inset-x-0 bottom-[calc(96px+env(safe-area-inset-bottom,0px))] z-20 flex items-center gap-3 border-t border-white/8 bg-[#0b0518]/95 px-4 py-3 backdrop-blur md:hidden">
           <div class="flex flex-col">
             <span class="text-xs text-white/65">{{ t('shop.totalUnits', { n: units }) }}</span>
-            <span class="font-display text-lg font-bold whitespace-nowrap">{{ money(quote?.total ?? 0) }}</span>
+            <span class="font-display text-lg font-bold whitespace-nowrap">
+              <s v-if="quote?.pass_discount" class="mr-1 text-xs font-normal text-white/45">{{ money(quote.subtotal) }}</s>{{ money(quote?.total ?? 0) }}
+            </span>
           </div>
           <button type="button" class="cta flex-1" :disabled="!canOrder" @click="router.push('/shop/checkout')">
             {{ quote && !quote.ok ? t('shop.fixFirst') : t('shop.checkout') }}
@@ -152,6 +177,31 @@ function fixLabel(l: QuoteLine): string {
 </template>
 
 <style scoped>
+.print-tag {
+  border-radius: 6px;
+  background: rgb(255 255 255 / 0.1);
+  padding: 2px 6px;
+  color: rgb(255 255 255 / 0.8);
+}
+.pass-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgb(255 225 77 / 0.4);
+  border-radius: 16px;
+  background: linear-gradient(120deg, rgb(255 207 63 / 0.14), rgb(255 255 255 / 0.03));
+  padding: 10px 12px;
+}
+.pass-chip {
+  flex: none;
+  border-radius: 999px;
+  background: linear-gradient(#ffe58a, #f2c14e);
+  padding: 3px 9px;
+  color: #3a2600;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+}
 .qty-btn {
   width: 36px;
   height: 36px;

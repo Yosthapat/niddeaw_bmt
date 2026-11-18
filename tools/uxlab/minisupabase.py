@@ -87,7 +87,9 @@ DEFAULTS: dict[str, Row] = {
     "admin_activity_log": {"detail": None, "area": "club"},
     "products": {"description": None, "sizes": [], "preorder_closes_on": None,
                  "preorder_delivers_on": None, "image_urls": [], "is_active": True,
-                 "sort_order": 0, "size_prices": {}},
+                 "sort_order": 0, "size_prices": {}, "name_print_price": None},
+    "shop_order_items": {"print_name": None, "print_price": 0},
+    "tournament_entrants": {"pass_off": 0},
     "credit_packages": {"is_active": True, "sort_order": 0},
     "credit_topups": {"status": "pending", "slip_url": None, "slip_sent_at": None, "note": None,
                       "decided_at": None},
@@ -96,7 +98,7 @@ DEFAULTS: dict[str, Row] = {
     "player_badges": {"seen_at": None},
     "quest_settings": {"monthly_target": 20, "synced_key": None},
     "shop_orders": {"status": "pending", "note": None, "player_id": None, "guest_name": None,
-                    "guest_phone": None},
+                    "guest_phone": None, "pass_discount": 0},
 }
 
 

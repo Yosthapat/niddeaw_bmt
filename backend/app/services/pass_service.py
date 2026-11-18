@@ -7,10 +7,15 @@ credit not yet spent: credit_card_service) can buy one.
 
 While it runs, its holder:
 - may name up to BLOCKS_PER_NIGHT members a night not to be partnered with.
-  They can still meet across the net, and nobody else sees the list.
+  They can still meet across the net, and nobody else sees the list;
+- pays SHOP_OFF_PERCENT less for a shop order, and nothing to have a name
+  printed on a shirt, when ordering for themselves from LINE
+  (routers/public/shop.py);
+- pays CUP_OFF_PERCENT less to enter a tournament (tournament_service).
 """
 
 from datetime import UTC, datetime, timedelta
+from decimal import ROUND_FLOOR, Decimal
 from typing import Any
 from uuid import UUID
 
@@ -23,6 +28,8 @@ from app.services import credit_card_service, credit_service, line_checkin
 PASS_DAYS = 30
 DEFAULT_PRICE = 249
 BLOCKS_PER_NIGHT = 2
+SHOP_OFF_PERCENT = 5
+CUP_OFF_PERCENT = 5
 
 
 def _iso(when: datetime) -> str:
@@ -62,6 +69,17 @@ def runs_until(supabase: Client, player_id: UUID | str, at: datetime | None = No
             if start <= last < end:
                 last, moved = end, True
     return last
+
+
+def holds(supabase: Client, player_id: UUID | str | None, at: datetime | None = None) -> bool:
+    """Whether they have a pass running at `at` (now by default)."""
+    return player_id is not None and runs_until(supabase, player_id, at) is not None
+
+
+def percent_off(amount: float, percent: int) -> int:
+    """Whole baht off `amount`, a half rounding up: 5% of 350 is 18."""
+    exact = Decimal(str(amount)) * percent / 100
+    return int((exact + Decimal("0.5")).to_integral_value(ROUND_FLOOR))
 
 
 def holders(supabase: Client, at: datetime | None = None) -> set[str]:

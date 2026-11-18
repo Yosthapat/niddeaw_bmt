@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, StringConstraints, model_validator
 
-from app.models.fields import EditForm, Name, PositiveBaht
+from app.models.fields import Baht, EditForm, Name, PositiveBaht
 
 SaleType = Literal["stock", "preorder"]
 OrderStatus = Literal["pending", "confirmed", "delivered", "rejected"]
@@ -20,6 +20,8 @@ MAX_IMAGES = 4
 MAX_SIZES = 16
 MAX_CART_LINES = 20
 MAX_LINE_QTY = 10
+MAX_PRINT_NAME = 20
+"""Letters on the back of a shirt: a nickname, not a sentence."""
 
 
 MAX_CAPTIONS = 3
@@ -76,6 +78,9 @@ class ProductFields(EditForm):
     size_prices: dict[str, PositiveBaht] | None = None
     is_active: bool | None = None
     cinema: Cinema | None = None
+    # What printing a name on the back costs per piece; null: this product
+    # can't have one.
+    name_print_price: Baht | None = None
 
     @model_validator(mode="after")
     def _distinct_sizes(self) -> Self:
@@ -131,6 +136,8 @@ class Product(BaseModel):
     open: bool = True
     """Can be ordered right now: active, and either in stock or a
     pre-order that hasn't closed."""
+    name_print_price: float | None = None
+    """What a name printed on the back costs per piece; None: no printing."""
 
 
 class OrderItem(BaseModel):
@@ -142,6 +149,9 @@ class OrderItem(BaseModel):
     qty: int
     unit_price: float
     line_total: float
+    print_name: str | None = None
+    print_price: float = 0
+    """Per piece, as charged: 0 for a pass holder's free printing."""
 
 
 class OrderPublic(BaseModel):
@@ -151,6 +161,8 @@ class OrderPublic(BaseModel):
     order_no: int
     items: list[OrderItem]
     total: float
+    pass_discount: float = 0
+    """Baht off for the buyer's Niddeaw Pass; total is already less it."""
     status: OrderStatus
     note: str | None = None
     created_at: datetime
@@ -186,14 +198,28 @@ class OrderDelete(BaseModel):
     password: Annotated[str, StringConstraints(min_length=1, max_length=200)]
 
 
+PrintName = Annotated[str, StringConstraints(strip_whitespace=True, max_length=MAX_PRINT_NAME)]
+
+
 class CartLine(BaseModel):
     product_id: UUID
     size: Annotated[str, StringConstraints(strip_whitespace=True, max_length=12)] = ONE_SIZE
     qty: Annotated[int, Field(ge=1, le=MAX_LINE_QTY)]
+    print_name: PrintName | None = None
+    """A name for the back, on a product that prints one; blank: none."""
+
+    @model_validator(mode="after")
+    def _blank_is_none(self) -> Self:
+        if not self.print_name:
+            self.print_name = None
+        return self
 
 
 class Cart(BaseModel):
     items: list[CartLine] = Field(min_length=1, max_length=MAX_CART_LINES)
+    buyer_id: UUID | None = None
+    """Who the order is for, when the page knows: a pass discount is only
+    for a holder buying for themselves."""
 
 
 class QuoteLine(BaseModel):
@@ -210,10 +236,22 @@ class QuoteLine(BaseModel):
     the cart shows it beside the line. None when it's fine."""
     available: int | None = None
     """For a stock line: how many of that size are left."""
+    print_name: str | None = None
+    print_price: float = 0
+    """Per piece, as it will be charged (0 when the pass makes it free)."""
+    print_list_price: float = 0
+    """Per piece before the pass: what the cart strikes through."""
 
 
 class Quote(BaseModel):
     lines: list[QuoteLine]
+    subtotal: float = 0
+    """The lines that can be bought, before the pass."""
+    pass_discount: float = 0
+    """Baht off for the buyer's Niddeaw Pass."""
+    pass_applied: bool = False
+    """The buyer holds a pass and is ordering for themselves from LINE:
+    5% off and free name printing."""
     total: float
     ok: bool
     """Every line can be bought as it is."""
@@ -231,12 +269,20 @@ class OrderUpdate(BaseModel):
     note: Annotated[str, StringConstraints(strip_whitespace=True, max_length=300)] | None = None
 
 
+class PrintNameCount(BaseModel):
+    size: str
+    name: str
+    qty: int
+
+
 class PreorderTally(BaseModel):
     product_id: UUID
     name: str
     preorder_closes_on: date | None
     by_size: dict[str, int]
     total: int
+    print_names: list[PrintNameCount] = []
+    """The names to print on the back, oldest order first."""
 
 
 class ShopRevenueDay(BaseModel):

@@ -9,6 +9,13 @@ import type { CartLine } from '@/types'
 const STORAGE_KEY = 'niddeaw_shop_cart'
 export const MAX_LINE_QTY = 10
 export const MAX_LINES = 20
+export const MAX_PRINT_NAME = 20
+
+/** A printed name as the cart keeps it: trimmed, and blank is none. */
+export function printName(name: string | null | undefined): string | null {
+  const trimmed = (name ?? '').trim().slice(0, MAX_PRINT_NAME)
+  return trimmed || null
+}
 
 function read(): CartLine[] {
   try {
@@ -19,6 +26,7 @@ function read(): CartLine[] {
         (l): l is CartLine =>
           !!l && typeof l.product_id === 'string' && typeof l.size === 'string' && Number.isInteger(l.qty) && l.qty > 0,
       )
+      .map((l) => ({ ...l, print_name: typeof l.print_name === 'string' ? printName(l.print_name) : null }))
       .slice(0, MAX_LINES)
   } catch {
     return []
@@ -42,14 +50,17 @@ export const useCartStore = defineStore('cart', () => {
 
   const count = computed(() => lines.value.reduce((n, l) => n + l.qty, 0))
 
-  function find(productId: string, size: string): CartLine | undefined {
-    return lines.value.find((l) => l.product_id === productId && l.size === size)
+  // A line is a product, a size and the name printed on it (if any): the
+  // same shirt with two names is two lines.
+  function find(productId: string, size: string, name: string | null = null): CartLine | undefined {
+    const n = printName(name)
+    return lines.value.find((l) => l.product_id === productId && l.size === size && (l.print_name ?? null) === n)
   }
 
-  /** Add `qty` of one size; the same size again tops up its line. Returns
-   *  how many were actually added (a line holds ten at most). */
-  function add(productId: string, size: string, qty: number): number {
-    const line = find(productId, size)
+  /** Add `qty` of one size; the same size (and name) again tops up its
+   *  line. Returns how many were actually added (a line holds ten at most). */
+  function add(productId: string, size: string, qty: number, name: string | null = null): number {
+    const line = find(productId, size, name)
     if (line) {
       const room = MAX_LINE_QTY - line.qty
       const added = Math.max(0, Math.min(room, qty))
@@ -58,17 +69,18 @@ export const useCartStore = defineStore('cart', () => {
     }
     if (lines.value.length >= MAX_LINES) return 0
     const added = Math.min(MAX_LINE_QTY, qty)
-    lines.value.push({ product_id: productId, size, qty: added })
+    lines.value.push({ product_id: productId, size, qty: added, print_name: printName(name) })
     return added
   }
 
-  function setQty(productId: string, size: string, qty: number): void {
-    const line = find(productId, size)
+  function setQty(productId: string, size: string, qty: number, name: string | null = null): void {
+    const line = find(productId, size, name)
     if (line) line.qty = Math.max(1, Math.min(MAX_LINE_QTY, qty))
   }
 
-  function remove(productId: string, size: string): void {
-    lines.value = lines.value.filter((l) => !(l.product_id === productId && l.size === size))
+  function remove(productId: string, size: string, name: string | null = null): void {
+    const gone = find(productId, size, name)
+    lines.value = lines.value.filter((l) => l !== gone)
   }
 
   function clear(): void {

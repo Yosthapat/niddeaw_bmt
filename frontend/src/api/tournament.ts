@@ -217,6 +217,8 @@ export interface Entrant {
   elo_level: string | null
   elo: number | null
   share: number
+  /** baht off for their Niddeaw Pass; share is already less it */
+  pass_off?: number
   pay_status: PayStatus
   paid_via: PaidVia | null
   slip_url: string | null

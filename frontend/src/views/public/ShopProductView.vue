@@ -7,10 +7,11 @@ import { apiErrorMessage } from '@/api/errors'
 import type { Product } from '@/types'
 import { priceOf, priceRange } from '@/types'
 import { formatDayMonth, money } from '@/utils/format'
-import { useCartStore, MAX_LINE_QTY } from '@/stores/cart'
+import { useCartStore, MAX_LINE_QTY, printName } from '@/stores/cart'
 import { BADGE_CLASS, productBadge } from '@/components/shop/productBadge'
 import ProductGallery from '@/components/shop/ProductGallery.vue'
 import CartLink from '@/components/shop/CartLink.vue'
+import PrintNameField from '@/components/shop/PrintNameField.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 
 const route = useRoute()
@@ -22,6 +23,8 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const size = ref('')
 const qty = ref(1)
+// the name for the back, on a product that prints one; blank: none
+const nameOnBack = ref('')
 const sizesBox = ref<HTMLElement | null>(null)
 const nudge = ref(false)
 const added = ref<string | null>(null)
@@ -52,7 +55,15 @@ const hasSizes = computed(() => (product.value?.sizes.length ?? 0) > 0)
 const chosenSize = computed(() => (hasSizes.value ? size.value : ''))
 const sizePicked = computed(() => !hasSizes.value || !!size.value)
 const left = (s: string): number => (isPre.value ? Infinity : (product.value?.stock[s] ?? 0))
-const inCart = (s: string): number => (product.value ? (cart.find(product.value.id, s)?.qty ?? 0) : 0)
+// What the cart has of a size, whatever names are on them (they share the
+// shelf), and of this very line (a line holds ten at most).
+const inCart = (s: string): number =>
+  product.value ? cart.lines.filter((l) => l.product_id === product.value!.id && l.size === s).reduce((n, l) => n + l.qty, 0) : 0
+const inLine = (s: string): number => (product.value ? (cart.find(product.value.id, s, printingName.value)?.qty ?? 0) : 0)
+const prints = computed(() => product.value?.name_print_price != null)
+const printingName = computed(() => (prints.value ? printName(nameOnBack.value) : null))
+// what one piece costs with its name printed (before any pass)
+const printEach = computed(() => (printingName.value ? (product.value?.name_print_price ?? 0) : 0))
 // Sizes that cost differently show their price on their button.
 const pricesDiffer = computed(() => {
   const p = product.value
@@ -74,7 +85,7 @@ const priceLabel = computed(() => {
 const maxQty = computed(() => {
   if (!sizePicked.value) return MAX_LINE_QTY
   const s = chosenSize.value
-  return Math.max(0, Math.min(MAX_LINE_QTY, left(s)) - inCart(s))
+  return Math.max(0, Math.min(MAX_LINE_QTY - inLine(s), left(s) - inCart(s)))
 })
 watch(maxQty, (m) => {
   if (qty.value > m) qty.value = Math.max(1, m)
@@ -124,7 +135,7 @@ function addToCart(): boolean {
     return false
   }
   if (blocker.value) return false
-  const n = cart.add(p.id, chosenSize.value, qty.value)
+  const n = cart.add(p.id, chosenSize.value, qty.value, printingName.value)
   if (n < 1) return false
   added.value = chosenSize.value ? t('shop.addedSize', { size: chosenSize.value, n }) : t('shop.addedOne', { n })
   clearTimeout(addedTimer)
@@ -206,7 +217,7 @@ const goLabel = computed(() => {
   if (blocker.value) return blocker.value
   if (!sizePicked.value) return t('shop.needSize')
   const what = hasSizes.value ? `${chosenSize.value} × ${qty.value}` : `× ${qty.value}`
-  return `${isPre.value ? t('shop.orderPreorder') : t('shop.buyNow')} ${what} · ${baht(price.value * qty.value)}`
+  return `${isPre.value ? t('shop.orderPreorder') : t('shop.buyNow')} ${what} · ${baht((price.value + printEach.value) * qty.value)}`
 })
 // a landscape photo (a poster, a flat lay) takes the whole row at its own
 // shape, so it is shown whole instead of shrunk inside a portrait frame
@@ -382,6 +393,7 @@ onBeforeUnmount(() => seen?.disconnect())
                 <template v-else>{{ t('shop.cineFitHint') }}</template>
               </span>
             </fieldset>
+            <PrintNameField v-if="prints" v-model="nameOnBack" :price="product.name_print_price ?? 0" />
             <div class="flex items-end justify-between gap-3">
               <div class="flex flex-col gap-2">
                 <span class="office-label">{{ t('shop.qty') }}</span>
@@ -393,7 +405,7 @@ onBeforeUnmount(() => seen?.disconnect())
               </div>
               <div class="text-right">
                 <span class="office-label">{{ t('shop.total') }}</span>
-                <div class="office-total">{{ sizePicked ? baht(price * qty) : '—' }}</div>
+                <div class="office-total">{{ sizePicked ? baht((price + printEach) * qty) : '—' }}</div>
               </div>
             </div>
             <p v-if="sizePicked && inCart(chosenSize) > 0" class="text-right text-xs text-white/60">{{ t('shop.inCartAlready', { n: inCart(chosenSize) }) }}</p>
@@ -459,6 +471,8 @@ onBeforeUnmount(() => seen?.disconnect())
             </div>
           </fieldset>
 
+          <PrintNameField v-if="prints" v-model="nameOnBack" :price="product.name_print_price ?? 0" />
+
           <div class="flex items-center justify-between">
             <span class="text-sm font-medium">{{ t('shop.qty') }}</span>
             <div class="flex items-center gap-2.5">
@@ -476,7 +490,7 @@ onBeforeUnmount(() => seen?.disconnect())
 
           <!-- desktop: the buttons sit under the choices -->
           <div class="hidden items-center gap-3 md:flex">
-            <span class="font-display text-xl font-bold">{{ sizePicked ? money(price * qty) : priceLabel }}</span>
+            <span class="font-display text-xl font-bold">{{ sizePicked ? money((price + printEach) * qty) : priceLabel }}</span>
             <button type="button" class="ghost-btn flex-1" :disabled="!!blocker" @click="addToCart">
               {{ blocker ?? (sizePicked ? t('shop.addToCart') : t('shop.needSize')) }}
             </button>
@@ -516,7 +530,7 @@ onBeforeUnmount(() => seen?.disconnect())
           <span class="truncate text-xs text-white/65">
             {{ hasSizes ? t('shop.summary', { size: size || '—', qty }) : t('shop.summaryOne', { qty }) }}
           </span>
-          <span class="font-display text-lg font-bold whitespace-nowrap">{{ sizePicked ? money(price * qty) : priceLabel }}</span>
+          <span class="font-display text-lg font-bold whitespace-nowrap">{{ sizePicked ? money((price + printEach) * qty) : priceLabel }}</span>
         </div>
         <template v-if="blocker">
           <button type="button" class="buy-btn flex-1" disabled>{{ blocker }}</button>

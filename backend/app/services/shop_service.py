@@ -65,6 +65,26 @@ def ordered_by_product(supabase: Client, product_ids: list[str]) -> dict[str, di
     return out
 
 
+def print_names_by_product(supabase: Client, product_ids: list[str]) -> dict[str, list[dict[str, Any]]]:
+    """The names to print per product, as (size, name, qty), from orders
+    that weren't refused: what the printer needs beside the size count."""
+    if not product_ids:
+        return {}
+    items = [
+        i
+        for i in rows(supabase.table("shop_order_items").select("*").in_("product_id", product_ids).execute())
+        if i.get("print_name") and str(i.get("product_id")) in product_ids
+    ]
+    live = live_order_ids(supabase, sorted({str(i["order_id"]) for i in items}))
+    out: dict[str, list[dict[str, Any]]] = {}
+    for item in sorted(items, key=lambda i: str(i.get("created_at") or "")):
+        if str(item["order_id"]) in live:
+            out.setdefault(str(item["product_id"]), []).append(
+                {"size": item["size"], "name": item["print_name"], "qty": int(item["qty"])}
+            )
+    return out
+
+
 def items_by_order(supabase: Client, order_ids: list[str]) -> dict[str, list[dict[str, Any]]]:
     if not order_ids:
         return {}

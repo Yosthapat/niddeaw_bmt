@@ -28,6 +28,7 @@ from fastapi import HTTPException, status
 from supabase import Client
 
 from app.db_utils import rows
+from app.services import pass_service
 
 TOURNAMENTS = "tournaments"
 LEVELS = "tournament_levels"
@@ -85,6 +86,28 @@ def shares(tournament: dict[str, Any]) -> tuple[int, int]:
     set; the captain pays the odd baht."""
     total = int(tournament["entry_fee"]) + int(tournament["shuttle_fee"])
     return total - total // 2, total // 2
+
+
+def pass_share(supabase: Client, player_id: str, share: int) -> tuple[int, int]:
+    """(what they pay, baht off): CUP_OFF_PERCENT less for a Niddeaw Pass
+    holder."""
+    if share <= 0 or not pass_service.holds(supabase, player_id):
+        return share, 0
+    off = pass_service.percent_off(share, pass_service.CUP_OFF_PERCENT)
+    return share - off, off
+
+
+def take_pass_off(supabase: Client, entry: dict[str, Any]) -> dict[str, Any]:
+    """A pass bought after signing up still counts while they haven't paid
+    yet: their share drops before they see the QR. Returns the entry as it
+    now is; the caller drops the tournament cache when it changed."""
+    if entry.get("pay_status") != "unpaid" or int(entry.get("pass_off") or 0) > 0:
+        return entry
+    share, off = pass_share(supabase, str(entry["player_id"]), int(entry["share"]))
+    if not off:
+        return entry
+    supabase.table(ENTRANTS).update({"share": share, "pass_off": off}).eq("id", str(entry["id"])).execute()
+    return {**entry, "share": share, "pass_off": off}
 
 
 def in_level(elo: int, level: dict[str, Any]) -> bool:
@@ -505,10 +528,11 @@ def create_team(
             "created_at": iso(moment),
         }
     ).execute()
-    for role, (player, details), share in (
+    for role, (player, details), full in (
         ("captain", captain, cap_share),
         ("partner", partner, partner_share),
     ):
+        share, off = pass_share(supabase, str(player["id"]), full)
         supabase.table(ENTRANTS).insert(
             {
                 "id": str(uuid4()),
@@ -532,6 +556,8 @@ def create_team(
                 "refund_slip_url": None,
                 "refunded_at": None,
                 "created_at": iso(moment),
+                # only when there is one, so sign-up works before 0051
+                **({"pass_off": off} if off else {}),
             }
         ).execute()
     return team_id

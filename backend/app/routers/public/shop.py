@@ -6,11 +6,11 @@ from time import monotonic
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Form, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Form, Header, HTTPException, Request, UploadFile, status
 from pydantic import ValidationError
 
 from app.db_utils import rows
-from app.deps import SupabaseDep
+from app.deps import SupabaseDep, line_member_or_none
 from app.models.payment import PaymentInfoResponse
 from app.models.shop import (
     MAX_LINE_QTY,
@@ -23,7 +23,13 @@ from app.models.shop import (
     phone_digits,
     unit_price,
 )
-from app.services import login_throttle, payment_info_service, shop_service, slip_check
+from app.services import (
+    login_throttle,
+    pass_service,
+    payment_info_service,
+    shop_service,
+    slip_check,
+)
 from app.services.image_service import resize_jpeg
 
 router = APIRouter(prefix="/api/shop", tags=["public-shop"])
@@ -86,29 +92,64 @@ def get_product(product_id: UUID, supabase: SupabaseDep) -> Product:
     return Product.model_validate(shop_service.hydrate(supabase, [_product_row(supabase, product_id)])[0])
 
 
-def build_quote(supabase: SupabaseDep, cart: Cart) -> Quote:
+LineToken = Annotated[str | None, Header(alias="X-Line-Token")]
+"""The /line session token, sent by a page that came from the club's LINE
+page: who is buying, for the pass discount. The shop works without it."""
+
+
+def pass_buyer(supabase: SupabaseDep, token: str | None, buyer_id: UUID | None) -> str | None:
+    """The member this LINE token is for, when they hold a pass and the
+    order is theirs (`buyer_id` is them, or not known yet) — None
+    otherwise, and for a missing or expired token."""
+    member = line_member_or_none(token)
+    if member is None:
+        return None
+    linked = rows(
+        supabase.table("players")
+        .select("id")
+        .eq("line_user_id", member.line_user_id)
+        .eq("is_active", True)
+        .limit(1)
+        .execute()
+    )
+    if not linked:
+        return None
+    pid = str(linked[0]["id"])
+    if buyer_id is not None and str(buyer_id) != pid:
+        return None
+    return pid if pass_service.holds(supabase, pid) else None
+
+
+def build_quote(supabase: SupabaseDep, cart: Cart, holder: str | None = None) -> Quote:
     """Price a cart from the products as they are now, and say of each line
     whether it can still be bought — the cart page draws this, and placing
-    the order trusts nothing else. The same product and size twice is one
-    line."""
-    merged: dict[tuple[str, str], int] = {}
+    the order trusts nothing else. The same product, size and printed name
+    twice is one line.
+
+    `holder` (pass_buyer) is a pass holder buying for themselves: names
+    are printed for nothing and the whole order is SHOP_OFF_PERCENT less."""
+    merged: dict[tuple[str, str, str | None], int] = {}
     for line in cart.items:
-        key = (str(line.product_id), line.size)
+        key = (str(line.product_id), line.size, line.print_name)
         merged[key] = merged.get(key, 0) + line.qty
-    ids = sorted({pid for pid, _ in merged})
+    ids = sorted({pid for pid, _, _ in merged})
     result = supabase.table("products").select("*").in_("id", ids).execute()
     found = {str(p["id"]): p for p in shop_service.hydrate(supabase, [r for r in rows(result) if str(r["id"]) in ids])}
     lines: list[QuoteLine] = []
-    for (pid, size), qty in merged.items():
+    for (pid, size, print_name), qty in merged.items():
         product = found.get(pid)
         if product is None or not product.get("is_active"):
             lines.append(
                 QuoteLine(
                     product_id=UUID(pid), product_name="สินค้านี้", sale_type="stock", size=size, qty=qty,
                     unit_price=0, line_total=0, problem="ไม่ขายแล้ว — เอาออกจากตะกร้า",
+                    print_name=print_name,
                 )
             )
             continue
+        print_at = product.get("name_print_price")
+        print_list = float(print_at) if print_name and print_at is not None else 0.0
+        print_charged = 0.0 if holder else print_list
         sizes: list[str] = list(product["sizes"])
         if not sizes:
             size = ONE_SIZE
@@ -117,6 +158,8 @@ def build_quote(supabase: SupabaseDep, cart: Cart) -> Quote:
         available: int | None = None
         if sizes and size not in sizes:
             problem = "ไม่มีไซส์นี้แล้ว — เลือกใหม่"
+        elif print_name and print_at is None:
+            problem = "สินค้านี้สกรีนชื่อไม่ได้แล้ว — เอาชื่อออก"
         elif qty > MAX_LINE_QTY:
             problem = f"สั่งได้สูงสุด {MAX_LINE_QTY} ตัวต่อไซส์"
         elif product["sale_type"] == "preorder":
@@ -133,30 +176,43 @@ def build_quote(supabase: SupabaseDep, cart: Cart) -> Quote:
             QuoteLine(
                 product_id=UUID(pid), product_name=product["name"], image_url=images[0] if images else None,
                 sale_type=product["sale_type"], size=size, qty=qty, unit_price=price,
-                line_total=round(price * qty, 2), problem=problem, available=available,
+                line_total=round((price + print_charged) * qty, 2), problem=problem, available=available,
+                print_name=print_name, print_price=print_charged, print_list_price=print_list,
             )
         )
+    subtotal = round(sum(line.line_total for line in lines if not line.problem), 2)
+    discount = pass_service.percent_off(subtotal, pass_service.SHOP_OFF_PERCENT) if holder else 0
     return Quote(
         lines=lines,
-        total=round(sum(line.line_total for line in lines if not line.problem), 2),
+        subtotal=subtotal,
+        pass_discount=discount,
+        pass_applied=holder is not None,
+        total=round(subtotal - discount, 2),
         ok=all(line.problem is None for line in lines),
     )
 
 
 @router.post("/quote", response_model=Quote)
-def quote(cart: Cart, supabase: SupabaseDep) -> Quote:
-    return build_quote(supabase, cart)
+def quote(cart: Cart, supabase: SupabaseDep, x_line_token: LineToken = None) -> Quote:
+    return build_quote(supabase, cart, pass_buyer(supabase, x_line_token, cart.buyer_id))
 
 
 @router.post("/payment", response_model=PaymentInfoResponse)
-def payment_for(cart: Cart, supabase: SupabaseDep) -> PaymentInfoResponse:
+def payment_for(
+    cart: Cart, supabase: SupabaseDep, x_line_token: LineToken = None
+) -> PaymentInfoResponse:
     """How to pay for this cart: the club's PromptPay QR with the total in
     it (or whatever method Settings has). The total comes from the products'
     prices here, never from the page."""
-    priced = build_quote(supabase, cart)
+    priced = build_quote(supabase, cart, pass_buyer(supabase, x_line_token, cart.buyer_id))
     if not priced.ok:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_first_problem(priced))
     return payment_info_service.payment_info(supabase, priced.total)
+
+
+LOST_PASS = (
+    "เข้าผ่าน LINE หมดเวลา ส่วนลด Pass เลยหาย — เปิดร้านจากหน้า LINE ของก๊วนอีกครั้ง แล้วส่งสลิปเดิมได้เลย"
+)
 
 
 def _first_problem(priced: Quote) -> str:
@@ -174,23 +230,38 @@ async def place_order(
     player_id: Annotated[UUID | None, Form()] = None,
     guest_name: Annotated[str | None, Form(max_length=200)] = None,
     guest_phone: Annotated[str | None, Form(max_length=40)] = None,
+    expected_total: Annotated[float | None, Form(ge=0)] = None,
+    x_line_token: LineToken = None,
 ) -> OrderPublic:
     """A whole cart as one order, with the slip of the one transfer just
     made. It waits as 'pending' until an admin checks it.
 
     Bought either by a member (`player_id`) or by someone from outside the
     club, who gives a name and a phone number instead (`guest_name`,
-    `guest_phone`) — one or the other, never both."""
+    `guest_phone`) — one or the other, never both.
+
+    `expected_total` is what the page showed and the slip paid: if the
+    order now comes to something else (a price changed, or the LINE
+    sign-in that gave the pass discount ran out) it is refused rather than
+    written for an amount nobody transferred."""
     _throttle(request)
     try:
         cart = Cart.model_validate({"items": json.loads(items)})
     except (ValueError, ValidationError):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="ตะกร้าว่าง หรือข้อมูลไม่ถูกต้อง") from None
-    priced = build_quote(supabase, cart)
+    buyer = _buyer(supabase, player_id, guest_name, guest_phone)
+    holder = pass_buyer(supabase, x_line_token, player_id) if player_id is not None else None
+    priced = build_quote(supabase, cart, holder)
     if not priced.ok:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_first_problem(priced))
-
-    buyer = _buyer(supabase, player_id, guest_name, guest_phone)
+    if expected_total is not None and abs(expected_total - priced.total) >= 0.01:
+        lost_pass = (
+            holder is None and x_line_token is not None and line_member_or_none(x_line_token) is None
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=LOST_PASS if lost_pass else f"ยอดเปลี่ยนเป็น {priced.total:,.2f} บาท — ดูตะกร้าอีกครั้งก่อนโอน",
+        )
 
     contents = await file.read(MAX_SLIP_BYTES + 1)  # never more than one byte past the limit
     if len(contents) > MAX_SLIP_BYTES:
@@ -202,10 +273,13 @@ async def place_order(
     except ValueError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported image type") from None
 
+    # The new columns (0051) only when they say something, so an order
+    # still goes in on a database that hasn't had that migration yet.
     lines: list[dict[str, Any]] = [
         {
             "product_id": str(line.product_id), "product_name": line.product_name, "sale_type": line.sale_type,
             "size": line.size, "qty": line.qty, "unit_price": line.unit_price, "line_total": line.line_total,
+            **({"print_name": line.print_name, "print_price": line.print_price} if line.print_name else {}),
         }
         for line in priced.lines
     ]
@@ -226,7 +300,14 @@ async def place_order(
         slip_url: str = bucket.get_public_url(path)
         order = rows(
             supabase.table("shop_orders")
-            .insert({**buyer, "total": priced.total, "slip_url": slip_url})
+            .insert(
+                {
+                    **buyer,
+                    "total": priced.total,
+                    "slip_url": slip_url,
+                    **({"pass_discount": priced.pass_discount} if priced.pass_discount else {}),
+                }
+            )
             .execute()
         )[0]
         order_id = str(order["id"])
