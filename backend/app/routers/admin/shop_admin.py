@@ -20,6 +20,7 @@ from app.models.shop import (
     OrderStatus,
     OrderUpdate,
     PreorderTally,
+    PrintNameCount,
     Product,
     ProductCreate,
     ProductFields,
@@ -27,7 +28,7 @@ from app.models.shop import (
     unit_price,
 )
 from app.security import verify_password
-from app.services import login_throttle, shop_revenue, shop_service
+from app.services import login_throttle, pass_service, shop_revenue, shop_service
 from app.services.image_service import resize_jpeg, storage_path_from_url
 
 router = APIRouter(prefix="/api/admin/shop", tags=["admin-shop"])
@@ -445,7 +446,11 @@ def update_order_item(
     if size == line["size"] and qty == int(line["qty"]):
         raise _bad("No fields to update")
     if size != line["size"] and any(
-        str(x.get("product_id")) == str(line["product_id"]) and x["size"] == size for x in lines if x is not line
+        str(x.get("product_id")) == str(line["product_id"])
+        and x["size"] == size
+        and x.get("print_name") == line.get("print_name")
+        for x in lines
+        if x is not line
     ):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -467,13 +472,21 @@ def update_order_item(
         else:
             shop_service.give_back(supabase, pid, size, int(line["qty"]) - qty)
 
+    # A printed name keeps the printing price it was bought at (free for a
+    # pass holder), and a pass discount is taken again off the new sum.
     price = unit_price(product, size)
-    changes = {"size": size, "qty": qty, "unit_price": price, "line_total": round(price * qty, 2)}
+    printing = float(line.get("print_price") or 0)
+    line_total = round((price + printing) * qty, 2)
+    changes = {"size": size, "qty": qty, "unit_price": price, "line_total": line_total}
     supabase.table("shop_order_items").update(changes).eq("id", str(item_id)).execute()
-    total = round(sum(float(changes["line_total"]) if x is line else float(x["line_total"]) for x in lines), 2)
+    subtotal = round(sum(line_total if x is line else float(x["line_total"]) for x in lines), 2)
+    order_changes: dict[str, Any] = {"total": subtotal, "updated_at": datetime.now(UTC).isoformat()}
+    if float(order.get("pass_discount") or 0) > 0:
+        discount = pass_service.percent_off(subtotal, pass_service.SHOP_OFF_PERCENT)
+        order_changes.update(total=round(subtotal - discount, 2), pass_discount=discount)
     saved = (
         supabase.table("shop_orders")
-        .update({"total": total, "updated_at": datetime.now(UTC).isoformat()})
+        .update(order_changes)
         .eq("id", str(order_id))
         .execute()
     )
@@ -542,6 +555,7 @@ def preorder_tally(supabase: SupabaseDep, admin: AdminDep) -> list[PreorderTally
     products = supabase.table("products").select("*").eq("sale_type", "preorder").execute()
     product_rows = [p for p in rows(products) if p["sale_type"] == "preorder"]
     ordered = shop_service.ordered_by_product(supabase, [str(p["id"]) for p in product_rows])
+    names = shop_service.print_names_by_product(supabase, [str(p["id"]) for p in product_rows])
     out = []
     for p in product_rows:
         mine = ordered.get(str(p["id"]), {})
@@ -553,6 +567,7 @@ def preorder_tally(supabase: SupabaseDep, admin: AdminDep) -> list[PreorderTally
                 preorder_closes_on=p.get("preorder_closes_on"),
                 by_size=by_size,
                 total=sum(by_size.values()),
+                print_names=[PrintNameCount.model_validate(n) for n in names.get(str(p["id"]), [])],
             )
         )
     return out

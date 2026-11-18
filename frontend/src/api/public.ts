@@ -1,5 +1,5 @@
 import { request } from './client'
-import type { CreditPackage } from './line'
+import { rememberedLineToken, type CreditPackage } from './line'
 import type {
   PaymentInfoResponse,
   Product,
@@ -143,18 +143,43 @@ export async function getShopProduct(id: string): Promise<Product> {
   return request(`/api/shop/products/${id}`)
 }
 
-export async function quoteCart(items: CartLine[]): Promise<Quote> {
-  return request('/api/shop/quote', { method: 'POST', body: JSON.stringify({ items }) })
+/** The /line session this tab came with, if any: the shop sends it so a
+ *  Niddeaw Pass holder ordering for themselves gets their discount. */
+function lineHeaders(): Record<string, string> {
+  const token = rememberedLineToken()
+  return token ? { 'X-Line-Token': token } : {}
 }
 
-export async function getCartPayment(items: CartLine[]): Promise<PaymentInfoResponse> {
-  return request('/api/shop/payment', { method: 'POST', body: JSON.stringify({ items }) })
+/** `buyerId`: who the order is for — a pass discount is only for a holder
+ *  buying for themselves. Left out (the cart, before anyone is picked) it
+ *  is whoever this tab's LINE is; null is a guest's order: no pass. */
+export async function quoteCart(items: CartLine[], buyerId?: string | null): Promise<Quote> {
+  return request('/api/shop/quote', {
+    method: 'POST',
+    headers: buyerId === null ? {} : lineHeaders(),
+    body: JSON.stringify({ items, buyer_id: buyerId ?? null }),
+  })
+}
+
+export async function getCartPayment(items: CartLine[], buyerId?: string | null): Promise<PaymentInfoResponse> {
+  return request('/api/shop/payment', {
+    method: 'POST',
+    headers: buyerId === null ? {} : lineHeaders(),
+    body: JSON.stringify({ items, buyer_id: buyerId ?? null }),
+  })
 }
 
 /** Who is buying: a member, or someone from outside the club. */
 export type ShopBuyer = { playerId: string } | { guestName: string; guestPhone: string }
 
-export async function placeShopOrder(order: { buyer: ShopBuyer; items: CartLine[]; slip: File }): Promise<ShopOrder> {
+/** `expectedTotal`: what the page showed and the slip paid; the server
+ *  refuses the order if it now comes to something else. */
+export async function placeShopOrder(order: {
+  buyer: ShopBuyer
+  items: CartLine[]
+  slip: File
+  expectedTotal?: number
+}): Promise<ShopOrder> {
   const form = new FormData()
   if ('playerId' in order.buyer) {
     form.append('player_id', order.buyer.playerId)
@@ -163,8 +188,9 @@ export async function placeShopOrder(order: { buyer: ShopBuyer; items: CartLine[
     form.append('guest_phone', order.buyer.guestPhone)
   }
   form.append('items', JSON.stringify(order.items))
+  if (order.expectedTotal !== undefined) form.append('expected_total', String(order.expectedTotal))
   form.append('file', order.slip)
-  return request('/api/shop/orders', { method: 'POST', body: form })
+  return request('/api/shop/orders', { method: 'POST', headers: lineHeaders(), body: form })
 }
 
 export async function getMemberOrders(playerId: string): Promise<ShopOrder[]> {

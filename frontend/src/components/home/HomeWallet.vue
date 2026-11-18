@@ -83,6 +83,7 @@ const bonus = computed(() => Math.max(0, ...(offer.value?.packages ?? []).map((p
       </span>
       <span class="chips">
         <span class="chip gold">⦸ {{ t('homeWallet.perkBlock') }}</span>
+        <span class="chip gold">% {{ t('homeWallet.perkShop') }}</span>
         <span class="chip gold">◎ {{ t('homeWallet.perkLook') }}</span>
         <span class="chip gold">↗ {{ t('homeWallet.perkMine') }}</span>
       </span>

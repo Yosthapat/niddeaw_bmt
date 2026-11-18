@@ -271,6 +271,9 @@ class Entrant(BaseModel):
     elo_level: str | None = None
     elo: int | None = None
     share: int
+    """What they pay: already less pass_off."""
+    pass_off: int = 0
+    """Baht off for their Niddeaw Pass."""
     pay_status: PayStatus
     paid_via: PaidVia | None = None
     slip_url: str | None = None

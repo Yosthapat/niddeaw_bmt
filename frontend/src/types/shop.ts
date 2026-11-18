@@ -47,6 +47,8 @@ export interface Product {
   stock: Record<string, number>
   ordered: number
   open: boolean
+  /** what a name printed on the back costs per piece; null: no printing */
+  name_print_price?: number | null
 }
 
 export interface ProductFields {
@@ -61,6 +63,7 @@ export interface ProductFields {
   size_prices?: Record<string, number>
   is_active?: boolean
   cinema?: Cinema
+  name_print_price?: number | null
 }
 
 export interface ShopOrderItem {
@@ -72,6 +75,9 @@ export interface ShopOrderItem {
   qty: number
   unit_price: number
   line_total: number
+  print_name?: string | null
+  /** per piece, as charged: 0 when the pass made it free */
+  print_price?: number
 }
 
 export interface ShopOrder {
@@ -79,6 +85,8 @@ export interface ShopOrder {
   order_no: number
   items: ShopOrderItem[]
   total: number
+  /** baht off for the buyer's Niddeaw Pass; total is already less it */
+  pass_discount?: number
   status: OrderStatus
   note: string | null
   created_at: string
@@ -101,6 +109,8 @@ export interface CartLine {
   product_id: string
   size: string
   qty: number
+  /** a name for the back, on a product that prints one */
+  print_name?: string | null
 }
 
 /** The server's pricing of a cart, line by line: the cart shows exactly
@@ -113,10 +123,19 @@ export interface QuoteLine extends CartLine {
   line_total: number
   problem: string | null
   available: number | null
+  /** per piece, as it will be charged (0 when the pass makes it free) */
+  print_price: number
+  /** per piece before the pass: what the cart strikes through */
+  print_list_price: number
 }
 
 export interface Quote {
   lines: QuoteLine[]
+  /** the lines that can be bought, before the pass */
+  subtotal: number
+  pass_discount: number
+  /** a pass holder ordering for themselves from LINE: 5% off, names free */
+  pass_applied: boolean
   total: number
   ok: boolean
 }
@@ -127,6 +146,8 @@ export interface PreorderTally {
   preorder_closes_on: string | null
   by_size: Record<string, number>
   total: number
+  /** the names to print on the back, oldest order first */
+  print_names?: { size: string; name: string; qty: number }[]
 }
 
 /** What the shop has taken in. Money in is confirmed + delivered orders;

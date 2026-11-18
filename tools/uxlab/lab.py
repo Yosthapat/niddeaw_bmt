@@ -178,7 +178,7 @@ def seed() -> MiniSupabase:
          "preorder_closes_on": (today + timedelta(days=9)).isoformat(),
          "preorder_delivers_on": (today + timedelta(days=30)).isoformat(),
          "image_urls": ["/hero/cat-color.webp", "/ads/friday-night.webp"], "is_active": True, "sort_order": 0,
-         "created_at": _iso(60 * 24 * 3)},
+         "created_at": _iso(60 * 24 * 3), "name_print_price": 60.0},
         {"id": cap, "name": "หมวกแก๊ป BMT", "description": None, "price": 250.0, "size_prices": {},
          "sale_type": "stock", "sizes": [], "preorder_closes_on": None,
          "preorder_delivers_on": None, "image_urls": [], "is_active": True, "sort_order": 1,

@@ -72,6 +72,10 @@ const me = computed(() => data.value?.me ?? null)
 const team = computed(() => data.value?.team ?? null)
 const mine = computed(() => team.value?.entrants.find((e) => e.player_id === me.value?.player_id) ?? null)
 const other = computed(() => team.value?.entrants.find((e) => e.player_id !== me.value?.player_id) ?? null)
+// What I pay: the QR's amount once it's here, since opening it takes my
+// Niddeaw Pass's 5% off a share signed up for before the pass; and that 5%.
+const myAmount = computed(() => pay.value?.amount ?? mine.value?.share ?? 0)
+const myPassOff = computed(() => Math.max(mine.value?.pass_off ?? 0, (mine.value?.share ?? 0) - myAmount.value))
 const when = (iso: string): string => formatDateTime(iso, locale.value as Locale)
 const day = (iso: string): string => formatDateWithWeekday(iso, locale.value as Locale)
 const perPlayer = computed(() => (cup.value ? Math.ceil((cup.value.entry_fee + cup.value.shuttle_fee) / 2) : 0))
@@ -494,13 +498,14 @@ async function attach(event: Event): Promise<void> {
               {{ t('cup.line.slipRejected') }}
             </p>
             <div class="flex flex-col items-center gap-2 rounded-2xl bg-white/5 p-3">
-              <span class="text-xs text-white/60">{{ t('cup.line.scanToPay', { amount: money(mine.share) }) }}</span>
+              <span class="text-xs text-white/60">{{ t('cup.line.scanToPay', { amount: money(myAmount) }) }}</span>
+              <span v-if="myPassOff > 0" class="rounded-full bg-[#ffe58a]/14 px-2.5 py-0.5 text-[11px] font-bold text-[#ffe58a]">✦ {{ t('cup.line.passOff', { amount: money(myPassOff) }) }}</span>
               <BrandQr
                 v-if="pay?.qr_modules"
                 :modules="pay.qr_modules"
-                :amount="mine.share"
+                :amount="myAmount"
                 :account-name="pay.bank_account_name"
-                :alt="t('cup.line.qrAlt', { amount: money(mine.share) })"
+                :alt="t('cup.line.qrAlt', { amount: money(myAmount) })"
                 saveable
                 file-name="niddeaw-cup.png"
                 class="w-full"
@@ -522,10 +527,10 @@ async function attach(event: Event): Promise<void> {
                   type="button"
                   class="flex min-h-12 flex-col items-center justify-center rounded-xl border border-white/15 bg-white/5 px-2 text-center"
                   :class="pay?.bank_account_number ? '' : 'col-span-2'"
-                  @click="copy('amount', mine.share.toFixed(2))"
+                  @click="copy('amount', myAmount.toFixed(2))"
                 >
                   <span class="text-[11px] text-white/55">{{ copied === 'amount' ? t('cup.line.copied') : t('cup.line.copyAmount') }}</span>
-                  <b class="font-display text-sm">{{ money(mine.share) }}</b>
+                  <b class="font-display text-sm">{{ money(myAmount) }}</b>
                 </button>
               </div>
             </div>

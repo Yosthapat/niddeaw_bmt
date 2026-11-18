@@ -98,3 +98,15 @@ def get_line_member(authorization: Annotated[str | None, Header()] = None) -> Li
 
 
 LineMemberDep = Annotated[LineContext, Depends(get_line_member)]
+
+
+def line_member_or_none(token: str | None) -> LineContext | None:
+    """The member a /line session token is for, or None when it is missing,
+    expired or someone else's kind of token: for pages anyone may use that
+    give a LINE member something more (the shop's pass discount)."""
+    if not token:
+        return None
+    try:
+        return get_line_member(f"Bearer {token}")
+    except HTTPException:
+        return None

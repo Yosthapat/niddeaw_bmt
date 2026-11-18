@@ -143,9 +143,15 @@ function startFix(o: ShopOrderAdmin): void {
 function draftLine(item: ShopOrderItem): number {
   const d = item.id ? drafts.value[item.id] : undefined
   const p = productOf(item)
-  return d && p ? priceOf(p, d.size) * d.qty : item.line_total
+  // a printed name keeps the printing price it was bought at
+  return d && p ? (priceOf(p, d.size) + (item.print_price ?? 0)) * d.qty : item.line_total
 }
-const draftTotal = (o: ShopOrderAdmin): number => o.items.reduce((sum, i) => sum + draftLine(i), 0)
+// The pass discount is taken again off the new sum, as the server does
+// (pass_service.percent_off: 5%, a half rounding up).
+const draftTotal = (o: ShopOrderAdmin): number => {
+  const sum = o.items.reduce((n, i) => n + draftLine(i), 0)
+  return o.pass_discount ? sum - Math.floor(sum * 0.05 + 0.5) : sum
+}
 const changed = (item: ShopOrderItem): boolean => {
   const d = item.id ? drafts.value[item.id] : undefined
   return !!d && (d.size !== item.size || d.qty !== item.qty)
@@ -245,7 +251,13 @@ async function confirmDelete(): Promise<void> {
 
 async function copyTally(x: PreorderTally): Promise<void> {
   const lines = Object.entries(x.by_size).map(([s, n]) => `${s || '-'}: ${n}`)
-  const text = `${x.name}\n${lines.join('\n')}\n${t('shopAdmin.tallyTotal')}: ${x.total}`
+  const names = (x.print_names ?? []).map((r) => `${r.size || '-'} · ${r.name}${r.qty > 1 ? ` × ${r.qty}` : ''}`)
+  const text = [
+    x.name,
+    ...lines,
+    `${t('shopAdmin.tallyTotal')}: ${x.total}`,
+    ...(names.length ? ['', `${t('shopAdmin.printNames')}:`, ...names] : []),
+  ].join('\n')
   try {
     await navigator.clipboard.writeText(text)
     copiedId.value = x.product_id
@@ -268,6 +280,9 @@ const form = reactive({
   stock: {} as Record<string, number | ''>,
   // Blank = the product's own price.
   sizePrices: {} as Record<string, number | ''>,
+  // a name printed on the back: offered or not, and what it costs a piece
+  printOn: false,
+  printPrice: '' as number | '',
   closes: '',
   delivers: '',
   active: true,
@@ -301,6 +316,8 @@ function openForm(p: Product | null): void {
   form.sizes = p ? [...p.sizes] : ['S', 'M', 'L', 'XL']
   form.stock = p ? { ...p.stock } : {}
   form.sizePrices = p ? { ...p.size_prices } : {}
+  form.printOn = p?.name_print_price != null
+  form.printPrice = p?.name_print_price ?? ''
   customSize.value = ''
   sizeError.value = null
   form.closes = p?.preorder_closes_on ?? ''
@@ -370,6 +387,10 @@ const problems = computed(() => {
   const price = bahtProblem(form.price, { allowZero: false })
   if (price) p.price = t(`validation.${price}`)
   if (form.hasSizes && form.sizes.length === 0) p.sizes = t('shopAdmin.sizeRequired')
+  if (form.printOn) {
+    const bad = bahtProblem(form.printPrice === '' ? 0 : form.printPrice, { allowZero: true })
+    if (bad) p.printPrice = t(`validation.${bad}`)
+  }
   if (form.sale_type === 'preorder' && !form.closes) p.closes = t('shopAdmin.closesRequired')
   if (form.hasSizes) {
     for (const k of form.sizes) {
@@ -516,6 +537,7 @@ async function save(): Promise<void> {
         .map((k) => [k, Number(form.sizePrices[k])]),
     ),
     is_active: form.active,
+    name_print_price: form.printOn ? Number(form.printPrice || 0) : null,
     preorder_closes_on: form.sale_type === 'preorder' ? form.closes : null,
     preorder_delivers_on: form.sale_type === 'preorder' ? form.delivers || null : null,
     ...(form.sale_type === 'stock'
@@ -608,6 +630,13 @@ function priceText(p: Product): string {
             <dd class="text-lg font-bold text-[#ffe14d]">{{ x.total }}</dd>
           </div>
         </dl>
+        <!-- the names to print on the back, for the printer -->
+        <details v-if="x.print_names?.length" class="mt-2 rounded-xl bg-black/20 px-3 py-2 text-sm">
+          <summary class="min-h-9 cursor-pointer">{{ t('shopAdmin.printNamesCount', { n: x.print_names.reduce((n, r) => n + r.qty, 0) }) }}</summary>
+          <ul class="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 sm:grid-cols-3">
+            <li v-for="(r, i) in x.print_names" :key="i" class="truncate"><b class="font-display">{{ r.size || '—' }}</b> · {{ r.name }}<span v-if="r.qty > 1" class="text-white/55"> × {{ r.qty }}</span></li>
+          </ul>
+        </details>
         <button type="button" class="tap mt-2 w-full rounded-full border border-[#ffe14d]/50 text-sm text-[#ffe14d]" @click="copyTally(x)">
           {{ copiedId === x.product_id ? t('shopAdmin.copied') : t('shopAdmin.copyTally') }}
         </button>
@@ -658,8 +687,14 @@ function priceText(p: Product): string {
               <SlipCheckBadge v-if="o.slip_url" class="my-1" kind="order" :target-id="o.id" :slip-url="o.slip_url" />
               <ul class="text-sm text-white/80">
                 <li v-for="(item, i) in o.items" :key="i" class="flex justify-between gap-2">
-                  <span class="min-w-0">{{ item.product_name }}<template v-if="item.size"> · <b class="font-display">{{ item.size }}</b></template> × {{ item.qty }}</span>
+                  <span class="min-w-0">
+                    {{ item.product_name }}<template v-if="item.size"> · <b class="font-display">{{ item.size }}</b></template> × {{ item.qty }}
+                    <span v-if="item.print_name" class="ml-1 rounded-md bg-white/10 px-1.5 text-xs">{{ t('shopAdmin.printTag') }} <b>{{ item.print_name }}</b>{{ item.print_price ? ` +${money(item.print_price)}` : ` · ${t('shopAdmin.printFree')}` }}</span>
+                  </span>
                   <span class="shrink-0 text-white/55">{{ money(item.line_total) }}</span>
+                </li>
+                <li v-if="o.pass_discount" class="flex justify-between gap-2 text-[#ffe58a]">
+                  <span>✦ Pass −5%</span><span class="shrink-0">−{{ money(o.pass_discount) }}</span>
                 </li>
               </ul>
               <a v-if="o.guest && o.guest_phone" :href="`tel:${o.guest_phone}`" class="inline-flex min-h-8 items-center gap-1 text-sm text-[#7fb6ff]" :aria-label="t('shopAdmin.callGuest', { name: o.player_nickname })">
@@ -900,6 +935,18 @@ function priceText(p: Product): string {
         <input v-model.number="form.price" type="number" inputmode="decimal" min="1" :aria-invalid="tried && !!problems.price" class="min-h-11 rounded-lg border border-brand-pink/25 bg-brand-black px-3 text-white" />
         <span v-if="tried && problems.price" class="text-xs text-status-error">{{ problems.price }}</span>
       </label>
+      <div class="flex flex-col gap-1.5 rounded-xl border border-white/15 bg-white/4 p-3">
+        <label class="flex items-center justify-between text-sm">
+          {{ t('shopAdmin.printOn') }}
+          <input v-model="form.printOn" type="checkbox" role="switch" class="h-6 w-11 accent-brand-pink" />
+        </label>
+        <label v-if="form.printOn" class="flex items-center gap-2 text-sm text-white/75">
+          {{ t('shopAdmin.printPrice') }}
+          <input v-model.number="form.printPrice" type="number" inputmode="decimal" min="0" placeholder="0" :aria-invalid="tried && !!problems.printPrice" class="h-10 w-28 rounded-lg border border-brand-pink/25 bg-brand-black px-3 text-white" />
+        </label>
+        <span v-if="tried && problems.printPrice" class="text-xs text-status-error">{{ problems.printPrice }}</span>
+        <p class="text-xs text-white/50">{{ t('shopAdmin.printHint') }}</p>
+      </div>
       <label class="flex flex-col gap-1 text-sm text-white/75">
         {{ t('shopAdmin.description') }}
         <textarea v-model="form.description" maxlength="1000" rows="3" class="rounded-lg border border-brand-pink/25 bg-brand-black px-3 py-2 text-white" />

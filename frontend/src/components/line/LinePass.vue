@@ -169,6 +169,14 @@ async function block(playerId: string): Promise<void> {
           </ul>
         </div>
         <div>
+          <p class="grp">{{ t('pass.groupOff') }}</p>
+          <ul class="grid gap-1.5">
+            <li class="perk"><span class="ic" aria-hidden="true">%</span><span><b>{{ t('pass.perkShop') }}</b><small>{{ t('pass.perkShopHint') }}</small></span></li>
+            <li class="perk"><span class="ic" aria-hidden="true">Aa</span><span><b>{{ t('pass.perkPrint') }}</b><small>{{ t('pass.perkPrintHint') }}</small></span></li>
+            <li class="perk"><span class="ic" aria-hidden="true">🏆︎</span><span><b>{{ t('pass.perkCup') }}</b><small>{{ t('pass.perkCupHint') }}</small></span></li>
+          </ul>
+        </div>
+        <div>
           <p class="grp">{{ t('pass.groupLook') }}</p>
           <ul class="grid gap-1.5">
             <li class="perk">
