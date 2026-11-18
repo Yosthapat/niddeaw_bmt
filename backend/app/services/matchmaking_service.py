@@ -28,7 +28,7 @@ from itertools import combinations
 from uuid import UUID
 
 from app.models.player import EloTier
-from app.services.elo_service import expected_score, get_tier
+from app.services.elo_service import get_tier
 
 FAIRNESS_WEIGHT = 20
 """One unit of fairness penalty is worth this many points of ELO difference
@@ -44,13 +44,6 @@ OPPONENT_PENALTY = 1.2
 """Across the net again; grows faster than the number of meetings
 (OPPONENT_PENALTY × times^1.5), so a fourth meeting costs far more than a
 second."""
-PASS_EDGE = 0.50
-"""A Niddeaw Pass holder goes onto the side with at least these odds, when
-the suggestion can manage it (pass_service)."""
-PASS_SHORT_PENALTY = 10.0
-"""Per percentage point a pass holder's side falls short of PASS_EDGE: a
-point short outweighs a 200-point ELO gap, so it gives way only when no
-other split or foursome fits."""
 WAIT_PENALTY = 1.5
 """Putting someone on ahead of a free player who has waited longer, per
 player passed over."""
@@ -141,8 +134,6 @@ class Tonight:
     opponents: Counter[frozenset[UUID]] = field(default_factory=Counter)
     games: Counter[UUID] = field(default_factory=Counter)
     last_round: dict[UUID, int] = field(default_factory=dict)
-    pass_holders: frozenset[UUID] = frozenset()
-    """Niddeaw Pass holders checked in tonight."""
     blocked_partners: frozenset[frozenset[UUID]] = frozenset()
     """Pairs a pass holder asked not to be partnered with tonight; they may
     still face each other."""
@@ -192,17 +183,6 @@ def _score_split(
         for b in team2:
             fairness_penalty += tonight.opponent_cost(a, b)
 
-    if tonight.pass_holders:
-        odds1 = expected_score(team1_avg, team2_avg)
-        pass1 = any(p in tonight.pass_holders for p in team1)
-        pass2 = any(p in tonight.pass_holders for p in team2)
-        # only when the holders are on one side: two holders facing each
-        # other cannot both have the better odds
-        if pass1 and not pass2 and odds1 < PASS_EDGE:
-            fairness_penalty += PASS_SHORT_PENALTY * (PASS_EDGE - odds1) * 100
-        elif pass2 and not pass1 and 1 - odds1 < PASS_EDGE:
-            fairness_penalty += PASS_SHORT_PENALTY * (PASS_EDGE - (1 - odds1)) * 100
-
     return Split(
         team1=team1,
         team2=team2,
@@ -239,18 +219,12 @@ def _best_group_from_pool(
     pool: list[UUID],
     scores_by_id: dict[UUID, int],
     tonight: Tonight,
-    rest: list[UUID] | None = None,
 ) -> tuple[tuple[UUID, ...], Split] | None:
     """Tries every foursome of anchor + 3 players from pool whose tier span
     stays within MAX_TIER_SPAN, returning the cheapest group and its 2v2
     split — or None if no foursome in pool satisfies the tier cap. The
     split's fairness penalty includes passing over players who waited
-    longer, so the queue is kept unless keeping it means a repeat.
-
-    With `rest` (everyone still to be grouped, in queue order) the choice
-    also counts what it leaves the next group: used when a pass holder is
-    waiting, so the first group doesn't take the players the holder's
-    group needed for its odds."""
+    longer, so the queue is kept unless keeping it means a repeat."""
     queue = [anchor, *pool]
     best_group: tuple[UUID, ...] | None = None
     best_split: Split | None = None
@@ -262,13 +236,6 @@ def _best_group_from_pool(
         split = _best_split_for_group(group, scores_by_id, tonight)
         split.fairness_penalty += WAIT_PENALTY * _passed_over(group, queue)
         total = split.total_cost
-        if rest is not None:
-            left = [pid for pid in rest if pid not in group]
-            if len(left) >= 4:
-                after = _best_group_from_pool(
-                    left[0], left[1:GROUP_SEARCH_WINDOW], scores_by_id, tonight
-                )
-                total += after[1].total_cost if after else 0.0
         if best_split is None or total < best_total:
             best_group, best_split, best_total = group, split, total
     if best_group is None or best_split is None:
@@ -312,7 +279,6 @@ def suggest_doubles_pairings(
     history: list[PairHistoryEntry],
     current_round: int,
     locked_pairs: tuple[tuple[UUID, UUID], ...] = (),
-    pass_holders: frozenset[UUID] = frozenset(),
     blocked_partners: frozenset[frozenset[UUID]] = frozenset(),
 ) -> tuple[list[Split], list[UUID]]:
     """Returns (suggested splits, waiting player_ids) for doubles (groups of 4).
@@ -320,9 +286,8 @@ def suggest_doubles_pairings(
     history is tonight's pairing_history; current_round is kept for callers
     but the whole night counts the same.
 
-    pass_holders and blocked_partners carry the Niddeaw Pass perks
-    (pass_service): a holder's side is given PASS_EDGE odds where it can be,
-    and a blocked pair is not made partners while any other way exists.
+    blocked_partners carries the Niddeaw Pass perk (pass_service): a blocked
+    pair is not made partners while any other way exists.
 
     locked_pairs are admin-pinned teammates for this session (e.g. two
     friends who came together today) — each is always kept on the same
@@ -338,7 +303,6 @@ def suggest_doubles_pairings(
     queue, whichever foursome and split costs least.
     """
     tonight = Tonight.from_history(history)
-    tonight.pass_holders = pass_holders
     tonight.blocked_partners = blocked_partners
     scores_by_id = {p.player_id: p.elo_score for p in checked_in}
     all_ids = set(scores_by_id)
@@ -367,11 +331,7 @@ def suggest_doubles_pairings(
     while len(remaining) >= 4:
         anchor, *rest = remaining
         pool = rest[: GROUP_SEARCH_WINDOW - 1]
-        # a pass holder waiting past this group: look one group ahead
-        ahead = (
-            rest if any(p in tonight.pass_holders for p in rest) and len(remaining) >= 8 else None
-        )
-        result = _best_group_from_pool(anchor, pool, scores_by_id, tonight, ahead)
+        result = _best_group_from_pool(anchor, pool, scores_by_id, tonight)
         if result is None:
             # The window didn't contain a tier-eligible trio — widen to
             # every remaining player within the tier cap before giving up

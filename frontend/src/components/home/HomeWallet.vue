@@ -82,7 +82,6 @@ const bonus = computed(() => Math.max(0, ...(offer.value?.packages ?? []).map((p
         <template v-if="offer">{{ t('homeWallet.passSub', { price: num(offer.pass_price) }) }}<br /></template>{{ t('homeWallet.passWho') }}
       </span>
       <span class="chips">
-        <span class="chip gold">⚖ {{ t('homeWallet.perkEdge') }}</span>
         <span class="chip gold">⦸ {{ t('homeWallet.perkBlock') }}</span>
         <span class="chip gold">◎ {{ t('homeWallet.perkLook') }}</span>
         <span class="chip gold">↗ {{ t('homeWallet.perkMine') }}</span>

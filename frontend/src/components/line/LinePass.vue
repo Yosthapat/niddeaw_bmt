@@ -165,7 +165,6 @@ async function block(playerId: string): Promise<void> {
         <div>
           <p class="grp">{{ t('pass.groupCourt') }}</p>
           <ul class="grid gap-1.5">
-            <li class="perk"><span class="ic" aria-hidden="true">⚖︎</span><span><b>{{ t('pass.perkOdds') }}</b><small>{{ t('pass.perkOddsHint') }}</small></span></li>
             <li class="perk"><span class="ic" aria-hidden="true">⦸</span><span><b>{{ t('pass.perkBlock', { n: data.max_blocks }) }}</b><small>{{ t('pass.perkBlockHint') }}</small></span></li>
           </ul>
         </div>
