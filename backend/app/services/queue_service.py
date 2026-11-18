@@ -195,9 +195,9 @@ def build_suggestions(
 
     if pass_perks is None:
         pass_perks = fetch_pass_perks(supabase, session_id)
-    holders, blocked = pass_perks
+    _, blocked = pass_perks
     splits, waiting = matchmaking_service.suggest_doubles_pairings(
-        checked_in, history, current_round, locked_pairs, pass_holders=holders, blocked_partners=blocked
+        checked_in, history, current_round, locked_pairs, blocked_partners=blocked
     )
     suggestions = [
         PairingSuggestion(

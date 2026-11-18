@@ -19,7 +19,6 @@ from app.main import app
 from app.security import create_access_token, create_line_token
 from app.services import credit_card_service, line_checkin
 from app.services import matchmaking_service as mm
-from app.services.elo_service import expected_score
 
 ADMIN_ID = str(uuid4())
 SESSION_ID = str(uuid4())
@@ -234,31 +233,20 @@ def test_a_blocked_member_is_never_a_partner_but_can_be_across_the_net(
                 assert not {pid(db, "Bank"), pid(db, "Faa")} & set(team)
 
 
-def test_a_pass_holder_is_put_on_the_side_with_the_better_odds() -> None:
-    """Even teams (1020 a side) are what the four would get without a pass;
-    the holder instead gets the other 1040 beside them, about 56%."""
+def test_a_pass_gives_no_edge_in_the_odds() -> None:
+    """The pass no longer puts its holder on the stronger side: the four
+    split as evenly as they would for anyone (1020 a side)."""
     ids = [uuid4() for _ in range(4)]
-    holder = ids[0]
     scores = dict(zip(ids, [1040, 1040, 1000, 1000], strict=True))
     players = [mm.CheckedInPlayer(p, s) for p, s in scores.items()]
-
-    splits, _ = mm.suggest_doubles_pairings(players, [], 1, pass_holders=frozenset({holder}))
-    split = splits[0]
-    mine, theirs = (
-        (split.team1, split.team2) if holder in split.team1 else (split.team2, split.team1)
-    )
-    avg = lambda team: sum(scores[p] for p in team) / len(team)
-    assert expected_score(avg(mine), avg(theirs)) >= mm.PASS_EDGE
-
-    even, _ = mm.suggest_doubles_pairings(players, [], 1)
-    assert even[0].elo_balance_score == 0
+    splits, _ = mm.suggest_doubles_pairings(players, [], 1)
+    assert splits[0].elo_balance_score == 0
+    assert not hasattr(mm, "PASS_EDGE")
 
 
-def test_the_first_group_does_not_take_what_the_holders_group_needs() -> None:
+def test_blocked_partners_hold_through_a_busy_night() -> None:
     """The lab's night: eight free, the holder the weakest, two partners
-    blocked. Which four go first can leave the holder a foursome that only
-    splits 50:50 or worse; looking one group ahead keeps the odds for them.
-    Ties fall by the players' ids, so it is tried with many."""
+    blocked. Ties fall by the players' ids, so it is tried with many."""
     scores = [1002, 1042, 1078, 1118, 1162, 1202, 1238, 1278]
     rounds = [((0, 2), (1, 3)), ((4, 6), (5, 7)), ((0, 1), (2, 3)), ((4, 5), (6, 7))]
     for _ in range(40):
@@ -276,13 +264,9 @@ def test_the_first_group_does_not_take_what_the_holders_group_needs() -> None:
                 tuple(ids[i] for i in t1), tuple(ids[i] for i in t2), n
             )
         ]
-        splits, _ = mm.suggest_doubles_pairings(
-            players, history, 5, pass_holders=frozenset({holder}), blocked_partners=blocked
-        )
+        splits, _ = mm.suggest_doubles_pairings(players, history, 5, blocked_partners=blocked)
         mine = next(s for s in splits if holder in s.team1 or holder in s.team2)
-        team, other = (mine.team1, mine.team2) if holder in mine.team1 else (mine.team2, mine.team1)
-        odds = expected_score(sum(elo[p] for p in team) / 2, sum(elo[p] for p in other) / 2)
-        assert odds >= mm.PASS_EDGE
+        team = mine.team1 if holder in mine.team1 else mine.team2
         assert not {ids[2], ids[3]} & set(team)
 
 

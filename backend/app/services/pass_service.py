@@ -6,8 +6,6 @@ member holding a credit card (a 1,000 pack or more bought through LINE,
 credit not yet spent: credit_card_service) can buy one.
 
 While it runs, its holder:
-- goes onto the side with the better odds, PASS_EDGE or more, when the
-  suggestion can manage it (matchmaking_service);
 - may name up to BLOCKS_PER_NIGHT members a night not to be partnered with.
   They can still meet across the net, and nobody else sees the list.
 """
@@ -25,7 +23,6 @@ from app.services import credit_card_service, credit_service, line_checkin
 PASS_DAYS = 30
 DEFAULT_PRICE = 249
 BLOCKS_PER_NIGHT = 2
-PASS_EDGE = 0.50
 
 
 def _iso(when: datetime) -> str:
