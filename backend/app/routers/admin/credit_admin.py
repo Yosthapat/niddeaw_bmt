@@ -24,7 +24,8 @@ from app.models.credit import (
     TopupReject,
 )
 from app.models.player import Player
-from app.services import credit_service
+from app.models.niddeaw_pass import PassAdmin
+from app.services import credit_service, pass_perks
 
 router = APIRouter(prefix="/api/admin/credit", tags=["admin-credit"])
 
@@ -227,3 +228,11 @@ def delete_package(package_id: UUID, supabase: SupabaseDep, admin: AdminDep) -> 
 @router.get("/summary", response_model=CreditSummary)
 def summary(supabase: SupabaseDep, admin: AdminDep) -> CreditSummary:
     return credit_service.summary(supabase)
+
+
+@router.get("/passes", response_model=PassAdmin)
+def passes(supabase: SupabaseDep, admin: AdminDep) -> PassAdmin:
+    """Who bought a Niddeaw Pass and when, who holds one now, and the credit
+    spent on them. Nothing here is income on top of the credit top-ups:
+    the cash came in when the credit was bought."""
+    return PassAdmin.model_validate(pass_perks.admin_overview(supabase))

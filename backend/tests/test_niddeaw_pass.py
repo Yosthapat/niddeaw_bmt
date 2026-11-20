@@ -296,3 +296,26 @@ def test_pass_routes_are_for_linked_members(client: TestClient) -> None:
     assert client.get("/api/line/pass").status_code == 401
     stranger = {"Authorization": f"Bearer {create_line_token('U' + 'z' * 32, 'x')}"}
     assert client.get("/api/line/pass", headers=stranger).status_code == 403
+
+
+def test_admin_sees_who_bought_a_pass_and_who_holds_one(client: TestClient, db: MiniSupabase) -> None:
+    now = datetime.now(UTC)
+    ball, bank = pid(db, "Ball"), pid(db, "Bank")
+    db.tables["passes"] += [
+        # Ball: last month's pass ran straight into this one
+        {"id": str(uuid4()), "player_id": ball, "credits": 249, "starts_at": (now - timedelta(days=40)).isoformat(),
+         "ends_at": (now - timedelta(days=10)).isoformat(), "created_at": (now - timedelta(days=40)).isoformat()},
+        {"id": str(uuid4()), "player_id": ball, "credits": 249, "starts_at": (now - timedelta(days=10)).isoformat(),
+         "ends_at": (now + timedelta(days=20)).isoformat(), "created_at": (now - timedelta(minutes=5)).isoformat()},
+        # Bank: one that ran out
+        {"id": str(uuid4()), "player_id": bank, "credits": 199, "starts_at": (now - timedelta(days=90)).isoformat(),
+         "ends_at": (now - timedelta(days=60)).isoformat(), "created_at": (now - timedelta(days=90)).isoformat()},
+    ]  # fmt: skip
+    r = client.get("/api/admin/credit/passes", headers=admin())
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert (body["holders"], body["total_count"], body["total_credits"]) == (1, 3, 697)
+    newest = body["sales"][0]
+    assert (newest["nickname"], newest["member_code"], newest["running"], newest["in_a_row"]) == ("Ball", "ND001", True, 2)
+    assert body["month_count"] >= 1
+    assert client.get("/api/admin/credit/passes").status_code == 401

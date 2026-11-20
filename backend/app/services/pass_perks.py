@@ -308,3 +308,64 @@ def night(supabase: Client, player_id: UUID | str) -> dict[str, Any] | None:
         "upset": {"rival_ids": upset.rivals, "odds": round(upset.odds or 0, 2)} if upset else None,
         "partner": partner,
     }
+
+
+def admin_overview(supabase: Client, now: datetime | None = None) -> dict[str, Any]:
+    """Every pass bought, for the admin (models.niddeaw_pass.PassAdmin)."""
+    moment = now or datetime.now(UTC)
+    passes = rows(supabase.table("passes").select("*").execute())
+    ids = sorted({str(p["player_id"]) for p in passes})
+    people = (
+        {str(r["id"]): r for r in rows(supabase.table("players").select("id, nickname, member_seq, avatar_url").in_("id", ids).execute())}
+        if ids
+        else {}
+    )
+    # Which pass in its member's unbroken run each one is.
+    in_a_row: dict[str, int] = {}
+    by_player: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for p in passes:
+        by_player[str(p["player_id"])].append(p)
+    for mine in by_player.values():
+        run, run_end = 0, None
+        for p in sorted(mine, key=lambda x: (_when(x["starts_at"]), _when(x["ends_at"]))):
+            start, end = _when(p["starts_at"]), _when(p["ends_at"])
+            run = run + 1 if run_end is not None and start <= run_end + JOIN_SLACK else 1
+            run_end = end if run_end is None or run == 1 else max(run_end, end)
+            in_a_row[str(p["id"])] = run
+    month = moment.astimezone(CLUB_TZ).strftime("%Y-%m")
+    sales: list[dict[str, Any]] = []
+    daily: dict[str, list[int]] = defaultdict(lambda: [0, 0])
+    holders: set[str] = set()
+    month_count = month_credits = 0
+    for p in passes:
+        pid = str(p["player_id"])
+        start, end, bought = _when(p["starts_at"]), _when(p["ends_at"]), _when(p["created_at"])
+        running = start <= moment < end
+        if running:
+            holders.add(pid)
+        credits = int(p.get("credits") or 0)
+        day = bought.astimezone(CLUB_TZ).date().isoformat()
+        daily[day][0] += 1
+        daily[day][1] += credits
+        if day.startswith(month):
+            month_count += 1
+            month_credits += credits
+        who = people.get(pid, {})
+        seq = who.get("member_seq")
+        sales.append({
+            "id": p["id"], "player_id": pid, "nickname": who.get("nickname") or "?",
+            "member_code": f"ND{int(seq):03d}" if seq is not None else "", "avatar_url": who.get("avatar_url"),
+            "starts_at": start, "ends_at": end, "credits": credits, "created_at": bought,
+            "running": running, "in_a_row": in_a_row.get(str(p["id"]), 1),
+        })
+    sales.sort(key=lambda s: s["created_at"], reverse=True)
+    return {
+        "holders": len(holders),
+        "month_count": month_count,
+        "month_credits": month_credits,
+        "total_count": len(passes),
+        "total_credits": sum(int(p.get("credits") or 0) for p in passes),
+        "latest_at": sales[0]["created_at"] if sales else None,
+        "sales": sales,
+        "daily": [{"date": d, "count": c, "credits": cr} for d, (c, cr) in sorted(daily.items(), reverse=True)],
+    }
