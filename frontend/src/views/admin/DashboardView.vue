@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSessionsStore } from '@/stores/sessions'
 import { usePlayersStore } from '@/stores/players'
@@ -11,6 +11,8 @@ import RevenueExpenseChart from '@/components/admin/RevenueExpenseChart.vue'
 import AccountBalanceChart from '@/components/admin/AccountBalanceChart.vue'
 import CountUp from '@/components/common/CountUp.vue'
 import { useLineLinksStore } from '@/stores/lineLinks'
+import * as adminApi from '@/api/admin'
+import type { PassAdmin } from '@/api/admin'
 
 const { t } = useI18n()
 const sessionsStore = useSessionsStore()
@@ -19,10 +21,19 @@ const playersStore = usePlayersStore()
 const finance = useFinanceStore()
 const lineLinks = useLineLinksStore()
 
+// Niddeaw Pass: who holds one, this month's, and how many came in since
+// this browser last opened the Pass tab.
+const passes = ref<PassAdmin | null>(null)
+const newPasses = computed(() => (passes.value ? adminApi.unseenPasses(passes.value) : 0))
+
 onMounted(() => {
   sessionsStore.refresh()
   playersStore.ensureLoaded()
   void lineLinks.load()
+  adminApi.getPassAdmin().then(
+    (p) => (passes.value = p),
+    () => (passes.value = null),
+  )
 })
 </script>
 
@@ -91,6 +102,17 @@ onMounted(() => {
       </RouterLink>
     </div>
 
+    <RouterLink v-if="passes" to="/admin/credit?tab=passes" class="pass-card mt-2 sm:mt-3">
+      <span class="pass-chip">✦ Niddeaw Pass</span>
+      <span class="order-last w-full text-sm sm:order-none sm:w-auto sm:min-w-0 sm:flex-1">
+        <b>{{ t('dashboard.passHolders', { n: passes.holders }) }}</b>
+        <span class="text-white/60"> · {{ t('dashboard.passMonth', { n: passes.month_count, credits: passes.month_credits.toLocaleString('en-US') }) }}</span>
+      </span>
+      <span class="flex-1 sm:hidden" />
+      <span v-if="newPasses" class="pass-new"><span class="dot" aria-hidden="true" />{{ t('dashboard.passNew', { n: newPasses }) }}</span>
+      <span v-else class="text-white/40" aria-hidden="true">→</span>
+    </RouterLink>
+
     <div class="mt-6">
       <RevenueExpenseChart />
     </div>
@@ -101,3 +123,54 @@ onMounted(() => {
 
   </main>
 </template>
+
+<style scoped>
+.pass-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  border: 1px solid rgb(255 211 77 / 0.45);
+  border-radius: 14px;
+  background: linear-gradient(120deg, rgb(255 211 77 / 0.12), rgb(255 255 255 / 0.02));
+  padding: 10px 12px;
+}
+.pass-chip {
+  flex: none;
+  border-radius: 999px;
+  background: linear-gradient(#ffe58a, #f2c14e);
+  padding: 3px 9px;
+  color: #3a2600;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+}
+.pass-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  background: #ffd34d;
+  padding: 3px 10px;
+  color: #000;
+  font-size: 12px;
+  font-weight: 700;
+}
+.pass-new .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #d61f6b;
+  animation: pass-ping 1.4s ease-in-out infinite;
+}
+@keyframes pass-ping {
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pass-new .dot {
+    animation: none;
+  }
+}
+</style>

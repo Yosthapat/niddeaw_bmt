@@ -859,6 +859,66 @@ export async function getCreditSummary(): Promise<CreditSummary> {
   return request('/api/admin/credit/summary')
 }
 
+/** One Niddeaw Pass bought. Mirrors backend models/niddeaw_pass.py PassSale. */
+export interface PassSale {
+  id: string
+  player_id: string
+  nickname: string
+  member_code: string
+  avatar_url: string | null
+  starts_at: string
+  ends_at: string
+  credits: number
+  created_at: string
+  /** the one running now */
+  running: boolean
+  /** which pass in the member's unbroken run (1 = a fresh start) */
+  in_a_row: number
+}
+
+/** Niddeaw Pass for the admin. Paid with credit, whose cash was counted
+ *  when it was topped up: none of it is income on top of that. */
+export interface PassAdmin {
+  holders: number
+  month_count: number
+  month_credits: number
+  total_count: number
+  total_credits: number
+  latest_at: string | null
+  /** newest first */
+  sales: PassSale[]
+  /** newest first, Bangkok days */
+  daily: { date: string; count: number; credits: number }[]
+}
+
+export async function getPassAdmin(): Promise<PassAdmin> {
+  return request('/api/admin/credit/passes')
+}
+
+// The newest pass this browser's admin has looked at, so the dashboard can
+// say how many came in since.
+const PASS_SEEN_KEY = 'niddeaw_admin_pass_seen'
+export function passSeenAt(): string | null {
+  try {
+    return localStorage.getItem(PASS_SEEN_KEY)
+  } catch {
+    return null
+  }
+}
+export function markPassesSeen(latest: string | null): void {
+  if (!latest) return
+  try {
+    localStorage.setItem(PASS_SEEN_KEY, latest)
+  } catch {
+    // private mode: the dot just stays
+  }
+}
+/** Passes bought after the last look (all of them if never looked). */
+export function unseenPasses(data: PassAdmin, seen: string | null = passSeenAt()): number {
+  const since = seen ? Date.parse(seen) : 0
+  return data.sales.filter((s) => Date.parse(s.created_at) > since).length
+}
+
 // --- slip QR checks (backend services/slip_check.py) -------------------------
 
 export type SlipKind = 'bill' | 'topup' | 'order'

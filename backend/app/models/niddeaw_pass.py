@@ -115,3 +115,47 @@ class PassNight(BaseModel):
     elo_after: int
     upset: PassUpset | None = None
     partner: PassMate | None = None
+
+
+class PassSale(BaseModel):
+    """One pass bought, for the admin's list."""
+
+    id: UUID
+    player_id: UUID
+    nickname: str
+    member_code: str
+    avatar_url: str | None = None
+    starts_at: datetime
+    ends_at: datetime
+    credits: int
+    created_at: datetime
+    running: bool
+    """This pass is the one running now."""
+    in_a_row: int
+    """Which pass this is in the member's unbroken run (1 = a fresh start)."""
+
+
+class PassDay(BaseModel):
+    date: date
+    count: int
+    credits: int
+
+
+class PassAdmin(BaseModel):
+    """Niddeaw Pass for the admin: who bought, who holds one now, and what
+    was spent on it. Paid with club credit, whose cash was already counted
+    when it was topped up, so none of this is income on top of that."""
+
+    holders: int
+    """Members with a pass running now."""
+    month_count: int
+    month_credits: int
+    """Bought this (Bangkok) month."""
+    total_count: int
+    total_credits: int
+    latest_at: datetime | None = None
+    """When the newest pass was bought: the dashboard's "new" dot."""
+    sales: list[PassSale]
+    """Newest first."""
+    daily: list[PassDay]
+    """Newest first, Bangkok days."""

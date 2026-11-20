@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import type { DailyRevenue, IncomeSource, OtherIncome, ShopRevenue } from '@/types'
-import type { CreditSummary } from '@/api/admin'
+import type { CreditSummary, PassAdmin } from '@/api/admin'
 import { compressImage } from '@/utils/imageCompression'
 import ReceiptThumb from '@/components/admin/ReceiptThumb.vue'
 import AdminNav from '@/components/layout/AdminNav.vue'
@@ -43,6 +43,8 @@ const shopTotal = computed(() => shop.value?.total ?? 0)
 const credit = ref<CreditSummary | null>(null)
 const creditFailed = ref(false)
 const creditTotal = computed(() => (credit.value ? credit.value.cash_in - credit.value.cash_out : 0))
+// Niddeaw Pass, bought with credit: its cash is already in creditTotal
+const passes = ref<PassAdmin | null>(null)
 
 /** One row per day that had either: the night's bills, the shop's
  * confirmed + delivered orders, or both. Newest first. */
@@ -51,17 +53,20 @@ interface Day {
   dues: DailyRevenue | null
   shop: { amount: number; orders: number } | null
   credit: number
+  /** Niddeaw Passes bought that day: paid with credit, not income */
+  pass: { count: number; credits: number } | null
 }
 const days = computed<Day[]>(() => {
   const byDate = new Map<string, Day>()
   const day = (date: string): Day => {
     let found = byDate.get(date)
-    if (!found) byDate.set(date, (found = { date, dues: null, shop: null, credit: 0 }))
+    if (!found) byDate.set(date, (found = { date, dues: null, shop: null, credit: 0, pass: null }))
     return found
   }
   for (const d of daily.value) day(d.date).dues = d
   for (const s of shop.value?.daily ?? []) day(s.date).shop = s
   for (const c of credit.value?.daily ?? []) day(c.date).credit += c.cash
+  for (const x of passes.value?.daily ?? []) day(x.date).pass = x
   return [...byDate.values()].sort((a, b) => (a.date < b.date ? 1 : -1))
 })
 
@@ -80,6 +85,11 @@ async function load(): Promise<void> {
         credit.value = null
         creditFailed.value = true
       },
+    )
+    // passes are shown beside the money, never added to it
+    void adminApi.getPassAdmin().then(
+      (p) => (passes.value = p),
+      () => (passes.value = null),
     )
     ;[daily.value, shop.value] = await Promise.all([adminApi.getRevenue(), adminApi.getShopRevenue()])
   } catch (e) {
@@ -323,6 +333,17 @@ onMounted(async () => {
         </div>
       </div>
 
+      <!-- Niddeaw Pass: what was bought with credit, beside the money -->
+      <RouterLink v-if="passes && passes.total_count > 0" to="/admin/credit?tab=passes" class="pass-strip mt-2.5">
+        <span class="pass-chip">✦ Niddeaw Pass</span>
+        <span class="flex-1 sm:hidden" />
+        <span class="order-last w-full sm:order-none sm:w-auto sm:min-w-0 sm:flex-1">
+          <b class="block text-sm">{{ t('revenue.passLine', { month: passes.month_count, credits: passes.month_credits.toLocaleString('en-US'), holders: passes.holders }) }}</b>
+          <span class="block text-[11px] text-white/55">{{ t('revenue.passNote', { n: passes.total_count, credits: passes.total_credits.toLocaleString('en-US') }) }}</span>
+        </span>
+        <span class="text-white/50" aria-hidden="true">→</span>
+      </RouterLink>
+
       <div v-if="daily.length > 0" class="mt-2.5 grid grid-cols-2 gap-2.5">
         <div class="hud-panel border border-brand-pink/20 bg-brand-surface p-3 text-center">
           <p class="text-xs tracking-wide text-white/40 uppercase">{{ t('billing.paid') }}</p>
@@ -367,6 +388,9 @@ onMounted(async () => {
           </div>
           <div v-if="d.credit !== 0" class="mt-1 flex items-center gap-1.5 text-xs text-white/70">
             <span class="h-2 w-2 rounded-full bg-[#ffc531]" aria-hidden="true" />{{ t('revenue.fromCredit') }} {{ money(d.credit) }}
+          </div>
+          <div v-if="d.pass" class="mt-1 flex items-center gap-1.5 text-xs text-[#ffe9a8]/85">
+            <span aria-hidden="true">✦</span>{{ t('revenue.passDay', { n: d.pass.count, credits: d.pass.credits.toLocaleString('en-US') }) }}
           </div>
         </li>
       </ul>
@@ -508,3 +532,26 @@ onMounted(async () => {
     </section>
   </main>
 </template>
+
+<style scoped>
+.pass-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  border: 1px solid rgb(255 211 77 / 0.45);
+  border-radius: 14px;
+  background: linear-gradient(120deg, rgb(255 211 77 / 0.12), rgb(255 255 255 / 0.02));
+  padding: 10px 12px;
+}
+.pass-chip {
+  flex: none;
+  border-radius: 999px;
+  background: linear-gradient(#ffe58a, #f2c14e);
+  padding: 3px 9px;
+  color: #3a2600;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+}
+</style>

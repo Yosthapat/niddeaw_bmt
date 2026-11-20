@@ -2,20 +2,23 @@
 /**
  * Club credit, the admin's side: top-up slips to check, every member's
  * balance with its history and a way to adjust it (cash at the court, a
- * refund, a correction — always with a reason), and the packages on sale.
+ * refund, a correction — always with a reason), the packages on sale, and
+ * the Niddeaw Passes bought with credit.
  */
 import SlipCheckBadge from '@/components/admin/SlipCheckBadge.vue'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
-import type { CreditBalances, CreditTopupAdmin, MemberLedger } from '@/api/admin'
+import type { CreditBalances, CreditTopupAdmin, MemberLedger, PassAdmin } from '@/api/admin'
 import type { CreditPackage } from '@/api/line'
 import { apiErrorMessage } from '@/api/errors'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { usePlayersStore } from '@/stores/players'
-import { formatDateTime } from '@/utils/format'
+import { formatDate, formatDateTime } from '@/utils/format'
 import type { Locale } from '@/i18n'
 import AdminNav from '@/components/layout/AdminNav.vue'
+import PlayerAvatar from '@/components/players/PlayerAvatar.vue'
 import CreditCardMark from '@/components/credit/CreditCardMark.vue'
 import { useCreditCardsStore } from '@/stores/creditCards'
 
@@ -24,8 +27,11 @@ const { confirm } = useConfirmDialog()
 const playersStore = usePlayersStore()
 const cards = useCreditCardsStore()
 
-type Tab = 'slips' | 'members' | 'packages'
-const tab = ref<Tab>('slips')
+type Tab = 'slips' | 'members' | 'packages' | 'passes'
+const TABS: Tab[] = ['slips', 'members', 'packages', 'passes']
+const route = useRoute()
+// /admin/credit?tab=passes: the dashboard's Pass card opens straight on it
+const tab = ref<Tab>(TABS.includes(route.query.tab as Tab) ? (route.query.tab as Tab) : 'slips')
 const num = (n: number): string => n.toLocaleString('en-US')
 const baht = (n: number): string => `฿${n.toLocaleString('en-US', { maximumFractionDigits: 2 })}`
 const when = (iso: string | null): string => (iso ? formatDateTime(iso, locale.value as Locale) : '')
@@ -199,15 +205,34 @@ async function removePackage(p: CreditPackage): Promise<void> {
   }
 }
 
+// ---------------------------------------------------------------- passes
+const passes = ref<PassAdmin | null>(null)
+// what was new when this tab was opened, kept highlighted while it is open
+const freshSince = ref<string | null>(adminApi.passSeenAt())
+const isFresh = (at: string): boolean => Date.parse(at) > (freshSince.value ? Date.parse(freshSince.value) : 0)
+const newPasses = computed(() => (passes.value ? adminApi.unseenPasses(passes.value, freshSince.value) : 0))
+const day = (iso: string): string => formatDate(iso, locale.value as Locale)
+
+async function loadPasses(): Promise<void> {
+  passes.value = await adminApi.getPassAdmin()
+}
+// Opening the tab is seeing them: the dashboard's dot goes.
+watch([tab, passes], () => {
+  if (tab.value === 'passes' && passes.value) adminApi.markPassesSeen(passes.value.latest_at)
+})
+
 const loading = ref(true)
 onMounted(async () => {
   try {
-    await Promise.all([loadSlips(), loadBalances(), loadPackages(), playersStore.ensureLoaded()])
+    await Promise.all([loadSlips(), loadBalances(), loadPackages(), loadPasses(), playersStore.ensureLoaded()])
   } catch (e) {
     problem.value = apiErrorMessage(e, t('credit.loadFailed'))
   } finally {
     loading.value = false
   }
+  // a tab opened from a link may sit past the edge of a phone's row
+  await nextTick()
+  document.querySelector('[role=tablist] [aria-selected=true]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
 })
 
 const KIND_TONE: Record<string, string> = {
@@ -223,18 +248,19 @@ const KIND_TONE: Record<string, string> = {
   <main class="mx-auto max-w-2xl px-4 py-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <h1 class="sr-only">{{ t('credit.title') }}</h1>
-      <div role="tablist" class="flex gap-1.5">
+      <div role="tablist" class="no-scrollbar -mx-4 flex w-[calc(100%+2rem)] gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:w-auto sm:px-0">
         <button
-          v-for="x in (['slips', 'members', 'packages'] as const)"
+          v-for="x in TABS"
           :key="x"
           type="button"
           role="tab"
           :aria-selected="tab === x"
-          class="tap rounded-full px-4 text-sm"
+          class="tap shrink-0 rounded-full px-4 text-sm whitespace-nowrap"
           :class="tab === x ? 'bg-brand-pink font-medium text-brand-black' : 'border border-white/20 text-white/80'"
           @click="tab = x"
         >
           {{ t(`credit.tab.${x}`) }}<template v-if="x === 'slips' && waiting.length"> ({{ waiting.length }})</template>
+          <span v-if="x === 'passes' && newPasses" class="ml-1 rounded-full bg-[#ffd34d] px-1.5 text-[11px] font-bold text-black">{{ t('credit.passNew', { n: newPasses }) }}</span>
         </button>
       </div>
     </div>
@@ -288,6 +314,42 @@ const KIND_TONE: Record<string, string> = {
           </li>
         </ul>
       </details>
+    </section>
+
+    <!-- =========================================================== passes -->
+    <section v-if="!loading && tab === 'passes' && passes" class="mt-5 space-y-3">
+      <div class="grid grid-cols-3 gap-2">
+        <div class="pass-stat"><span>{{ t('credit.passHolders') }}</span><b>{{ num(passes.holders) }}</b></div>
+        <div class="pass-stat"><span>{{ t('credit.passMonth') }}</span><b>{{ num(passes.month_count) }}</b><small>{{ t('credit.passCredits', { n: num(passes.month_credits) }) }}</small></div>
+        <div class="pass-stat"><span>{{ t('credit.passTotal') }}</span><b>{{ num(passes.total_count) }}</b><small>{{ t('credit.passCredits', { n: num(passes.total_credits) }) }}</small></div>
+      </div>
+      <p class="text-xs text-white/55">{{ t('credit.passNote') }}</p>
+      <p v-if="passes.sales.length === 0" class="hud-panel border border-brand-pink/20 bg-brand-surface p-4 text-sm text-white/55">{{ t('credit.passNone') }}</p>
+      <ul class="space-y-2">
+        <li
+          v-for="s in passes.sales"
+          :key="s.id"
+          class="hud-panel flex items-center gap-3 border bg-brand-surface px-3 py-2.5"
+          :class="isFresh(s.created_at) ? 'border-[#ffd34d]/70' : 'border-white/12'"
+        >
+          <PlayerAvatar :name="s.nickname" :avatar-url="s.avatar_url" size="sm" round :player-id="s.player_id" />
+          <div class="min-w-0 flex-1">
+            <p class="truncate font-medium">
+              {{ s.nickname }} <span class="text-xs font-normal text-white/45">{{ s.member_code }}</span>
+              <span v-if="isFresh(s.created_at)" class="ml-1 rounded-full bg-[#ffd34d] px-1.5 text-[10px] font-bold text-black">{{ t('credit.passFresh') }}</span>
+            </p>
+            <p class="text-xs text-white/60">{{ t('credit.passBought', { when: when(s.created_at) }) }}</p>
+            <p class="text-xs" :class="s.running ? 'text-[#7ff0b4]' : 'text-white/45'">
+              {{ s.running ? t('credit.passRuns', { day: day(s.ends_at) }) : t('credit.passRan', { from: day(s.starts_at), to: day(s.ends_at) }) }}
+              <template v-if="s.in_a_row > 1"> · <span class="text-[#ffe9a8]">{{ t('credit.passInARow', { n: s.in_a_row }) }}</span></template>
+            </p>
+          </div>
+          <span class="shrink-0 text-right">
+            <b class="font-display text-[#ffe9a8]">{{ num(s.credits) }}</b>
+            <span class="block text-[10px] text-white/45">{{ t('credit.passCreditsShort') }}</span>
+          </span>
+        </li>
+      </ul>
     </section>
 
     <!-- ========================================================== members -->
@@ -393,5 +455,33 @@ const KIND_TONE: Record<string, string> = {
   color: #4a2d00;
   font-family: 'Chakra Petch', sans-serif;
   font-weight: 700;
+}
+.pass-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid rgb(255 211 77 / 0.35);
+  border-radius: 14px;
+  background: linear-gradient(160deg, rgb(255 211 77 / 0.1), rgb(255 255 255 / 0.02));
+  padding: 10px 12px;
+}
+.pass-stat span {
+  font-size: 11px;
+  color: rgb(255 255 255 / 0.6);
+}
+.pass-stat b {
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: #ffe9a8;
+}
+.pass-stat small {
+  font-size: 10.5px;
+  color: rgb(255 255 255 / 0.5);
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 </style>
