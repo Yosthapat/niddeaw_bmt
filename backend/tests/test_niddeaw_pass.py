@@ -310,6 +310,9 @@ def test_admin_sees_who_bought_a_pass_and_who_holds_one(client: TestClient, db: 
         # Bank: one that ran out
         {"id": str(uuid4()), "player_id": bank, "credits": 199, "starts_at": (now - timedelta(days=90)).isoformat(),
          "ends_at": (now - timedelta(days=60)).isoformat(), "created_at": (now - timedelta(days=90)).isoformat()},
+        # Faa: an admin's free test pass, running: not a sale, not a holder
+        {"id": str(uuid4()), "player_id": pid(db, "Faa"), "credits": 0, "starts_at": now.isoformat(),
+         "ends_at": (now + timedelta(days=30)).isoformat(), "created_at": now.isoformat()},
     ]  # fmt: skip
     r = client.get("/api/admin/credit/passes", headers=admin())
     assert r.status_code == 200, r.text
@@ -318,4 +321,5 @@ def test_admin_sees_who_bought_a_pass_and_who_holds_one(client: TestClient, db: 
     newest = body["sales"][0]
     assert (newest["nickname"], newest["member_code"], newest["running"], newest["in_a_row"]) == ("Ball", "ND001", True, 2)
     assert body["month_count"] >= 1
+    assert "Faa" not in {x["nickname"] for x in body["sales"]}
     assert client.get("/api/admin/credit/passes").status_code == 401

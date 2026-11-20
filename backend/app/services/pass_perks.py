@@ -311,9 +311,11 @@ def night(supabase: Client, player_id: UUID | str) -> dict[str, Any] | None:
 
 
 def admin_overview(supabase: Client, now: datetime | None = None) -> dict[str, Any]:
-    """Every pass bought, for the admin (models.niddeaw_pass.PassAdmin)."""
+    """Every pass bought with credit, for the admin
+    (models.niddeaw_pass.PassAdmin). One given for nothing (0 credits: an
+    admin trying it out) is left out of the list and every count."""
     moment = now or datetime.now(UTC)
-    passes = rows(supabase.table("passes").select("*").execute())
+    passes = [p for p in rows(supabase.table("passes").select("*").execute()) if int(p.get("credits") or 0) > 0]
     ids = sorted({str(p["player_id"]) for p in passes})
     people = (
         {str(r["id"]): r for r in rows(supabase.table("players").select("id, nickname, member_seq, avatar_url").in_("id", ids).execute())}
