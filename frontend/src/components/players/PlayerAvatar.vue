@@ -9,8 +9,9 @@
 //
 // In the Christmas season (src/christmas/) every member wears a Santa hat,
 // tipped over the top right corner; a Niddeaw Pass holder's has gold trim.
-// Not on the admin screens, which are for working, and not over the crown
-// frame, which already has something on its head.
+// With the crown frame both are worn: the crown on top, the hat smaller
+// and tipped off to the side of it. Not on the admin screens, which are
+// for working.
 import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { xmasOn } from '@/christmas/season'
@@ -41,7 +42,7 @@ const shownFrame = computed<PassFrame | null>(() => {
 })
 
 const route = useRoute()
-const hat = computed(() => xmasOn && !route.path.startsWith('/admin') && shownFrame.value !== 'crown')
+const hat = computed(() => xmasOn && !route.path.startsWith('/admin'))
 
 </script>
 
@@ -63,7 +64,7 @@ const hat = computed(() => xmasOn && !route.path.startsWith('/admin') && shownFr
        frame, so the ring stays centred on the picture. -->
   <span v-else v-bind="$attrs" class="pf" :class="[`pf-${shownFrame}`, `pf-${size}`]">
     <PlayerAvatarFace :name="name" :avatar-url="avatarUrl" :size="size" :round="round" />
-    <svg v-if="hat" class="xh-hat" viewBox="0 0 64 56" aria-hidden="true">
+    <svg v-if="hat" class="xh-hat" :class="{ 'xh-hat--crown': shownFrame === 'crown' }" viewBox="0 0 64 56" aria-hidden="true">
       <path d="M8 46C12 22 30 6 52 12c4 8 2 18 0 24l-2 10Z" fill="#e8264f" stroke="#1a0c1f" stroke-width="2.5" stroke-linejoin="round" />
       <circle cx="53" cy="38" r="6" fill="#ffe58a" stroke="#1a0c1f" stroke-width="2.5" />
       <rect x="4" y="42" width="50" height="12" rx="6" fill="#ffe58a" stroke="#1a0c1f" stroke-width="2.5" />
@@ -99,6 +100,14 @@ const hat = computed(() => xmasOn && !route.path.startsWith('/admin') && shownFr
   rotate: 16deg;
   pointer-events: none;
   filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.45));
+}
+/* beside the crown frame's crown rather than on it */
+.xh-hat--crown {
+  z-index: 3;
+  top: -22%;
+  right: -24%;
+  width: 60%;
+  rotate: 24deg;
 }
 /* The ring is drawn just outside the picture, behind it; the picture keeps
    its own size, so nothing around it moves. */
