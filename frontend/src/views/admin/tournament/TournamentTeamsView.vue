@@ -110,7 +110,12 @@ const checkOf = (x: AdminTeam, e: Entrant) => x.slip_checks.find((c) => c.target
 const canCash = (x: AdminTeam, e: Entrant): boolean =>
   LIVE.includes(x.status) && x.status !== 'invited' && (e.pay_status === 'unpaid' || e.pay_status === 'rejected')
 const owes = (x: AdminTeam, e: Entrant): boolean =>
-  (x.status === 'cancelled' || x.status === 'withdrawn') && x.refund_owed > 0 && e.pay_status === 'paid'
+  (x.status === 'cancelled' || x.status === 'withdrawn') && x.refund_owed > 0 && e.pay_status === 'paid' && !e.covered_by
+/** The teammate who paid this share with their own slip, if one did. */
+const payerOf = (x: AdminTeam, e: Entrant): Entrant | null => (e.covered_by ? (x.entrants.find((o) => o.id === e.covered_by) ?? null) : null)
+/** What one slip pays: this player's share and any they paid for their partner. */
+const slipAmount = (x: AdminTeam, e: Entrant): number => e.share + x.entrants.filter((o) => o.covered_by === e.id).reduce((n, o) => n + o.share, 0)
+const paysForTeam = (x: AdminTeam, e: Entrant): boolean => x.entrants.some((o) => o.covered_by === e.id)
 
 async function approve(e: Entrant): Promise<void> {
   await run(e.id, () => tournamentAdmin.approve(e.id))
@@ -384,7 +389,9 @@ const when = (iso: string | null): string => (iso ? formatDateTime(iso, locale.v
                       {{ t(`cup.payStatus.${e.pay_status}`) }}<template v-if="e.paid_via === 'cash' && e.pay_status === 'paid'"> · {{ t('cup.admin.paidCash') }}</template>
                     </span>
                     · {{ money(e.share) }}
-                    <template v-if="checkOf(x, e)">
+                    <template v-if="payerOf(x, e)"> · <span class="text-[#ffd34d]">{{ t('cup.admin.paidByTeammate', { name: payerOf(x, e)?.nickname }) }}</span></template>
+                    <template v-else-if="paysForTeam(x, e)"> · <span class="text-[#ffd34d]">{{ t('cup.admin.paidForTeammate', { name: x.entrants.find((o) => o.covered_by === e.id)?.nickname }) }}</span></template>
+                    <template v-if="checkOf(x, e) && !payerOf(x, e)">
                       ·
                       <span :class="checkOf(x, e)?.status === 'duplicate' ? 'font-semibold text-status-error' : checkOf(x, e)?.status === 'ok' ? 'text-status-success' : 'text-[#ffd34d]'">
                         {{ t(`cup.slipCheck.${checkOf(x, e)?.status}`) }}
@@ -393,14 +400,17 @@ const when = (iso: string | null): string => (iso ? formatDateTime(iso, locale.v
                     </template>
                   </p>
                 </div>
-                <a v-if="e.slip_url" :href="e.slip_url" target="_blank" rel="noopener" class="shrink-0">
+                <a v-if="e.slip_url && !payerOf(x, e)" :href="e.slip_url" target="_blank" rel="noopener" class="shrink-0">
                   <img :src="e.slip_url" :alt="t('cup.admin.slipOf', { name: e.nickname })" class="h-16 w-12 rounded border border-white/15 object-cover" />
                 </a>
               </div>
 
               <div class="mt-2 flex flex-wrap gap-1.5">
-                <template v-if="e.pay_status === 'slip_sent'">
-                  <button type="button" :disabled="busy === e.id" class="tap rounded-full bg-status-success px-3 text-xs font-semibold text-brand-black disabled:opacity-50" @click="approve(e)">{{ t('cup.admin.approve') }}</button>
+                <!-- a share paid by the teammate's slip is checked on the teammate's row -->
+                <template v-if="e.pay_status === 'slip_sent' && !payerOf(x, e)">
+                  <button type="button" :disabled="busy === e.id" class="tap rounded-full bg-status-success px-3 text-xs font-semibold text-brand-black disabled:opacity-50" @click="approve(e)">
+                    {{ paysForTeam(x, e) ? `${t('cup.admin.approveTeam')} ${money(slipAmount(x, e))}` : t('cup.admin.approve') }}
+                  </button>
                   <button type="button" :disabled="busy === e.id" class="tap rounded-full border border-status-error/50 px-3 text-xs text-status-error" @click="reject(e)">{{ t('cup.admin.reject') }}</button>
                 </template>
                 <button v-if="canCash(x, e)" type="button" :disabled="busy === e.id" class="tap rounded-full border border-white/25 px-3 text-xs text-white/75" @click="cash(e)">{{ t('cup.admin.cash') }}</button>
@@ -410,11 +420,11 @@ const when = (iso: string | null): string => (iso ? formatDateTime(iso, locale.v
                       {{ refundFile ? refundFile.name : t('cup.admin.refundSlip') }}
                       <input type="file" accept="image/*" class="sr-only" @change="refundFile = ($event.target as HTMLInputElement).files?.[0] ?? null" />
                     </label>
-                    <button type="button" :disabled="busy === e.id" class="tap rounded-full bg-[#ffd34d] px-3 text-xs font-semibold text-brand-black" @click="refund(e)">{{ t('cup.admin.refundDone', { amount: money(e.share) }) }}</button>
+                    <button type="button" :disabled="busy === e.id" class="tap rounded-full bg-[#ffd34d] px-3 text-xs font-semibold text-brand-black" @click="refund(e)">{{ t('cup.admin.refundDone', { amount: money(slipAmount(x, e)) }) }}</button>
                     <button type="button" class="tap rounded-full border border-white/20 px-3 text-xs text-white/60" @click="refunding = null">{{ t('common.cancel') }}</button>
                   </template>
                   <button v-else type="button" class="tap rounded-full border border-[#ffd34d]/50 px-3 text-xs text-[#ffd34d]" @click="refunding = e.id; refundFile = null">
-                    {{ t('cup.admin.refund', { amount: money(e.share) }) }}
+                    {{ t('cup.admin.refund', { amount: money(slipAmount(x, e)) }) }}
                   </button>
                 </template>
               </div>

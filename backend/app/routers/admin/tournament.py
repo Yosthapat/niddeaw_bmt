@@ -718,8 +718,11 @@ def money_summary(
             by_level[name] = round(by_level.get(name, 0.0) + amount, 2)
     ents = ts.entrants(supabase, tid)
     pending = [e for e in ents if e["pay_status"] == "slip_sent"]
+    by_team: dict[str, list[dict[str, Any]]] = {}
+    for e in ents:
+        by_team.setdefault(str(e["team_id"]), []).append(e)
     owed = [
-        (e, ts.refund_owed(all_teams[str(e["team_id"])], e))
+        (e, ts.refund_owed(all_teams[str(e["team_id"])], e, by_team[str(e["team_id"])]))
         for e in ents
         if str(e["team_id"]) in all_teams
     ]
@@ -730,7 +733,8 @@ def money_summary(
         balance=round(income - expense, 2),
         by_category=by_category,
         by_level=by_level,
-        pending_slips=len(pending),
+        # one slip may pay for both players: count slips, not shares
+        pending_slips=len([e for e in pending if not e.get("covered_by")]),
         pending_amount=float(sum(int(e["share"]) for e in pending)),
         refunds_owed=len(owed),
         refunds_owed_amount=float(sum(amount for _, amount in owed)),

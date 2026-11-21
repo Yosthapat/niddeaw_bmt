@@ -106,7 +106,9 @@ def take_pass_off(supabase: Client, entry: dict[str, Any]) -> dict[str, Any]:
     share, off = pass_share(supabase, str(entry["player_id"]), int(entry["share"]))
     if not off:
         return entry
-    supabase.table(ENTRANTS).update({"share": share, "pass_off": off}).eq("id", str(entry["id"])).execute()
+    supabase.table(ENTRANTS).update({"share": share, "pass_off": off}).eq(
+        "id", str(entry["id"])
+    ).execute()
     return {**entry, "share": share, "pass_off": off}
 
 
@@ -150,12 +152,22 @@ def games_needed(player: dict[str, Any], tournament: dict[str, Any]) -> int:
     return max(0, int(tournament["min_games"]) - int(player.get("games") or 0))
 
 
-def refund_owed(team: dict[str, Any], entrant: dict[str, Any]) -> int:
+def refund_owed(
+    team: dict[str, Any], entrant: dict[str, Any], team_ents: list[dict[str, Any]] | None = None
+) -> int:
     """Baht to give back to this player: their fee, received, for a team that
-    did not play — unless an admin withdrew it keeping the fees."""
-    if team["status"] not in ENDED or team.get("no_refund"):
+    did not play — unless an admin withdrew it keeping the fees. A share one
+    player paid for the other (`covered_by`) goes back to the one who paid
+    it, so pass the team's entrants to count those in."""
+    if team["status"] not in ENDED or team.get("no_refund") or entrant.get("covered_by"):
         return 0
-    return int(entrant["share"]) if entrant["pay_status"] == "paid" else 0
+    paid = [entrant, *covered_of(entrant, team_ents or [])]
+    return sum(int(e["share"]) for e in paid if e["pay_status"] == "paid")
+
+
+def covered_of(payer: dict[str, Any], team_ents: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The teammates whose share `payer` paid with their own transfer."""
+    return [e for e in team_ents if str(e.get("covered_by") or "") == str(payer["id"])]
 
 
 # --- reads ------------------------------------------------------------------
@@ -581,22 +593,80 @@ def accept(
     )
 
 
-def record_slip(supabase: Client, entry: dict[str, Any], url: str) -> None:
-    """A player's slip for their half. Sending again replaces the last one."""
+def teammate(supabase: Client, entry: dict[str, Any]) -> dict[str, Any] | None:
+    """The other player in `entry`'s team."""
+    return next(
+        (
+            e
+            for e in team_entrants(supabase, str(entry["team_id"]))
+            if str(e["id"]) != str(entry["id"])
+        ),
+        None,
+    )
+
+
+def can_cover(entry: dict[str, Any], partner: dict[str, Any] | None) -> bool:
+    """Whether `entry` may pay `partner`'s share too: the partner hasn't paid
+    or sent a slip of their own (one sent for them by `entry` may be sent
+    again)."""
+    if partner is None or partner["pay_status"] in {"paid", "refunded"}:
+        return False
+    if partner["pay_status"] == "slip_sent":
+        return str(partner.get("covered_by") or "") == str(entry["id"])
+    return True
+
+
+def _slip_fields(url: str) -> dict[str, Any]:
+    return {
+        "slip_url": url,
+        "slip_sent_at": iso(now()),
+        "pay_status": "slip_sent",
+        "paid_via": "transfer",
+        "rejected_at": None,
+    }
+
+
+_UNCOVERED = {
+    "covered_by": None,
+    "pay_status": "unpaid",
+    "slip_url": None,
+    "slip_sent_at": None,
+    "paid_via": None,
+    "rejected_at": None,
+}
+"""A share someone else had sent a slip for, back to the player's own to pay."""
+
+
+def record_slip(supabase: Client, entry: dict[str, Any], url: str, for_team: bool = False) -> None:
+    """A player's slip for their share, or (`for_team`) for both shares: the
+    partner's row then carries the same slip and points at who paid. Sending
+    again replaces the last one."""
     t = team(supabase, str(entry["team_id"]))
     if t["status"] not in LIVE or t["status"] == "invited":
         raise refuse(status.HTTP_409_CONFLICT, "ทีมนี้ยังไม่ถึงขั้นโอน หรือจบไปแล้ว")
     if entry["pay_status"] == "paid":
         raise refuse(status.HTTP_409_CONFLICT, "แอดมินตรวจยอดของคุณแล้ว ไม่ต้องส่งสลิปอีก")
-    supabase.table(ENTRANTS).update(
-        {
-            "slip_url": url,
-            "slip_sent_at": iso(now()),
-            "pay_status": "slip_sent",
-            "paid_via": "transfer",
-            "rejected_at": None,
-        }
-    ).eq("id", str(entry["id"])).execute()
+    if entry.get("covered_by") and entry["pay_status"] == "slip_sent":
+        raise refuse(status.HTTP_409_CONFLICT, "คู่ของคุณโอนส่วนของคุณให้แล้ว ไม่ต้องโอนอีก")
+    partner = teammate(supabase, entry)
+    if (
+        not for_team
+        and partner is not None
+        and str(partner.get("covered_by") or "") == str(entry["id"])
+        and partner["pay_status"] == "slip_sent"
+    ):
+        # Both shares took the team's place; a slip sent again must still
+        # pay for both.
+        raise refuse(status.HTTP_409_CONFLICT, "คุณจ่ายให้คู่ไว้แล้ว ถ้าส่งสลิปใหม่ต้องเป็นยอดของทั้งทีม")
+    if for_team and not can_cover(entry, partner):
+        raise refuse(status.HTTP_409_CONFLICT, "คู่ของคุณจ่ายหรือส่งสลิปส่วนของเขาไปแล้ว จ่ายได้แค่ส่วนของตัวเอง")
+    supabase.table(ENTRANTS).update({**_slip_fields(url), "covered_by": None}).eq(
+        "id", str(entry["id"])
+    ).execute()
+    if for_team and partner is not None:
+        supabase.table(ENTRANTS).update({**_slip_fields(url), "covered_by": str(entry["id"])}).eq(
+            "id", str(partner["id"])
+        ).execute()
     settle(supabase, str(t["id"]))
 
 
@@ -635,32 +705,49 @@ def _fee_row(supabase: Client, entry: dict[str, Any], admin_id: str, via: str) -
 
 def mark_paid(supabase: Client, entry: dict[str, Any], admin_id: str, via: str) -> None:
     """A slip checked and the money in (or cash taken at the desk): it now
-    counts as the tournament's income."""
+    counts as the tournament's income. A slip that paid for both players is
+    checked once, from either row, and counts both shares; cash taken from
+    a player whose share a teammate had sent a slip for is theirs alone."""
+    if via == "transfer" and entry.get("covered_by"):
+        return mark_paid(supabase, entrant(supabase, str(entry["covered_by"])), admin_id, via)
     if entry["pay_status"] in {"paid", "refunded"}:
         raise refuse(status.HTTP_409_CONFLICT, "รายการนี้ตรวจไปแล้ว")
     if via == "transfer" and entry["pay_status"] != "slip_sent":
         raise refuse(status.HTTP_409_CONFLICT, "ยังไม่มีสลิปให้ตรวจ")
-    supabase.table(ENTRANTS).update(
-        {
-            "pay_status": "paid",
-            "paid_via": via,
-            "paid_at": iso(now()),
-            "checked_by": admin_id,
-            "rejected_at": None,
-        }
-    ).eq("id", str(entry["id"])).execute()
+    paid = {
+        "pay_status": "paid",
+        "paid_via": via,
+        "paid_at": iso(now()),
+        "checked_by": admin_id,
+        "rejected_at": None,
+    }
+    supabase.table(ENTRANTS).update({**paid, "covered_by": None} if via == "cash" else paid).eq(
+        "id", str(entry["id"])
+    ).execute()
     _fee_row(supabase, {**entry, "pay_status": "paid"}, admin_id, via)
+    if via == "transfer":
+        for c in covered_of(entry, team_entrants(supabase, str(entry["team_id"]))):
+            if c["pay_status"] != "slip_sent":
+                continue
+            supabase.table(ENTRANTS).update(paid).eq("id", str(c["id"])).execute()
+            _fee_row(supabase, {**c, "pay_status": "paid"}, admin_id, via)
     settle(supabase, str(entry["team_id"]))
 
 
 def reject(supabase: Client, entry: dict[str, Any], admin_id: str) -> None:
     """A slip that doesn't hold up. The player has 24 hours to send another
-    before a held place is given up."""
+    before a held place is given up. A slip that paid for both is refused
+    for the one who sent it; the partner's share is theirs to pay again."""
+    if entry.get("covered_by") and entry["pay_status"] == "slip_sent":
+        return reject(supabase, entrant(supabase, str(entry["covered_by"])), admin_id)
     if entry["pay_status"] != "slip_sent":
         raise refuse(status.HTTP_409_CONFLICT, "ไม่มีสลิปที่รอตรวจ")
     supabase.table(ENTRANTS).update(
         {"pay_status": "rejected", "rejected_at": iso(now()), "checked_by": admin_id}
     ).eq("id", str(entry["id"])).execute()
+    for c in covered_of(entry, team_entrants(supabase, str(entry["team_id"]))):
+        if c["pay_status"] == "slip_sent":
+            supabase.table(ENTRANTS).update(_UNCOVERED).eq("id", str(c["id"])).execute()
     t = team(supabase, str(entry["team_id"]))
     if t["status"] in {"slip_review", "waitlist"}:
         _set_team(
@@ -680,13 +767,20 @@ def end_team(supabase: Client, team_row: dict[str, Any], to: str, no_refund: boo
 
 
 def refund(supabase: Client, entry: dict[str, Any], admin_id: str, slip_url: str | None) -> None:
+    """Give a player back what they paid: their own share, and the
+    teammate's if they paid that too (both rows read as refunded)."""
+    if entry.get("covered_by"):
+        raise refuse(status.HTTP_409_CONFLICT, "ส่วนนี้คู่ของเขาเป็นคนจ่ายให้ ให้คืนเงินที่คนจ่ายแทน")
     t = team(supabase, str(entry["team_id"]))
-    owed = refund_owed(t, entry)
+    ents = team_entrants(supabase, str(entry["team_id"]))
+    owed = refund_owed(t, entry, ents)
     if not owed:
         raise refuse(status.HTTP_409_CONFLICT, "ไม่มียอดต้องคืนให้คนนี้")
-    supabase.table(ENTRANTS).update(
-        {"pay_status": "refunded", "refunded_at": iso(now()), "refund_slip_url": slip_url}
-    ).eq("id", str(entry["id"])).execute()
+    back = {"pay_status": "refunded", "refunded_at": iso(now()), "refund_slip_url": slip_url}
+    supabase.table(ENTRANTS).update(back).eq("id", str(entry["id"])).execute()
+    for c in covered_of(entry, ents):
+        if c["pay_status"] == "paid":
+            supabase.table(ENTRANTS).update(back).eq("id", str(c["id"])).execute()
     supabase.table(MONEY).insert(
         {
             "id": str(uuid4()),
