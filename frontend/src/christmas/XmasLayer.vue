@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * Everything the season lays over the public pages: the snow, the lights
- * and the Last Christmas button. Mounted once in App.vue, and only in the
+ * and the Christmas music button. Mounted once in App.vue, and only in the
  * season (season.ts), so outside it none of this is even downloaded. It
  * stays mounted from page to page, so the song keeps playing as a member
  * moves around the site.
