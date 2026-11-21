@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, defineAsyncComponent, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import { pageEntered, pageEntering } from '@/composables/usePageSwap'
@@ -11,6 +11,11 @@ import AmbientBackground from '@/components/common/AmbientBackground.vue'
 import UpdateBanner from '@/components/common/UpdateBanner.vue'
 import PublicTabBar from '@/components/layout/PublicTabBar.vue'
 import AdminTabBar from '@/components/layout/AdminTabBar.vue'
+import { xmasOn } from '@/christmas/season'
+
+// Snow, lights and Last Christmas, 1 Dec – 4 Jan (src/christmas/). Loaded
+// only in the season, so the rest of the year none of it is downloaded.
+const XmasLayer = xmasOn ? defineAsyncComponent(() => import('@/christmas/XmasLayer.vue')) : null
 
 const route = useRoute()
 
@@ -99,6 +104,7 @@ watch(
       <div class="h-[calc(96px+env(safe-area-inset-bottom,0px))] min-[900px]:hidden" aria-hidden="true" />
       <AdminTabBar />
     </template>
+    <component :is="XmasLayer" v-if="XmasLayer && !isAdmin && !bare" />
     <TierInfoModal />
     <ConfirmDialog />
     <UpdateBanner />

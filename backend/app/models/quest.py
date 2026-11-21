@@ -42,6 +42,14 @@ class SecretState(BaseModel):
     earned_at: datetime | None = None
 
 
+class EventState(BaseModel):
+    """A limited medal for being at a special night ("xmas:2026"): listed
+    only once it is earned, since each one comes round once a year."""
+
+    key: str
+    earned_at: datetime
+
+
 class BadgeAward(BaseModel):
     badge: str
     level: int
@@ -55,6 +63,7 @@ class PlayerBadges(BaseModel):
     month: MonthState
     past_months: list[MonthState]
     secrets: list[SecretState]
+    events: list[EventState] = Field(default_factory=list)
     linked: bool = True
     """Badges are for members who linked LINE. For one who hasn't, nothing
     below shows as earned; `waiting` says how many medals they already have

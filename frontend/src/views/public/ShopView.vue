@@ -9,6 +9,8 @@ import CartLink from '@/components/shop/CartLink.vue'
 import HudSkeletonBlock from '@/components/common/HudSkeletonBlock.vue'
 import { onRevisit } from '@/composables/useRevisit'
 import PageBanner from '@/components/common/PageBanner.vue'
+import XmasShopBanner from '@/christmas/XmasShopBanner.vue'
+import { xmasOn } from '@/christmas/season'
 
 const { t } = useI18n()
 const products = ref<Product[]>([])
@@ -75,6 +77,7 @@ onRevisit(async () => {
 
     <div class="home-world">
       <div class="mx-auto max-w-[1200px] px-3 pt-4 sm:px-6 sm:pt-7">
+        <XmasShopBanner v-if="xmasOn" />
         <!-- how buying works, on a screen wide enough to say it in one line -->
         <ol class="mb-5 hidden gap-3 lg:flex">
           <li

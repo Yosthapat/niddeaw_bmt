@@ -68,7 +68,7 @@ const where = computed(() => {
     .join(' · ')
 })
 
-const { night, countdown, startsAt } = useGameNight()
+const { night, countdown, startsAt, special, eyebrow: nightEyebrow, countdownLabel } = useGameNight()
 </script>
 
 <template>
@@ -146,15 +146,20 @@ const { night, countdown, startsAt } = useGameNight()
 
     <!-- the rest of the week -->
     <template v-else>
-      <p class="world-eyebrow">NEXT GAME NIGHT</p>
+      <p class="world-eyebrow">{{ nightEyebrow }}</p>
       <h2 class="world-title mt-1 text-3xl">{{ startsAt }}</h2>
-      <div class="mt-5 flex gap-3" role="timer" :aria-label="t('home.big.countdownLabel')">
+      <div class="mt-5 flex gap-3" role="timer" :aria-label="countdownLabel">
         <div v-for="part in countdown" :key="part.unit" class="count">
           <span class="font-display text-4xl leading-none font-bold text-[#ff9fd6] tabular-nums">{{ part.n }}</span>
           <span class="mt-1.5 text-xs text-white/60">{{ part.unit }}</span>
         </div>
       </div>
-      <p class="mt-auto pt-5 text-sm text-white/60">{{ t('home.hero.when') }}</p>
+      <!-- Christmas / New Year's night: there is a limited medal for being there -->
+      <p v-if="special" class="mt-auto flex items-center gap-2.5 pt-5 text-sm text-white/85">
+        <img :src="`/badges/event_${special}.webp`" alt="" width="40" height="40" class="h-10 w-10 shrink-0" />
+        {{ t('xmas.night.medal') }}
+      </p>
+      <p v-else class="mt-auto pt-5 text-sm text-white/60">{{ t('home.hero.when') }}</p>
     </template>
   </RouterLink>
 </template>

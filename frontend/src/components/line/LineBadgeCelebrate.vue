@@ -11,6 +11,7 @@
  * celebration can take its turn.
  */
 import { onMounted, ref } from 'vue'
+import { burstAt } from '@/christmas/burst'
 import { useI18n } from 'vue-i18n'
 import { getMyBadges, markBadgesSeen, type BadgeAward } from '@/api/quests'
 import { awardImage, awardMetal, awardName, METAL_RANK, metalName, shelfItems, type BadgeItem } from '@/utils/quests'
@@ -69,7 +70,11 @@ onMounted(async () => {
 
 function next(): void {
   current.value = queue.value.shift() ?? null
-  if (current.value) return
+  if (current.value) {
+    // Christmas season: a burst of snow as the medal comes up (src/christmas/)
+    setTimeout(() => burstAt(window.innerWidth / 2, window.innerHeight * 0.42), 350)
+    return
+  }
   if (unseen.length) {
     const items = unseen
     unseen = []

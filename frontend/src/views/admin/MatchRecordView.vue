@@ -7,6 +7,7 @@ import * as adminApi from '@/api/admin'
 import type { MatchWinner } from '@/types'
 import AdminNav from '@/components/layout/AdminNav.vue'
 import { apiErrorMessage } from '@/api/errors'
+import { burstFrom } from '@/christmas/burst'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -25,12 +26,15 @@ function nameOf(playerId: string): string {
 const submitting = ref(false)
 const error = ref<string | null>(null)
 
-async function submit(winner: MatchWinner): Promise<void> {
+async function submit(winner: MatchWinner, e?: MouseEvent): Promise<void> {
   if (!matchId.value) return
+  const from = e?.currentTarget instanceof Element ? e.currentTarget : null
   submitting.value = true
   error.value = null
   try {
     await adminApi.recordMatchResult(matchId.value, winner)
+    // Christmas season: snow out of the button just tapped (src/christmas/)
+    if (winner !== 'draw') burstFrom(from)
     // replace, not push: this screen's URL carries the match in its query
     // string and holds live "who won" buttons, so leaving it in history
     // puts a second, duplicate submission one Back tap away. The backend
@@ -72,7 +76,7 @@ onMounted(() => {
         <button
           :disabled="submitting"
           class="w-full rounded-lg bg-status-success/90 px-3 py-3 text-center font-semibold text-brand-black hover:bg-status-success disabled:opacity-50"
-          @click="submit('team1')"
+          @click="submit('team1', $event)"
         >
           {{ team1Ids.map(nameOf).join(' & ') }} {{ t('matchRecord.wins') }}
         </button>
@@ -86,7 +90,7 @@ onMounted(() => {
         <button
           :disabled="submitting"
           class="w-full rounded-lg bg-status-success/90 px-3 py-3 text-center font-semibold text-brand-black hover:bg-status-success disabled:opacity-50"
-          @click="submit('team2')"
+          @click="submit('team2', $event)"
         >
           {{ team2Ids.map(nameOf).join(' & ') }} {{ t('matchRecord.wins') }}
         </button>

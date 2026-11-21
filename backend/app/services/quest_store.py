@@ -29,6 +29,7 @@ from app.db_utils import rows
 from app.models.quest import (
     BadgeAward,
     BadgeFeedItem,
+    EventState,
     MonthState,
     PlayerBadges,
     PodiumState,
@@ -57,8 +58,13 @@ _METAL = {
 }
 
 
+def is_event(badge: str) -> bool:
+    """A limited medal for being there on a special night: "xmas:2026"."""
+    return badge.split(":", 1)[0] in qs.EVENTS.values() and ":" in badge
+
+
 def metal(badge: str, level: int) -> int:
-    if badge.startswith("monthly:"):
+    if badge.startswith("monthly:") or is_event(badge):
         return 3
     tiers = _METAL.get(badge, [1, 2, 3])
     return tiers[min(level, len(tiers)) - 1]
@@ -392,6 +398,10 @@ def player_badges(snap: Snapshot, player_id: str, *, linked: bool | None = None)
         ),
         past_months=past,
         secrets=[SecretState(key=k, earned_at=s.earned[0]) for k, s in q.secrets.items()],
+        events=[
+            EventState(key=k, earned_at=at)
+            for k, at in sorted(q.events.items(), key=lambda e: e[1])
+        ],
     )
     if linked is None:
         linked = player_id in snap.linked
@@ -422,6 +432,7 @@ def _locked(snap: Snapshot, player_id: str, full: PlayerBadges) -> PlayerBadges:
         month=MonthState(month=full.month.month, target=full.month.target, games=0),
         past_months=[],
         secrets=[SecretState(key=s.key) for s in full.secrets],
+        events=[],
         linked=False,
         waiting=len(slots),
         waiting_top=_grandest(mine).get(player_id, []),

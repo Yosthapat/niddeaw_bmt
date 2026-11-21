@@ -16,6 +16,11 @@
  * map from the same script, so when the camera moves the head and body
  * stand out of the picture for real. It holds up to roughly ±25°; the
  * camera never turns further than that.
+ *
+ * In the Christmas season (`xmas`, src/christmas/) it also snows, the cat
+ * wears its scarf and snowy crown (public/xmas/cat-dress.svg, laid on the
+ * same depth map so it follows the cat's shape), and the drink mascots get
+ * Santa hats.
  */
 import * as THREE from 'three'
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
@@ -34,6 +39,8 @@ export interface HeroSceneOptions {
   onFps?: (fps: number, bloom: boolean) => void
   /** Even without bloom this device cannot keep up: go back to CSS. */
   onGiveUp: (reason: string) => void
+  /** Dress the scene for Christmas. */
+  xmas?: boolean
 }
 
 export interface HeroScene {
@@ -101,6 +108,36 @@ const feathers = (): THREE.CanvasTexture =>
     }
   })
 
+/** A Santa hat, tip flopping to the right, for the drink mascots. */
+const santaHat = (): THREE.CanvasTexture =>
+  canvasTexture(128, 128, (g) => {
+    g.lineJoin = 'round'
+    g.lineWidth = 5
+    g.strokeStyle = '#1a0c1f'
+    const red = g.createLinearGradient(0, 20, 0, 100)
+    red.addColorStop(0, '#ff4d6d')
+    red.addColorStop(1, '#b5123a')
+    g.fillStyle = red
+    g.beginPath()
+    g.moveTo(18, 96)
+    g.bezierCurveTo(26, 46, 60, 14, 100, 26)
+    g.bezierCurveTo(108, 40, 104, 58, 100, 70)
+    g.lineTo(96, 96)
+    g.closePath()
+    g.fill()
+    g.stroke()
+    // the bobble, and the white brim
+    g.fillStyle = '#ffffff'
+    g.beginPath()
+    g.arc(104, 74, 12, 0, Math.PI * 2)
+    g.fill()
+    g.stroke()
+    g.beginPath()
+    g.roundRect(10, 88, 98, 24, 12)
+    g.fill()
+    g.stroke()
+  })
+
 export async function createHeroScene(opts: HeroSceneOptions): Promise<HeroScene> {
   const { canvas } = opts
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' })
@@ -125,6 +162,8 @@ export async function createHeroScene(opts: HeroSceneOptions): Promise<HeroScene
     loadTexture(loader, '/tiers/soju.webp'),
   ])
   catTex.anisotropy = renderer.capabilities.getMaxAnisotropy()
+  // The dress fails quietly: a cat without its scarf is still the hero.
+  const dressTex = opts.xmas ? await loadTexture(loader, '/xmas/cat-dress.svg').catch(() => null) : null
 
   // --- sky: a gradient wall behind the far end of the floor
   const sky = new THREE.Mesh(
@@ -306,6 +345,29 @@ export async function createHeroScene(opts: HeroSceneOptions): Promise<HeroScene
     }),
   )
   scene.add(cat)
+  if (dressTex) {
+    dressTex.anisotropy = renderer.capabilities.getMaxAnisotropy()
+    // the same plane and depth map, lifted a hair off the cat's surface
+    const dress = new THREE.Mesh(
+      cat.geometry,
+      new THREE.MeshStandardMaterial({
+        map: dressTex,
+        color: 0x000000,
+        emissive: 0xffffff,
+        emissiveMap: dressTex,
+        emissiveIntensity: 0.94,
+        displacementMap: depthTex,
+        displacementScale: 0.62,
+        displacementBias: 0.035,
+        roughness: 1,
+        metalness: 0,
+        transparent: true,
+        alphaTest: 0.03,
+      }),
+    )
+    dress.renderOrder = 1
+    cat.add(dress)
+  }
 
   scene.add(new THREE.HemisphereLight(0xb9a2ff, 0x5a1440, 1.4))
   const key = new THREE.DirectionalLight(0xffffff, 2.6)
@@ -340,6 +402,41 @@ export async function createHeroScene(opts: HeroSceneOptions): Promise<HeroScene
     scene.add(s)
     return s
   })
+
+  // --- Santa hats on the mascots: drawn over each, following its sway
+  const hatTex = opts.xmas ? santaHat() : null
+  const hats = hatTex
+    ? sprites.map(() => {
+        const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: hatTex, transparent: true, depthWrite: false }))
+        scene.add(h)
+        return h
+      })
+    : []
+
+  // --- snow, falling through the whole stage
+  const snowCount = opts.xmas ? 520 : 0
+  const snowPos = new Float32Array(snowCount * 3)
+  const snowSpeed = new Float32Array(snowCount)
+  const snowPhase = new Float32Array(snowCount)
+  for (let i = 0; i < snowCount; i++) {
+    snowPos[i * 3] = (Math.random() - 0.5) * 22
+    snowPos[i * 3 + 1] = Math.random() * 10
+    snowPos[i * 3 + 2] = -10 + Math.random() * 14
+    snowSpeed[i] = 0.35 + Math.random() * 0.6
+    snowPhase[i] = Math.random() * Math.PI * 2
+  }
+  const snowAttr = new THREE.BufferAttribute(snowPos, 3)
+  if (snowCount) {
+    const g = new THREE.BufferGeometry()
+    g.setAttribute('position', snowAttr)
+    // white, a touch over 1 so the nearest flakes catch a little bloom
+    scene.add(
+      new THREE.Points(
+        g,
+        new THREE.PointsMaterial({ size: 0.11, map: softDot(), color: new THREE.Color(0xfff2fa).multiplyScalar(1.15), transparent: true, depthWrite: false }),
+      ),
+    )
+  }
 
   // --- dust rising through the beam
   const dustCount = 220
@@ -469,7 +566,26 @@ export async function createHeroScene(opts: HeroSceneOptions): Promise<HeroScene
       const [x, y, z] = placements.sprites[i]
       s.position.set(x, y + Math.sin(t * 0.8 + i * 1.3) * 0.12, z)
       s.material.rotation = Math.sin(t * 0.6 + i) * 0.12
+      const hat = hats[i]
+      if (hat) {
+        // on the cap of the bottle (its art's top edge), turned with it
+        const k = placements.sprites[i][3]
+        const a = s.material.rotation
+        const ox = 0.06 * k
+        const oy = 0.47 * k
+        hat.visible = s.visible
+        hat.scale.setScalar(0.44 * k)
+        hat.position.set(s.position.x + ox * Math.cos(a) - oy * Math.sin(a), s.position.y + ox * Math.sin(a) + oy * Math.cos(a), s.position.z + 0.01)
+        hat.material.rotation = a - 0.18
+      }
     })
+    for (let i = 0; i < snowCount; i++) {
+      let y = snowPos[i * 3 + 1] - snowSpeed[i] * dt
+      if (y < 0) y += 10
+      snowPos[i * 3 + 1] = y
+      snowPos[i * 3] += Math.sin(t * 0.7 + snowPhase[i]) * 0.12 * dt
+    }
+    if (snowCount) snowAttr.needsUpdate = true
     for (let i = 0; i < dustCount; i++) {
       let y = dustPos[i * 3 + 1] + dustSpeed[i] * dt
       if (y > 5) y = 0

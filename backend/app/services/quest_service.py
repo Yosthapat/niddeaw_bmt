@@ -27,6 +27,8 @@ Medals (thresholds per level, bronze → silver → gold → special):
     monthly    games in a calendar month ≥ the month's target
     secrets    first to check in (5 nights), last to check out (5 closed
                nights), played in the club's match #1000
+    events     limited, one a year: checked in on Christmas night (25 Dec)
+               or New Year's night (1 Jan), e.g. "xmas:2026"
 """
 
 from __future__ import annotations
@@ -53,6 +55,9 @@ THRESHOLDS: dict[str, list[int]] = {
     "revenge": [1, 3],
 }
 SECRETS: dict[str, int] = {"secret_opener": 5, "secret_lights": 5, "secret_history": 1}
+EVENTS: dict[tuple[int, int], str] = {(12, 25): "xmas", (1, 1): "newyear"}
+"""(month, day) of a night -> the limited medal for being there, keyed by
+its year: "xmas:2026". Only nights the club actually held count."""
 TIERS: list[EloTier] = ["milk", "beer", "highball", "wine", "soju", "whisky", "vodka", "absinthe"]
 GIANT_GAP = 100
 UNBEATEN_MIN_GAMES = 4
@@ -114,6 +119,13 @@ class PlayerQuests:
     rank: int
     monthly: dict[str, tuple[int, datetime | None]]  # "2026-12" -> (games, earned)
     secrets: dict[str, Progress]
+    events: dict[str, datetime] = field(default_factory=dict)  # "xmas:2026" -> checked in at
+
+
+def event_key(d: date) -> str | None:
+    """The limited medal for a night on `d`, if that day is one: "xmas:2026"."""
+    kind = EVENTS.get((d.month, d.day))
+    return f"{kind}:{d.year}" if kind else None
 
 
 def tier_rank(score: int) -> int:
@@ -295,8 +307,12 @@ def derive(
     attended: dict[str, list[tuple[date, datetime]]] = defaultdict(list)
     for sid, rows in by_night.items():
         night = nights[sid]
+        ek = event_key(night.date)
         for c in rows:
             attended[c.player_id].append((night.date, c.checkin))
+            if ek:
+                ev = out[c.player_id].events
+                ev[ek] = min(ev.get(ek, c.checkin), c.checkin)
     order = sorted(by_night, key=lambda s: (nights[s].date, min(c.checkin for c in by_night[s])))
     for sid in order:
         rows = by_night[sid]
@@ -354,4 +370,6 @@ def awards(state: dict[str, PlayerQuests]) -> dict[tuple[str, str, int], datetim
         for key, prog in q.secrets.items():
             if prog.earned[0] is not None:
                 out[(p, key, 1)] = prog.earned[0]
+        for key, at in q.events.items():
+            out[(p, key, 1)] = at
     return out

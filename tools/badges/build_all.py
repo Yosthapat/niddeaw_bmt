@@ -55,6 +55,13 @@ PODIUM = [("milk", 800, "bronze"), ("beer", 1000, "bronze"), ("highball", 1200, 
           ("vodka", 2000, "gold"), ("absinthe", 2200, "gold")]
 for tier, score, metal in PODIUM:
     QUESTS.append((f"podium_{tier}", "ขึ้นแท่น", "shield", tier, [T + tier + ".webp"], [(metal, score)]))
+# Limited, one a year: being there on Christmas / New Year's night (quest_service.EVENTS).
+# One medal each, gold, the date on the plate; saved as event_<kind>.webp, whatever the year.
+# cat_xmas = the hero cat in its Christmas scarf (frontend/public/xmas/cat-dress.svg over it).
+EVENTS = [
+    ("event_xmas", "Smashmas", "star", "#7a0f24", [P + "cat_xmas.webp"], "25.12"),
+    ("event_newyear", "ปีใหม่", "star", "navy", [CAT], "01.01"),
+]
 
 
 def relief_fit(src, metal, max_h, max_w, seed):
@@ -73,7 +80,7 @@ def relief_fit(src, metal, max_h, max_w, seed):
     return r
 
 
-def build(qid, title, shape, enamel, mascots, tier, label, enamel_override=None):
+def build(qid, title, shape, enamel, mascots, tier, label, enamel_override=None, out_name=None):
     frame = Image.open(os.path.join(S, f"frames/{shape}_{tier}.webp")).convert("RGBA")
     col = ENAMEL.get(enamel_override or enamel, enamel_override or enamel)
     frame, (x0, y0, x1, y1) = tint_enamel(frame, col)
@@ -99,7 +106,7 @@ def build(qid, title, shape, enamel, mascots, tier, label, enamel_override=None)
         b = find_banner(frame, cx, y1)
         if b:
             out = engrave(out, title, (cx, b[0]), b[1] * 0.60, ew * 0.95)
-    name = f"{qid}_{label if label is not None else tier}"
+    name = out_name or f"{qid}_{label if label is not None else tier}"
     os.makedirs(OUT, exist_ok=True)
     os.makedirs(WEB, exist_ok=True)
     out.save(os.path.join(OUT, name + ".png"))
@@ -134,5 +141,11 @@ if __name__ == "__main__":
                   (f"{qid.split('_')[1].capitalize()} {label}" if qid.startswith("podium") else f"{title} · {tier}")
             built.append((fn, cap))
             print(fn)
+    for qid, title, shape, enamel, mascots, label in EVENTS:
+        if only and not any(qid.startswith(o) for o in only):
+            continue
+        fn = build(qid, title, shape, enamel, mascots, "gold", label, out_name=qid)
+        built.append((fn, f"{title} {label}"))
+        print(fn)
     print(len(built), "medals")
     sheet(built, os.path.join(S, "out/all_medals_dark.png"), cols=8)

@@ -6,10 +6,16 @@
  * without scrolling — the way Facebook puts the feed right under its bar.
  * From 900px wide the full HomeHero.vue, with its 3D scene, is used instead.
  */
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
+import { heroCopy, xmasOn } from '@/christmas/season'
 
 const { t } = useI18n()
+// the Christmas season's words and the cat's scarf (HomeHero.vue does the same)
+const xmas = computed(() => (xmasOn ? heroCopy(t) : null))
+const CAT_BOX =
+  'absolute right-[18px] bottom-1.5 h-[168px] w-[168px] object-contain max-[389px]:right-[-8px] max-[389px]:h-[150px] max-[389px]:w-[150px] max-[359px]:h-[140px] max-[359px]:w-[140px]'
 </script>
 
 <template>
@@ -26,19 +32,21 @@ const { t } = useI18n()
       height="168"
       fetchpriority="high"
       decoding="async"
-      class="banner-cat absolute right-[18px] bottom-1.5 h-[168px] w-[168px] object-contain max-[389px]:right-[-8px] max-[389px]:h-[150px] max-[389px]:w-[150px] max-[359px]:h-[140px] max-[359px]:w-[140px]"
+      class="banner-cat"
+      :class="CAT_BOX"
     />
+    <img v-if="xmas" src="/xmas/cat-dress.svg" alt="" width="168" height="168" decoding="async" class="banner-dress pointer-events-none" :class="CAT_BOX" />
     <div class="absolute top-4 left-4 flex w-[200px] flex-col gap-2 max-[359px]:w-[180px]">
       <p class="flex h-6 items-center gap-1.5 self-start rounded-full border border-white/20 bg-black/45 px-2.5 text-[11px]">
         <span class="banner-blink h-1.5 w-1.5 rounded-full bg-brand-pink" aria-hidden="true" />
-        {{ t('home.banner.when') }}
+        {{ xmas ? xmas.whenShort : t('home.banner.when') }}
       </p>
       <!-- Two lines, each kept whole: Thai has no spaces to break at, so
            left alone the browser split "หนีสถิติไป|ได้" into a third line
            that ran under the cat. -->
       <h1 id="home-banner-title" class="banner-title font-display text-[20px] leading-[1.2] font-bold max-[359px]:text-[17px]">
-        <span class="block whitespace-nowrap">{{ t('home.banner.line1') }}</span>
-        <span class="block whitespace-nowrap text-brand-pink-light">{{ t('home.banner.line2') }}</span>
+        <span class="block whitespace-nowrap">{{ xmas ? xmas.line1Short : t('home.banner.line1') }}</span>
+        <span class="block whitespace-nowrap text-brand-pink-light">{{ xmas ? xmas.line2 : t('home.banner.line2') }}</span>
       </h1>
       <div class="mt-0.5 flex gap-1.5">
         <RouterLink to="/ranking" class="banner-hot flex h-10 items-center rounded-full px-3.5 text-[13px] font-medium">
@@ -77,6 +85,9 @@ const { t } = useI18n()
   filter: drop-shadow(0 12px 14px rgb(6 0 20 / 0.6));
   animation: banner-float 6s ease-in-out infinite;
 }
+.banner-dress {
+  animation: banner-float 6s ease-in-out infinite;
+}
 @keyframes banner-float {
   50% {
     transform: translateY(-6px);
@@ -103,6 +114,7 @@ const { t } = useI18n()
 @media (prefers-reduced-motion: reduce) {
   .banner-floor,
   .banner-cat,
+  .banner-dress,
   .banner-blink {
     animation: none;
   }

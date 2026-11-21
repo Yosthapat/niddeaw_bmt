@@ -1,6 +1,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { gameNight, timeLeft } from '@/utils/gameNight'
+import { specialNight } from '@/christmas/season'
 
 /**
  * A second hand on the club's next Friday night: whether it is on, and how
@@ -35,9 +36,15 @@ export function useGameNight() {
       { n: String(left.seconds).padStart(2, '0'), unit: t('home.big.seconds') },
     ]
   })
+  // Christmas or New Year's night, in the Christmas season (src/christmas/)
+  const special = computed(() => specialNight(night.value.start))
   // "คืนนี้" on the Friday itself, "ศุกร์นี้" any other day of the week.
-  const startsAt = computed(() =>
-    night.value.start - now.value < 20 * 3_600_000 ? t('home.big.tonightAt') : t('home.big.fridayAt'),
-  )
-  return { night, countdown, startsAt }
+  const startsAt = computed(() => {
+    if (special.value) return t(`xmas.night.${special.value}`)
+    return night.value.start - now.value < 20 * 3_600_000 ? t('home.big.tonightAt') : t('home.big.fridayAt')
+  })
+  /** The small line over it: NEXT GAME NIGHT, or CHRISTMAS NIGHT. */
+  const eyebrow = computed(() => (special.value ? t(`xmas.night.${special.value}Eyebrow`) : 'NEXT GAME NIGHT'))
+  const countdownLabel = computed(() => (special.value ? t(`xmas.night.${special.value}Countdown`) : t('home.big.countdownLabel')))
+  return { night, countdown, startsAt, special, eyebrow, countdownLabel }
 }

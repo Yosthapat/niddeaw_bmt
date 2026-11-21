@@ -30,6 +30,8 @@ export interface PlayerBadges {
   month: MonthState
   past_months: MonthState[]
   secrets: { key: string; earned_at: string | null }[]
+  /** Limited medals for being at a special night ("xmas:2026"), earned only. */
+  events?: { key: string; earned_at: string }[]
   /** Badges are for members who linked LINE. For one who hasn't, nothing
    *  above is earned; `waiting` counts the medals they will find once they
    *  link, `waiting_top` the grandest three. */
