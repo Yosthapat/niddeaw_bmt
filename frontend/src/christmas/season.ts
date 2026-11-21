@@ -1,5 +1,5 @@
 /**
- * The club's Christmas dress-up: on from 1 December to 4 January, Thai
+ * The club's Christmas dress-up: on from 21 November to 4 January, Thai
  * time, and off the rest of the year. Everything that is only for the
  * season lives in this folder (src/christmas/) and in public/xmas/, so
  * the whole of it can be found, and taken out, in one place.
@@ -14,6 +14,8 @@ const HOUR = 3_600_000
 const THAI_OFFSET = 7 * HOUR
 const STORAGE_KEY = 'niddeaw_xmas'
 
+/** The first day of the season, in November (the club wanted it up early). */
+const FIRST_NOVEMBER_DAY = 21
 /** The last day of the season, in January. */
 const LAST_JANUARY_DAY = 4
 
@@ -34,7 +36,7 @@ export function thaiDay(ms: number): ThaiDay {
 /** Whether `now` falls inside the season by the calendar alone. */
 export function inSeason(now: number = Date.now()): boolean {
   const { m, d } = thaiDay(now)
-  return m === 12 || (m === 1 && d <= LAST_JANUARY_DAY)
+  return (m === 11 && d >= FIRST_NOVEMBER_DAY) || m === 12 || (m === 1 && d <= LAST_JANUARY_DAY)
 }
 
 function override(): boolean | null {
