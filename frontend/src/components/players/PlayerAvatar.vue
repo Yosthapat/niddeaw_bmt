@@ -9,8 +9,9 @@
 //
 // In the Christmas season (src/christmas/) every member wears a Santa hat,
 // tipped over the top right corner; a Niddeaw Pass holder's has gold trim.
-// Not on the admin screens, which are for working, and not over the crown
-// frame, which already has something on its head.
+// Over the crown frame the gold-trimmed hat takes the crown's place for
+// the season (it comes back after). Not on the admin screens, which are
+// for working.
 import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { xmasOn } from '@/christmas/season'
@@ -41,7 +42,7 @@ const shownFrame = computed<PassFrame | null>(() => {
 })
 
 const route = useRoute()
-const hat = computed(() => xmasOn && !route.path.startsWith('/admin') && shownFrame.value !== 'crown')
+const hat = computed(() => xmasOn && !route.path.startsWith('/admin'))
 
 </script>
 
@@ -68,7 +69,7 @@ const hat = computed(() => xmasOn && !route.path.startsWith('/admin') && shownFr
       <circle cx="53" cy="38" r="6" fill="#ffe58a" stroke="#1a0c1f" stroke-width="2.5" />
       <rect x="4" y="42" width="50" height="12" rx="6" fill="#ffe58a" stroke="#1a0c1f" stroke-width="2.5" />
     </svg>
-    <svg v-if="shownFrame === 'crown'" class="pf-x-crown" viewBox="0 0 40 26" aria-hidden="true">
+    <svg v-if="shownFrame === 'crown' && !hat" class="pf-x-crown" viewBox="0 0 40 26" aria-hidden="true">
       <path d="M3 24 1 6l10 8 9-13 9 13 10-8-2 18Z" fill="#ff4fa6" stroke="#ffe58a" stroke-width="2" stroke-linejoin="round" />
       <circle cx="20" cy="3" r="3" fill="#ffe58a" />
     </svg>
