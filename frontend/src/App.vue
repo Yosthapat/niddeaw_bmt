@@ -13,7 +13,7 @@ import PublicTabBar from '@/components/layout/PublicTabBar.vue'
 import AdminTabBar from '@/components/layout/AdminTabBar.vue'
 import { xmasOn } from '@/christmas/season'
 
-// Snow, lights and Christmas music, 1 Dec – 4 Jan (src/christmas/). Loaded
+// Snow, lights and Christmas music, 21 Nov – 4 Jan (src/christmas/). Loaded
 // only in the season, so the rest of the year none of it is downloaded.
 const XmasLayer = xmasOn ? defineAsyncComponent(() => import('@/christmas/XmasLayer.vue')) : null
 
