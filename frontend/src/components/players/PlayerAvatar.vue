@@ -9,8 +9,8 @@
 //
 // In the Christmas season (src/christmas/) every member wears a Santa hat,
 // tipped over the top right corner; a Niddeaw Pass holder's has gold trim.
-// Over the crown frame the gold-trimmed hat takes the crown's place for
-// the season (it comes back after). Not on the admin screens, which are
+// With the crown frame both are worn: the crown on top, the hat smaller
+// and tipped off to the side of it. Not on the admin screens, which are
 // for working.
 import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
@@ -64,12 +64,12 @@ const hat = computed(() => xmasOn && !route.path.startsWith('/admin'))
        frame, so the ring stays centred on the picture. -->
   <span v-else v-bind="$attrs" class="pf" :class="[`pf-${shownFrame}`, `pf-${size}`]">
     <PlayerAvatarFace :name="name" :avatar-url="avatarUrl" :size="size" :round="round" />
-    <svg v-if="hat" class="xh-hat" viewBox="0 0 64 56" aria-hidden="true">
+    <svg v-if="hat" class="xh-hat" :class="{ 'xh-hat--crown': shownFrame === 'crown' }" viewBox="0 0 64 56" aria-hidden="true">
       <path d="M8 46C12 22 30 6 52 12c4 8 2 18 0 24l-2 10Z" fill="#e8264f" stroke="#1a0c1f" stroke-width="2.5" stroke-linejoin="round" />
       <circle cx="53" cy="38" r="6" fill="#ffe58a" stroke="#1a0c1f" stroke-width="2.5" />
       <rect x="4" y="42" width="50" height="12" rx="6" fill="#ffe58a" stroke="#1a0c1f" stroke-width="2.5" />
     </svg>
-    <svg v-if="shownFrame === 'crown' && !hat" class="pf-x-crown" viewBox="0 0 40 26" aria-hidden="true">
+    <svg v-if="shownFrame === 'crown'" class="pf-x-crown" viewBox="0 0 40 26" aria-hidden="true">
       <path d="M3 24 1 6l10 8 9-13 9 13 10-8-2 18Z" fill="#ff4fa6" stroke="#ffe58a" stroke-width="2" stroke-linejoin="round" />
       <circle cx="20" cy="3" r="3" fill="#ffe58a" />
     </svg>
@@ -100,6 +100,14 @@ const hat = computed(() => xmasOn && !route.path.startsWith('/admin'))
   rotate: 16deg;
   pointer-events: none;
   filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.45));
+}
+/* beside the crown frame's crown rather than on it */
+.xh-hat--crown {
+  z-index: 3;
+  top: -22%;
+  right: -24%;
+  width: 60%;
+  rotate: 24deg;
 }
 /* The ring is drawn just outside the picture, behind it; the picture keeps
    its own size, so nothing around it moves. */
