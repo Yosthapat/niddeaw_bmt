@@ -2651,6 +2651,7 @@ export default {
       mixTitle: 'Christmas Classics',
       mixBy: 'Joe Vinyl · Mixcloud',
       onMixcloud: 'Open on Mixcloud',
+      tapPlayer: 'Tap ▶ in the Mixcloud bar below to start',
       tap: 'Tap to play',
       open: 'Play Christmas music',
       play: 'Play',

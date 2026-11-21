@@ -7,7 +7,9 @@
  *
  * Nothing loads from Mixcloud until the button is tapped (a browser will
  * not start sound without a tap anyway), and closing the card stops the
- * music. The card also holds the switch for the snow (prefs.ts).
+ * music. Once Mixcloud's player is up it is asked to play; where the
+ * browser still wants a tap inside the player itself (iPhones, and some
+ * desktops), a line in the card says to press its play button. The card also holds the switch for the snow (prefs.ts).
  */
 import { onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -22,6 +24,7 @@ const WIDGET_API = 'https://widget.mixcloud.com/media/js/widgetApi.js'
 
 interface MixWidget {
   ready: Promise<void>
+  play(): void
   togglePlay(): void
   events: { play: { on(fn: () => void): void }; pause: { on(fn: () => void): void }; ended: { on(fn: () => void): void } }
 }
@@ -35,6 +38,10 @@ const { t } = useI18n()
 const open = ref(false)
 const playing = ref(false)
 const mixReady = ref(false)
+/** The player is up but silent: the browser wants a tap on its own button. */
+const needsTap = ref(false)
+const TAP_HINT_MS = 2500
+let hintTimer: ReturnType<typeof setTimeout> | null = null
 const mixFrame = ref<HTMLIFrameElement | null>(null)
 const showSnowSwitch = !reducedMotion()
 
@@ -69,6 +76,11 @@ function loadApi(): Promise<void> {
 async function onMixLoad(): Promise<void> {
   const frame = mixFrame.value
   if (!frame) return
+  // whatever happens below, if no sound has started by then, say how
+  if (hintTimer) clearTimeout(hintTimer)
+  hintTimer = setTimeout(() => {
+    if (!playing.value && mixFrame.value === frame) needsTap.value = true
+  }, TAP_HINT_MS)
   try {
     await loadApi()
     if (!window.Mixcloud || mixFrame.value !== frame) return
@@ -77,9 +89,14 @@ async function onMixLoad(): Promise<void> {
     if (mixFrame.value !== frame) return
     mix = w
     mixReady.value = true
-    w.events.play.on(() => (playing.value = true))
+    w.events.play.on(() => {
+      playing.value = true
+      needsTap.value = false
+    })
     w.events.pause.on(() => (playing.value = false))
     w.events.ended.on(() => (playing.value = false))
+    // autoplay=1 in its address is not always honoured: ask outright
+    w.play()
   } catch {
     // its own play button still works; only ours stays hidden
   }
@@ -91,6 +108,9 @@ function toggle(): void {
 
 /** Close the card: the player goes, so the music stops with it. */
 function close(): void {
+  if (hintTimer) clearTimeout(hintTimer)
+  hintTimer = null
+  needsTap.value = false
   mix = null
   mixReady.value = false
   playing.value = false
@@ -128,7 +148,11 @@ onBeforeUnmount(close)
         </button>
       </header>
 
-      <div class="mix">
+      <p v-if="needsTap" class="tap-hint mx-3.5 mb-2 flex items-center gap-2 text-[13px] text-white/90" role="status">
+        <svg viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4 shrink-0 text-[#ff7cc6]" aria-hidden="true"><path d="M12 4v12m0 0-5-5m5 5 5-5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none" /></svg>
+        {{ t('xmas.music.tapPlayer') }}
+      </p>
+      <div class="mix" :class="{ 'mix-nudge': needsTap }">
         <iframe
           ref="mixFrame"
           :src="MIX_SRC"
@@ -136,7 +160,7 @@ onBeforeUnmount(close)
           width="100%"
           height="60"
           frameborder="0"
-          allow="autoplay; encrypted-media"
+          allow="encrypted-media; fullscreen; autoplay; idle-detection; speaker-selection; web-share"
           @load="onMixLoad"
         />
         <a :href="MIX_URL" target="_blank" rel="noopener" class="mt-1.5 block px-3.5 text-right text-[11px] text-white/50 hover:text-white/80">{{ t('xmas.music.onMixcloud') }} ↗</a>
@@ -275,6 +299,18 @@ onBeforeUnmount(close)
 }
 .mix {
   padding-bottom: 2px;
+  border-radius: 10px;
+  transition: box-shadow 0.3s;
+}
+/* pointing at Mixcloud's own play button when the browser wants a tap there */
+.mix-nudge {
+  box-shadow: 0 0 0 2px #ea4ca4, 0 0 18px rgb(234 76 164 / 0.55);
+  animation: mix-nudge 1.6s ease-in-out infinite;
+}
+@keyframes mix-nudge {
+  50% {
+    box-shadow: 0 0 0 2px rgb(234 76 164 / 0.4), 0 0 6px rgb(234 76 164 / 0.2);
+  }
 }
 .mix iframe {
   display: block;
@@ -319,7 +355,8 @@ onBeforeUnmount(close)
   translate: 18px 0;
 }
 @media (prefers-reduced-motion: reduce) {
-  .spin {
+  .spin,
+  .mix-nudge {
     animation: none;
   }
 }
