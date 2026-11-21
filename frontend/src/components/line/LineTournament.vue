@@ -74,8 +74,15 @@ const mine = computed(() => team.value?.entrants.find((e) => e.player_id === me.
 const other = computed(() => team.value?.entrants.find((e) => e.player_id !== me.value?.player_id) ?? null)
 // What I pay: the QR's amount once it's here, since opening it takes my
 // Niddeaw Pass's 5% off a share signed up for before the pass; and that 5%.
-const myAmount = computed(() => pay.value?.amount ?? mine.value?.share ?? 0)
-const myPassOff = computed(() => Math.max(mine.value?.pass_off ?? 0, (mine.value?.share ?? 0) - myAmount.value))
+// Paying for the team, the QR holds both shares, each with its own discount.
+const myAmount = computed(() => pay.value?.amount ?? (mine.value?.share ?? 0) + (forTeam.value ? (other.value?.share ?? 0) : 0))
+const myPassOff = computed(() =>
+  forTeam.value ? (mine.value?.pass_off ?? 0) + (other.value?.pass_off ?? 0) : Math.max(mine.value?.pass_off ?? 0, (mine.value?.share ?? 0) - myAmount.value),
+)
+/** Who paid my share for me, when my partner did. */
+const paidForMe = computed(() => (mine.value?.covered_by && other.value?.id === mine.value.covered_by ? other.value : null))
+/** Whether I paid my partner's share too. */
+const iPaidForThem = computed(() => !!mine.value && other.value?.covered_by === mine.value.id)
 const when = (iso: string): string => formatDateTime(iso, locale.value as Locale)
 const day = (iso: string): string => formatDateWithWeekday(iso, locale.value as Locale)
 const perPlayer = computed(() => (cup.value ? Math.ceil((cup.value.entry_fee + cup.value.shuttle_fee) / 2) : 0))
@@ -265,13 +272,20 @@ const pay = ref<PaymentInfoResponse | null>(null)
 const toPay = computed(
   () => !!team.value && ['awaiting_payment', 'slip_review', 'waitlist'].includes(team.value.status) && (mine.value?.pay_status === 'unpaid' || mine.value?.pay_status === 'rejected'),
 )
+/** The partner hasn't paid or sent a slip of their own: I may pay for both. */
+const canPayTeam = computed(() => !!other.value && (other.value.pay_status === 'unpaid' || other.value.pay_status === 'rejected'))
+/** Paying for both (the choice above the QR). */
+const forTeam = ref(false)
+watch(canPayTeam, (can) => {
+  if (!can) forTeam.value = false
+})
 watch(
-  toPay,
-  async (need) => {
+  [toPay, forTeam],
+  async ([need, both]) => {
     pay.value = null
     if (!need) return
     try {
-      pay.value = await lineTournament.payInfo(props.token)
+      pay.value = await lineTournament.payInfo(props.token, both && canPayTeam.value)
     } catch (e) {
       problem.value = apiErrorMessage(e, t('cup.line.payInfoFailed'))
     }
@@ -284,7 +298,9 @@ async function attach(event: Event): Promise<void> {
   input.value = ''
   if (!picked) return
   const slip = await compressImage(picked)
-  await run('slip', () => lineTournament.sendSlip(props.token, slip), t('cup.line.slipFailed'))
+  // a slip sent again after paying for both still pays for both
+  const both = toPay.value ? forTeam.value && canPayTeam.value : iPaidForThem.value
+  await run('slip', () => lineTournament.sendSlip(props.token, slip, both), t('cup.line.slipFailed'))
 }
 </script>
 
@@ -427,8 +443,11 @@ async function attach(event: Event): Promise<void> {
             <li v-for="e in team.entrants" :key="e.id" class="flex items-center gap-2">
               <PlayerAvatar :name="e.nickname" :avatar-url="e.avatar_url" size="sm" round />
               <span>{{ e.nickname }}<span class="text-xs text-white/50"> · {{ t(`cup.role.${e.role}`) }}</span></span>
-              <span class="ml-auto text-xs" :class="e.pay_status === 'paid' ? 'text-[#7ff0b4]' : 'text-white/60'">
+              <span class="ml-auto text-right text-xs" :class="e.pay_status === 'paid' ? 'text-[#7ff0b4]' : 'text-white/60'">
                 {{ team.status === 'invited' && e.role === 'partner' ? t('cup.line.notAnswered') : t(`cup.payStatus.${e.pay_status}`) }}
+                <span v-if="e.covered_by" class="block text-[11px] text-white/50">
+                  {{ t('cup.line.paidBy', { name: team.entrants.find((x) => x.id === e.covered_by)?.nickname ?? '' }) }}
+                </span>
               </span>
             </li>
           </ul>
@@ -492,13 +511,23 @@ async function attach(event: Event): Promise<void> {
             <button type="button" class="glass-pill justify-center" :disabled="busy === 'decline'" @click="decline">{{ t('cup.line.cancelInvite') }}</button>
           </template>
 
-          <!-- pay my half -->
+          <!-- pay my share, or the team's -->
           <template v-if="toPay && mine">
             <p v-if="mine.pay_status === 'rejected'" class="rounded-2xl border border-status-error/40 bg-status-error/10 p-3 text-sm text-[#ff9fb2]" role="alert">
               {{ t('cup.line.slipRejected') }}
             </p>
+            <div v-if="canPayTeam && other" class="pay-choice" role="radiogroup" :aria-label="t('cup.line.payWhat')">
+              <button type="button" role="radio" :aria-checked="!forTeam" :class="{ on: !forTeam }" @click="forTeam = false">
+                <span>{{ t('cup.line.payMine') }}</span>
+                <b class="font-display">{{ money(mine.share) }}</b>
+              </button>
+              <button type="button" role="radio" :aria-checked="forTeam" :class="{ on: forTeam }" @click="forTeam = true">
+                <span>{{ t('cup.line.payTeam', { name: other.nickname }) }}</span>
+                <b class="font-display">{{ money(mine.share + other.share) }}</b>
+              </button>
+            </div>
             <div class="flex flex-col items-center gap-2 rounded-2xl bg-white/5 p-3">
-              <span class="text-xs text-white/60">{{ t('cup.line.scanToPay', { amount: money(myAmount) }) }}</span>
+              <span class="text-xs text-white/60">{{ forTeam ? t('cup.line.scanToPayTeam', { amount: money(myAmount) }) : t('cup.line.scanToPay', { amount: money(myAmount) }) }}</span>
               <span v-if="myPassOff > 0" class="rounded-full bg-[#ffe58a]/14 px-2.5 py-0.5 text-[11px] font-bold text-[#ffe58a]">✦ {{ t('cup.line.passOff', { amount: money(myPassOff) }) }}</span>
               <BrandQr
                 v-if="pay?.qr_modules"
@@ -539,9 +568,16 @@ async function attach(event: Event): Promise<void> {
               <input type="file" accept="image/*" class="sr-only" :disabled="busy === 'slip'" @change="attach" />
             </label>
           </template>
+          <!-- my partner paid my share -->
+          <div v-else-if="paidForMe && (mine?.pay_status === 'slip_sent' || mine?.pay_status === 'paid')" class="rounded-2xl bg-white/5 p-3 text-sm text-white/80">
+            {{ mine?.pay_status === 'paid' ? t('cup.line.paidFor', { name: paidForMe.nickname }) : t('cup.line.paidForWaiting', { name: paidForMe.nickname }) }}
+          </div>
           <div v-else-if="mine?.pay_status === 'slip_sent'" class="flex items-center gap-3 rounded-2xl bg-white/5 p-3 text-sm">
             <img v-if="mine.slip_url" :src="mine.slip_url" :alt="t('cup.line.yourSlip')" class="h-16 w-12 rounded border border-white/15 object-cover" />
-            <span class="text-white/75">{{ t('cup.line.slipWaiting') }}</span>
+            <span class="text-white/75">
+              {{ t('cup.line.slipWaiting') }}
+              <span v-if="iPaidForThem && other" class="block text-xs text-white/55">{{ t('cup.line.youPaidFor', { name: other.nickname }) }}</span>
+            </span>
             <label class="ml-auto min-h-11 cursor-pointer px-2 py-3 text-xs text-white/60 underline">
               {{ t('cup.line.resend') }}
               <input type="file" accept="image/*" class="sr-only" @change="attach" />
@@ -634,6 +670,38 @@ async function attach(event: Event): Promise<void> {
   color: #06281a;
   box-shadow: 0 10px 28px rgb(47 191 127 / 0.45);
 }
+/* my share or the team's, above the QR */
+.pay-choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.pay-choice button {
+  display: flex;
+  min-height: 64px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 16px;
+  border: 1px solid rgb(255 255 255 / 0.15);
+  background: rgb(255 255 255 / 0.05);
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 12px;
+  color: rgb(255 255 255 / 0.75);
+}
+.pay-choice button b {
+  font-size: 16px;
+  color: #fff;
+}
+.pay-choice button.on {
+  border-color: #ff7cc6;
+  background: rgb(234 76 164 / 0.18);
+  color: #fff;
+  box-shadow: 0 0 0 1px #ff7cc6 inset;
+}
+
 /* the screen's one next step, as on the bill screen (LineBillPay.vue) */
 .cta {
   background: linear-gradient(#ff8fd0, #ea4ca4);

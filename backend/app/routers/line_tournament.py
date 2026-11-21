@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, HTTPException, Response, UploadFile, status
+from fastapi import APIRouter, Form, HTTPException, Response, UploadFile, status
 from supabase import Client
 
 from app.db_utils import rows
@@ -224,19 +224,35 @@ def rename(payload: RenameIn, supabase: SupabaseDep, member: LineMemberDep) -> L
 
 
 @router.get("/pay", response_model=PaymentInfoResponse)
-def pay_info(supabase: SupabaseDep, member: LineMemberDep) -> PaymentInfoResponse:
-    """The tournament's own PromptPay QR with this player's half in it."""
+def pay_info(
+    supabase: SupabaseDep, member: LineMemberDep, team: bool = False
+) -> PaymentInfoResponse:
+    """The tournament's own PromptPay QR with this player's share in it, or
+    (`team`) both shares, to pay for their partner too. Each share keeps its
+    own Niddeaw Pass discount."""
     row = _current(supabase)
     entry = _entry(supabase, row, _player(supabase, member))
     lowered = ts.take_pass_off(supabase, entry)
-    if lowered is not entry:
-        tournament_cache.invalidate()
+    changed = lowered is not entry
     entry = lowered
+    shares = [entry]
+    if team:
+        partner = ts.teammate(supabase, entry)
+        if not ts.can_cover(entry, partner) or partner is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="คู่ของคุณจ่ายหรือส่งสลิปส่วนของเขาไปแล้ว จ่ายได้แค่ส่วนของตัวเอง",
+            )
+        theirs = ts.take_pass_off(supabase, partner)
+        changed = changed or theirs is not partner
+        shares.append(theirs)
+    if changed:
+        tournament_cache.invalidate()
     if not row.get("promptpay_id") or not row.get("promptpay_type"):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="ผู้จัดยังไม่ได้ตั้งบัญชีรับเงินของงาน"
         )
-    amount = float(entry["share"])
+    amount = float(sum(int(e["share"]) for e in shares))
     payload = promptpay_service.build_promptpay_payload(
         row["promptpay_id"], row["promptpay_type"], amount
     )
@@ -254,8 +270,9 @@ def pay_info(supabase: SupabaseDep, member: LineMemberDep) -> PaymentInfoRespons
 
 @router.post("/slip", response_model=LineTournament)
 async def send_slip(
-    file: UploadFile, supabase: SupabaseDep, member: LineMemberDep
+    file: UploadFile, supabase: SupabaseDep, member: LineMemberDep, for_team: bool = Form(False)
 ) -> LineTournament:
+    """`for_team`: the slip pays the partner's share too."""
     row = _current(supabase)
     entry = _entry(supabase, row, _player(supabase, member))
     contents = await file.read(MAX_SLIP_BYTES + 1)
@@ -273,6 +290,6 @@ async def send_slip(
     bucket = supabase.storage.from_(night_bill.SLIP_BUCKET)
     bucket.upload(path, image, {"content-type": "image/jpeg", "upsert": "false"})
     url = str(bucket.get_public_url(path))
-    ts.record_slip(supabase, entry, url)
+    ts.record_slip(supabase, entry, url, for_team=for_team)
     slip_check.record(supabase, "tournament", str(entry["id"]), url, contents, image)
     return state(supabase, member)

@@ -274,6 +274,8 @@ class Entrant(BaseModel):
     """What they pay: already less pass_off."""
     pass_off: int = 0
     """Baht off for their Niddeaw Pass."""
+    covered_by: UUID | None = None
+    """The teammate (entrant id) who paid this share with their own transfer."""
     pay_status: PayStatus
     paid_via: PaidVia | None = None
     slip_url: str | None = None

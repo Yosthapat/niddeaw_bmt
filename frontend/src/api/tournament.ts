@@ -219,6 +219,8 @@ export interface Entrant {
   share: number
   /** baht off for their Niddeaw Pass; share is already less it */
   pass_off?: number
+  /** the teammate (entrant id) who paid this share with their own transfer */
+  covered_by?: string | null
   pay_status: PayStatus
   paid_via: PaidVia | null
   slip_url: string | null
@@ -377,8 +379,13 @@ export const lineTournament = {
   decline: (token: string): Promise<LineTournament> => request(`${L}/decline`, line(token, { method: 'POST' })),
   rename: (token: string, teamName: string): Promise<LineTournament> =>
     request(`${L}/team`, line(token, json('PATCH', { team_name: teamName }))),
-  payInfo: (token: string): Promise<PaymentInfoResponse> => request(`${L}/pay`, line(token)),
-  sendSlip: (token: string, f: File): Promise<LineTournament> => request(`${L}/slip`, line(token, file(f))),
+  /** `team`: both shares, to pay for the partner too */
+  payInfo: (token: string, team = false): Promise<PaymentInfoResponse> => request(`${L}/pay${team ? '?team=true' : ''}`, line(token)),
+  sendSlip: (token: string, f: File, forTeam = false): Promise<LineTournament> => {
+    const init = file(f)
+    if (forTeam) (init.body as FormData).append('for_team', 'true')
+    return request(`${L}/slip`, line(token, init))
+  },
 }
 
 // --- tournament admins ----------------------------------------------------

@@ -390,7 +390,7 @@ def admin_teams(supabase: Client, tournament_id: str) -> list[AdminTeam]:
                 {
                     **base.model_dump(),
                     "slip_checks": found,
-                    "refund_owed": sum(ts.refund_owed(t, e) for e in mine),
+                    "refund_owed": sum(ts.refund_owed(t, e, mine) for e in mine),
                 }
             )
         )

@@ -687,6 +687,118 @@ def test_a_refund_is_the_tournament_s_expense(db: MiniSupabase, client: TestClie
     assert all(db.tables[name] == [] for name in CLUB_TABLES)
 
 
+def pay_team(client: TestClient, i: int) -> Any:
+    return client.post(
+        "/api/line/tournament/slip",
+        files={"file": ("slip.png", png(), "image/png")},
+        data={"for_team": "true"},
+        headers=member(i),
+    )
+
+
+def test_one_player_pays_for_the_team(db: MiniSupabase, client: TestClient) -> None:
+    t = open_tournament(client)
+    sign_up(client, db, t, 20, 21, "Wine", "จ่ายให้")
+    # not before the partner has accepted
+    assert pay_team(client, 20).status_code == 409
+    client.post("/api/line/tournament/accept", json=PARTNER, headers=member(21))
+
+    # the partner pays both shares in one transfer
+    info = client.get("/api/line/tournament/pay?team=true", headers=member(21)).json()
+    assert info["amount"] == 2050.0
+    got = pay_team(client, 21)
+    assert got.status_code == 200, got.text
+    assert got.json()["team"]["status"] == "slip_review"
+    e20, e21 = entrant_of(db, 20), entrant_of(db, 21)
+    assert (e20["pay_status"], e20["covered_by"], e20["slip_url"]) == (
+        "slip_sent",
+        e21["id"],
+        e21["slip_url"],
+    )
+
+    # the covered player has nothing to pay or send
+    assert pay(client, 20).status_code == 409
+    summary = client.get(
+        f"/api/admin/tournament/tournaments/{t['id']}/summary", headers=BOTH
+    ).json()
+    assert (summary["pending_slips"], summary["pending_amount"]) == (1, 2050.0)
+
+    # one approval, from either row, takes both shares in
+    got = client.post(f"/api/admin/tournament/entrants/{e20['id']}/approve", headers=BOTH)
+    assert got.status_code == 200, got.text
+    assert {entrant_of(db, i)["pay_status"] for i in (20, 21)} == {"paid"}
+    team = client.get("/api/line/tournament", headers=member(20)).json()["team"]
+    assert team["status"] == "confirmed"
+    money = client.get(f"/api/admin/tournament/tournaments/{t['id']}/money", headers=BOTH).json()
+    assert sorted((m["category"], m["amount"]) for m in money) == [
+        ("entry_fee", 1025.0),
+        ("entry_fee", 1025.0),
+    ]
+
+    # withdrawn: the whole 2,050 goes back to the one who paid
+    client.post(f"/api/admin/tournament/teams/{e20['team_id']}/withdraw", json={}, headers=BOTH)
+    teams = client.get(f"/api/admin/tournament/tournaments/{t['id']}/teams", headers=BOTH).json()
+    assert teams[0]["refund_owed"] == 2050
+    assert (
+        client.post(f"/api/admin/tournament/entrants/{e20['id']}/refund", headers=BOTH).status_code
+        == 409
+    )
+    got = client.post(f"/api/admin/tournament/entrants/{e21['id']}/refund", headers=BOTH)
+    assert got.status_code == 200, got.text
+    assert {entrant_of_any(db, i)["pay_status"] for i in (20, 21)} == {"refunded"}
+    summary = client.get(
+        f"/api/admin/tournament/tournaments/{t['id']}/summary", headers=BOTH
+    ).json()
+    assert (summary["income"], summary["expense"], summary["refunds_owed"]) == (2050.0, 2050.0, 0)
+
+
+def entrant_of_any(db: MiniSupabase, i: int) -> dict[str, Any]:
+    """The player's entry, live or ended."""
+    return next(e for e in db.tables["tournament_entrants"] if e["player_id"] == pid(db, i))
+
+
+def test_a_refused_team_slip_hands_the_partner_s_share_back(
+    db: MiniSupabase, client: TestClient
+) -> None:
+    t = open_tournament(client)
+    sign_up(client, db, t, 20, 21, "Wine", "ไม่ผ่าน")
+    client.post("/api/line/tournament/accept", json=PARTNER, headers=member(21))
+    pay_team(client, 20)
+    e21 = entrant_of(db, 21)
+    got = client.post(f"/api/admin/tournament/entrants/{e21['id']}/reject", headers=BOTH)
+    assert got.status_code == 200, got.text
+    e20, e21 = entrant_of(db, 20), entrant_of(db, 21)
+    assert e20["pay_status"] == "rejected"
+    assert (e21["pay_status"], e21["covered_by"], e21["slip_url"]) == ("unpaid", None, None)
+    # now the partner may pay for themselves, or the captain for both again
+    assert (
+        client.get("/api/line/tournament/pay?team=true", headers=member(20)).json()["amount"]
+        == 2050.0
+    )
+    assert pay(client, 21).status_code == 200
+    # with the partner's own slip in, the captain can only pay their own share
+    assert client.get("/api/line/tournament/pay?team=true", headers=member(20)).status_code == 409
+    assert pay_team(client, 20).status_code == 409
+    assert pay(client, 20).json()["team"]["status"] == "slip_review"
+
+
+def test_a_slip_sent_again_for_a_team_still_pays_for_both(
+    db: MiniSupabase, client: TestClient
+) -> None:
+    t = open_tournament(client)
+    sign_up(client, db, t, 20, 21, "Wine", "ส่งใหม่")
+    client.post("/api/line/tournament/accept", json=PARTNER, headers=member(21))
+    pay_team(client, 20)
+    first = entrant_of(db, 21)["slip_url"]
+    # their own share alone would leave the partner's unpaid in a held place
+    assert pay(client, 20).status_code == 409
+    got = pay_team(client, 20)
+    assert got.status_code == 200, got.text
+    e20, e21 = entrant_of(db, 20), entrant_of(db, 21)
+    assert e21["slip_url"] == e20["slip_url"] != first
+    assert e21["covered_by"] == e20["id"]
+
+
 def test_withdrawn_keeping_the_fees_owes_nothing(db: MiniSupabase, client: TestClient) -> None:
     t = open_tournament(client)
     _fill(client, db, t, "Wine", [(20, 21)])
