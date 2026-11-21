@@ -2657,6 +2657,9 @@ export default {
       play: 'Play',
       pause: 'Pause',
       close: 'Stop the music',
+      fold: 'Fold away (keeps playing)',
+      unfold: 'Show the music player',
+      playing: 'Playing · tap to open',
       hide: 'Hide the music button',
     },
     snow: {

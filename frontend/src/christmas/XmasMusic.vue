@@ -5,6 +5,10 @@
  * small player (nearly two hours). Mixcloud licenses the songs in its
  * mixes, which is what lets a site embed one; the club never hosts a song.
  *
+ * The card folds down to the record button with the music still playing
+ * (the player stays loaded, just out of sight); tap the record to bring it
+ * back. Only the card's ✕ stops the music.
+ *
  * Nothing loads from Mixcloud until the button is tapped (a browser will
  * not start sound without a tap anyway), and closing the card stops the
  * music. Once Mixcloud's player is up it is asked to play; where the
@@ -35,7 +39,10 @@ declare global {
 }
 
 const { t } = useI18n()
+/** The player is loaded (music may be playing). */
 const open = ref(false)
+/** Folded down to the record button, the player still running out of sight. */
+const mini = ref(false)
 const playing = ref(false)
 const mixReady = ref(false)
 /** The player is up but silent: the browser wants a tap on its own button. */
@@ -115,6 +122,19 @@ function close(): void {
   mixReady.value = false
   playing.value = false
   open.value = false
+  mini.value = false
+}
+
+/** The record button: open the player, or unfold it if it is running folded. */
+function openCard(): void {
+  open.value = true
+  mini.value = false
+}
+
+/** The record button's ✕: stop music that is playing folded, else hide the button. */
+function pillX(): void {
+  if (open.value) close()
+  else hide()
 }
 
 function hide(): void {
@@ -132,7 +152,9 @@ onBeforeUnmount(close)
 <template>
   <div v-if="!hidden" class="xmas-music">
     <!-- the card, with Mixcloud's player in it -->
-    <section v-if="open" class="card" :aria-label="t('xmas.music.label')">
+    <!-- Folded, it is moved out of sight rather than removed, so the music
+         carries on (visibility, not display: none, keeps the player running). -->
+    <section v-if="open" class="card" :class="{ 'card-mini': mini }" :aria-label="t('xmas.music.label')" :aria-hidden="mini || undefined" :inert="mini || undefined">
       <header class="flex items-center gap-3 px-3.5 pt-3 pb-2.5">
         <span class="disc" :class="{ spin: playing }" aria-hidden="true" />
         <span class="min-w-0 flex-1">
@@ -142,6 +164,9 @@ onBeforeUnmount(close)
         <button v-if="mixReady" type="button" class="round" :aria-label="playing ? t('xmas.music.pause') : t('xmas.music.play')" @click="toggle">
           <svg v-if="playing" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" /></svg>
           <svg v-else viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" /></svg>
+        </button>
+        <button type="button" class="round" :aria-label="t('xmas.music.fold')" @click="mini = true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
         </button>
         <button type="button" class="round" :aria-label="t('xmas.music.close')" @click="close">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" class="h-5 w-5" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
@@ -175,17 +200,17 @@ onBeforeUnmount(close)
       </footer>
     </section>
 
-    <!-- the record button -->
-    <div v-else class="pill">
-      <button type="button" class="pill-main" :aria-label="t('xmas.music.open')" @click="open = true">
-        <span class="disc" aria-hidden="true" />
+    <!-- the record button (also what the card folds down to) -->
+    <div v-if="!open || mini" class="pill">
+      <button type="button" class="pill-main" :aria-label="open ? t('xmas.music.unfold') : t('xmas.music.open')" @click="openCard">
+        <span class="disc" :class="{ spin: playing }" aria-hidden="true" />
         <!-- words from 900px; on a phone the record alone, so it covers less -->
         <span class="min-w-0 text-left max-[899px]:hidden">
           <span class="block truncate font-display text-[14px] leading-tight font-bold text-white">{{ t('xmas.music.label') }}</span>
-          <span class="block truncate text-[11px] leading-tight text-white/60">{{ t('xmas.music.tap') }}</span>
+          <span class="block truncate text-[11px] leading-tight text-white/60">{{ playing ? t('xmas.music.playing') : t('xmas.music.tap') }}</span>
         </span>
       </button>
-      <button type="button" class="pill-x" :aria-label="t('xmas.music.hide')" @click="hide">
+      <button type="button" class="pill-x" :aria-label="open ? t('xmas.music.close') : t('xmas.music.hide')" @click="pillX">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" class="h-3.5 w-3.5" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
       </button>
     </div>
@@ -285,6 +310,13 @@ onBeforeUnmount(close)
   }
 }
 
+.card-mini {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
 .card {
   width: min(340px, calc(100vw - 24px));
   overflow: hidden;
