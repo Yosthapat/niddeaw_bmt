@@ -1837,6 +1837,8 @@ export default {
       secret_opener: 'Doors open',
       secret_lights: 'Lights out',
       secret_history: 'History game',
+      event_xmas: 'Smashmas {year}',
+      event_newyear: 'First Smash {year}',
     },
     how: {
       fire: 'Win in a row, no draw or loss between',
@@ -1854,6 +1856,8 @@ export default {
       secret_opener: 'First to check in on 5 nights',
       secret_lights: 'Last to check out on 5 nights',
       secret_history: "Played in the club's 1,000th match",
+      event_xmas: 'Check in on Christmas night, 25 Dec (limited: once a year)',
+      event_newyear: "Check in on New Year's night, 1 Jan (limited: once a year)",
       secret: "A secret badge: you'll know what it was once you have it",
     },
     tier: {
@@ -2611,6 +2615,56 @@ export default {
         coupon_refund: 'Coupon refund',
         other: 'Other',
       },
+    },
+  },
+  xmas: {
+    hero: {
+      line1: 'Christmas? Still smashing.',
+      line2: 'No one escapes the stats!!',
+      newYear1: 'New year, same smash.',
+    },
+    banner: {
+      line1: 'Christmas? Still smashing',
+      newYear1: 'New year, same smash',
+    },
+    when: {
+      xmas: 'Fri 25 Dec · Christmas Night · 20:00',
+      newyear: 'Fri 1 Jan · New Year Night · 20:00',
+      season: 'Merry Smashmas · Fridays 20:00',
+    },
+    whenShort: {
+      xmas: '25 Dec · Christmas Night',
+      newyear: '1 Jan · New Year Night',
+      season: 'Merry Smashmas · Fridays',
+    },
+    night: {
+      xmas: 'Christmas night, 20:00',
+      newyear: "New Year's night, 20:00",
+      xmasEyebrow: 'CHRISTMAS NIGHT',
+      newyearEyebrow: 'NEW YEAR NIGHT',
+      xmasCountdown: 'Countdown to Christmas night',
+      newyearCountdown: "Countdown to New Year's night",
+      medal: 'Check in tonight for a limited medal',
+    },
+    music: {
+      label: 'Christmas music',
+      mixTitle: 'Christmas Classics',
+      mixBy: 'Joe Vinyl · Mixcloud',
+      onMixcloud: 'Open on Mixcloud',
+      tap: 'Tap to play',
+      open: 'Play Christmas music',
+      play: 'Play',
+      pause: 'Pause',
+      close: 'Stop the music',
+      hide: 'Hide the music button',
+    },
+    snow: {
+      label: 'Snow',
+    },
+    shop: {
+      eyebrow: 'SMASHMAS',
+      title: 'Christmas gifts for your partner',
+      body: 'Club shirts and keepsakes: order here, pick up at the court on Friday',
     },
   },
 }

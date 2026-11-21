@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Worn over /hero/cat-color.webp (same 1024 box): snow on the crown, a pink scarf round the neck. -->
+  <defs>
+    <linearGradient id="snow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.7" stop-color="#f3eefc"/>
+      <stop offset="1" stop-color="#cfc4e6"/>
+    </linearGradient>
+    <linearGradient id="knit" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff7cc6"/>
+      <stop offset="0.55" stop-color="#ea4ca4"/>
+      <stop offset="1" stop-color="#a3206f"/>
+    </linearGradient>
+    <linearGradient id="tail" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#c22f86"/>
+      <stop offset="0.45" stop-color="#ff7cc6"/>
+      <stop offset="1" stop-color="#c22f86"/>
+    </linearGradient>
+    <pattern id="rib" width="18" height="18" patternUnits="userSpaceOnUse" patternTransform="rotate(-8)">
+      <path d="M0 9h18" stroke="#7a1650" stroke-opacity=".28" stroke-width="3"/>
+    </pattern>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#2a0a2e" flood-opacity=".45"/>
+    </filter>
+  </defs>
+
+  <!-- snow on the crown -->
+  <g filter="url(#soft)" stroke="#1a0c1f" stroke-width="7" stroke-linejoin="round" fill="url(#snow)">
+    <!-- caps on the three balls -->
+    <path d="M168 112c2-24 20-38 40-36 22 2 34 20 32 40-6-6-12-2-14 6-4-8-12-10-18-2-6-10-16-12-22 0-6-8-14-12-18-8z"/>
+    <path d="M323 38c2-26 22-40 42-38 24 2 36 22 34 42-6-6-13-2-15 7-4-9-13-11-19-2-7-11-17-12-23 0-6-9-14-13-19-9z"/>
+    <path d="M511 84c2-24 20-38 40-36 22 2 34 20 32 40-6-6-12-2-14 6-4-8-12-10-18-2-6-10-16-12-22 0-6-8-14-12-18-8z"/>
+    <!-- drifts in the two dips of the crown -->
+    <path d="M246 214c10-22 30-30 48-24 14-12 34-8 40 8 6 16-4 30-16 30-4 10-16 14-26 8-10 8-24 6-30-4-14 2-22-6-16-18z"/>
+    <path d="M400 186c12-20 32-26 48-18 16-10 36-2 38 16 2 16-10 26-22 24-6 10-18 12-26 4-12 6-24 2-28-8-12-2-16-10-10-18z"/>
+    <!-- along the band -->
+    <path d="M214 262c18-14 44-16 66-8 22-12 54-14 78-4 24-10 56-10 78 2 10 6 6 18-6 18-14 0-20 12-34 10-12-2-18 10-32 8-14-2-18 8-32 6-12-2-18 8-30 4-12-4-14-14-30-10-14 4-22-8-14-18z" stroke-width="6"/>
+  </g>
+
+  <!-- the scarf, round the neck -->
+  <g filter="url(#soft)" stroke="#1a0c1f" stroke-width="8" stroke-linejoin="round">
+    <!-- the band, wrapping from behind the jaw to the shoulder -->
+    <path d="M120 690c90 40 250 66 400 48 70-8 120-26 150-46 10 26 6 58-8 76-40 30-120 50-210 52-150 4-290-26-360-70-8-18-2-44 28-60z" fill="url(#knit)"/>
+    <path d="M120 690c90 40 250 66 400 48 70-8 120-26 150-46 10 26 6 58-8 76-40 30-120 50-210 52-150 4-290-26-360-70-8-18-2-44 28-60z" fill="url(#rib)" stroke="none"/>
+    <!-- two tails hanging down the chest -->
+    <path d="M250 770c-6 60-20 120-40 172l78 22c14-56 22-118 20-184z" fill="url(#tail)"/>
+    <path d="M318 778c4 62 0 126-12 182l80 6c6-62 4-126-8-188z" fill="url(#tail)"/>
+    <!-- white stripes round the band, and its gloss -->
+    <path d="M196 724c8 2 16 4 22 6l-6 58c-8-2-16-6-24-8z" fill="#fff" stroke="none" opacity=".9"/>
+    <path d="M430 744l26-2 4 62-26 4z" fill="#fff" stroke="none" opacity=".9"/>
+    <path d="M560 728l24-8 10 58-24 8z" fill="#fff" stroke="none" opacity=".9"/>
+    <path d="M150 708c110 40 300 56 440 30 30-6 56-14 74-24" fill="none" stroke="#ffd0ea" stroke-width="10" stroke-linecap="round" opacity=".75"/>
+    <!-- the knot -->
+    <path d="M232 746c20-22 64-28 96-14 24 12 26 44 8 62-24 22-74 22-100 2-16-14-18-34-4-50z" fill="url(#knit)"/>
+    <path d="M250 758c16-12 44-14 62-6" fill="none" stroke="#ffd0ea" stroke-width="8" stroke-linecap="round" opacity=".8"/>
+  </g>
+  <!-- white stripes and fringe on the tails -->
+  <g fill="#fff" opacity=".95">
+    <path d="M238 852l66 12-4 22-68-12z"/><path d="M226 904l66 14-5 20-68-14z"/>
+    <path d="M314 862l70 2v22l-70-2z"/><path d="M312 914l72 4-1 22-72-4z"/>
+  </g>
+  <g stroke="#ffd6ec" stroke-width="7" stroke-linecap="round">
+    <path d="M214 952l-6 22M232 958l-5 22M250 962l-4 22M268 966l-3 22M284 968l-2 22"/>
+    <path d="M310 966l-1 24M328 968v24M346 968l1 24M364 968l2 24M382 966l3 22"/>
+  </g>
+</svg>

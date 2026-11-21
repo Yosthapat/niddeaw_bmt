@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { getMatchDetail } from '@/api/public'
@@ -17,11 +17,23 @@ import EloGauge from '@/components/matches/EloGauge.vue'
 import EloDelta from '@/components/matches/EloDelta.vue'
 import { isUpset } from '@/utils/eloOdds'
 import { apiErrorMessage } from '@/api/errors'
+import { burstFrom } from '@/christmas/burst'
 
 const route = useRoute()
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const detail = ref<MatchDetail | null>(null)
+const gaugeCard = ref<HTMLElement | null>(null)
+
+// Christmas season: snow bursts from the winners' side of the gauge (it
+// does nothing the rest of the year). Once per match opened.
+async function cheer(): Promise<void> {
+  const w = detail.value?.match.winner
+  if (detail.value?.match.status !== 'completed' || (w !== 'team1' && w !== 'team2')) return
+  await nextTick()
+  // after the card's own entrance, so the snow comes out of where it settles
+  setTimeout(() => burstFrom(gaugeCard.value, w === 'team1' ? 0.18 : 0.82), 450)
+}
 const loading = ref(true)
 const error = ref<string | null>(null)
 
@@ -125,6 +137,8 @@ watch(
     error.value = null
     try {
       detail.value = await getMatchDetail(String(id))
+      loading.value = false
+      void cheer()
     } catch {
       error.value = t('matches.notFound')
     } finally {
@@ -152,7 +166,7 @@ watch(
         <p v-else-if="error || !detail" class="world-card p-5 text-status-error">{{ error }}</p>
 
         <template v-else>
-          <section v-if="gauge" v-reveal class="world-card relative mb-4 overflow-hidden p-4 sm:mb-5 sm:p-5" :aria-label="t('elo.avg')">
+          <section v-if="gauge" ref="gaugeCard" v-reveal class="world-card relative mb-4 overflow-hidden p-4 sm:mb-5 sm:p-5" :aria-label="t('elo.avg')">
             <span v-if="upset" class="upset-stamp">{{ t('elo.upset') }}</span>
             <div class="mb-3 flex items-center justify-between gap-3" :style="upset ? { paddingRight: '64px' } : undefined">
               <span class="flex min-w-0 items-center gap-2">

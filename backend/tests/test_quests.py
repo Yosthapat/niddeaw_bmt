@@ -231,6 +231,29 @@ def test_regular_bloodline_and_the_secrets() -> None:
     assert w.derive()[b].secrets["secret_opener"].value == 0
 
 
+def test_christmas_and_new_year_nights_give_a_limited_medal() -> None:
+    a, b, c = ids(3)
+    w = World({a: 1000, b: 1000, c: 1000})
+    xmas = w.night(date(2026, 12, 25))
+    new_year = w.night(date(2027, 1, 1))
+    plain = w.night(date(2026, 12, 18))
+    w.checkin(xmas, a, 10)
+    w.checkin(xmas, b, 20)
+    w.checkin(new_year, a, 9000)
+    w.checkin(plain, c, 30)
+    state = w.derive()
+    assert state[a].events == {"xmas:2026": at(10), "newyear:2027": at(9000)}
+    assert state[b].events == {"xmas:2026": at(20)}
+    assert state[c].events == {}
+    held = qs.awards(state)
+    assert held[(a, "xmas:2026", 1)] == at(10)
+    assert (c, "xmas:2026", 1) not in held
+    # gold, so they make the member's card and the club's feed
+    assert quest_store.metal("xmas:2026", 1) == 3
+    assert quest_store.metal("newyear:2027", 1) == 3
+    assert not quest_store.is_event("secret_opener")
+
+
 def test_no_payback_on_someone_met_once() -> None:
     a, b, c, d = ids(4)
     w = World({p: 1000 for p in (a, b, c, d)})

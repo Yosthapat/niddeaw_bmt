@@ -15,13 +15,17 @@
  * (above the words on a phone, beside them from 900px wide). The CSS cat is
  * drawn inside it, and the 3D camera is aimed so its cat fills it too.
  */
-import { onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue'
+import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import SponsorBand from './SponsorBand.vue'
 import type { HeroScene } from './heroScene'
+import { heroCopy, xmasOn } from '@/christmas/season'
 
 const { t } = useI18n()
+// In the Christmas season the shout and the night line change, the cat
+// wears a scarf and snow on its crown, and the 3D scene snows.
+const xmas = computed(() => (xmasOn ? heroCopy(t) : null))
 
 // ------------------------------------------------------------------ scene
 const hero = ref<HTMLElement | null>(null)
@@ -105,6 +109,7 @@ async function startScene(): Promise<void> {
         stats.value = `3D · ${Math.round(fps)} fps · ${bloom ? 'bloom' : 'no bloom'}`
       },
       onGiveUp: (fps) => giveUp(`too slow (${fps})`),
+      xmas: xmasOn,
     })
     if (gone) {
       created.dispose()
@@ -197,19 +202,30 @@ onBeforeUnmount(() => {
           class="hero-cat block h-full w-full transition-opacity duration-700"
           :class="{ 'opacity-0': mode === 'gl' }"
         />
+        <!-- worn over the cat, in step with its float; the 3D cat wears its own -->
+        <img
+          v-if="xmas"
+          src="/xmas/cat-dress.svg"
+          alt=""
+          width="1024"
+          height="1024"
+          decoding="async"
+          class="hero-dress pointer-events-none absolute inset-0 h-full w-full transition-opacity duration-700"
+          :class="{ 'opacity-0': mode === 'gl' }"
+        />
       </div>
 
       <div class="hero-copy flex flex-col items-center gap-3 text-center min-[900px]:items-start min-[900px]:gap-5 min-[900px]:text-left">
         <p class="glass-bar inline-flex min-h-8 items-center gap-2 rounded-full px-3.5 text-[13px] text-white/90">
           <span class="h-2 w-2 shrink-0 rounded-full bg-brand-pink shadow-[0_0_8px_var(--color-brand-pink)]" aria-hidden="true" />
-          {{ t('home.hero.when') }}
+          {{ xmas ? xmas.when : t('home.hero.when') }}
         </p>
         <h1
           id="home-hero-title"
           class="m-0 font-display text-[clamp(1.75rem,7.6vw,3.5rem)] leading-[1.16] font-bold text-balance text-white"
         >
-          <span class="hero-solid block">{{ t('home.hero.line1') }}</span>
-          <span class="hero-neon block text-brand-pink">{{ t('home.hero.line2') }}</span>
+          <span class="hero-solid block">{{ xmas ? xmas.line1 : t('home.hero.line1') }}</span>
+          <span class="hero-neon block text-brand-pink">{{ xmas ? xmas.line2 : t('home.hero.line2') }}</span>
         </h1>
         <p class="hero-lede m-0 max-w-[34ch] text-[15px] leading-relaxed font-light text-white/85 min-[900px]:text-lg">
           {{ t('home.hero.body') }}
@@ -373,6 +389,9 @@ onBeforeUnmount(() => {
   filter: drop-shadow(14px 20px 18px rgb(6 0 20 / 0.6)) drop-shadow(0 0 28px rgb(234 76 164 / 0.45));
   animation: hero-hover 6s ease-in-out infinite;
 }
+.hero-dress {
+  animation: hero-hover 6s ease-in-out infinite;
+}
 @keyframes hero-hover {
   50% {
     transform: translateY(-12px);
@@ -452,7 +471,8 @@ onBeforeUnmount(() => {
 
 @media (prefers-reduced-motion: reduce) {
   .hero-floor::before,
-  .hero-cat {
+  .hero-cat,
+  .hero-dress {
     animation: none;
   }
 }

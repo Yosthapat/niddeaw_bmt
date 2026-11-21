@@ -7,6 +7,7 @@
 import type { BadgeAward, PlayerBadges } from '@/api/quests'
 import { formatDate, formatMonth } from '@/utils/format'
 import type { Locale } from '@/i18n'
+import { nextSpecialNight, thaiDay } from '@/christmas/season'
 
 export type Metal = 'b' | 's' | 'g' | 'p'
 type T = (key: string, values?: Record<string, unknown>) => string
@@ -44,6 +45,14 @@ const SECRETS: Record<string, { art: string; metal: Metal }> = {
   secret_history: { art: 'secret_gold', metal: 'g' },
 }
 export const METAL_RANK: Record<Metal, number> = { b: 1, s: 2, g: 3, p: 4 }
+/** Limited medals, one a year, for being at a special night: "xmas:2026"
+ *  (backend quest_service.EVENTS). Always gold. */
+const EVENTS: Record<string, string> = { xmas: 'event_xmas', newyear: 'event_newyear' }
+
+function eventOf(badge: string): { kind: string; year: string } | null {
+  const [kind, year] = badge.split(':')
+  return kind && year && EVENTS[kind] ? { kind, year } : null
+}
 
 export interface BadgeItem {
   id: string
@@ -78,6 +87,8 @@ export function awardImage(a: BadgeAward): string {
     return img(`podium_${p.tier}_${p.art}`)
   }
   if (a.badge.startsWith('monthly:')) return img('monthly_gold')
+  const ev = eventOf(a.badge)
+  if (ev) return img(EVENTS[ev.kind]!)
   if (SECRETS[a.badge]) return img(SECRETS[a.badge]!.art)
   const th = THRESHOLDS[a.badge]
   return th ? img(`${a.badge}_${th[Math.min(a.level, th.length) - 1]}`) : img('secret_bronze')
@@ -85,7 +96,7 @@ export function awardImage(a: BadgeAward): string {
 
 export function awardMetal(a: BadgeAward): Metal {
   if (a.badge === 'podium') return PODIUM_METAL[a.level - 1] ?? 'b'
-  if (a.badge.startsWith('monthly:')) return 'g'
+  if (a.badge.startsWith('monthly:') || eventOf(a.badge)) return 'g'
   if (SECRETS[a.badge]) return SECRETS[a.badge]!.metal
   return metalsOf(a.badge)[a.level - 1] ?? 'b'
 }
@@ -93,6 +104,8 @@ export function awardMetal(a: BadgeAward): Metal {
 export function awardName(t: T, a: BadgeAward, locale: Locale): string {
   if (a.badge === 'podium') return t('quests.name.podiumTier', { tier: cap(PODIUM[a.level - 1]?.tier ?? '') })
   if (a.badge.startsWith('monthly:')) return t('quests.name.monthly', { month: formatMonth(a.badge.slice(8), locale) })
+  const ev = eventOf(a.badge)
+  if (ev) return t(`quests.name.event_${ev.kind}`, { year: ev.year })
   return t(`quests.name.${a.badge}`)
 }
 
@@ -191,6 +204,34 @@ export function shelfItems(data: PlayerBadges, t: T, locale: Locale): BadgeItem[
       tiers: [],
       progress: null,
       dateLabel: date(s.earned_at),
+    })
+  }
+
+  // limited medals: the ones held, then (in the season) the next one to win
+  const events = [...(data.events ?? [])]
+  const next = nextSpecialNight()
+  if (next) {
+    const key = `${next.kind}:${thaiDay(next.start).y}`
+    if (!events.some((e) => e.key === key)) events.push({ key, earned_at: '' })
+  }
+  for (const e of events) {
+    const ev = eventOf(e.key)
+    if (!ev) continue
+    const got = !!e.earned_at
+    items.push({
+      id: e.key,
+      img: img(EVENTS[ev.kind]!),
+      name: t(`quests.name.event_${ev.kind}`, { year: ev.year }),
+      locked: !got,
+      secret: false,
+      metal: 'g',
+      tierLabel: t('quests.limited'),
+      pips: [],
+      earnedAt: got ? e.earned_at : null,
+      how: t(`quests.how.event_${ev.kind}`),
+      tiers: [],
+      progress: null,
+      dateLabel: date(got ? e.earned_at : null),
     })
   }
   return items

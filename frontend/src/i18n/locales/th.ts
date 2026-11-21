@@ -1834,6 +1834,8 @@ export default {
       secret_opener: 'เปิดสนาม',
       secret_lights: 'ปิดไฟ',
       secret_history: 'เกมประวัติศาสตร์',
+      event_xmas: 'Smashmas {year}',
+      event_newyear: 'First Smash {year}',
     },
     how: {
       fire: 'ชนะติดกันโดยไม่แพ้หรือเสมอคั่น',
@@ -1851,6 +1853,8 @@ export default {
       secret_opener: 'เป็นคนแรกที่เช็คอินของคืน 5 คืน',
       secret_lights: 'เป็นคนสุดท้ายที่เช็คเอาท์ของคืน 5 คืน',
       secret_history: 'ได้ลงเล่นในแมตช์ที่ 1,000 ของก๊วน',
+      event_xmas: 'เช็คอินคืนคริสต์มาส 25 ธ.ค. (ลิมิเต็ด มีแค่ปีละครั้ง)',
+      event_newyear: 'เช็คอินคืนวันปีใหม่ 1 ม.ค. (ลิมิเต็ด มีแค่ปีละครั้ง)',
       secret: 'badge ลับ ได้แล้วถึงจะรู้ว่าต้องทำอะไร',
     },
     tier: {
@@ -2608,6 +2612,56 @@ export default {
         coupon_refund: 'คืนคูปอง',
         other: 'อื่น ๆ',
       },
+    },
+  },
+  xmas: {
+    hero: {
+      line1: 'คริสต์มาสก็ต้องตบ.',
+      line2: 'ไม่มีใครหนีสถิติไปได้!!',
+      newYear1: 'ปีใหม่ก็ต้องตบ.',
+    },
+    banner: {
+      line1: 'คริสต์มาสก็ต้องตบ',
+      newYear1: 'ปีใหม่ก็ต้องตบ',
+    },
+    when: {
+      xmas: 'ศุกร์ 25 ธ.ค. · Christmas Night · 20:00',
+      newyear: 'ศุกร์ 1 ม.ค. · New Year Night · 20:00',
+      season: 'Merry Smashmas · ทุกศุกร์ 20:00',
+    },
+    whenShort: {
+      xmas: '25 ธ.ค. · Christmas Night',
+      newyear: '1 ม.ค. · New Year Night',
+      season: 'Merry Smashmas · ทุกศุกร์',
+    },
+    night: {
+      xmas: 'คืนคริสต์มาส 20:00',
+      newyear: 'คืนปีใหม่ 20:00',
+      xmasEyebrow: 'CHRISTMAS NIGHT',
+      newyearEyebrow: 'NEW YEAR NIGHT',
+      xmasCountdown: 'นับถอยหลังถึงคืนคริสต์มาส',
+      newyearCountdown: 'นับถอยหลังถึงคืนปีใหม่',
+      medal: 'เช็คอินคืนนี้ รับเหรียญลิมิเต็ด',
+    },
+    music: {
+      label: 'เพลงคริสต์มาส',
+      mixTitle: 'Christmas Classics',
+      mixBy: 'Joe Vinyl · Mixcloud',
+      onMixcloud: 'เปิดใน Mixcloud',
+      tap: 'แตะเพื่อเปิดเพลง',
+      open: 'เปิดเพลงคริสต์มาส',
+      play: 'เล่นเพลง',
+      pause: 'หยุดชั่วคราว',
+      close: 'ปิดเพลง',
+      hide: 'ซ่อนปุ่มเพลง',
+    },
+    snow: {
+      label: 'หิมะตก',
+    },
+    shop: {
+      eyebrow: 'SMASHMAS',
+      title: 'ของขวัญคริสต์มาสให้คู่ซี้',
+      body: 'เสื้อก๊วน ของที่ระลึก สั่งในเว็บ รับที่สนามคืนวันศุกร์',
     },
   },
 }

@@ -68,7 +68,7 @@ function formatSessionDate(isoDate: string): string {
   return formatDayMonth(isoDate, locale.value)
 }
 
-const { night, countdown, startsAt } = useGameNight()
+const { night, countdown, startsAt, special, eyebrow: nightEyebrow, countdownLabel } = useGameNight()
 
 const eyebrow = computed(() =>
   live.value?.session_date ? `Live · ${formatSessionDate(live.value.session_date)}` : 'Live',
@@ -119,15 +119,19 @@ usePolling(refresh, 7000)
             <p class="mt-2 text-white/70">{{ t('live.waitingForSession') }}</p>
           </template>
           <template v-else>
-            <p class="world-eyebrow">NEXT GAME NIGHT</p>
+            <p class="world-eyebrow">{{ nightEyebrow }}</p>
             <h2 class="world-title mt-1 text-3xl sm:text-4xl">{{ startsAt }}</h2>
             <p class="mt-2 text-white/70">{{ t('live.noSessionLong') }}</p>
-            <div class="mt-6 flex justify-center gap-2 sm:gap-3.5" role="timer" :aria-label="t('home.big.countdownLabel')">
+            <div class="mt-6 flex justify-center gap-2 sm:gap-3.5" role="timer" :aria-label="countdownLabel">
               <div v-for="part in countdown" :key="part.unit" class="count">
                 <span class="font-display text-[30px] leading-none font-bold text-[#ff9fd6] tabular-nums sm:text-[44px]">{{ part.n }}</span>
                 <span class="mt-1.5 text-xs text-white/60">{{ part.unit }}</span>
               </div>
             </div>
+            <p v-if="special" class="mt-5 flex items-center justify-center gap-2.5 text-sm text-white/85">
+              <img :src="`/badges/event_${special}.webp`" alt="" width="44" height="44" class="h-11 w-11 shrink-0" />
+              {{ t('xmas.night.medal') }}
+            </p>
           </template>
           <p class="mt-6 text-sm text-white/55">{{ t('home.hero.when') }}</p>
         </section>

@@ -6,7 +6,14 @@
 // (stores/passStyles.ts), it is drawn round the picture. `frame` sets one
 // outright, for the LINE page's previews. The frame sits outside the
 // picture's box, so nothing around it moves.
+//
+// In the Christmas season (src/christmas/) every member wears a Santa hat,
+// tipped over the top right corner; a Niddeaw Pass holder's has gold trim.
+// Not on the admin screens, which are for working, and not over the crown
+// frame, which already has something on its head.
 import { computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { xmasOn } from '@/christmas/season'
 import type { PassFrame } from '@/api/line'
 import { usePassStylesStore } from '@/stores/passStyles'
 import PlayerAvatarFace from '@/components/players/PlayerAvatarFace.vue'
@@ -33,16 +40,34 @@ const shownFrame = computed<PassFrame | null>(() => {
   return props.round ? styles.frameOf(props.playerId) : null
 })
 
+const route = useRoute()
+const hat = computed(() => xmasOn && !route.path.startsWith('/admin') && shownFrame.value !== 'crown')
+
 </script>
 
 <template>
   <!-- No frame: the bare picture, laid out exactly as before (a parent's
        -space-x and the like still reach it). -->
-  <PlayerAvatarFace v-if="!shownFrame" v-bind="$attrs" :name="name" :avatar-url="avatarUrl" :size="size" :round="round" />
+  <PlayerAvatarFace v-if="!shownFrame && !hat" v-bind="$attrs" :name="name" :avatar-url="avatarUrl" :size="size" :round="round" />
+  <!-- Christmas, no frame: the picture and its hat; the caller's classes on
+       the pair, rounded like the picture so a ring stays round. -->
+  <span v-else-if="!shownFrame" v-bind="$attrs" class="xh" :class="{ 'rounded-full': round }">
+    <PlayerAvatarFace :name="name" :avatar-url="avatarUrl" :size="size" :round="round" />
+    <svg class="xh-hat" viewBox="0 0 64 56" aria-hidden="true">
+      <path d="M8 46C12 22 30 6 52 12c4 8 2 18 0 24l-2 10Z" fill="#e8264f" stroke="#1a0c1f" stroke-width="2.5" stroke-linejoin="round" />
+      <circle cx="53" cy="38" r="6" fill="#fff" stroke="#1a0c1f" stroke-width="2.5" />
+      <rect x="4" y="42" width="50" height="12" rx="6" fill="#fff" stroke="#1a0c1f" stroke-width="2.5" />
+    </svg>
+  </span>
   <!-- With one, the caller's classes (an overlap's -ml, a ring) go on the
        frame, so the ring stays centred on the picture. -->
   <span v-else v-bind="$attrs" class="pf" :class="[`pf-${shownFrame}`, `pf-${size}`]">
     <PlayerAvatarFace :name="name" :avatar-url="avatarUrl" :size="size" :round="round" />
+    <svg v-if="hat" class="xh-hat" viewBox="0 0 64 56" aria-hidden="true">
+      <path d="M8 46C12 22 30 6 52 12c4 8 2 18 0 24l-2 10Z" fill="#e8264f" stroke="#1a0c1f" stroke-width="2.5" stroke-linejoin="round" />
+      <circle cx="53" cy="38" r="6" fill="#ffe58a" stroke="#1a0c1f" stroke-width="2.5" />
+      <rect x="4" y="42" width="50" height="12" rx="6" fill="#ffe58a" stroke="#1a0c1f" stroke-width="2.5" />
+    </svg>
     <svg v-if="shownFrame === 'crown'" class="pf-x-crown" viewBox="0 0 40 26" aria-hidden="true">
       <path d="M3 24 1 6l10 8 9-13 9 13 10-8-2 18Z" fill="#ff4fa6" stroke="#ffe58a" stroke-width="2" stroke-linejoin="round" />
       <circle cx="20" cy="3" r="3" fill="#ffe58a" />
@@ -59,6 +84,22 @@ const shownFrame = computed<PassFrame | null>(() => {
 </template>
 
 <style scoped>
+/* the Santa hat (Christmas season), tipped over the top right corner */
+.xh {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.xh-hat {
+  position: absolute;
+  z-index: 2;
+  top: -30%;
+  right: -16%;
+  width: 66%;
+  rotate: 16deg;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.45));
+}
 /* The ring is drawn just outside the picture, behind it; the picture keeps
    its own size, so nothing around it moves. */
 .pf {
