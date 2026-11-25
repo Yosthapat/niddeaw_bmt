@@ -13,6 +13,10 @@ export interface Sponsor {
   created_at: string
 }
 
+/** How an upload turns white (backend logo_service.LogoMode): the whole
+ *  logo, or only its light parts for logos drawn light-on-dark. */
+export type LogoMode = 'shape' | 'light'
+
 export interface LogoPreview {
   data_uri: string
   width: number

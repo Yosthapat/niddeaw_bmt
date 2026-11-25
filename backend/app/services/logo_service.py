@@ -7,6 +7,12 @@ this does the same to an upload, so an admin can add a sponsor from a
 phone with whatever file the sponsor sent — a transparent PNG, or a JPG
 with a white (or any flat) background.
 
+Two ways to make it white (`mode`):
+- "shape": everything that is the logo turns white. Right for most files.
+- "light": only the light parts turn white and the dark ones drop out, for
+  logos drawn light-on-dark: a dark badge behind the lettering, or a dark
+  textured background (stone, wood) that "shape" would keep as speckle.
+
 Pure Pillow, no state: the admin preview and the save call the same
 function, so what was previewed is what gets stored.
 """
@@ -15,9 +21,13 @@ from __future__ import annotations
 
 import hashlib
 import io
+from collections import deque
 from dataclasses import dataclass
+from typing import Literal
 
-from PIL import Image, ImageChops, ImageOps
+from PIL import Image, ImageChops, ImageFilter, ImageOps
+
+LogoMode = Literal["shape", "light"]
 
 # The band draws a logo at most ~240 CSS px wide; twice that for a retina
 # phone. The hand-made five are 323-449px across.
@@ -32,6 +42,13 @@ HIGH = 80
 # A border this transparent means the file already has a cut-out
 # background and its alpha is the mask.
 TRANSPARENT_BORDER_SHARE = 0.5
+
+# "light" mode works on a copy no bigger than this (the result is at most
+# LOGO_MAX_PX anyway), which keeps its speck search quick on a phone photo.
+LIGHT_WORK_PX = 900
+# A bright patch smaller than this share of the picture is texture, not
+# lettering (about 120px of a 958px square).
+LIGHT_MIN_AREA_SHARE = 0.00013
 
 
 @dataclass(frozen=True)
@@ -81,7 +98,64 @@ def _mask(image: Image.Image) -> Image.Image:
     return ImageChops.multiply(ramp, alpha)
 
 
-def white_silhouette(data: bytes) -> Logo:
+def _light_mask(image: Image.Image) -> Image.Image:
+    """An L image of the parts brighter than the background.
+
+    The cut-off sits just above the brightest of the background, sampled
+    along the edges (transparent counts as dark). Bright specks of a
+    textured background are dropped by keeping only connected bright areas
+    big enough to be lettering; shaded strokes are closed up, and a soft
+    edge allowed just outside them.
+    """
+    alpha = image.getchannel("A")
+    lum = ImageChops.multiply(image.convert("L"), alpha)
+    w, h = lum.size
+    step = max(1, min(w, h) // 200)
+    px = lum.load()
+    assert px is not None
+    edge = sorted(
+        [int(px[x, y]) for x in range(0, w, step) for y in (0, h - 1)]  # type: ignore[arg-type]
+        + [int(px[x, y]) for y in range(0, h, step) for x in (0, w - 1)]  # type: ignore[arg-type]
+    )
+    cut = max(60, min(200, edge[int(len(edge) * 0.99)] + 15))
+
+    bright = lum.tobytes()
+    n = w * h
+    min_area = max(12, round(n * LIGHT_MIN_AREA_SHARE))
+    seen = bytearray(n)
+    keep = bytearray(n)
+    for start in range(n):
+        if seen[start] or bright[start] < cut:
+            continue
+        seen[start] = 1
+        queue = deque([start])
+        comp = []
+        while queue:
+            p = queue.popleft()
+            comp.append(p)
+            x = p % w
+            for q in (p - 1 if x else -1, p + 1 if x < w - 1 else -1, p - w, p + w):
+                if 0 <= q < n and not seen[q] and bright[q] >= cut:
+                    seen[q] = 1
+                    queue.append(q)
+        if len(comp) >= min_area:
+            for p in comp:
+                keep[p] = 255
+
+    kept = Image.frombytes("L", (w, h), bytes(keep))
+    solid = kept.filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.MinFilter(3))
+    near = solid.filter(ImageFilter.MaxFilter(5))
+    lo, hi = cut - 45, cut + 15
+
+    def ramp(v: int) -> int:
+        t = min(1.0, max(0.0, (v - lo) / (hi - lo)))
+        return round(255 * t * t * (3 - 2 * t))
+
+    soft = ImageChops.multiply(lum.point(ramp), near)
+    return ImageChops.lighter(ImageChops.multiply(solid, alpha), soft)
+
+
+def white_silhouette(data: bytes, mode: LogoMode = "shape") -> Logo:
     """The logo in `data` as a trimmed white-on-transparent PNG.
 
     Raises ValueError when the bytes are not an image, or when nothing in
@@ -95,7 +169,11 @@ def white_silhouette(data: bytes) -> Logo:
     except Exception as exc:  # Pillow raises a zoo of types for bad input
         raise ValueError(f"unreadable image: {exc}") from exc
 
-    mask = _mask(image)
+    if mode == "light":
+        image.thumbnail((LIGHT_WORK_PX, LIGHT_WORK_PX), Image.Resampling.LANCZOS)
+        mask = _light_mask(image)
+    else:
+        mask = _mask(image)
     # Trim to the mark, ignoring faint specks (JPEG noise on a "white"
     # background is never quite 255).
     box = mask.point(lambda v: 255 if v > 24 else 0).getbbox()
