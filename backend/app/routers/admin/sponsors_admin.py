@@ -1,5 +1,6 @@
 import base64
 import contextlib
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Form, HTTPException, UploadFile, status
@@ -11,6 +12,10 @@ from app.services import logo_service
 from app.services.image_service import storage_path_from_url
 
 router = APIRouter(prefix="/api/admin/sponsors", tags=["admin-sponsors"])
+
+# How the upload turns white: "shape" (the whole logo) or "light" (only its
+# light parts, for logos drawn light-on-dark). See logo_service.
+ModeForm = Annotated[logo_service.LogoMode, Form()]
 
 LOGO_BUCKET = "sponsors"
 MAX_LOGO_BYTES = 5 * 1024 * 1024  # 5MB — same as receipts and the payment QR
@@ -32,17 +37,21 @@ def _name(raw: str) -> str:
     return name
 
 
-async def _silhouette(file: UploadFile) -> logo_service.Logo:
+async def _silhouette(file: UploadFile, mode: logo_service.LogoMode = "shape") -> logo_service.Logo:
     contents = await file.read(MAX_LOGO_BYTES + 1)  # never more than one byte past the limit
     if len(contents) > MAX_LOGO_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Logo file too large (max 5MB)",
         )
     try:
-        return logo_service.white_silhouette(contents)
+        return logo_service.white_silhouette(contents, mode)
     except ValueError as exc:
         detail = (
-            "ไม่เห็นโลโก้ในรูปนี้ — ลองไฟล์ที่โลโก้ตัดกับพื้นหลังชัด ๆ"
+            (
+                "ไม่เห็นส่วนสว่างในรูปนี้ — ลองแบบ ทั้งโลโก้"
+                if mode == "light"
+                else "ไม่เห็นโลโก้ในรูปนี้ — ลองไฟล์ที่โลโก้ตัดกับพื้นหลังชัด ๆ"
+            )
             if "no logo" in str(exc)
             else "Unsupported image type"
         )
@@ -80,10 +89,12 @@ def list_sponsors(supabase: SupabaseDep, admin: AdminDep) -> list[Sponsor]:
 
 
 @router.post("/logo-preview", response_model=LogoPreview)
-async def preview_logo(file: UploadFile, admin: AdminDep) -> LogoPreview:
+async def preview_logo(
+    file: UploadFile, admin: AdminDep, mode: ModeForm = "shape"
+) -> LogoPreview:
     """What the band would show for this file, without storing anything —
     so the admin sees the white version before deciding to save."""
-    logo = await _silhouette(file)
+    logo = await _silhouette(file, mode)
     encoded = base64.b64encode(logo.png).decode("ascii")
     return LogoPreview(data_uri=f"data:image/png;base64,{encoded}", width=logo.width, height=logo.height)
 
@@ -95,9 +106,10 @@ async def create_sponsor(
     file: UploadFile,
     name: str = Form(...),
     href: str | None = Form(None),
+    mode: ModeForm = "shape",
 ) -> Sponsor:
     clean_name, clean_href = _name(name), _link(href)
-    logo = await _silhouette(file)
+    logo = await _silhouette(file, mode)
     last = supabase.table("sponsors").select("sort_order").order("sort_order", desc=True).limit(1).execute()
     last_rows = rows(last)
     next_order = int(last_rows[0]["sort_order"]) + 1 if last_rows else 1
@@ -138,13 +150,17 @@ def update_sponsor(
 
 @router.post("/{sponsor_id}/logo", response_model=Sponsor)
 async def replace_logo(
-    sponsor_id: UUID, file: UploadFile, supabase: SupabaseDep, admin: AdminDep
+    sponsor_id: UUID,
+    file: UploadFile,
+    supabase: SupabaseDep,
+    admin: AdminDep,
+    mode: ModeForm = "shape",
 ) -> Sponsor:
     previous = supabase.table("sponsors").select("logo_url").eq("id", str(sponsor_id)).limit(1).execute()
     previous_rows = rows(previous)
     if not previous_rows:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sponsor not found")
-    logo = await _silhouette(file)
+    logo = await _silhouette(file, mode)
     url = _store(supabase, logo)
     result = (
         supabase.table("sponsors")

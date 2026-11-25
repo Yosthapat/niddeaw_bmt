@@ -74,6 +74,76 @@ def test_a_huge_logo_is_shrunk_to_what_the_band_draws() -> None:
     assert max(logo.width, logo.height) <= LOGO_MAX_PX
 
 
+def light_on_dark_badge() -> bytes:
+    """A transparent PNG: a near-black disc with a light wordmark across it.
+    "shape" turns the whole disc white; "light" keeps only the wordmark."""
+    image = Image.new("RGBA", (400, 400), (0, 0, 0, 0))
+    for x in range(400):
+        for y in range(400):
+            if (x - 200) ** 2 + (y - 200) ** 2 <= 180**2:
+                image.putpixel((x, y), (15, 12, 10, 255))
+    for x in range(80, 320):
+        for y in range(170, 230):
+            image.putpixel((x, y), (235, 225, 200, 255))
+    out = io.BytesIO()
+    image.save(out, format="PNG")
+    return out.getvalue()
+
+
+def light_on_texture() -> bytes:
+    """A light wordmark on dark stone: bright specks scattered over a dark,
+    uneven background, as a photographed or grunge logo has."""
+    image = Image.new("RGB", (600, 400), (40, 40, 40))
+    for i in range(400):  # specks: small bright dots all over, edges included
+        x, y = (i * 97) % 597, (i * 61) % 397
+        for dx in range(2):
+            for dy in range(2):
+                image.putpixel((x + dx, y + dy), (120 + i % 60, 120 + i % 60, 120 + i % 60))
+    for x in range(150, 450):
+        for y in range(160, 240):
+            image.putpixel((x, y), (230, 230, 230))
+    out = io.BytesIO()
+    image.save(out, format="PNG")
+    return out.getvalue()
+
+
+def test_light_mode_keeps_the_lettering_and_drops_a_dark_badge() -> None:
+    whole = white_silhouette(light_on_dark_badge())
+    assert (whole.width, whole.height) == (361, 361)  # the disc, as one white block
+    light = white_silhouette(light_on_dark_badge(), "light")
+    assert (light.width, light.height) == (240, 60)  # just the wordmark
+    assert Image.open(io.BytesIO(light.png)).getpixel((120, 30))[3] == 255
+
+
+def test_light_mode_drops_the_specks_of_a_textured_background() -> None:
+    whole = white_silhouette(light_on_texture())
+    assert whole.height / whole.width > 0.6  # the specks came along: the whole picture, not the 300x80 wordmark
+    light = white_silhouette(light_on_texture(), "light")
+    # the wordmark, give or take the odd speck touching its edge
+    assert abs(light.width - 300) <= 8 and abs(light.height - 80) <= 8
+
+
+def test_preview_can_keep_only_the_light_parts(client: TestClient, supabase_rows: dict[str, Any]) -> None:
+    response = client.post(
+        "/api/admin/sponsors/logo-preview",
+        files={"file": ("logo.png", light_on_dark_badge(), "image/png")},
+        data={"mode": "light"},
+        headers=auth(),
+    )
+    assert response.status_code == 200
+    assert (response.json()["width"], response.json()["height"]) == (240, 60)
+
+
+def test_an_unknown_mode_is_refused(client: TestClient, supabase_rows: dict[str, Any]) -> None:
+    response = client.post(
+        "/api/admin/sponsors/logo-preview",
+        files={"file": ("logo.png", light_on_dark_badge(), "image/png")},
+        data={"mode": "dark"},
+        headers=auth(),
+    )
+    assert response.status_code == 422
+
+
 def test_preview_shows_the_silhouette_and_stores_nothing(
     client: TestClient, supabase_spy: FakeSupabase
 ) -> None:

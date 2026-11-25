@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import * as adminApi from '@/api/admin'
 import { apiErrorMessage } from '@/api/errors'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
-import type { LogoPreview, Sponsor } from '@/types'
+import type { LogoMode, LogoPreview, Sponsor } from '@/types'
 import { logoHeight } from '@/utils/sponsorBand'
 import { MAX_NAME } from '@/utils/limits'
 import AdminNav from '@/components/layout/AdminNav.vue'
@@ -79,6 +79,8 @@ const form = reactive({ name: '', href: '' })
 const file = ref<File | null>(null)
 const original = ref<string | null>(null)
 const preview = ref<LogoPreview | null>(null)
+const mode = ref<LogoMode>('shape')
+const LOGO_MODES: LogoMode[] = ['shape', 'light']
 const previewing = ref(false)
 const saving = ref(false)
 const formError = ref<string | null>(null)
@@ -112,6 +114,7 @@ function openForm(sponsor: Sponsor | null): void {
   form.href = sponsor?.href ? linkLabel(sponsor.href) : ''
   file.value = null
   preview.value = null
+  mode.value = 'shape'
   if (original.value) URL.revokeObjectURL(original.value)
   original.value = null
   formError.value = null
@@ -134,17 +137,36 @@ async function onFile(event: Event): Promise<void> {
   file.value = picked
   if (original.value) URL.revokeObjectURL(original.value)
   original.value = URL.createObjectURL(picked)
+  mode.value = 'shape'
+  await showPreview()
+}
+
+// The white version of the picked file, made the way `mode` says. Asked
+// again when the admin switches mode, so the preview is what gets saved.
+let previewFor = 0
+async function showPreview(): Promise<void> {
+  const picked = file.value
+  if (!picked) return
+  const ask = ++previewFor
   preview.value = null
   formError.value = null
   previewing.value = true
   try {
-    preview.value = await adminApi.previewSponsorLogo(picked)
+    const made = await adminApi.previewSponsorLogo(picked, mode.value)
+    if (ask === previewFor) preview.value = made
   } catch (e) {
-    file.value = null
+    if (ask !== previewFor) return
+    if (mode.value === 'shape') file.value = null
     formError.value = apiErrorMessage(e, t('sponsors.previewFailed'))
   } finally {
-    previewing.value = false
+    if (ask === previewFor) previewing.value = false
   }
+}
+
+function pickMode(next: LogoMode): void {
+  if (mode.value === next) return
+  mode.value = next
+  void showPreview()
 }
 
 async function save(): Promise<void> {
@@ -158,10 +180,10 @@ async function save(): Promise<void> {
         name: form.name.trim(),
         href: form.href.trim() || null,
       })
-      if (file.value) updated = await adminApi.replaceSponsorLogo(editing.value.id, file.value)
+      if (file.value) updated = await adminApi.replaceSponsorLogo(editing.value.id, file.value, mode.value)
       replace(updated)
     } else if (file.value) {
-      sponsors.value = [...sponsors.value, await adminApi.createSponsor(form.name.trim(), form.href, file.value)]
+      sponsors.value = [...sponsors.value, await adminApi.createSponsor(form.name.trim(), form.href, file.value, mode.value)]
     }
     closeForm()
   } catch (e) {
@@ -323,6 +345,28 @@ async function remove(): Promise<void> {
           </div>
         </div>
         <p class="mt-2 text-xs text-white/50">{{ t('sponsors.whitenHint') }}</p>
+        <template v-if="file">
+          <div
+            class="mt-3 inline-flex gap-1 rounded-full border border-brand-pink/25 p-1"
+            role="radiogroup"
+            :aria-label="t('sponsors.modeLabel')"
+          >
+            <button
+              v-for="m in LOGO_MODES"
+              :key="m"
+              type="button"
+              role="radio"
+              :aria-checked="mode === m"
+              :disabled="previewing"
+              class="min-h-11 rounded-full px-4 text-sm font-semibold"
+              :class="mode === m ? 'bg-brand-pink text-brand-black' : 'text-white/75'"
+              @click="pickMode(m)"
+            >
+              {{ m === 'shape' ? t('sponsors.modeShape') : t('sponsors.modeLight') }}
+            </button>
+          </div>
+          <p class="mt-1 text-xs text-white/50">{{ t('sponsors.modeHint') }}</p>
+        </template>
         <label class="tap mt-2 w-full cursor-pointer rounded-full border border-brand-pink/40 px-4 text-sm font-semibold text-brand-pink">
           {{ file || editing ? t('sponsors.changeLogo') : t('sponsors.pickLogo') }}
           <input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" @change="onFile" />
